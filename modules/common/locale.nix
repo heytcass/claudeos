@@ -19,9 +19,15 @@
     LC_TIME = "en_US.UTF-8";
   };
 
-  # Console keymap
+  # Console keymap (TTY)
   console = {
     font = "Lat2-Terminus16";
-    keyMap = lib.mkDefault "us";
+    keyMap = "colemak";
+  };
+
+  # X11/Wayland keyboard layout
+  services.xserver.xkb = {
+    layout = "us";
+    variant = "colemak";
   };
 }
