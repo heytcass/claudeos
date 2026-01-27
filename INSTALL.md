@@ -25,111 +25,201 @@ lsblk
 DISK=/dev/sda  # or /dev/nvme0n1
 
 # Create partitions
-parted $DISK -- mklabel gpt
-parted $DISK -- mkpart ESP fat32 1MiB 512MiB
-parted $DISK -- set 1 esp on
-parted $DISK -- mkpart primary 512MiB 100%
+sudo parted $DISK -- mklabel gpt
+sudo parted $DISK -- mkpart ESP fat32 1MiB 512MiB
+sudo parted $DISK -- set 1 esp on
+sudo parted $DISK -- mkpart primary 512MiB 100%
 
-# Format
-mkfs.fat -F 32 -n boot ${DISK}1
-mkfs.ext4 -L nixos ${DISK}2
+# Format boot partition
+sudo mkfs.fat -F 32 -n boot ${DISK}1
+
+# Format root with btrfs (recommended)
+sudo mkfs.btrfs -f -L nixos ${DISK}2
+
+# Or use ext4 (simpler, but no snapshots/compression):
+# sudo mkfs.ext4 -L nixos ${DISK}2
 ```
 
-### 3. Mount
+### 3. Setup Btrfs Subvolumes (if using btrfs)
+
+**Why btrfs?** Snapshots, compression (saves ~30% disk space), subvolumes for flexible management.
 
 ```bash
-mount /dev/disk/by-label/nixos /mnt
-mkdir -p /mnt/boot
-mount /dev/disk/by-label/boot /mnt/boot
+# Mount temporarily to create subvolumes
+sudo mount /dev/sda2 /mnt
+
+# Create subvolumes
+sudo btrfs subvolume create /mnt/@           # root
+sudo btrfs subvolume create /mnt/@home       # home
+sudo btrfs subvolume create /mnt/@nix        # nix store
+sudo btrfs subvolume create /mnt/@log        # logs
+
+# Verify
+sudo btrfs subvolume list /mnt
+
+# Unmount
+sudo umount /mnt
 ```
 
-### 4. Setup Repository
+### 4. Mount Filesystems
+
+**For btrfs:**
+
+```bash
+# Mount options (compression + noatime)
+BTRFS_OPTS="noatime,compress=zstd,space_cache=v2"
+
+# Mount root subvolume
+sudo mount -o $BTRFS_OPTS,subvol=@ /dev/sda2 /mnt
+
+# Create mount points
+sudo mkdir -p /mnt/{boot,home,nix,var/log}
+
+# Mount other subvolumes
+sudo mount -o $BTRFS_OPTS,subvol=@home /dev/sda2 /mnt/home
+sudo mount -o $BTRFS_OPTS,subvol=@nix /dev/sda2 /mnt/nix
+sudo mkdir -p /mnt/var
+sudo mount -o $BTRFS_OPTS,subvol=@log /dev/sda2 /mnt/var/log
+
+# Mount boot
+sudo mount /dev/sda1 /mnt/boot
+
+# Verify
+mount | grep /mnt
+```
+
+**For ext4 (if you chose ext4 instead):**
+
+```bash
+sudo mount /dev/disk/by-label/nixos /mnt
+sudo mkdir -p /mnt/boot
+sudo mount /dev/disk/by-label/boot /mnt/boot
+```
+
+### 5. Setup Repository
 
 ```bash
 # Get git
 nix-shell -p git
 
-# Create config directory and clone repo
-mkdir -p /mnt/home/tom/.config
-cd /mnt/home/tom/.config
-git clone <your-repo-url> claudeos
-cd claudeos
+# Transfer config from Ubuntu (if not already done)
+# From Ubuntu: scp -r /home/tom/projects/claudeos nixos@<IP>:/tmp/claudeos
 
-# Generate hardware config
-nixos-generate-config --root /mnt
+# Move to mounted filesystem
+sudo mkdir -p /mnt/home/tom/.config
+sudo mv /tmp/claudeos /mnt/home/tom/.config/claudeos
+cd /mnt/home/tom/.config/claudeos
+
+# Generate hardware config (detects btrfs subvolumes)
+sudo nixos-generate-config --root /mnt
 
 # Copy hardware config to repo
-cp /mnt/etc/nixos/hardware-configuration.nix \
+sudo cp /mnt/etc/nixos/hardware-configuration.nix \
    hosts/transporter/hardware-configuration.nix
 
-# Review and commit hardware config
-# (You'll push this after install)
+# Configure git and commit
+git config user.email "tom@example.com"
+git config user.name "Tom"
+git add hosts/transporter/hardware-configuration.nix
+git commit -m "feat(transporter): add btrfs hardware configuration"
 ```
 
-### 5. Install
+### 6. Install
 
 ```bash
-# Install NixOS
-nixos-install --flake .#transporter
+# Install NixOS (takes a few minutes)
+sudo nixos-install --flake .#transporter
 
-# Set passwords when prompted
-# Root password first, then:
+# Set root password when prompted
 ```
 
 After install completes:
 ```bash
 # Chroot to set user password
-nixos-enter --root /mnt
+sudo nixos-enter --root /mnt
 passwd tom
 exit
 
 # Reboot
-reboot
+sudo reboot
 ```
 
-### 6. Post-Install
+Remove USB drive when rebooting.
 
-After reboot and login:
+### 7. Post-Install - Fix Permissions
+
+After first SSH login as tom:
 
 ```bash
-# Commit and push hardware config
-cd ~/.config/claudeos
-git add hosts/transporter/hardware-configuration.nix
-git commit -m "feat(transporter): add hardware configuration"
-git push origin main
+# Fix home directory ownership (created by sudo during install)
+sudo chown -R tom:users /home/tom
 
-# Test SSH from Ubuntu
-# From your Ubuntu machine:
-ssh tom@transporter
+# Exit and reconnect
+exit
 ```
 
-## Quick Verification
+SSH back in and verify everything works.
 
-On transporter after install:
+### 8. Copy Hardware Config Back to Ubuntu
+
+From your **Ubuntu machine**:
+
+```bash
+# Copy hardware config from transporter
+scp tom@10.0.10.205:~/.config/claudeos/hosts/transporter/hardware-configuration.nix \
+    /home/tom/projects/claudeos/hosts/transporter/
+
+# Commit it
+cd /home/tom/projects/claudeos
+git add hosts/transporter/hardware-configuration.nix
+git commit -m "feat(transporter): add btrfs hardware configuration"
+```
+
+## Phase 1 Verification
+
+On transporter after install and permission fix:
 
 ```bash
 # Check hostname
 hostname
 # Should output: transporter
 
-# Check Nix version
-nix --version
+# Check user and shell
+whoami
+echo $SHELL
+# Should be: tom, /run/current-system/sw/bin/fish
 
-# Check flake
-cd /etc/nixos
-nix flake check
+# Test keyboard - should be Colemak layout
+# Try typing - layout should be Colemak
 
 # Check network
-ping google.com
+ping -c 2 google.com
 
-# Check user
-whoami
-# Should output: tom
+# Check sudo works
+sudo echo "sudo works"
 
-# Check shell
-echo $SHELL
-# Should output: /run/current-system/sw/bin/fish
+# Check basic packages
+git --version
+vim --version
+htop --version
+
+# Check config location
+cd ~/.config/claudeos
+pwd
+ls -la
+
+# Check git status
+git status
+
+# Verify flake
+nix flake check
+
+# Check btrfs (if using btrfs)
+sudo btrfs filesystem show
+sudo btrfs subvolume list /
 ```
+
+**Phase 1 Complete!** ✅ All checks should pass.
 
 ## Troubleshooting
 

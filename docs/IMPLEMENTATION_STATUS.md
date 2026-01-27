@@ -1,7 +1,7 @@
 # ClaudeOS Implementation Status
 
-**Last Updated:** 2026-01-26
-**Current Phase:** Phase 1 - Foundation ✅ COMPLETE
+**Last Updated:** 2026-01-27
+**Current Phase:** Phase 1 - Foundation ✅ COMPLETE & TESTED
 
 ## Overview
 
@@ -9,11 +9,11 @@ This document tracks implementation progress for ClaudeOS. Agents should update 
 
 ---
 
-## Phase 1: Foundation (Core System) ✅ COMPLETE
+## Phase 1: Foundation (Core System) ✅ COMPLETE & TESTED
 
 **Goal:** Bootable NixOS with SSH access
 
-### Status: ✅ Complete
+### Status: ✅ Complete and tested on transporter
 
 ### Completed Tasks:
 - [x] Initialize Git repository
@@ -24,7 +24,7 @@ This document tracks implementation progress for ClaudeOS. Agents should update 
   - [x] nix.nix - Flakes, GC, unfree packages
   - [x] users.nix - User account, fish shell
   - [x] networking.nix - NetworkManager, SSH
-  - [x] locale.nix - Timezone, i18n
+  - [x] locale.nix - Timezone, i18n with US Colemak keyboard
   - [x] system.nix - Base packages
 - [x] Create hosts/transporter/default.nix
 - [x] Create placeholder hardware-configuration.nix
@@ -32,19 +32,41 @@ This document tracks implementation progress for ClaudeOS. Agents should update 
   - [x] docs/CLAUDE.md (router)
   - [x] docs/WORKFLOW.md
   - [x] docs/DEPLOYMENT.md
+  - [x] INSTALL.md with btrfs option
 - [x] Validate configuration: `nix flake check` passes
 - [x] Initial commit
 
-### Next Steps:
-- [ ] Install NixOS on transporter following DEPLOYMENT.md
-- [ ] Generate real hardware-configuration.nix
-- [ ] First deployment to transporter
-- [ ] Verify SSH access works
+### Installation & Testing:
+- [x] Install NixOS on transporter with btrfs
+- [x] Generate real hardware-configuration.nix
+- [x] First successful deployment to transporter
+- [x] SSH access working
+- [x] All Phase 1 verification tests passed:
+  - [x] Hostname: transporter
+  - [x] User: tom
+  - [x] Shell: fish
+  - [x] Keyboard: US Colemak
+  - [x] Network: working (IPv6)
+  - [x] Sudo: working
+  - [x] Basic packages: git, vim, htop
+  - [x] Config location: ~/.config/claudeos
+  - [x] Flake validation: passes
+
+### Filesystem Configuration:
+- **Format:** btrfs with zstd compression
+- **Subvolumes:**
+  - `@` - root
+  - `@home` - /home
+  - `@nix` - /nix (nix store)
+  - `@log` - /var/log
+- **Benefits:** Snapshots, compression (~30% space savings), flexible management
 
 ### Notes:
-- Placeholder hardware configs use dummy UUIDs - will be replaced during install
+- Configuration location: `~/.config/claudeos` on target machines
+- Btrfs chosen for snapshots and compression
+- Keyboard layout: US Colemak (console and X11/Wayland)
 - Development shell includes nixpkgs-fmt, statix, deadnix, nil
-- Configuration validates successfully on Ubuntu
+- Home directory ownership must be fixed after install: `sudo chown -R tom:users /home/tom`
 
 ---
 
@@ -315,6 +337,16 @@ Ideas for after initial implementation:
 
 ## Maintenance Log
 
+### 2026-01-27
+- **Phase 1 deployed and tested:** NixOS installed on transporter
+- Filesystem: btrfs with subvolumes (@, @home, @nix, @log) and zstd compression
+- Hardware config generated and committed
+- All Phase 1 verification tests passed
+- SSH access working
+- Keyboard: US Colemak configured for console and X11/Wayland
+- Configuration location: ~/.config/claudeos
+- Ready for Phase 2 (Desktop Environment)
+
 ### 2026-01-26
 - Phase 1 complete: Foundation implemented
 - Repository initialized
@@ -324,4 +356,4 @@ Ideas for after initial implementation:
 
 ---
 
-**Next Immediate Step:** Install NixOS on transporter following DEPLOYMENT.md
+**Next Immediate Step:** Begin Phase 2 - Desktop Environment (GNOME + Wayland + Audio)
