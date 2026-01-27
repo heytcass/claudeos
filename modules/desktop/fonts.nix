@@ -12,7 +12,7 @@
         sansSerif = [ "Inter" "Noto Sans" "DejaVu Sans" ];
         serif = [ "Noto Serif" "DejaVu Serif" ];
         monospace = [ "JetBrains Mono" "Fira Code" "DejaVu Sans Mono" ];
-        emoji = [ "Noto Color Emoji" ];
+        emoji = [ "Noto Color Emoji" ];  # Package: noto-fonts-color-emoji
       };
 
       # Better font rendering
@@ -33,7 +33,7 @@
       # System fonts for fallbacks and Unicode coverage
       noto-fonts                   # Excellent Unicode coverage
       noto-fonts-cjk-sans         # Chinese, Japanese, Korean
-      noto-fonts-emoji            # Emoji support
+      noto-fonts-color-emoji      # Emoji support
       liberation_ttf              # Microsoft font replacements
       dejavu_fonts                # Bitstream Vera successor
 
