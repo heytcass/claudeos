@@ -30,16 +30,18 @@
 
   # Exclude unwanted GNOME apps to keep system lean
   environment.gnome.excludePackages = with pkgs; [
-    epiphany      # GNOME Web (we'll use Chrome)
-    geary         # Email client
+    epiphany       # GNOME Web (we'll use Chrome)
+    geary          # Email client
     gnome-contacts
     gnome-maps
     gnome-music
     gnome-photos
-    gnome-tour    # First-run tour
+    gnome-tour     # First-run tour
     gnome-weather
-    totem         # Video player (VLC is better)
-    yelp          # Help browser
+    totem          # Video player
+    yelp           # Help browser
+    gnome-console  # GNOME terminal (we'll use WezTerm)
+    xterm          # X terminal emulator (bloat from X server deps)
   ];
 
   # Enable GVfs for virtual filesystems (Trash, network shares, etc.)
@@ -55,4 +57,16 @@
   environment.sessionVariables = {
     GNOME_SHELL_CRASHREPORTER_ENABLED = "false";
   };
+
+  # Hide CLI tools from application launcher
+  # These are useful system utilities but shouldn't clutter the app menu
+  # Override .desktop files to hide them from GNOME
+  environment.etc."xdg/applications/vim.desktop".text = ''
+    [Desktop Entry]
+    Hidden=true
+  '';
+  environment.etc."xdg/applications/htop.desktop".text = ''
+    [Desktop Entry]
+    Hidden=true
+  '';
 }
