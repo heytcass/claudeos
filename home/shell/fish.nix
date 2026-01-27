@@ -103,7 +103,7 @@
           owner = "PatrickF1";
           repo = "fzf.fish";
           rev = "v10.3";
-          sha256 = "sha256-T8KYLA/r/gOKvALPNn30NLmXSVrk5TzCGfCdL5CQk+Y=";
+          sha256 = "sha256-T8KYLA/r/gOKvAivKRoeqIwE2pINlxFQtZJHpOy9GMM=";
         };
       }
 
