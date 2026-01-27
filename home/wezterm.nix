@@ -73,7 +73,8 @@
         top = 8,
         bottom = 8,
       }
-      config.window_decorations = "RESIZE"
+      -- Use integrated buttons for better GNOME Wayland appearance
+      config.window_decorations = "INTEGRATED_BUTTONS|RESIZE"
       config.window_close_confirmation = "NeverPrompt"
 
       -- Performance
