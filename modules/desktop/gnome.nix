@@ -62,31 +62,4 @@
     GNOME_SHELL_CRASHREPORTER_ENABLED = "false";
   };
 
-  # Hide CLI tools and unwanted terminals from application launcher
-  # These are useful system utilities but shouldn't clutter the app menu
-  # Override .desktop files to hide them from GNOME
-  environment.etc."xdg/applications/vim.desktop".text = ''
-    [Desktop Entry]
-    Hidden=true
-  '';
-  environment.etc."xdg/applications/htop.desktop".text = ''
-    [Desktop Entry]
-    Hidden=true
-  '';
-  environment.etc."xdg/applications/micro.desktop".text = ''
-    [Desktop Entry]
-    Hidden=true
-  '';
-  environment.etc."xdg/applications/yazi.desktop".text = ''
-    [Desktop Entry]
-    Hidden=true
-  '';
-  environment.etc."xdg/applications/xterm.desktop".text = ''
-    [Desktop Entry]
-    Hidden=true
-  '';
-  environment.etc."xdg/applications/uxterm.desktop".text = ''
-    [Desktop Entry]
-    Hidden=true
-  '';
 }
