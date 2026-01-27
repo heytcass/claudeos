@@ -49,17 +49,17 @@ mount /dev/disk/by-label/boot /mnt/boot
 # Get git
 nix-shell -p git
 
-# Clone repo to /mnt/etc/nixos
-cd /mnt/etc
-rm -rf nixos
-git clone <your-repo-url> nixos
-cd nixos
+# Create config directory and clone repo
+mkdir -p /mnt/home/tom/.config
+cd /mnt/home/tom/.config
+git clone <your-repo-url> claudeos
+cd claudeos
 
 # Generate hardware config
 nixos-generate-config --root /mnt
 
 # Copy hardware config to repo
-cp /mnt/etc/nixos-generated/hardware-configuration.nix \
+cp /mnt/etc/nixos/hardware-configuration.nix \
    hosts/transporter/hardware-configuration.nix
 
 # Review and commit hardware config
@@ -93,7 +93,7 @@ After reboot and login:
 
 ```bash
 # Commit and push hardware config
-cd /etc/nixos
+cd ~/.config/claudeos
 git add hosts/transporter/hardware-configuration.nix
 git commit -m "feat(transporter): add hardware configuration"
 git push origin main
@@ -154,16 +154,20 @@ echo $SHELL
 
 ## Repository Location on Target
 
-- **Configuration:** `/etc/nixos`
+- **Configuration:** `~/.config/claudeos` (`/home/tom/.config/claudeos`)
 - **This is a git repo** - all changes via git pull
-- **Never edit directly** on target machine
-- **Always edit on Ubuntu**, commit, push, then pull on target
+- **No sudo needed to edit** - it's in your home directory
+- **Best practice: Edit on Ubuntu**, commit, push, then pull on target
+- **Can edit directly if needed** - just commit and push back to stay in sync
 
 ## Useful Commands
 
 ```bash
-# Rebuild system
-sudo nixos-rebuild switch --flake .#transporter
+# Rebuild system (from ~/.config/claudeos)
+sudo nixos-rebuild switch --flake ~/.config/claudeos#transporter
+
+# Or add this alias to your fish config:
+alias nixos-rebuild-switch='sudo nixos-rebuild switch --flake ~/.config/claudeos#(hostname)'
 
 # List generations
 sudo nixos-rebuild list-generations

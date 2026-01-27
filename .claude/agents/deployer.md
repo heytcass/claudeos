@@ -49,13 +49,13 @@ git push origin main
 ssh <hostname>
 
 # Navigate to repo
-cd /etc/nixos
+cd ~/.config/claudeos
 
 # Pull latest
 git pull origin main
 
 # Rebuild
-sudo nixos-rebuild switch --flake .#<hostname>
+sudo nixos-rebuild switch --flake ~/.config/claudeos#<hostname>
 
 # Exit
 exit
@@ -140,6 +140,13 @@ Deployment failed. Review error and fix issues.
 
 **User:** "Push to gti"
 **Agent:** Confirm with user, verify tested on transporter, deploy
+
+## Configuration Path
+
+Target machines use `~/.config/claudeos` for configuration:
+- **No sudo needed for editing** - it's in user's home directory
+- **Rebuild command:** `sudo nixos-rebuild switch --flake ~/.config/claudeos#<hostname>`
+- **Can edit on target if needed** - just commit and push to stay in sync
 
 ## Error Handling
 

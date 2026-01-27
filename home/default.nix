@@ -21,4 +21,9 @@
   #   ./wezterm.nix
   #   ./vscode.nix
   # ];
+
+  # Phase 3: Add this useful alias for rebuilding system
+  # programs.fish.shellAliases = {
+  #   nixos-rebuild-switch = "sudo nixos-rebuild switch --flake ~/.config/claudeos#(hostname)";
+  # };
 }

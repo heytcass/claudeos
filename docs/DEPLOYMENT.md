@@ -84,14 +84,14 @@ nixos-generate-config --root /mnt
 # Install git in installer environment
 nix-shell -p git
 
-# Clone repo to /mnt/etc/nixos
-cd /mnt/etc
-rm -rf nixos  # Remove default config
-git clone <repo-url> nixos
-cd nixos
+# Create config directory and clone repo
+mkdir -p /mnt/home/tom/.config
+cd /mnt/home/tom/.config
+git clone <repo-url> claudeos
+cd claudeos
 
 # Copy generated hardware config to appropriate host
-cp /mnt/etc/nixos-generated/hardware-configuration.nix \
+cp /mnt/etc/nixos/hardware-configuration.nix \
    hosts/transporter/hardware-configuration.nix  # or hosts/gti/
 
 # Commit hardware config
@@ -103,7 +103,7 @@ git push
 ### 6. Initial Install
 
 ```bash
-# Still in /mnt/etc/nixos on installer
+# Still in /mnt/home/tom/.config/claudeos on installer
 nixos-install --flake .#transporter  # or .#gti
 
 # Set root password when prompted
@@ -124,13 +124,13 @@ reboot
 ssh tom@transporter  # or gti
 
 # Navigate to config directory
-cd /etc/nixos
+cd ~/.config/claudeos
 
 # Pull latest changes
 git pull origin main
 
 # Apply configuration
-sudo nixos-rebuild switch --flake .#transporter
+sudo nixos-rebuild switch --flake ~/.config/claudeos#transporter
 
 # Reboot if kernel/boot changed (usually not needed)
 # sudo reboot
@@ -140,13 +140,14 @@ sudo nixos-rebuild switch --flake .#transporter
 
 ```bash
 # From development machine
+ssh transporter "cd ~/.config/claudeos && git pull"
+ssh transporter "sudo nixos-rebuild switch --flake ~/.config/claudeos#transporter"
+
+# Or using nixos-rebuild remote (requires SSH key and passwordless sudo):
 nixos-rebuild switch --flake .#transporter \
   --target-host tom@transporter \
-  --use-remote-sudo
-
-# This requires:
-# - SSH key access
-# - Passwordless sudo or TTY sudo configured
+  --use-remote-sudo \
+  --build-host tom@transporter
 ```
 
 ### Method 3: Deployer Agent
@@ -193,9 +194,9 @@ Generations are also available in boot menu (systemd-boot).
 4. **Deploy to target**:
    ```bash
    ssh transporter
-   cd /etc/nixos
+   cd ~/.config/claudeos
    git pull
-   sudo nixos-rebuild switch --flake .#transporter
+   sudo nixos-rebuild switch --flake ~/.config/claudeos#transporter
    exit
    ```
 5. **Test** functionality

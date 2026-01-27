@@ -8,11 +8,15 @@ NixOS configuration optimized for Claude Code workflow.
 
 **For humans:**
 
-1. **Prerequisites:** NixOS installed on target machine (transporter or gti)
-2. **Clone repo:** `git clone <repo-url> /home/tom/projects/claudeos`
-3. **Enter dev shell:** `cd claudeos && nix develop`
-4. **Validate:** `nix flake check`
-5. **Deploy:** See [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md)
+**On Ubuntu (development):**
+1. **Clone repo:** `git clone <repo-url> /home/tom/projects/claudeos`
+2. **Enter dev shell:** `cd claudeos && nix develop`
+3. **Validate:** `nix flake check`
+
+**On NixOS (target machines):**
+1. **Prerequisites:** NixOS installed on target machine
+2. **Clone to user config:** `git clone <repo-url> ~/.config/claudeos`
+3. **Deploy:** See [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) or [`INSTALL.md`](INSTALL.md)
 
 ## Machines
 

@@ -2,6 +2,23 @@
 
 **Development is done on Ubuntu machine, deployment to NixOS targets.**
 
+## Configuration Locations
+
+- **Ubuntu (development):** `/home/tom/projects/claudeos`
+- **NixOS targets:** `~/.config/claudeos` (`/home/tom/.config/claudeos`)
+
+### Why ~/.config/claudeos?
+
+Using `~/.config/claudeos` on target machines instead of `/etc/nixos` provides several benefits:
+
+✅ **No sudo for editing** - Edit config files without root permissions
+✅ **Easier git operations** - No permission conflicts with git
+✅ **Standard location** - Follows XDG Base Directory specification
+✅ **Can edit on target if needed** - Make quick fixes directly (just remember to commit and push)
+✅ **Cleaner separation** - User config separate from system files
+
+The rebuild command uses explicit path: `sudo nixos-rebuild switch --flake ~/.config/claudeos#<hostname>`
+
 ## Setup Development Environment
 
 ### First Time Setup
@@ -101,14 +118,19 @@ See [DEPLOYMENT.md](./DEPLOYMENT.md) for detailed deployment steps.
 ```bash
 # On target machine (transporter or gti)
 ssh transporter  # or gti
-cd /etc/nixos    # or wherever repo is cloned
+cd ~/.config/claudeos
 git pull
-sudo nixos-rebuild switch --flake .#transporter
+sudo nixos-rebuild switch --flake ~/.config/claudeos#transporter
 ```
 
 Or use deployer agent from Ubuntu:
 ```bash
 @deployer-agent deploy transporter with message "feat: xyz"
+```
+
+**Tip:** Add this fish alias on target machines:
+```fish
+alias nixos-rebuild-switch='sudo nixos-rebuild switch --flake ~/.config/claudeos#(hostname)'
 ```
 
 ## Common Tasks
@@ -183,6 +205,7 @@ nix flake check
    ```
 
 4. Generate hardware-configuration.nix on target (see [DEPLOYMENT.md](./DEPLOYMENT.md))
+5. Clone repo to `~/.config/claudeos` on new machine
 
 ## Troubleshooting
 
