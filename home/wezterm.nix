@@ -73,8 +73,8 @@
         top = 8,
         bottom = 8,
       }
-      -- Use integrated buttons for better GNOME Wayland appearance
-      config.window_decorations = "INTEGRATED_BUTTONS|RESIZE"
+      -- Use title bar with integrated buttons for GNOME Wayland
+      config.window_decorations = "TITLE | RESIZE"
       config.window_close_confirmation = "NeverPrompt"
 
       -- Performance
