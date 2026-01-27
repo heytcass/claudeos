@@ -1,7 +1,10 @@
 { ... }:
 
 {
-  # Phase 3-4: Applications
-  # For now, empty
-  imports = [ ];
+  # Phase 3: Applications
+  imports = [
+    ./terminals.nix
+    ./browsers.nix
+    ./communication.nix
+  ];
 }
