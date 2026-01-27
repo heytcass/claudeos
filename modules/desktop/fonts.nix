@@ -37,17 +37,14 @@
       liberation_ttf              # Microsoft font replacements
       dejavu_fonts                # Bitstream Vera successor
 
-      # Programming fonts with ligatures
-      (nerdfonts.override {        # Patched fonts with icons for terminals
-        fonts = [
-          "JetBrainsMono"          # Primary coding font
-          "FiraCode"               # Alternative with ligatures
-        ];
-      })
+      # Programming fonts with ligatures and Nerd Font icons
+      # Note: nerdfonts was split into individual packages in nixpkgs
+      nerd-fonts.jetbrains-mono    # Primary coding font with icons
+      nerd-fonts.fira-code         # Alternative with ligatures and icons
 
-      # Additional fonts
-      fira-code                    # Mozilla's programming font (non-Nerd Font)
-      jetbrains-mono               # JetBrains monospace (non-Nerd Font)
+      # Non-Nerd Font versions (for compatibility)
+      fira-code                    # Mozilla's programming font
+      jetbrains-mono               # JetBrains monospace
     ];
 
     # Enable support for additional font formats
