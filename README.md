@@ -4,7 +4,7 @@ NixOS configuration optimized for Claude Code workflow.
 
 ## Quick Start
 
-**For Claude agents:** Read [`docs/CLAUDE.md`](docs/CLAUDE.md) first.
+**For Claude agents:** Read [`CLAUDE.md`](CLAUDE.md) first.
 
 **For humans:**
 
@@ -36,7 +36,9 @@ NixOS configuration optimized for Claude Code workflow.
 ## Documentation
 
 All docs in [`docs/`](docs/) directory:
-- [CLAUDE.md](docs/CLAUDE.md) - Start here for agents
+- [CLAUDE.md](CLAUDE.md) - Claude agent entry point (auto-loaded)
+- [CLAUDE-DEVELOPMENT.md](docs/CLAUDE-DEVELOPMENT.md) - Building configuration
+- [CLAUDE-OPERATIONS.md](docs/CLAUDE-OPERATIONS.md) - Operating deployed systems
 - [WORKFLOW.md](docs/WORKFLOW.md) - Development workflow
 - [DEPLOYMENT.md](docs/DEPLOYMENT.md) - Deployment guide
 - [MODULES.md](docs/MODULES.md) - Module documentation
