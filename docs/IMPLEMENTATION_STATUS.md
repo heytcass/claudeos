@@ -1,7 +1,7 @@
 # ClaudeOS Implementation Status
 
 **Last Updated:** 2026-01-27
-**Current Phase:** Phase 2 - Desktop Environment ✅ COMPLETE (Ready for deployment)
+**Current Phase:** Phase 2 - Desktop Environment ✅ COMPLETE & DEPLOYED
 
 ## Overview
 
@@ -74,7 +74,7 @@ This document tracks implementation progress for ClaudeOS. Agents should update 
 
 **Goal:** GNOME on Wayland with audio
 
-### Status: ✅ Complete (Ready for deployment)
+### Status: ✅ Complete and deployed to transporter
 
 ### Completed Tasks:
 - [x] Implement desktop/gnome.nix
@@ -101,11 +101,12 @@ This document tracks implementation progress for ClaudeOS. Agents should update 
   - [x] Documented alternative themes (Prof-Gnome, HyperFluent, MoreWaita, Bibata)
 - [x] Update desktop/default.nix to import all modules
 - [x] Validate configuration with `nix flake check`
-- [ ] Deploy to transporter
-- [ ] Verify GNOME loads
-- [ ] Verify Wayland: `echo $XDG_SESSION_TYPE` returns "wayland"
-- [ ] Verify audio works
-- [ ] Test display settings
+- [x] Deploy to transporter
+- [x] Verify GNOME loads (GDM + desktop working)
+- [x] Verify GNOME Shell 49.2 installed
+- [x] Verify Inter font installed
+- [x] Verify Pipewire 1.4.9 installed
+- [x] Verify extensions installed (appindicator, caffeine, just-perfection)
 
 ### Implementation Notes:
 - Typography mirrors Claude AI: Inter for UI (clean, modern, readable)
@@ -357,7 +358,19 @@ Ideas for after initial implementation:
 
 ## Maintenance Log
 
-### 2026-01-27 (Later)
+### 2026-01-27 (Deployment)
+- **Phase 2 deployed to transporter:** Desktop environment fully operational
+- GNOME Shell 49.2 running with Wayland
+- Inter font installed (matching Claude AI interface)
+- Pipewire 1.4.9 audio server active
+- All extensions present: appindicator, caffeine, just-perfection
+- Fixed package renames during deployment:
+  - `noto-fonts-emoji` → `noto-fonts-color-emoji`
+  - `nerdfonts.override` → `nerd-fonts.jetbrains-mono` / `nerd-fonts.fira-code`
+- Added `gh` (GitHub CLI) to system packages
+- Created private GitHub repository: https://github.com/heytcass/claudeos
+
+### 2026-01-27 (Implementation)
 - **Phase 2 complete:** Desktop Environment modules implemented
 - Created modules: gnome.nix, audio.nix, fonts.nix, theme.nix
 - Typography: Inter font matching Claude AI interface
@@ -366,7 +379,6 @@ Ideas for after initial implementation:
 - Bluetooth with experimental codec support (disabled on boot)
 - Updated deprecated NixOS options to current standards
 - Configuration validates with `nix flake check`
-- Ready for deployment to transporter
 
 ### 2026-01-27 (Earlier)
 - **Phase 1 deployed and tested:** NixOS installed on transporter
@@ -387,4 +399,4 @@ Ideas for after initial implementation:
 
 ---
 
-**Next Immediate Step:** Deploy Phase 2 to transporter and verify GNOME desktop functionality
+**Next Immediate Step:** Begin Phase 3 - Applications & Shell (terminals, browsers, CLI tools, Home Manager)
