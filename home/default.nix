@@ -4,7 +4,7 @@
   # Import all Home Manager modules
   imports = [
     ./shell
-    ./wezterm.nix
+    ./ghostty.nix
     ./git.nix
     ./vscode.nix
   ];
