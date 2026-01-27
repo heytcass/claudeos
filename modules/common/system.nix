@@ -8,6 +8,7 @@
     wget
     curl
     git
+    gh        # GitHub CLI
     htop
     tree
     file
