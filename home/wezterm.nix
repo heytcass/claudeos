@@ -14,11 +14,8 @@
         config = wezterm.config_builder()
       end
 
-      -- Font configuration - Claude-branded with Inter
-      config.font = wezterm.font_with_fallback {
-        { family = 'Inter', weight = 'Regular' },
-        { family = 'JetBrains Mono Nerd Font', weight = 'Regular' },
-      }
+      -- Font configuration - JetBrains Mono for readability
+      config.font = wezterm.font('JetBrains Mono Nerd Font', { weight = 'Regular' })
       config.font_size = 11.0
       config.line_height = 1.2
 

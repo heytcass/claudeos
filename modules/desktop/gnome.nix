@@ -4,6 +4,11 @@
   # Enable X server (required for display managers)
   services.xserver.enable = true;
 
+  # Exclude xterm (pulled in by X server dependencies)
+  services.xserver.excludePackages = with pkgs; [
+    xterm
+  ];
+
   # Use GDM display manager (GNOME's native DM)
   services.displayManager.gdm = {
     enable = true;
@@ -41,7 +46,6 @@
     totem          # Video player
     yelp           # Help browser
     gnome-console  # GNOME terminal (we'll use WezTerm)
-    xterm          # X terminal emulator (bloat from X server deps)
   ];
 
   # Enable GVfs for virtual filesystems (Trash, network shares, etc.)
@@ -58,7 +62,7 @@
     GNOME_SHELL_CRASHREPORTER_ENABLED = "false";
   };
 
-  # Hide CLI tools from application launcher
+  # Hide CLI tools and unwanted terminals from application launcher
   # These are useful system utilities but shouldn't clutter the app menu
   # Override .desktop files to hide them from GNOME
   environment.etc."xdg/applications/vim.desktop".text = ''
@@ -66,6 +70,22 @@
     Hidden=true
   '';
   environment.etc."xdg/applications/htop.desktop".text = ''
+    [Desktop Entry]
+    Hidden=true
+  '';
+  environment.etc."xdg/applications/micro.desktop".text = ''
+    [Desktop Entry]
+    Hidden=true
+  '';
+  environment.etc."xdg/applications/yazi.desktop".text = ''
+    [Desktop Entry]
+    Hidden=true
+  '';
+  environment.etc."xdg/applications/xterm.desktop".text = ''
+    [Desktop Entry]
+    Hidden=true
+  '';
+  environment.etc."xdg/applications/uxterm.desktop".text = ''
     [Desktop Entry]
     Hidden=true
   '';
