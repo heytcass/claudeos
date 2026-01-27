@@ -61,8 +61,21 @@
       wayland = true;
       linux-cgroup = "always";
 
+      # Shell integration
+      shell-integration = "fish";
+      shell-integration-features = "cursor,sudo,title";
+
       # Scrollback
       scrollback-limit = 10000;
+
+      # Mouse integration
+      copy-on-select = true;  # Auto-copy selection to clipboard
+      mouse-hide-while-typing = true;
+
+      # Window behavior
+      window-save-state = "always";  # Remember window size/position
+      window-inherit-working-directory = true;
+      window-inherit-font-size = true;
 
       # Close without confirmation
       quit-after-last-window-closed = true;
@@ -72,6 +85,14 @@
       # Ghostty uses different keybind syntax than WezTerm
       # New tab: Ctrl+Shift+T (default)
       # Close tab: Ctrl+Shift+W (default)
+      # Copy: Ctrl+Shift+C (default)
+      # Paste: Ctrl+Shift+V (default)
     };
   };
+
+  # Shell integration for Fish
+  # Ghostty provides automatic integration when shell-integration is enabled
+  programs.fish.shellInit = lib.mkAfter ''
+    # Ghostty shell integration is automatically loaded
+  '';
 }
