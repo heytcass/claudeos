@@ -13,6 +13,13 @@
         mkhl.direnv
         arrterian.nix-env-selector
 
+        # Markdown
+        yzhang.markdown-all-in-one
+        davidanson.vscode-markdownlint
+
+        # YAML
+        redhat.vscode-yaml
+
         # Note: Claude extension must be installed manually from VSCode marketplace
         # Search for "Claude Dev" by Saoud Rizwan in VSCode extensions
       ];
@@ -64,6 +71,24 @@
 
         # Telemetry
         "telemetry.telemetryLevel" = "off";
+
+        # Markdown settings
+        "markdown.preview.fontSize" = 14;
+        "markdown.preview.lineHeight" = 1.6;
+        "[markdown]" = {
+          "editor.wordWrap" = "on";
+          "editor.quickSuggestions" = false;
+        };
+
+        # YAML settings
+        "yaml.schemas" = {
+          "https://json.schemastore.org/github-workflow.json" = ".github/workflows/*.yaml";
+        };
+        "[yaml]" = {
+          "editor.insertSpaces" = true;
+          "editor.tabSize" = 2;
+          "editor.autoIndent" = "advanced";
+        };
       };
 
       # Keybindings
