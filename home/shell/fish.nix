@@ -135,6 +135,9 @@
       # Disable greeting
       set fish_greeting
 
+      # Add ~/.local/bin to PATH for Claude Code CLI
+      fish_add_path ~/.local/bin
+
       # Set environment variables
       set -gx EDITOR micro
       set -gx VISUAL micro

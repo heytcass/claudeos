@@ -33,13 +33,8 @@
     icu
   ];
 
-  # Add ~/.local/bin to PATH for Claude Code CLI
-  # (Claude Code installer now uses ~/.local/bin instead of ~/.claude/bin)
-  home-manager.users.tom = {
-    home.sessionPath = [
-      "$HOME/.local/bin"
-    ];
-  };
+  # PATH configuration for Claude Code CLI is in home/shell/fish.nix
+  # (Adds ~/.local/bin to PATH where Claude Code installs itself)
 
   # ============================================================================
   # Claude Desktop - Unofficial Linux port via flake
