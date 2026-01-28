@@ -1,7 +1,7 @@
 # ClaudeOS Implementation Status
 
 **Last Updated:** 2026-01-27
-**Current Phase:** Phase 3 - Applications & Shell ✅ COMPLETE & READY FOR DEPLOYMENT
+**Current Phase:** Phase 3 - Applications & Shell ✅ COMPLETE & DEPLOYED
 
 ## Overview
 
@@ -125,11 +125,11 @@ Deploy to transporter and verify desktop environment functionality
 
 ---
 
-## Phase 3: Applications & Shell ✅ COMPLETE
+## Phase 3: Applications & Shell ✅ COMPLETE & DEPLOYED
 
 **Goal:** Terminal, browser, essential apps, modern shell
 
-### Status: ✅ Complete and ready for deployment
+### Status: ✅ Complete, deployed, and verified on transporter
 
 ### Completed Tasks:
 
@@ -206,32 +206,44 @@ Deploy to transporter and verify desktop environment functionality
 - [x] All modules follow established patterns
 
 #### Deployment & Verification
-- [ ] Deploy to transporter
-- [ ] Test WezTerm launches with Claude theme
-- [ ] Verify Fish is default shell with starship
-- [ ] Test CLI tools (eza, bat, zoxide, atuin, yazi)
-- [ ] Test Chrome launches
-- [ ] Test Slack, Discord launch
-- [ ] Create test project with .envrc
-- [ ] Verify direnv works with nix flakes
-- [ ] Manually install Claude VSCode extension
-- [ ] Set git user.name and user.email
+- [x] Deploy to transporter
+- [x] Test Ghostty launches with native GNOME decorations
+- [x] Verify Fish is default shell with starship
+- [x] Test CLI tools (eza, bat, zoxide, atuin, yazi)
+- [x] Test Chrome launches (single icon)
+- [x] Test Slack, Discord launch
+- [x] Create test project with .envrc
+- [x] Verify direnv works with nix flakes
+- [ ] Manually install Claude VSCode extension (Phase 4)
+- [ ] Set git user.name and user.email (manual step)
 
 ### Implementation Notes:
 - **Shell:** Full Fish customization with plugins (fzf.fish, z, puffer-fish)
-- **Terminal:** Claude-branded WezTerm with Inter font and custom dark theme
-- **CLI Tools:** Modern replacements integrated (eza, bat, zoxide, atuin, yazi)
-- **Prompt:** Clean Starship configuration (dir + git + status)
-- **Git:** Modern settings with delta integration; identity unconfigured for Phase 5
-- **VSCode:** Nix-focused extensions; Claude extension manual install
-- **Applications:** Chrome, Slack, Discord; WezTerm only terminal in launcher
+- **Terminal:** Ghostty with GTK/libadwaita for native GNOME integration
+  - Replaced WezTerm for better window decorations on GNOME Wayland
+  - Shell integration for Fish (cursor, sudo, title)
+  - Claude-inspired color scheme with JetBrains Mono Nerd Font
+  - Auto-copy on selection, mouse hiding, window state persistence
+- **CLI Tools:** Modern replacements integrated (eza, bat, zoxide, atuin, yazi, ripgrep, fd, fzf)
+- **Prompt:** Clean Starship configuration (dir + git + status + nix-shell indicator)
+- **Git:** Modern settings with delta integration; identity unconfigured for manual setup
+- **VSCode:** Nix + Markdown + YAML extensions; Claude extension manual install (Phase 4)
+- **Applications:** Chrome (single icon), Slack, Discord
 - **Development:** direnv with nix-direnv for per-project environments
+- **Launcher:** CLI apps hidden via Home Manager xdg.dataFile (vim, htop, micro, yazi, xterm)
+- **System:** xterm excluded via services.xserver.excludePackages
 - **Fixed:** All deprecated Home Manager options updated to current format
+  - VSCode: profiles.default.* format
+  - Git: settings.* format
+  - Delta: separate programs.delta with enableGitIntegration
+- **Hash fixes:** Corrected Fish plugin hashes (z, fzf.fish)
+- **Iterative improvements:** Multiple rounds of fixes for launcher cleanup and terminal decorations
 
-### Next Step:
-Commit changes and deploy to transporter for verification
+### Post-Deployment Manual Tasks:
+- Set git user.name and user.email (or configure via sops-nix in Phase 5)
+- Install Claude VSCode extension from marketplace (Phase 4)
 
-### Duration: ~2 hours
+### Duration: ~3 hours (including troubleshooting and Ghostty migration)
 
 ---
 
@@ -365,13 +377,13 @@ Commit changes and deploy to transporter for verification
 |-------|--------|----------|-------|
 | 1. Foundation | ✅ Complete | ~2h | Core system ready for install |
 | 2. Desktop | ✅ Complete | ~1h | GNOME + Wayland + Audio configured |
-| 3. Apps & Shell | ✅ Complete | ~2h | CLI tools, browser, terminal, Home Manager |
+| 3. Apps & Shell | ✅ Complete | ~3h | CLI tools, Ghostty, Home Manager, deployed & verified |
 | 4. Claude Tools | ⏳ Not started | 3-5h | May need custom packaging |
 | 5. Secrets & Prod | ⏳ Not started | 2-3h | sops-nix + gti deployment |
 | 6. Docs & Polish | ⏳ Not started | 2-3h | Complete documentation |
 
-**Total Estimated:** 12-20 hours
-**Completed:** ~5 hours
+**Total Estimated:** 13-21 hours
+**Completed:** ~6 hours
 **Remaining:** ~7-15 hours
 
 ---
@@ -399,6 +411,24 @@ Ideas for after initial implementation:
 ---
 
 ## Maintenance Log
+
+### 2026-01-27 (Phase 3 Deployment & Verification)
+- **Phase 3 deployed to transporter:** All applications and shell configuration working
+- Deployed and verified all Phase 3 components
+- Terminal: Ghostty with native GTK/libadwaita decorations
+- Shell: Fish with Starship prompt, modern CLI tools (eza, bat, zoxide, atuin, yazi)
+- Applications: Chrome (single icon), Slack, Discord, VSCode with extensions
+- Development: direnv working with nix-direnv
+- Post-deployment fixes:
+  - Fixed Fish plugin hash mismatches (z, fzf.fish)
+  - Hid CLI apps from launcher using Home Manager xdg.dataFile
+  - Excluded xterm using services.xserver.excludePackages
+  - Fixed duplicate Chrome launcher icon
+  - Replaced WezTerm with Ghostty for better GNOME integration
+  - Fixed Ghostty config errors (removed invalid wayland and theme options)
+  - Enhanced Ghostty with shell integration and GNOME best practices
+- All verification tests passed
+- Ready for Phase 4 (Claude Tools)
 
 ### 2026-01-27 (Phase 3 Implementation)
 - **Phase 3 complete:** Applications & Shell configuration implemented
@@ -467,4 +497,4 @@ Ideas for after initial implementation:
 
 ---
 
-**Next Immediate Step:** Deploy Phase 3 to transporter and verify all applications and shell configuration
+**Next Immediate Step:** Begin Phase 4 - Claude Tools (CLI, Desktop, Chrome extension, VSCode extension)
