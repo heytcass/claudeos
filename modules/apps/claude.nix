@@ -33,10 +33,11 @@
     icu
   ];
 
-  # Add ~/.claude/bin to PATH for Claude Code CLI
+  # Add ~/.local/bin to PATH for Claude Code CLI
+  # (Claude Code installer now uses ~/.local/bin instead of ~/.claude/bin)
   home-manager.users.tom = {
     home.sessionPath = [
-      "$HOME/.claude/bin"
+      "$HOME/.local/bin"
     ];
   };
 
@@ -61,10 +62,12 @@
   # Claude Code CLI:
   # 1. After deploying this config, run the official installer:
   #    curl -fsSL https://claude.ai/install.sh | bash
-  # 2. The installer will download Claude Code to ~/.claude/
-  # 3. Claude Code will be available as 'claude' command
-  # 4. Auto-updates work seamlessly - Claude updates itself in ~/.claude/
-  # 5. Shell integration (completions, hooks) works normally
+  # 2. The installer will download Claude Code to ~/.local/bin/claude
+  # 3. After deployment with the updated PATH, logout/login or run:
+  #    source ~/.config/fish/config.fish
+  # 4. Claude Code will be available as 'claude' command
+  # 5. Auto-updates work seamlessly - Claude updates itself
+  # 6. Shell integration (completions, hooks) works normally
 
   # Claude Desktop:
   # 1. Launch from application menu or run: claude-desktop
