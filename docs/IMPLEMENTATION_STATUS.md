@@ -440,6 +440,21 @@ Ideas for after initial implementation:
 
 - [ ] Automated deployment with CI/CD
 - [ ] NixOS impermanence for stateless system
+  - **Strategy**: Use selective persistence (Option 1) to balance purity with Claude workflow needs
+  - **Approach**: Ephemeral root (tmpfs or btrfs subvolume wiped on boot) with `/persist` mount
+  - **Claude directories to persist** (intentional stateful workflows):
+    - `~/.claude/` - Claude Code CLI: binaries, plugins, skills, auto-updates
+    - `~/.config/Claude/` - Claude Desktop: MCP server configs, settings
+    - `~/.local/share/Claude/` - Claude Desktop: application state, cache
+  - **Other persistence** (to be determined during implementation):
+    - SSH keys, GPG keys (security-critical)
+    - Project directories or just `/home` entirely
+    - Browser profiles, Slack/Discord state
+    - Git configuration, shell history
+  - **Benefits**: Stateless OS, clean boot state, security while keeping productive workflows intact
+  - **Implementation**: Use nix-community/impermanence module with `environment.persistence."/persist"`
+  - **Philosophy**: Impermanence should make the OS ephemeral, not productive workflows
+  - **Reference**: https://wiki.nixos.org/wiki/Impermanence
 - [ ] Declarative home directories
 - [ ] Custom packages in overlay
 - [ ] Binary cache setup
