@@ -251,7 +251,7 @@ Deploy to transporter and verify desktop environment functionality
 
 **Goal:** All Claude interfaces working
 
-### Status: ✅ Complete and ready for deployment
+### Status: ✅ Complete and deployed to transporter (partially verified)
 
 ### Completed Tasks:
 - [x] Research Claude Code packaging
@@ -270,26 +270,27 @@ Deploy to transporter and verify desktop environment functionality
 - [x] Document VSCode Claude extension
   - [x] Manual install steps documented in claude.nix
   - [x] Authentication steps documented
-- [ ] Deploy to transporter (next step)
-- [ ] Install Claude Code CLI (post-deployment manual step)
-- [ ] Launch and authenticate Claude Desktop (post-deployment manual step)
-- [ ] Install Chrome extension (post-deployment manual step)
-- [ ] Install VSCode extension (post-deployment manual step)
-- [ ] Test authentication for all Claude tools (post-deployment)
-- [ ] Verify Claude Code CLI works (post-deployment)
-- [ ] Verify Claude Desktop launches (post-deployment)
-- [ ] Verify Claude in Chrome works (post-deployment)
-- [ ] Verify VSCode Claude extension works (post-deployment)
+- [x] Deploy to transporter
+- [x] Install Claude Code CLI
+- [x] Verify Claude Code CLI works (version 2.1.21)
+- [ ] Launch and authenticate Claude Desktop (next step)
+- [ ] Install Chrome extension (next step)
+- [ ] Install VSCode extension (next step)
+- [ ] Verify Claude Desktop launches
+- [ ] Verify Claude in Chrome works
+- [ ] Verify VSCode Claude extension works
 
 ### Implementation Notes:
 
 **Claude Code CLI (nix-ld approach):**
 - Enabled `programs.nix-ld` for transparent dynamic linking
 - Added required libraries (glibc, openssl, zlib, curl, icu)
-- Added `~/.claude/bin` to PATH via home-manager
+- Added `~/.local/bin` to PATH via fish.nix using `fish_add_path`
 - Official installer works: `curl -fsSL https://claude.ai/install.sh | bash`
-- Auto-updates seamlessly in `~/.claude/` (no NixOS rebuilds)
+- Installs to `~/.local/bin/claude` (installer changed from `~/.claude/bin`)
+- Auto-updates seamlessly (no NixOS rebuilds)
 - Zero maintenance burden
+- ✅ **Deployed and verified on transporter (version 2.1.21)**
 
 **Claude Desktop (flake approach):**
 - Added `claude-desktop-linux-flake` as flake input
@@ -466,6 +467,21 @@ Ideas for after initial implementation:
 ---
 
 ## Maintenance Log
+
+### 2026-01-27 (Phase 4 Deployment & Verification)
+- **Phase 4 deployed to transporter:** Claude Code CLI working
+- Deployed Phase 4 configuration to transporter
+- Ran Claude Code installer: `curl -fsSL https://claude.ai/install.sh | bash`
+- Verified Claude Code CLI works (version 2.1.21)
+- PATH fixes applied:
+  - Initial attempt: home.sessionPath didn't work with fish
+  - Solution: Added `~/.local/bin` to fish.nix using `fish_add_path`
+  - Claude installer now uses `~/.local/bin/claude` (not `~/.claude/bin`)
+- Remaining manual steps:
+  - Launch and authenticate Claude Desktop
+  - Install Chrome extension from Web Store
+  - Install VSCode extension from marketplace
+  - Configure MCP servers in ~/.config/Claude/claude_desktop_config.json
 
 ### 2026-01-27 (Phase 4 Implementation)
 - **Phase 4 complete:** Claude Tools configuration implemented
