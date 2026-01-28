@@ -1,7 +1,7 @@
 # ClaudeOS Implementation Status
 
 **Last Updated:** 2026-01-27
-**Current Phase:** Phase 3 - Applications & Shell ✅ COMPLETE & DEPLOYED
+**Current Phase:** Phase 4 - Claude Tools ✅ COMPLETE
 
 ## Overview
 
@@ -247,43 +247,83 @@ Deploy to transporter and verify desktop environment functionality
 
 ---
 
-## Phase 4: Claude Tools ⏳ NOT STARTED
+## Phase 4: Claude Tools ✅ COMPLETE
 
 **Goal:** All Claude interfaces working
 
-### Status: ⏳ Not started
+### Status: ✅ Complete and ready for deployment
 
-### Tasks:
-- [ ] Research Claude Code packaging
-  - [ ] Check if in nixpkgs
-  - [ ] Create custom derivation if needed
-- [ ] Research Claude Desktop packaging
-  - [ ] Check for nix package
-  - [ ] AppImage wrapper if needed
-- [ ] Implement modules/apps/claude.nix
-  - [ ] Claude Code CLI
-  - [ ] Claude Desktop
-  - [ ] Configuration
-- [ ] Setup Claude in Chrome extension
-  - [ ] Install extension
-  - [ ] Manual auth (document steps)
-- [ ] Configure VSCode with Claude extension
-  - [ ] Install extension
-  - [ ] Configuration
-- [ ] Test authentication for all Claude tools
-- [ ] Document manual steps in DEPLOYMENT.md
-- [ ] Deploy to transporter
-- [ ] Verify Claude Code CLI works
-- [ ] Verify Claude Desktop launches
-- [ ] Verify Claude in Chrome works
-- [ ] Verify VSCode Claude extension works
+### Completed Tasks:
+- [x] Research Claude Code packaging
+  - [x] Not in nixpkgs (official installer available)
+  - [x] Decision: Use nix-ld for dynamic linking
+- [x] Research Claude Desktop packaging
+  - [x] No official Linux support from Anthropic
+  - [x] Decision: Use existing claude-desktop-linux-flake (unofficial macOS port)
+- [x] Implement modules/apps/claude.nix
+  - [x] Claude Code CLI (nix-ld approach)
+  - [x] Claude Desktop (flake input with FHS variant)
+  - [x] Configuration documented
+- [x] Document Claude in Chrome extension
+  - [x] Manual install steps documented in claude.nix
+  - [x] Authentication steps documented
+- [x] Document VSCode Claude extension
+  - [x] Manual install steps documented in claude.nix
+  - [x] Authentication steps documented
+- [ ] Deploy to transporter (next step)
+- [ ] Install Claude Code CLI (post-deployment manual step)
+- [ ] Launch and authenticate Claude Desktop (post-deployment manual step)
+- [ ] Install Chrome extension (post-deployment manual step)
+- [ ] Install VSCode extension (post-deployment manual step)
+- [ ] Test authentication for all Claude tools (post-deployment)
+- [ ] Verify Claude Code CLI works (post-deployment)
+- [ ] Verify Claude Desktop launches (post-deployment)
+- [ ] Verify Claude in Chrome works (post-deployment)
+- [ ] Verify VSCode Claude extension works (post-deployment)
 
-### Challenges:
-- May need custom packaging
-- Authentication may require manual steps
-- Some components may need proprietary licenses
+### Implementation Notes:
 
-### Estimated Duration: 3-5 hours
+**Claude Code CLI (nix-ld approach):**
+- Enabled `programs.nix-ld` for transparent dynamic linking
+- Added required libraries (glibc, openssl, zlib, curl, icu)
+- Added `~/.claude/bin` to PATH via home-manager
+- Official installer works: `curl -fsSL https://claude.ai/install.sh | bash`
+- Auto-updates seamlessly in `~/.claude/` (no NixOS rebuilds)
+- Zero maintenance burden
+
+**Claude Desktop (flake approach):**
+- Added `claude-desktop-linux-flake` as flake input
+- Using `claude-desktop-with-fhs` variant for MCP server support
+- MCP servers work via npx, uvx, or Docker
+- Provides: system tray, keyboard shortcuts, desktop integration
+- Unofficial port from macOS (extracts app, replaces native bindings)
+- Requires flake input updates for new versions
+- May break when Anthropic updates macOS builds
+
+**Chrome Extension:**
+- Cannot be installed declaratively via NixOS
+- Manual install from Chrome Web Store
+- Browser-based OAuth authentication
+- Steps documented in modules/apps/claude.nix
+
+**VSCode Extension:**
+- Cannot be declaratively managed (VSCode vs VSCodium limitation)
+- Manual install from VSCode marketplace
+- Browser-based OAuth authentication
+- Steps documented in modules/apps/claude.nix
+
+**Why Two Different Approaches:**
+- **nix-ld for Claude Code CLI**: Official binary, auto-updates, zero maintenance
+- **Flake for Claude Desktop**: No official Linux support, unofficial port worth the maintenance for MCP/system integration
+
+### Post-Deployment Manual Steps:
+1. Run Claude Code installer: `curl -fsSL https://claude.ai/install.sh | bash`
+2. Launch Claude Desktop and authenticate with Claude account
+3. Configure MCP servers in: `~/.config/Claude/claude_desktop_config.json`
+4. Install Chrome extension from Web Store
+5. Install VSCode extension from marketplace
+
+### Duration: ~2 hours
 
 ---
 
@@ -378,13 +418,13 @@ Deploy to transporter and verify desktop environment functionality
 | 1. Foundation | ✅ Complete | ~2h | Core system ready for install |
 | 2. Desktop | ✅ Complete | ~1h | GNOME + Wayland + Audio configured |
 | 3. Apps & Shell | ✅ Complete | ~3h | CLI tools, Ghostty, Home Manager, deployed & verified |
-| 4. Claude Tools | ⏳ Not started | 3-5h | May need custom packaging |
+| 4. Claude Tools | ✅ Complete | ~2h | nix-ld + flake, ready for deployment |
 | 5. Secrets & Prod | ⏳ Not started | 2-3h | sops-nix + gti deployment |
 | 6. Docs & Polish | ⏳ Not started | 2-3h | Complete documentation |
 
-**Total Estimated:** 13-21 hours
-**Completed:** ~6 hours
-**Remaining:** ~7-15 hours
+**Total Estimated:** 12-19 hours
+**Completed:** ~8 hours
+**Remaining:** ~4-11 hours
 
 ---
 
@@ -411,6 +451,25 @@ Ideas for after initial implementation:
 ---
 
 ## Maintenance Log
+
+### 2026-01-27 (Phase 4 Implementation)
+- **Phase 4 complete:** Claude Tools configuration implemented
+- Created modules/apps/claude.nix with dual packaging approach:
+  - Claude Code CLI: nix-ld for transparent dynamic linking
+  - Claude Desktop: claude-desktop-linux-flake (FHS variant for MCP)
+- Added claude-desktop as flake input
+- Enabled programs.nix-ld with required libraries (glibc, openssl, zlib, curl, icu)
+- Added ~/.claude/bin to PATH via home-manager
+- Claude Desktop using FHS variant for MCP server support (npx, uvx, Docker)
+- Documented manual setup for Chrome and VSCode extensions
+- Configuration validates with nix flake check
+- Ready for deployment to transporter
+- Post-deployment steps documented:
+  - Run Claude Code installer
+  - Launch and authenticate Claude Desktop
+  - Install Chrome extension from Web Store
+  - Install VSCode extension from marketplace
+  - Configure MCP servers in ~/.config/Claude/claude_desktop_config.json
 
 ### 2026-01-27 (Phase 3 Deployment & Verification)
 - **Phase 3 deployed to transporter:** All applications and shell configuration working
@@ -497,4 +556,4 @@ Ideas for after initial implementation:
 
 ---
 
-**Next Immediate Step:** Begin Phase 4 - Claude Tools (CLI, Desktop, Chrome extension, VSCode extension)
+**Next Immediate Step:** Deploy Phase 4 to transporter and complete manual installation steps (Claude Code CLI installer, Claude Desktop authentication, Chrome/VSCode extensions)

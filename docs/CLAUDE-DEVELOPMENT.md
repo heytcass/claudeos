@@ -85,13 +85,13 @@
 
 See [WORKFLOW.md](./WORKFLOW.md) for detailed steps.
 
-## Current Phase: Phase 3 - Applications & Shell
+## Current Phase: Phase 4 - Claude Tools
 
 Status:
 - ✅ Phase 1: Foundation (core system, SSH access)
 - ✅ Phase 2: Desktop (GNOME 49.2, Wayland, Pipewire, Inter font)
-- ⏳ Phase 3: Applications & Shell (in progress)
-- ⏳ Phase 4: Claude Tools
+- ✅ Phase 3: Applications & Shell (complete & deployed)
+- ✅ Phase 4: Claude Tools (complete, ready for deployment)
 - ⏳ Phase 5: Secrets & Production
 - ⏳ Phase 6: Documentation & Polish
 
