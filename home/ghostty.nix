@@ -10,9 +10,7 @@
       font-family = "JetBrains Mono Nerd Font";
       font-size = 11;
 
-      # Theme and appearance - Claude-inspired color scheme
-      theme = "custom";
-
+      # Claude-inspired color scheme (no theme name, define colors directly)
       # Background and foreground
       background = "1a1d23";
       foreground = "e0e0e0";
@@ -58,7 +56,7 @@
       gtk-tabs-location = "hidden";  # No tab bar for clean look
 
       # Performance and platform integration
-      wayland = true;
+      # Note: Ghostty automatically uses Wayland when available, no config needed
       linux-cgroup = "always";
 
       # Shell integration
