@@ -92,7 +92,7 @@ Status:
 - ✅ Phase 2: Desktop (GNOME 49.2, Wayland, Pipewire, Inter font)
 - ✅ Phase 3: Applications & Shell (complete & deployed)
 - ✅ Phase 4: Claude Tools (complete, ready for deployment)
-- ⏳ Phase 5: Secrets & Production
+- ⏳ Phase 5: Production Deployment (gti)
 - ⏳ Phase 6: Documentation & Polish
 
 See [IMPLEMENTATION_STATUS.md](./IMPLEMENTATION_STATUS.md) for detailed progress.

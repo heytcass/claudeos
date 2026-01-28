@@ -328,36 +328,47 @@ Deploy to transporter and verify desktop environment functionality
 
 ---
 
-## Phase 5: Secrets & Production ⏳ NOT STARTED
+## Phase 5: Production Deployment ⏳ NOT STARTED
 
-**Goal:** Secure secrets, deploy to gti
+**Goal:** Deploy ClaudeOS to production machine (gti)
 
 ### Status: ⏳ Not started
 
 ### Tasks:
 
-#### Secrets Setup (sops-nix)
-- [ ] Generate age keys for both machines
-- [ ] Create secrets/.sops.yaml configuration
-- [ ] Encrypt secrets/secrets.yaml
-  - [ ] Claude API key (if needed)
-  - [ ] Atuin sync key (if needed)
-- [ ] Update modules to use secrets
-  - [ ] Claude tools (if needed)
-  - [ ] Atuin (if needed)
-- [ ] Document secrets management in SECRETS.md
-- [ ] Test secrets work on transporter
-
-#### Production Deployment (gti)
+#### Production Machine Setup (gti - Dell XPS 13 9370)
 - [ ] Install NixOS on gti
+  - [ ] Create bootable USB
+  - [ ] Boot and run installer
+  - [ ] Partition disk (btrfs like transporter)
+  - [ ] Complete installation
 - [ ] Generate hardware-configuration.nix for gti
-- [ ] Commit gti hardware config
-- [ ] Deploy configuration to gti
-- [ ] Setup age keys on gti
-- [ ] Verify all functionality on gti
-- [ ] Verify transporter and gti are identical
+- [ ] Commit gti hardware config to repo
+- [ ] Clone repo to ~/.config/claudeos on gti
+- [ ] Deploy configuration: `sudo nixos-rebuild switch --flake .#gti`
+- [ ] Copy SSH keys manually (scp from transporter)
+- [ ] Verify all functionality on gti:
+  - [ ] GNOME desktop loads
+  - [ ] Applications launch (Chrome, Slack, Discord, VSCode)
+  - [ ] Claude Code CLI works
+  - [ ] Claude Desktop works
+  - [ ] Shell configuration (Fish + Starship)
+  - [ ] direnv works
+- [ ] Verify transporter and gti are identical (compare configs)
+- [ ] Manual post-deployment steps:
+  - [ ] Set git user.name and user.email
+  - [ ] Authenticate Claude Desktop
+  - [ ] Install Chrome extensions
+  - [ ] Install VSCode extensions
+  - [ ] Login to Slack, Discord, Chrome
 
-### Estimated Duration: 2-3 hours
+### Notes:
+- sops-nix moved to Future Enhancements (no secrets to manage yet)
+- SSH keys copied manually, not managed declaratively
+- OAuth tokens handled by applications (not in config)
+- User password set during NixOS installation (not declarative)
+
+### Estimated Duration: 60-90 minutes
 
 ---
 
@@ -420,12 +431,12 @@ Deploy to transporter and verify desktop environment functionality
 | 2. Desktop | ✅ Complete | ~1h | GNOME + Wayland + Audio configured |
 | 3. Apps & Shell | ✅ Complete | ~3h | CLI tools, Ghostty, Home Manager, deployed & verified |
 | 4. Claude Tools | ✅ Complete | ~2h | nix-ld + flake, ready for deployment |
-| 5. Secrets & Prod | ⏳ Not started | 2-3h | sops-nix + gti deployment |
+| 5. Production | ⏳ Not started | 1-1.5h | gti deployment (sops-nix moved to future) |
 | 6. Docs & Polish | ⏳ Not started | 2-3h | Complete documentation |
 
-**Total Estimated:** 12-19 hours
+**Total Estimated:** 11-16.5 hours
 **Completed:** ~8 hours
-**Remaining:** ~4-11 hours
+**Remaining:** ~3-8.5 hours
 
 ---
 
@@ -456,6 +467,23 @@ Ideas for after initial implementation:
   - **Implementation**: Use nix-community/impermanence module with `environment.persistence."/persist"`
   - **Philosophy**: Impermanence should make the OS ephemeral, not productive workflows
   - **Reference**: https://wiki.nixos.org/wiki/Impermanence
+- [ ] sops-nix for secrets management
+  - **Current state**: Not needed - all authentication via OAuth, SSH keys in ~/.ssh/
+  - **When to add**: Only if you have secrets that need to be IN your nix configuration
+  - **Use cases**:
+    - API keys/tokens in service config files
+    - Database passwords in module declarations
+    - MCP server configs with embedded credentials (if any)
+    - Atuin sync key (if enabling cross-machine shell history sync)
+    - Credentials that need to be templated into config files
+  - **NOT for**:
+    - SSH keys (already secure in ~/.ssh/ with proper permissions)
+    - OAuth tokens (managed by applications, not config)
+    - User passwords (manual `passwd` is simpler for 2-machine setup)
+    - Browser/app authentication (handled by apps themselves)
+  - **Implementation**: Use Mic92/sops-nix with age encryption
+  - **Philosophy**: Add complexity only when you have actual secrets to declaratively manage
+  - **Reference**: https://github.com/Mic92/sops-nix
 - [ ] Declarative home directories
 - [ ] Custom packages in overlay
 - [ ] Binary cache setup
