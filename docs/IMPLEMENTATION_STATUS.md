@@ -257,28 +257,16 @@ Deploy to transporter and verify desktop environment functionality
 - [x] Research Claude Code packaging
   - [x] Not in nixpkgs (official installer available)
   - [x] Decision: Use nix-ld for dynamic linking
-- [x] Research Claude Desktop packaging
-  - [x] No official Linux support from Anthropic
-  - [x] Decision: Use existing claude-desktop-linux-flake (unofficial macOS port)
 - [x] Implement modules/apps/claude.nix
   - [x] Claude Code CLI (nix-ld approach)
-  - [x] Claude Desktop (flake input with FHS variant)
   - [x] Configuration documented
-- [x] Document Claude in Chrome extension
-  - [x] Manual install steps documented in claude.nix
-  - [x] Authentication steps documented
-- [x] Document VSCode Claude extension
-  - [x] Manual install steps documented in claude.nix
-  - [x] Authentication steps documented
+- [x] Document other Claude interfaces
+  - [x] Claude in Chrome extension (manual install)
+  - [x] VSCode Claude extension (manual install)
+  - [x] Claude Desktop (not included - unstable third-party port)
 - [x] Deploy to transporter
 - [x] Install Claude Code CLI
 - [x] Verify Claude Code CLI works (version 2.1.21)
-- [ ] Launch and authenticate Claude Desktop (next step)
-- [ ] Install Chrome extension (next step)
-- [ ] Install VSCode extension (next step)
-- [ ] Verify Claude Desktop launches
-- [ ] Verify Claude in Chrome works
-- [ ] Verify VSCode Claude extension works
 
 ### Implementation Notes:
 
@@ -292,37 +280,24 @@ Deploy to transporter and verify desktop environment functionality
 - Zero maintenance burden
 - ✅ **Deployed and verified on transporter (version 2.1.21)**
 
-**Claude Desktop (flake approach):**
-- Added `claude-desktop-linux-flake` as flake input
-- Using `claude-desktop-with-fhs` variant for MCP server support
-- MCP servers work via npx, uvx, or Docker
-- Provides: system tray, keyboard shortcuts, desktop integration
-- Unofficial port from macOS (extracts app, replaces native bindings)
-- Requires flake input updates for new versions
-- May break when Anthropic updates macOS builds
+**Other Claude Interfaces:**
+- **Chrome Extension**: Manual install from Chrome Web Store (documented in claude.nix)
+- **VSCode Extension**: Manual install from VSCode marketplace (documented in claude.nix)
+- **Claude Desktop**: Not included due to stability issues with third-party Linux ports
+  - No official Linux support from Anthropic
+  - Unofficial ports extract from macOS builds and are fragile
+  - Recent versions have JavaScript errors and launch failures
+  - Can be manually installed if needed from community sources
 
-**Chrome Extension:**
-- Cannot be installed declaratively via NixOS
-- Manual install from Chrome Web Store
-- Browser-based OAuth authentication
-- Steps documented in modules/apps/claude.nix
-
-**VSCode Extension:**
-- Cannot be declaratively managed (VSCode vs VSCodium limitation)
-- Manual install from VSCode marketplace
-- Browser-based OAuth authentication
-- Steps documented in modules/apps/claude.nix
-
-**Why Two Different Approaches:**
-- **nix-ld for Claude Code CLI**: Official binary, auto-updates, zero maintenance
-- **Flake for Claude Desktop**: No official Linux support, unofficial port worth the maintenance for MCP/system integration
+**Design Decision:**
+- Focus on official, stable tools (Claude Code CLI)
+- Document manual install steps for browser/editor extensions
+- Avoid fragile third-party ports that require constant maintenance
 
 ### Post-Deployment Manual Steps:
 1. Run Claude Code installer: `curl -fsSL https://claude.ai/install.sh | bash`
-2. Launch Claude Desktop and authenticate with Claude account
-3. Configure MCP servers in: `~/.config/Claude/claude_desktop_config.json`
-4. Install Chrome extension from Web Store
-5. Install VSCode extension from marketplace
+2. (Optional) Install Chrome extension from Web Store
+3. (Optional) Install VSCode extension from marketplace
 
 ### Duration: ~2 hours
 

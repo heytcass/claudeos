@@ -15,14 +15,9 @@
       url = "github:Mic92/sops-nix";
       inputs.nixpkgs.follows = "nixpkgs";
     };
-
-    claude-desktop = {
-      url = "github:heytcass/claude-desktop-linux-flake";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
   };
 
-  outputs = { self, nixpkgs, home-manager, nixos-hardware, sops-nix, claude-desktop }@inputs:
+  outputs = { self, nixpkgs, home-manager, nixos-hardware, sops-nix }@inputs:
     let
       lib = import ./lib { inherit (nixpkgs) lib; };
       specialArgs = { inherit inputs; };
