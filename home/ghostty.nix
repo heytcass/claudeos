@@ -5,46 +5,15 @@
     enable = true;
 
     # Ghostty configuration
+    # Colors are managed by Stylix - see modules/desktop/theme.nix
     settings = {
       # Font configuration - JetBrains Mono for readability
       font-family = "JetBrains Mono Nerd Font";
       font-size = 11;
 
-      # Claude-inspired color scheme (no theme name, define colors directly)
-      # Background and foreground
-      background = "1a1d23";
-      foreground = "e0e0e0";
-
       # Cursor
-      cursor-color = "f5a97f";
-      cursor-text = "1a1d23";
       cursor-style = "block";
       cursor-style-blink = false;
-
-      # Selection
-      selection-foreground = "1a1d23";
-      selection-background = "4a5568";
-
-      # ANSI colors - normal (0-7) and bright (8-15)
-      # Format: "index=#hexcolor"
-      palette = [
-        "0=#1a1d23" # black
-        "1=#e06c75" # red
-        "2=#98c379" # green
-        "3=#e5c07b" # yellow
-        "4=#61afef" # blue
-        "5=#c678dd" # magenta
-        "6=#56b6c2" # cyan
-        "7=#abb2bf" # white
-        "8=#5c6370" # bright black
-        "9=#e06c75" # bright red
-        "10=#98c379" # bright green
-        "11=#e5c07b" # bright yellow
-        "12=#61afef" # bright blue
-        "13=#c678dd" # bright magenta
-        "14=#56b6c2" # bright cyan
-        "15=#ffffff" # bright white
-      ];
 
       # Window configuration
       window-padding-x = 8;

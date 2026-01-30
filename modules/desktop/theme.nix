@@ -10,24 +10,22 @@
     # Claude-inspired base16 color scheme
     # Warm, muted palette with terracotta accents
     base16Scheme = {
-      # Base colors (backgrounds and foregrounds)
-      base00 = "14140f"; # Default background (darkest — headerbar/deep surface)
-      base01 = "262624"; # Lighter background (main body/sidebar)
-      base02 = "30302e"; # Selection/surface (input box, cards)
-      base03 = "9c9a92"; # Comments / dim text
-      base04 = "c2c0b6"; # Dark foreground (secondary text)
-      base05 = "faf9f5"; # Default foreground (primary text)
-      base06 = "faf9f5"; # Light foreground (same — Claude doesn't really have a brighter white)
-      base07 = "ffffff"; # Lightest (pure white, for rare high-contrast)
+      base00 = "262624"; # Default background — the dominant warm dark grey
+      base01 = "30302e"; # Elevated surface (cards, input box, popovers)
+      base02 = "3a3a38"; # Selection / highlighted regions (slightly lighter step)
+      base03 = "9c9a92"; # Comments / dim text / placeholders
+      base04 = "c2c0b6"; # Secondary foreground text
+      base05 = "faf9f5"; # Primary foreground text
+      base06 = "faf9f5"; # Light foreground (same warm off-white)
+      base07 = "ffffff"; # Brightest white (rare, high-contrast)
 
-      # Accent colors
-      base08 = "c6613f"; # Red — terracotta accent (also destructive)
+      base08 = "c6613f"; # Red — terracotta accent
       base09 = "d97757"; # Orange — lighter terracotta
-      base0A = "c2c0b6"; # Yellow — warm muted (Claude doesn't have a true yellow)
-      base0B = "9c9a92"; # Green — repurpose as muted olive
-      base0C = "6b9e8a"; # Cyan — warm sage green to fit the palette
-      base0D = "2c84db"; # Blue — the link/info blue
-      base0E = "c6613f"; # Magenta — map back to terracotta to keep the warm feel
+      base0A = "c9b87c"; # Yellow — warm sand (invented, keeps warm tone)
+      base0B = "8a9a6b"; # Green — muted olive (invented)
+      base0C = "6b9e8a"; # Cyan — warm sage (invented)
+      base0D = "2c84db"; # Blue — link/info blue
+      base0E = "a67a5b"; # Magenta — warm brown (invented, fits palette)
       base0F = "d97757"; # Brown — lighter terracotta
     };
 
