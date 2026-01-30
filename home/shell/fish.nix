@@ -139,8 +139,8 @@
       fish_add_path ~/.local/bin
 
       # Set environment variables
-      set -gx EDITOR micro
-      set -gx VISUAL micro
+      set -gx EDITOR code
+      set -gx VISUAL code
 
       # Enable colored man pages
       set -gx LESS_TERMCAP_mb (printf "\033[01;31m")
