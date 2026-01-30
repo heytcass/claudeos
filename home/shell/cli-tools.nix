@@ -1,4 +1,4 @@
-{ pkgs, ... }:
+{ pkgs, lib, ... }:
 
 {
   # Modern CLI tools
@@ -31,7 +31,9 @@
   programs.bat = {
     enable = true;
     config = {
-      theme = "TwoDark";
+      # Let Stylix provide the theme (base16-stylix)
+      # Override with mkForce only if needed
+      theme = lib.mkDefault "TwoDark"; # Stylix will override this with base16-stylix
       style = "numbers,changes,header";
       pager = "less -FR";
     };

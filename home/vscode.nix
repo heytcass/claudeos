@@ -1,4 +1,4 @@
-{ pkgs, ... }:
+{ pkgs, lib, ... }:
 
 {
   programs.vscode = {
@@ -27,9 +27,10 @@
       # User settings
       userSettings = {
         # Editor settings
-        "editor.fontFamily" = "'JetBrains Mono', 'Droid Sans Mono', 'monospace'";
-        "editor.fontSize" = 13;
-        "editor.fontLigatures" = true;
+        # Use lib.mkForce to override Stylix's settings
+        "editor.fontFamily" = lib.mkForce "'JetBrains Mono', 'Droid Sans Mono', 'monospace'";
+        "editor.fontSize" = lib.mkForce 13;
+        "editor.fontLigatures" = lib.mkForce true;
         "editor.formatOnSave" = true;
         "editor.minimap.enabled" = false;
         "editor.renderWhitespace" = "selection";
@@ -41,14 +42,15 @@
         "files.insertFinalNewline" = true;
 
         # Workbench settings
-        "workbench.colorTheme" = "Default Dark+";
-        "workbench.iconTheme" = "vs-minimal";
+        # Override Stylix theme with our preferred settings
+        "workbench.colorTheme" = lib.mkForce "Default Dark+";
+        "workbench.iconTheme" = lib.mkForce "vs-minimal";
         "workbench.startupEditor" = "none";
 
         # Terminal settings
         "terminal.integrated.defaultProfile.linux" = "fish";
-        "terminal.integrated.fontFamily" = "'JetBrains Mono Nerd Font'";
-        "terminal.integrated.fontSize" = 12;
+        "terminal.integrated.fontFamily" = lib.mkForce "'JetBrains Mono Nerd Font'";
+        "terminal.integrated.fontSize" = lib.mkForce 12;
 
         # Nix settings
         "nix.enableLanguageServer" = true;
@@ -73,8 +75,8 @@
         "telemetry.telemetryLevel" = "off";
 
         # Markdown settings
-        "markdown.preview.fontSize" = 14;
-        "markdown.preview.lineHeight" = 1.6;
+        "markdown.preview.fontSize" = lib.mkForce 14;
+        "markdown.preview.lineHeight" = lib.mkForce 1.6;
         "[markdown]" = {
           "editor.wordWrap" = "on";
           "editor.quickSuggestions" = false;
