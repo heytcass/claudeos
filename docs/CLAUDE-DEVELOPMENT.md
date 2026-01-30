@@ -4,6 +4,7 @@
 
 ## Quick Navigation
 - New to project? → [WORKFLOW.md](./WORKFLOW.md)
+- Installing system? → [DISKO.md](./DISKO.md)
 - Deploying? → [DEPLOYMENT.md](./DEPLOYMENT.md)
 - Hardware issues? → [HARDWARE.md](./HARDWARE.md)
 - Something broken? → [TROUBLESHOOTING.md](./TROUBLESHOOTING.md)
