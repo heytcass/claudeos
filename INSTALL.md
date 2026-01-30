@@ -1,273 +1,262 @@
-# NixOS Installation Quick Guide
+# ClaudeOS Installation Guide
 
-**This is a quick reference for installing NixOS on transporter. See docs/DEPLOYMENT.md for full details.**
+Quick installation guide for ClaudeOS using disko for automated disk partitioning.
 
-## Prerequisites
+## Two Installation Methods
 
-- NixOS minimal ISO downloaded
-- USB drive with ISO burned
-- Target machine (transporter) ready
-- Network connection available
+### Method 1: Automated with Disko (Recommended)
 
-## Installation Steps
+**Best for:** New installations (gti, future systems)
 
-### 1. Boot NixOS Installer
+See full instructions below or in [docs/DISKO.md](docs/DISKO.md)
 
-Boot from USB, select "NixOS installer"
+### Method 2: Manual Installation (Legacy)
 
-### 2. Partition Disk
+**For reference only** - Original transporter installation used manual partitioning.
 
-```bash
-# Identify disk
-lsblk
+See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for the manual process.
 
-# Set disk variable (adjust for your system)
-DISK=/dev/sda  # or /dev/nvme0n1
+---
 
-# Create partitions
-sudo parted $DISK -- mklabel gpt
-sudo parted $DISK -- mkpart ESP fat32 1MiB 512MiB
-sudo parted $DISK -- set 1 esp on
-sudo parted $DISK -- mkpart primary 512MiB 100%
+## Automated Installation with Disko
 
-# Format boot partition
-sudo mkfs.fat -F 32 -n boot ${DISK}1
+### Prerequisites
 
-# Format root with btrfs (recommended)
-sudo mkfs.btrfs -f -L nixos ${DISK}2
+- NixOS installation USB
+- Target machine with UEFI support
+- Internet connection
+- Git installed in installer environment
 
-# Or use ext4 (simpler, but no snapshots/compression):
-# sudo mkfs.ext4 -L nixos ${DISK}2
-```
+### Quick Install Steps
 
-### 3. Setup Btrfs Subvolumes (if using btrfs)
+#### 1. Boot Installer
 
-**Why btrfs?** Snapshots, compression (saves ~30% disk space), subvolumes for flexible management.
+Boot from NixOS installation USB (UEFI mode).
+
+#### 2. Get ClaudeOS
 
 ```bash
-# Mount temporarily to create subvolumes
-sudo mount /dev/sda2 /mnt
-
-# Create subvolumes
-sudo btrfs subvolume create /mnt/@           # root
-sudo btrfs subvolume create /mnt/@home       # home
-sudo btrfs subvolume create /mnt/@nix        # nix store
-sudo btrfs subvolume create /mnt/@log        # logs
-
-# Verify
-sudo btrfs subvolume list /mnt
-
-# Unmount
-sudo umount /mnt
-```
-
-### 4. Mount Filesystems
-
-**For btrfs:**
-
-```bash
-# Mount options (compression + noatime)
-BTRFS_OPTS="noatime,compress=zstd,space_cache=v2"
-
-# Mount root subvolume
-sudo mount -o $BTRFS_OPTS,subvol=@ /dev/sda2 /mnt
-
-# Create mount points
-sudo mkdir -p /mnt/{boot,home,nix,var/log}
-
-# Mount other subvolumes
-sudo mount -o $BTRFS_OPTS,subvol=@home /dev/sda2 /mnt/home
-sudo mount -o $BTRFS_OPTS,subvol=@nix /dev/sda2 /mnt/nix
-sudo mkdir -p /mnt/var
-sudo mount -o $BTRFS_OPTS,subvol=@log /dev/sda2 /mnt/var/log
-
-# Mount boot
-sudo mount /dev/sda1 /mnt/boot
-
-# Verify
-mount | grep /mnt
-```
-
-**For ext4 (if you chose ext4 instead):**
-
-```bash
-sudo mount /dev/disk/by-label/nixos /mnt
-sudo mkdir -p /mnt/boot
-sudo mount /dev/disk/by-label/boot /mnt/boot
-```
-
-### 5. Setup Repository
-
-```bash
-# Get git
+# Enter nix-shell with git
 nix-shell -p git
 
-# Transfer config from Ubuntu (if not already done)
-# From Ubuntu: scp -r /home/tom/projects/claudeos nixos@<IP>:/tmp/claudeos
-
-# Move to mounted filesystem
-sudo mkdir -p /mnt/home/tom/.config
-sudo mv /tmp/claudeos /mnt/home/tom/.config/claudeos
-cd /mnt/home/tom/.config/claudeos
-
-# Generate hardware config (detects btrfs subvolumes)
-sudo nixos-generate-config --root /mnt
-
-# Copy hardware config to repo
-sudo cp /mnt/etc/nixos/hardware-configuration.nix \
-   hosts/transporter/hardware-configuration.nix
-
-# Configure git and commit
-git config user.email "tom@example.com"
-git config user.name "Tom"
-git add hosts/transporter/hardware-configuration.nix
-git commit -m "feat(transporter): add btrfs hardware configuration"
+# Clone repository
+git clone https://github.com/yourusername/claudeos.git
+cd claudeos
 ```
 
-### 6. Install
+#### 3. Run Installation
 
 ```bash
-# Install NixOS (takes a few minutes)
-sudo nixos-install --flake .#transporter
+# Make script executable
+chmod +x install-with-disko.sh
 
-# Set root password when prompted
+# Install (DESTRUCTIVE! Wipes target disk)
+sudo ./install-with-disko.sh <hostname> [device]
+
+# Examples:
+sudo ./install-with-disko.sh gti              # Install on /dev/sda
+sudo ./install-with-disko.sh gti /dev/nvme0n1 # Install on NVMe
 ```
 
-After install completes:
-```bash
-# Chroot to set user password
-sudo nixos-enter --root /mnt
-passwd tom
-exit
+The script will:
+- Prompt for confirmation (shows disk size and layout)
+- Partition and format the disk with disko
+- Install NixOS with your configuration
+- Generate hardware-configuration.nix
+- Prepare the system for first boot
 
-# Reboot
-sudo reboot
-```
-
-Remove USB drive when rebooting.
-
-### 7. Post-Install - Fix Permissions
-
-After first SSH login as tom:
+#### 4. Set Passwords
 
 ```bash
-# Fix home directory ownership (created by sudo during install)
-sudo chown -R tom:users /home/tom
+# Set root password
+nixos-enter --root /mnt -c 'passwd'
 
-# Exit and reconnect
-exit
+# Set user password
+nixos-enter --root /mnt -c 'passwd tom'
 ```
 
-SSH back in and verify everything works.
-
-### 8. Copy Hardware Config Back to Ubuntu
-
-From your **Ubuntu machine**:
+#### 5. Reboot
 
 ```bash
-# Copy hardware config from transporter
-scp tom@10.0.10.205:~/.config/claudeos/hosts/transporter/hardware-configuration.nix \
-    /home/tom/projects/claudeos/hosts/transporter/
-
-# Commit it
-cd /home/tom/projects/claudeos
-git add hosts/transporter/hardware-configuration.nix
-git commit -m "feat(transporter): add btrfs hardware configuration"
+reboot
 ```
 
-## Phase 1 Verification
+Remove installation USB and boot into ClaudeOS!
 
-On transporter after install and permission fix:
+### What Gets Installed
+
+#### Disk Layout
+
+```
+/dev/sda (or your chosen device)
+├── 512MB EFI Boot Partition (vfat)
+└── Remainder: btrfs with subvolumes
+    ├── @ → /
+    ├── @home → /home
+    ├── @nix → /nix
+    └── @log → /var/log
+```
+
+#### Filesystem Features
+
+- **btrfs compression:** zstd:3 (~30% space savings)
+- **SSD optimized:** noatime, discard=async
+- **Snapshot ready:** Subvolume layout supports snapshots
+- **Fast:** space_cache=v2 for better performance
+
+#### System Configuration
+
+Based on hostname (gti, transporter, etc.):
+- NixOS unstable
+- GNOME 49 desktop
+- Wayland + Pipewire
+- Fish shell
+- Home Manager
+- Claude Code CLI
+- Development tools (git, vim, VSCode)
+
+See [docs/MODULES.md](docs/MODULES.md) for complete feature list.
+
+## Post-Installation
+
+### First Boot
+
+1. Log in with user `tom` (password set during installation)
+2. Connect to WiFi (NetworkManager)
+3. System is ready to use!
+
+### Configuration Location
+
+```bash
+# Clone configuration to home directory
+cd ~/.config
+git clone https://github.com/yourusername/claudeos.git
+cd claudeos
+
+# Update system
+sudo nixos-rebuild switch --flake .#$(hostname)
+
+# Or use the convenience alias:
+rebuild
+```
+
+### Customize
+
+Edit configuration in `~/.config/claudeos/`:
+- User settings: `home/` directory
+- System modules: `modules/` directory
+- Host-specific: `hosts/<hostname>/`
+
+See [docs/WORKFLOW.md](docs/WORKFLOW.md) for development workflow.
+
+## Verification
+
+After first boot, verify the installation:
 
 ```bash
 # Check hostname
-hostname
-# Should output: transporter
+hostname  # Should match what you installed (gti, etc.)
 
-# Check user and shell
-whoami
-echo $SHELL
-# Should be: tom, /run/current-system/sw/bin/fish
+# Check shell
+echo $SHELL  # Should be /run/current-system/sw/bin/fish
 
-# Test keyboard - should be Colemak layout
-# Try typing - layout should be Colemak
+# Check keyboard layout
+# Try typing - should be US Colemak
 
 # Check network
 ping -c 2 google.com
 
-# Check sudo works
-sudo echo "sudo works"
-
-# Check basic packages
-git --version
-vim --version
-htop --version
-
-# Check config location
-cd ~/.config/claudeos
-pwd
-ls -la
-
-# Check git status
-git status
-
-# Verify flake
-nix flake check
-
-# Check btrfs (if using btrfs)
+# Check btrfs
 sudo btrfs filesystem show
 sudo btrfs subvolume list /
+
+# Check configuration
+cd ~/.config/claudeos
+nix flake check
 ```
 
-**Phase 1 Complete!** ✅ All checks should pass.
+**All checks passing?** ✅ Installation complete!
 
 ## Troubleshooting
 
-### Can't boot after install
-- Select older generation from boot menu
-- Or boot from USB and check /mnt/boot
+### Installation Fails
 
-### Network not working
-- Check NetworkManager: `systemctl status NetworkManager`
-- Use nmtui to configure: `nmtui`
+**Device busy:**
+```bash
+sudo umount -R /mnt
+# Try installation again
+```
 
-### SSH not working
-- Check firewall: `sudo systemctl status firewall`
-- Check SSH: `sudo systemctl status sshd`
-- Try from Ubuntu: `ssh -v tom@transporter`
+**Wrong device:**
+```bash
+# List available disks
+lsblk
+# Use correct device in install command
+```
 
-## Next Steps
+**Partitioning fails:**
+```bash
+# Wipe existing signatures
+sudo wipefs -a /dev/sda
+# Try again
+```
 
-1. Verify installation checklist from docs/DEPLOYMENT.md
-2. Update docs/IMPLEMENTATION_STATUS.md
-3. Proceed to Phase 2 (Desktop Environment)
+### Can't Boot
 
-## Repository Location on Target
+1. Boot from USB again
+2. Mount and chroot:
+```bash
+sudo mount /dev/sda2 /mnt -o subvol=@
+sudo mount /dev/sda1 /mnt/boot
+nixos-enter --root /mnt
+# Fix configuration if needed
+nixos-rebuild switch
+```
 
-- **Configuration:** `~/.config/claudeos` (`/home/tom/.config/claudeos`)
-- **This is a git repo** - all changes via git pull
-- **No sudo needed to edit** - it's in your home directory
-- **Best practice: Edit on Ubuntu**, commit, push, then pull on target
-- **Can edit directly if needed** - just commit and push back to stay in sync
+### Network Issues
+
+```bash
+# Check NetworkManager
+systemctl status NetworkManager
+
+# Use nmtui to configure
+nmtui
+```
+
+## Advanced Installation
+
+For manual installation, customization, or troubleshooting:
+- [docs/DISKO.md](docs/DISKO.md) - Detailed disko documentation
+- [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) - Manual deployment procedures
+- [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) - Common issues
 
 ## Useful Commands
 
 ```bash
-# Rebuild system (from ~/.config/claudeos)
-sudo nixos-rebuild switch --flake ~/.config/claudeos#transporter
-
-# Or add this alias to your fish config:
-alias nixos-rebuild-switch='sudo nixos-rebuild switch --flake ~/.config/claudeos#(hostname)'
+# Rebuild system
+rebuild  # Alias for: sudo nixos-rebuild switch --flake ~/.config/claudeos#$(hostname)
 
 # List generations
 sudo nixos-rebuild list-generations
 
-# Rollback
+# Rollback to previous generation
 sudo nixos-rebuild switch --rollback
 
-# Update flake inputs
+# Update packages
+cd ~/.config/claudeos
 nix flake update
+rebuild
 
-# Check configuration
-nix flake check
+# Garbage collect old generations
+nix-collect-garbage --delete-older-than 30d
 ```
+
+## Getting Help
+
+- Issues: https://github.com/yourusername/claudeos/issues
+- Documentation: [docs/](docs/)
+- CLAUDE.md: Project-specific instructions for Claude Code
+
+---
+
+**WARNING:** Installation is DESTRUCTIVE and will erase the target disk. Back up important data first!
