@@ -17,7 +17,7 @@
     };
   };
 
-  outputs = { self, nixpkgs, home-manager, nixos-hardware, sops-nix }@inputs:
+  outputs = { nixpkgs, home-manager, nixos-hardware, sops-nix }@inputs:
     let
       lib = import ./lib { inherit (nixpkgs) lib; };
       specialArgs = { inherit inputs; };

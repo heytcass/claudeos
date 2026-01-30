@@ -99,19 +99,254 @@ Common issues, solutions, and debugging procedures.
 
 ## Hardware Issues
 
-_To be populated as issues are encountered_
+### Home Directory Ownership After Install
+
+**Symptom:** Permission errors when trying to write to home directory after fresh installation
+
+**Cause:** NixOS installer creates `/home/tom` with root ownership
+
+**Solution:**
+```bash
+sudo chown -R tom:users /home/tom
+```
+
+**Prevention:** This is a one-time issue after installation, documented for all future deployments
+
+**Status:** Resolved on transporter, documented for gti
+
+---
 
 ## Desktop Issues
 
-_To be populated in Phase 2_
+### Package Renamed: noto-fonts-emoji
+
+**Symptom:** Build fails with error about unknown package `noto-fonts-emoji`
+
+**Cause:** nixpkgs renamed package to `noto-fonts-color-emoji`
+
+**Solution:** Update modules/desktop/fonts.nix:
+```nix
+# Old
+noto-fonts-emoji
+
+# New
+noto-fonts-color-emoji
+```
+
+**Status:** Fixed in modules/desktop/fonts.nix
+
+---
+
+### Package Renamed: nerdfonts
+
+**Symptom:** Build fails referencing `nerdfonts.override` or `nerdfonts` package
+
+**Cause:** nixpkgs split nerdfonts into individual packages
+
+**Solution:** Update to new package names:
+```nix
+# Old
+(pkgs.nerdfonts.override { fonts = [ "JetBrainsMono" "FiraCode" ]; })
+
+# New
+pkgs.nerd-fonts.jetbrains-mono
+pkgs.nerd-fonts.fira-code
+```
+
+**Status:** Fixed in modules/desktop/fonts.nix
+
+---
+
+### GNOME Extensions Not Visible
+
+**Symptom:** Installed extensions don't appear in GNOME
+
+**Cause:** Extensions need to be manually enabled in GNOME Extension Manager or Settings
+
+**Solution:**
+1. Open GNOME Extension Manager (installed via modules/desktop/gnome.nix)
+2. Enable desired extensions: Appindicator, Just Perfection, Caffeine
+3. Alternatively, use `gnome-extensions list` and `gnome-extensions enable <uuid>`
+
+**Note:** Extensions are installed system-wide but must be enabled per-user
+
+---
+
+###Wayland vs X11 Session
+
+**Symptom:** Application behaves differently or doesn't work as expected
+
+**Cause:** Some applications work better on X11 or Wayland
+
+**Solution:**
+```bash
+# Check current session type
+echo $XDG_SESSION_TYPE
+
+# Switch at login (click gear icon in GDM)
+# Options: "GNOME" (Wayland) or "GNOME on Xorg" (X11)
+```
+
+**Current Configuration:** Wayland by default with X11 fallback available
+
+---
 
 ## Application Issues
 
-_To be populated in Phase 3-4_
+### Unwanted Launcher Icons
+
+**Symptom:** CLI tools (vim, htop, yazi, xterm) appear in application launcher
+
+**Cause:** Some packages install desktop files even though they're CLI tools
+
+**Solution 1 - System Packages (xterm):**
+```nix
+# In modules/desktop/gnome.nix
+services.xserver.excludePackages = with pkgs; [
+  xterm
+];
+```
+
+**Solution 2 - Home Manager Packages:**
+```nix
+# In home/default.nix or relevant module
+xdg.dataFile."applications/vim.desktop".text = ''
+  [Desktop Entry]
+  Hidden=true
+'';
+```
+
+**Status:** Fixed for xterm, vim, htop, micro, yazi
+
+---
+
+### Fish Plugin Hash Mismatch
+
+**Symptom:** Build fails with hash mismatch errors for Fish plugins
+
+**Example Error:**
+```
+error: hash mismatch in fixed-output derivation '/nix/store/...-fishPlugins.z':
+  specified: sha256-xyz...
+  got:      sha256-abc...
+```
+
+**Cause:** Plugin source changed or incorrect hash in configuration
+
+**Solution:**
+1. Note the "got:" hash from error message
+2. Update hash in home/shell/fish.nix:
+```nix
+plugins = [
+  {
+    name = "z";
+    src = pkgs.fetchFromGitHub {
+      owner = "jethrokuan";
+      repo = "z";
+      rev = "...";
+      sha256 = "correct-hash-here";  # Use the "got:" hash
+    };
+  }
+];
+```
+
+**Status:** Fixed for z and fzf.fish plugins
+
+---
+
+### Duplicate Chrome Launcher Icon
+
+**Symptom:** Multiple Chrome icons in application launcher
+
+**Cause:** Conflicting desktop files
+
+**Solution:** Proper desktop file management in modules/apps/browsers.nix (no custom desktop files needed)
+
+**Status:** Resolved
+
+---
+
+### Terminal Doesn't Have Native GNOME Decorations
+
+**Symptom:** Terminal window decorations don't match GNOME theme (WezTerm issue)
+
+**Cause:** WezTerm doesn't use GTK/libadwaita for window decorations
+
+**Solution:** Switched to Ghostty terminal emulator
+- Ghostty uses GTK/libadwaita for native GNOME integration
+- Configured in modules/apps/terminals.nix and home/ghostty.nix
+
+**Status:** Resolved by migrating to Ghostty in Phase 3
+
+---
+
+### Claude Code CLI Not in PATH
+
+**Symptom:** `claude` command not found after installation
+
+**Cause 1:** ~/.local/bin not in PATH
+**Solution:** Added to PATH in home/shell/fish.nix via `fish_add_path`
+
+**Cause 2:** Wrong installation directory
+**Note:** Installer changed from `~/.claude/bin` to `~/.local/bin`
+
+**Solution:**
+```bash
+# Verify installation location
+which claude
+
+# Should return: /home/tom/.local/bin/claude
+
+# If not found, check if installer ran successfully
+ls -la ~/.local/bin/claude
+
+# Re-run installer if needed
+curl -fsSL https://claude.ai/install.sh | bash
+
+# Reload Fish config
+source ~/.config/fish/config.fish
+```
+
+**Status:** Fixed in Phase 4 deployment
+
+---
+
+### VSCode Extensions Can't Be Managed Declaratively
+
+**Symptom:** VSCode extensions in home/vscode.nix don't install
+
+**Cause:** home-manager only supports declarative extensions for VSCodium, not VSCode
+
+**Solution:** Manual installation required
+1. Open VSCode
+2. Go to Extensions (Ctrl+Shift+X)
+3. Search and install Claude extension
+4. Other Nix-related extensions (nix-ide, direnv) ARE managed declaratively
+
+**Note:** This is a limitation of VSCode (unfree) vs VSCodium (free)
+
+**Status:** Documented as manual step in modules/apps/claude.nix
+
+---
 
 ## Known Issues
 
-_None yet - will be documented as discovered_
+### Current Limitations
+
+1. **sops-nix not configured:** No declarative secrets management (intentional - see SECRETS.md)
+2. **Atuin sync disabled:** Shell history not synchronized across machines (can enable with sops-nix)
+3. **Git identity not configured:** Must set user.name and user.email manually
+4. **VSCode Claude extension:** Must be installed manually (VSCode limitation)
+5. **Chrome extensions:** Must be installed manually (browser limitation)
+
+### Expected Future Issues
+
+**Phase 5 (gti deployment):**
+- Dell XPS-specific hardware issues may arise
+- Display scaling configuration might be needed (HiDPI)
+- Touchpad sensitivity tuning may be required
+
+---
 
 ## Getting Help
 
