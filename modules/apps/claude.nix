@@ -1,4 +1,4 @@
-{ pkgs, ... }:
+{ pkgs, inputs, ... }:
 
 {
   # Claude Code CLI - Official tool with nix-ld for dynamic linking
@@ -30,6 +30,21 @@
 
   # PATH configuration for Claude Code CLI is in home/shell/fish.nix
   # (Adds ~/.local/bin to PATH where Claude Code installs itself)
+
+  # ============================================================================
+  # Claude Desktop (via claude-for-linux flake)
+  # ============================================================================
+
+  # Import and configure claude-for-linux Home Manager module
+  home-manager.users.tom = {
+    imports = [ inputs.claude-for-linux.homeManagerModules.x86_64-linux.default ];
+
+    programs.claude-cowork = {
+      enable = true;
+      installPatches = true;
+      createDesktopEntry = true;
+    };
+  };
 
   # ============================================================================
   # Installation Instructions
@@ -67,9 +82,13 @@
   # Note: VSCode extensions cannot be declaratively managed in current home-manager
   #       (extensions are only supported for VSCodium, not VSCode)
   #
-  # Claude Desktop:
-  # - No official Linux support from Anthropic
-  # - Third-party flakes exist but are fragile (extract from macOS builds)
-  # - Not included in this configuration due to stability concerns
-  # - If needed, can be manually installed from community sources
+  # Claude Desktop (via claude-for-linux):
+  # 1. After deploying this config, Claude Desktop is automatically installed
+  # 2. The Cowork patches are applied automatically on first run and updates
+  # 3. Launch from GNOME applications menu or run: claude-desktop
+  # 4. Sign in with your Claude account on first launch
+  # 5. The wrapper provides sandboxing via bubblewrap for security
+  # 6. Auto-updates work with automatic patch reapplication
+  # 7. Cowork features (screen sharing, computer use) are fully supported
+  # Source: https://github.com/heytcass/claude-for-linux
 }
