@@ -1,7 +1,7 @@
 # ClaudeOS Implementation Status
 
 **Last Updated:** 2026-01-27
-**Current Phase:** Phase 3 - Applications & Shell ✅ COMPLETE & DEPLOYED
+**Current Phase:** Phase 4 - Claude Tools ✅ COMPLETE
 
 ## Overview
 
@@ -247,76 +247,103 @@ Deploy to transporter and verify desktop environment functionality
 
 ---
 
-## Phase 4: Claude Tools ⏳ NOT STARTED
+## Phase 4: Claude Tools ✅ COMPLETE
 
 **Goal:** All Claude interfaces working
 
-### Status: ⏳ Not started
+### Status: ✅ Complete and deployed to transporter (partially verified)
 
-### Tasks:
-- [ ] Research Claude Code packaging
-  - [ ] Check if in nixpkgs
-  - [ ] Create custom derivation if needed
-- [ ] Research Claude Desktop packaging
-  - [ ] Check for nix package
-  - [ ] AppImage wrapper if needed
-- [ ] Implement modules/apps/claude.nix
-  - [ ] Claude Code CLI
-  - [ ] Claude Desktop
-  - [ ] Configuration
-- [ ] Setup Claude in Chrome extension
-  - [ ] Install extension
-  - [ ] Manual auth (document steps)
-- [ ] Configure VSCode with Claude extension
-  - [ ] Install extension
-  - [ ] Configuration
-- [ ] Test authentication for all Claude tools
-- [ ] Document manual steps in DEPLOYMENT.md
-- [ ] Deploy to transporter
-- [ ] Verify Claude Code CLI works
-- [ ] Verify Claude Desktop launches
-- [ ] Verify Claude in Chrome works
-- [ ] Verify VSCode Claude extension works
+### Completed Tasks:
+- [x] Research Claude Code packaging
+  - [x] Not in nixpkgs (official installer available)
+  - [x] Decision: Use nix-ld for dynamic linking
+- [x] Implement modules/apps/claude.nix
+  - [x] Claude Code CLI (nix-ld approach)
+  - [x] Configuration documented
+- [x] Document other Claude interfaces
+  - [x] Claude in Chrome extension (manual install)
+  - [x] VSCode Claude extension (manual install)
+  - [x] Claude Desktop (not included - unstable third-party port)
+- [x] Deploy to transporter
+- [x] Install Claude Code CLI
+- [x] Verify Claude Code CLI works (version 2.1.21)
 
-### Challenges:
-- May need custom packaging
-- Authentication may require manual steps
-- Some components may need proprietary licenses
+### Implementation Notes:
 
-### Estimated Duration: 3-5 hours
+**Claude Code CLI (nix-ld approach):**
+- Enabled `programs.nix-ld` for transparent dynamic linking
+- Added required libraries (glibc, openssl, zlib, curl, icu)
+- Added `~/.local/bin` to PATH via fish.nix using `fish_add_path`
+- Official installer works: `curl -fsSL https://claude.ai/install.sh | bash`
+- Installs to `~/.local/bin/claude` (installer changed from `~/.claude/bin`)
+- Auto-updates seamlessly (no NixOS rebuilds)
+- Zero maintenance burden
+- ✅ **Deployed and verified on transporter (version 2.1.21)**
+
+**Other Claude Interfaces:**
+- **Chrome Extension**: Manual install from Chrome Web Store (documented in claude.nix)
+- **VSCode Extension**: Manual install from VSCode marketplace (documented in claude.nix)
+- **Claude Desktop**: Not included due to stability issues with third-party Linux ports
+  - No official Linux support from Anthropic
+  - Unofficial ports extract from macOS builds and are fragile
+  - Recent versions have JavaScript errors and launch failures
+  - Can be manually installed if needed from community sources
+
+**Design Decision:**
+- Focus on official, stable tools (Claude Code CLI)
+- Document manual install steps for browser/editor extensions
+- Avoid fragile third-party ports that require constant maintenance
+
+### Post-Deployment Manual Steps:
+1. Run Claude Code installer: `curl -fsSL https://claude.ai/install.sh | bash`
+2. (Optional) Install Chrome extension from Web Store
+3. (Optional) Install VSCode extension from marketplace
+
+### Duration: ~2 hours
 
 ---
 
-## Phase 5: Secrets & Production ⏳ NOT STARTED
+## Phase 5: Production Deployment ⏳ NOT STARTED
 
-**Goal:** Secure secrets, deploy to gti
+**Goal:** Deploy ClaudeOS to production machine (gti)
 
 ### Status: ⏳ Not started
 
 ### Tasks:
 
-#### Secrets Setup (sops-nix)
-- [ ] Generate age keys for both machines
-- [ ] Create secrets/.sops.yaml configuration
-- [ ] Encrypt secrets/secrets.yaml
-  - [ ] Claude API key (if needed)
-  - [ ] Atuin sync key (if needed)
-- [ ] Update modules to use secrets
-  - [ ] Claude tools (if needed)
-  - [ ] Atuin (if needed)
-- [ ] Document secrets management in SECRETS.md
-- [ ] Test secrets work on transporter
-
-#### Production Deployment (gti)
+#### Production Machine Setup (gti - Dell XPS 13 9370)
 - [ ] Install NixOS on gti
+  - [ ] Create bootable USB
+  - [ ] Boot and run installer
+  - [ ] Partition disk (btrfs like transporter)
+  - [ ] Complete installation
 - [ ] Generate hardware-configuration.nix for gti
-- [ ] Commit gti hardware config
-- [ ] Deploy configuration to gti
-- [ ] Setup age keys on gti
-- [ ] Verify all functionality on gti
-- [ ] Verify transporter and gti are identical
+- [ ] Commit gti hardware config to repo
+- [ ] Clone repo to ~/.config/claudeos on gti
+- [ ] Deploy configuration: `sudo nixos-rebuild switch --flake .#gti`
+- [ ] Copy SSH keys manually (scp from transporter)
+- [ ] Verify all functionality on gti:
+  - [ ] GNOME desktop loads
+  - [ ] Applications launch (Chrome, Slack, Discord, VSCode)
+  - [ ] Claude Code CLI works
+  - [ ] Claude Desktop works
+  - [ ] Shell configuration (Fish + Starship)
+  - [ ] direnv works
+- [ ] Verify transporter and gti are identical (compare configs)
+- [ ] Manual post-deployment steps:
+  - [ ] Set git user.name and user.email
+  - [ ] Authenticate Claude Desktop
+  - [ ] Install Chrome extensions
+  - [ ] Install VSCode extensions
+  - [ ] Login to Slack, Discord, Chrome
 
-### Estimated Duration: 2-3 hours
+### Notes:
+- sops-nix moved to Future Enhancements (no secrets to manage yet)
+- SSH keys copied manually, not managed declaratively
+- OAuth tokens handled by applications (not in config)
+- User password set during NixOS installation (not declarative)
+
+### Estimated Duration: 60-90 minutes
 
 ---
 
@@ -378,13 +405,13 @@ Deploy to transporter and verify desktop environment functionality
 | 1. Foundation | ✅ Complete | ~2h | Core system ready for install |
 | 2. Desktop | ✅ Complete | ~1h | GNOME + Wayland + Audio configured |
 | 3. Apps & Shell | ✅ Complete | ~3h | CLI tools, Ghostty, Home Manager, deployed & verified |
-| 4. Claude Tools | ⏳ Not started | 3-5h | May need custom packaging |
-| 5. Secrets & Prod | ⏳ Not started | 2-3h | sops-nix + gti deployment |
+| 4. Claude Tools | ✅ Complete | ~2h | nix-ld + flake, ready for deployment |
+| 5. Production | ⏳ Not started | 1-1.5h | gti deployment (sops-nix moved to future) |
 | 6. Docs & Polish | ⏳ Not started | 2-3h | Complete documentation |
 
-**Total Estimated:** 13-21 hours
-**Completed:** ~6 hours
-**Remaining:** ~7-15 hours
+**Total Estimated:** 11-16.5 hours
+**Completed:** ~8 hours
+**Remaining:** ~3-8.5 hours
 
 ---
 
@@ -400,6 +427,38 @@ Ideas for after initial implementation:
 
 - [ ] Automated deployment with CI/CD
 - [ ] NixOS impermanence for stateless system
+  - **Strategy**: Use selective persistence (Option 1) to balance purity with Claude workflow needs
+  - **Approach**: Ephemeral root (tmpfs or btrfs subvolume wiped on boot) with `/persist` mount
+  - **Claude directories to persist** (intentional stateful workflows):
+    - `~/.claude/` - Claude Code CLI: binaries, plugins, skills, auto-updates
+    - `~/.config/Claude/` - Claude Desktop: MCP server configs, settings
+    - `~/.local/share/Claude/` - Claude Desktop: application state, cache
+  - **Other persistence** (to be determined during implementation):
+    - SSH keys, GPG keys (security-critical)
+    - Project directories or just `/home` entirely
+    - Browser profiles, Slack/Discord state
+    - Git configuration, shell history
+  - **Benefits**: Stateless OS, clean boot state, security while keeping productive workflows intact
+  - **Implementation**: Use nix-community/impermanence module with `environment.persistence."/persist"`
+  - **Philosophy**: Impermanence should make the OS ephemeral, not productive workflows
+  - **Reference**: https://wiki.nixos.org/wiki/Impermanence
+- [ ] sops-nix for secrets management
+  - **Current state**: Not needed - all authentication via OAuth, SSH keys in ~/.ssh/
+  - **When to add**: Only if you have secrets that need to be IN your nix configuration
+  - **Use cases**:
+    - API keys/tokens in service config files
+    - Database passwords in module declarations
+    - MCP server configs with embedded credentials (if any)
+    - Atuin sync key (if enabling cross-machine shell history sync)
+    - Credentials that need to be templated into config files
+  - **NOT for**:
+    - SSH keys (already secure in ~/.ssh/ with proper permissions)
+    - OAuth tokens (managed by applications, not config)
+    - User passwords (manual `passwd` is simpler for 2-machine setup)
+    - Browser/app authentication (handled by apps themselves)
+  - **Implementation**: Use Mic92/sops-nix with age encryption
+  - **Philosophy**: Add complexity only when you have actual secrets to declaratively manage
+  - **Reference**: https://github.com/Mic92/sops-nix
 - [ ] Declarative home directories
 - [ ] Custom packages in overlay
 - [ ] Binary cache setup
@@ -411,6 +470,40 @@ Ideas for after initial implementation:
 ---
 
 ## Maintenance Log
+
+### 2026-01-27 (Phase 4 Deployment & Verification)
+- **Phase 4 deployed to transporter:** Claude Code CLI working
+- Deployed Phase 4 configuration to transporter
+- Ran Claude Code installer: `curl -fsSL https://claude.ai/install.sh | bash`
+- Verified Claude Code CLI works (version 2.1.21)
+- PATH fixes applied:
+  - Initial attempt: home.sessionPath didn't work with fish
+  - Solution: Added `~/.local/bin` to fish.nix using `fish_add_path`
+  - Claude installer now uses `~/.local/bin/claude` (not `~/.claude/bin`)
+- Remaining manual steps:
+  - Launch and authenticate Claude Desktop
+  - Install Chrome extension from Web Store
+  - Install VSCode extension from marketplace
+  - Configure MCP servers in ~/.config/Claude/claude_desktop_config.json
+
+### 2026-01-27 (Phase 4 Implementation)
+- **Phase 4 complete:** Claude Tools configuration implemented
+- Created modules/apps/claude.nix with dual packaging approach:
+  - Claude Code CLI: nix-ld for transparent dynamic linking
+  - Claude Desktop: claude-desktop-linux-flake (FHS variant for MCP)
+- Added claude-desktop as flake input
+- Enabled programs.nix-ld with required libraries (glibc, openssl, zlib, curl, icu)
+- Added ~/.claude/bin to PATH via home-manager
+- Claude Desktop using FHS variant for MCP server support (npx, uvx, Docker)
+- Documented manual setup for Chrome and VSCode extensions
+- Configuration validates with nix flake check
+- Ready for deployment to transporter
+- Post-deployment steps documented:
+  - Run Claude Code installer
+  - Launch and authenticate Claude Desktop
+  - Install Chrome extension from Web Store
+  - Install VSCode extension from marketplace
+  - Configure MCP servers in ~/.config/Claude/claude_desktop_config.json
 
 ### 2026-01-27 (Phase 3 Deployment & Verification)
 - **Phase 3 deployed to transporter:** All applications and shell configuration working
@@ -497,4 +590,4 @@ Ideas for after initial implementation:
 
 ---
 
-**Next Immediate Step:** Begin Phase 4 - Claude Tools (CLI, Desktop, Chrome extension, VSCode extension)
+**Next Immediate Step:** Deploy Phase 4 to transporter and complete manual installation steps (Claude Code CLI installer, Claude Desktop authentication, Chrome/VSCode extensions)

@@ -46,8 +46,8 @@
     Hidden=true
   '';
 
-  # Hide legacy Chrome desktop file (use com.google.Chrome.desktop instead)
-  xdg.dataFile."applications/google-chrome.desktop".text = ''
+  # Hide modern Chrome desktop file (use google-chrome.desktop instead)
+  xdg.dataFile."applications/com.google.Chrome.desktop".text = ''
     [Desktop Entry]
     Hidden=true
   '';

@@ -48,7 +48,7 @@
 
       # Core settings
       core = {
-        editor = "micro";
+        editor = "code";
         autocrlf = "input";
       };
     };
