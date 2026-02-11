@@ -30,12 +30,23 @@
       url = "github:danth/stylix";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+
+    jasper = {
+      url = "github:heytcass/jasper";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
-  outputs = { self, nixpkgs, home-manager, nixos-hardware, sops-nix, disko, claude-for-linux, stylix }@inputs:
+  outputs = { self, nixpkgs, home-manager, nixos-hardware, sops-nix, disko, claude-for-linux, stylix, jasper }@inputs:
     let
       lib = import ./lib { inherit (nixpkgs) lib; };
       specialArgs = { inherit inputs; };
+      commonHardwareModules = [
+        home-manager.nixosModules.home-manager
+        sops-nix.nixosModules.sops
+        disko.nixosModules.disko
+        stylix.nixosModules.stylix
+      ];
     in
     {
       nixosConfigurations = {
@@ -43,12 +54,8 @@
           hostname = "transporter";
           system = "x86_64-linux";
           user = "tom";
-          hardwareModules = [
+          hardwareModules = commonHardwareModules ++ [
             nixos-hardware.nixosModules.dell-latitude-7280
-            home-manager.nixosModules.home-manager
-            sops-nix.nixosModules.sops
-            disko.nixosModules.disko
-            stylix.nixosModules.stylix
           ];
           modules = [ ./hosts/transporter ];
           inherit specialArgs;
@@ -58,12 +65,8 @@
           hostname = "gti";
           system = "x86_64-linux";
           user = "tom";
-          hardwareModules = [
+          hardwareModules = commonHardwareModules ++ [
             nixos-hardware.nixosModules.dell-xps-13-9370
-            home-manager.nixosModules.home-manager
-            sops-nix.nixosModules.sops
-            disko.nixosModules.disko
-            stylix.nixosModules.stylix
           ];
           modules = [ ./hosts/gti ];
           inherit specialArgs;

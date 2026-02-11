@@ -1,18 +1,19 @@
 { pkgs, ... }:
 
+let
+  themeLib = import ../../lib/theme.nix;
+in
 {
-  # Font configuration
   fonts = {
     # Enable font configuration management
     fontconfig = {
       enable = true;
       defaultFonts = {
         # Mirroring Claude AI's typography choices
-        # Claude uses Inter for its interface - clean, modern, highly readable
-        sansSerif = [ "Inter" "Noto Sans" "DejaVu Sans" ];
-        serif = [ "Noto Serif" "DejaVu Serif" ];
-        monospace = [ "JetBrains Mono" "Symbols Nerd Font" "Fira Code" "DejaVu Sans Mono" ];
-        emoji = [ "Noto Color Emoji" ]; # Package: noto-fonts-color-emoji
+        sansSerif = [ themeLib.fonts.sansSerif.name "Noto Sans" "DejaVu Sans" ];
+        serif = [ themeLib.fonts.serif.name "DejaVu Serif" ];
+        monospace = [ themeLib.fonts.monospace.name themeLib.fonts.symbols.name "Fira Code" "DejaVu Sans Mono" ];
+        emoji = [ themeLib.fonts.emoji.name ];
       };
 
       # Better font rendering
@@ -27,29 +28,26 @@
 
     # Font packages
     packages = with pkgs; [
-      # Primary UI font - matches Claude AI interface
-      inter # Claude's main interface font
+      # Primary UI font — matches Claude AI interface
+      inter
 
       # System fonts for fallbacks and Unicode coverage
-      noto-fonts # Excellent Unicode coverage
-      noto-fonts-cjk-sans # Chinese, Japanese, Korean
-      noto-fonts-color-emoji # Emoji support
-      liberation_ttf # Microsoft font replacements
-      dejavu_fonts # Bitstream Vera successor
+      noto-fonts
+      noto-fonts-cjk-sans
+      noto-fonts-color-emoji
+      liberation_ttf
+      dejavu_fonts
 
       # Programming fonts with ligatures and Nerd Font icons
-      # Note: nerdfonts was split into individual packages in nixpkgs
-      nerd-fonts.jetbrains-mono # Primary coding font with icons
-      nerd-fonts.fira-code # Alternative with ligatures and icons
-      nerd-fonts.symbols-only # Standalone symbol fallback for UI glyphs
+      nerd-fonts.jetbrains-mono
+      nerd-fonts.fira-code
+      nerd-fonts.symbols-only
     ];
 
     # Enable support for additional font formats
     enableDefaultPackages = true;
 
-    # Ensure Symbols Nerd Font is tried before Noto Color Emoji for monospace.
-    # Without this, fontconfig may resolve shared codepoints (e.g. U+23F8 ⏸)
-    # to the color emoji font, producing oversized glyphs in terminals.
+    # Ensure Symbols Nerd Font is tried before Noto Color Emoji for monospace
     fontconfig.localConf = ''
       <?xml version="1.0"?>
       <!DOCTYPE fontconfig SYSTEM "urn:fontconfig:fonts.dtd">
@@ -57,7 +55,7 @@
         <alias>
           <family>monospace</family>
           <prefer>
-            <family>Symbols Nerd Font</family>
+            <family>${themeLib.fonts.symbols.name}</family>
           </prefer>
         </alias>
       </fontconfig>

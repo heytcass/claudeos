@@ -1,8 +1,16 @@
 { lib, ... }:
 
+let
+  btrfsMountOpts = [
+    "noatime"
+    "compress=zstd:3"
+    "ssd"
+    "discard=async"
+    "space_cache=v2"
+  ];
+in
 {
   # Disko configuration for ClaudeOS btrfs layout
-  # This defines our standard disk layout with btrfs subvolumes
   #
   # Layout:
   # - 512MB EFI boot partition (vfat)
@@ -46,49 +54,21 @@
                 type = "btrfs";
                 extraArgs = [ "-f" ]; # Force overwrite if needed
                 subvolumes = {
-                  # Root subvolume
                   "@" = {
                     mountpoint = "/";
-                    mountOptions = [
-                      "noatime"
-                      "compress=zstd:3"
-                      "ssd"
-                      "discard=async"
-                      "space_cache=v2"
-                    ];
+                    mountOptions = btrfsMountOpts;
                   };
-                  # Home directories
                   "@home" = {
                     mountpoint = "/home";
-                    mountOptions = [
-                      "noatime"
-                      "compress=zstd:3"
-                      "ssd"
-                      "discard=async"
-                      "space_cache=v2"
-                    ];
+                    mountOptions = btrfsMountOpts;
                   };
-                  # Nix store
                   "@nix" = {
                     mountpoint = "/nix";
-                    mountOptions = [
-                      "noatime"
-                      "compress=zstd:3"
-                      "ssd"
-                      "discard=async"
-                      "space_cache=v2"
-                    ];
+                    mountOptions = btrfsMountOpts;
                   };
-                  # Logs
                   "@log" = {
                     mountpoint = "/var/log";
-                    mountOptions = [
-                      "noatime"
-                      "compress=zstd:3"
-                      "ssd"
-                      "discard=async"
-                      "space_cache=v2"
-                    ];
+                    mountOptions = btrfsMountOpts;
                   };
                 };
               };

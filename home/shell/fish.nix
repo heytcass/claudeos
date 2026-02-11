@@ -15,13 +15,13 @@
       gd = "git diff";
       gl = "git log --oneline --graph --decorate";
       gp = "git pull";
-      gP = "git push";
 
       # System shortcuts
       ".." = "cd ..";
       "..." = "cd ../..";
 
       # NixOS specific
+      zc = "z ~/.config/claudeos";
       rebuild = "sudo nixos-rebuild switch --flake ~/.config/claudeos#(hostname)";
       rebuild-test = "sudo nixos-rebuild test --flake ~/.config/claudeos#(hostname)";
       flake-check = "cd ~/.config/claudeos && nix flake check";
@@ -35,8 +35,6 @@
       gca = "git commit --amend";
       gaa = "git add --all";
       gcm = "git checkout main";
-      gph = "git push";
-      gpl = "git pull";
 
       # NixOS operations
       nfmt = "nixpkgs-fmt";

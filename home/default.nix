@@ -1,5 +1,8 @@
 { pkgs, lib, user, ... }:
 
+let
+  hideDesktopEntries = import ../lib/hideDesktopEntries.nix { inherit pkgs lib; };
+in
 {
   # Import all Home Manager modules
   imports = [
@@ -7,7 +10,6 @@
     ./ghostty.nix
     ./git.nix
     ./vscode.nix
-    ./theme.nix
     ./cosmic.nix
     ./cosmic-theme.nix
   ];
@@ -32,32 +34,27 @@
     templates = "/home/${user}/Templates";
     videos = "/home/${user}/Videos";
     extraConfig = {
-      XDG_PROJECTS_DIR = "/home/${user}/Projects";
+      PROJECTS = "/home/${user}/Projects";
     };
   };
+
+  # Set development folder icon for ~/Projects
+  home.file."Projects/.directory".text = ''
+    [Desktop Entry]
+    Icon=folder-development
+  '';
 
   # Let home-manager manage itself
   programs.home-manager.enable = true;
 
   # Hide unwanted apps from COSMIC launcher (per-user profile entries)
-  # COSMIC doesn't do cross-path XDG deduplication, so overrides must be
-  # in the same path. For per-user profile entries, use lib.hiPrio package.
-  # System-level hides are in modules/desktop/cosmic-system.nix
   home.packages = [
-    (lib.hiPrio (pkgs.runCommand "desktop-hide-user-overrides" { } ''
-      mkdir -p $out/share/applications
-      for name in \
-        yazi \
-        code-url-handler \
-        kvantummanager \
-        qt5ct \
-        qt6ct
-      do
-        cat > "$out/share/applications/$name.desktop" <<EOF
-      [Desktop Entry]
-      NoDisplay=true
-      EOF
-      done
-    ''))
+    (hideDesktopEntries [
+      "yazi"
+      "code-url-handler"
+      "kvantummanager"
+      "qt5ct"
+      "qt6ct"
+    ])
   ];
 }

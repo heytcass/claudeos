@@ -39,6 +39,27 @@
   # (Adds ~/.local/bin to PATH where Claude Code installs itself)
 
   # ============================================================================
+  # Claude Code CLI Automated Installation
+  # ============================================================================
+
+  # Systemd user service to automatically install Claude Code CLI on first login.
+  # Only runs if ~/.local/bin/claude doesn't exist (idempotent).
+  # After installation, Claude auto-updates itself without NixOS intervention.
+  systemd.user.services.claude-code-installer = {
+    description = "Install Claude Code CLI on first login";
+    wantedBy = [ "default.target" ];
+
+    # Only run if claude doesn't exist
+    unitConfig.ConditionPathExists = "!%h/.local/bin/claude";
+
+    serviceConfig = {
+      Type = "oneshot";
+      RemainAfterExit = true;
+      ExecStart = "${pkgs.bash}/bin/bash -c 'curl -fsSL https://claude.ai/install.sh | bash'";
+    };
+  };
+
+  # ============================================================================
   # Claude Desktop (via claude-for-linux flake)
   # ============================================================================
 
@@ -52,6 +73,4 @@
       createDesktopEntry = true;
     };
   };
-
-  # Installation: see docs/DEPLOYMENT.md for post-deploy setup steps
 }

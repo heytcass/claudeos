@@ -1,9 +1,10 @@
 { lib, pkgs, ... }:
 
+let
+  themeLib = import ../../lib/theme.nix;
+in
 {
   # Stylix theming with Claude brand colors
-  # Replaces the previous Adwaita-based theme with a custom base16 scheme
-  # that matches Claude's warm, minimal aesthetic
   stylix = {
     enable = true;
 
@@ -21,11 +22,11 @@
 
       base08 = "c6613f"; # Red — terracotta accent
       base09 = "d97757"; # Orange — lighter terracotta
-      base0A = "c9b87c"; # Yellow — warm sand (invented, keeps warm tone)
-      base0B = "8a9a6b"; # Green — muted olive (invented)
-      base0C = "6b9e8a"; # Cyan — warm sage (invented)
+      base0A = "c9b87c"; # Yellow — warm sand
+      base0B = "8a9a6b"; # Green — muted olive
+      base0C = "6b9e8a"; # Cyan — warm sage
       base0D = "2c84db"; # Blue — link/info blue
-      base0E = "a67a5b"; # Magenta — warm brown (invented, fits palette)
+      base0E = "a67a5b"; # Magenta — warm brown
       base0F = "d97757"; # Brown — lighter terracotta
     };
 
@@ -36,32 +37,23 @@
     # Dark mode theme
     polarity = "dark";
 
-    # Icon theme configuration
-    # Note: Stylix automatic icon theming disabled due to compatibility issues
-    # Icon theme is configured directly in modules/desktop/cosmic.nix via GTK
-    icons = {
-      enable = false;
-      package = pkgs.adwaita-icon-theme;
-    };
-
-    # Font configuration - use Inter font from fonts.nix
-    # Must be explicitly set for Stylix to work properly
+    # Font configuration — names from lib/theme.nix, packages declared here
     fonts = {
       serif = {
         package = pkgs.noto-fonts;
-        name = "Noto Serif";
+        name = themeLib.fonts.serif.name;
       };
       sansSerif = {
         package = pkgs.inter;
-        name = "Inter";
+        name = themeLib.fonts.sansSerif.name;
       };
       monospace = {
         package = pkgs.jetbrains-mono;
-        name = "JetBrains Mono";
+        name = themeLib.fonts.monospace.name;
       };
       emoji = {
         package = pkgs.noto-fonts-color-emoji;
-        name = "Noto Color Emoji";
+        name = themeLib.fonts.emoji.name;
       };
     };
   };

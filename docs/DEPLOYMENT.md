@@ -77,12 +77,13 @@ After applying a new configuration:
 
 One-time setup after a fresh installation:
 
-1. **Claude Code CLI:** `curl -fsSL https://claude.ai/install.sh | bash`
-2. **Git identity:** `git config --global user.name "Name"` and `git config --global user.email "email"`
-3. **SSH keys:** Copy from another machine or generate new ones
-4. **Chrome:** Sign in and install extensions
-5. **Slack/Discord:** Sign in to workspaces
-6. **VSCode:** Install Claude extension from marketplace
+**Note:** Claude Code CLI installs automatically on first login via systemd user service. Verify with `claude --version` after logging in.
+
+1. **Git identity:** `git config --global user.name "Name"` and `git config --global user.email "email"`
+2. **SSH keys:** Copy from another machine or generate new ones
+3. **Chrome:** Sign in and install extensions
+4. **Slack/Discord:** Sign in to workspaces
+5. **VSCode:** Install Claude extension from marketplace
 
 ## Disk Space Management
 

@@ -1,5 +1,8 @@
 { lib, ... }:
 
+let
+  themeLib = import ../lib/theme.nix;
+in
 {
   programs.ghostty = {
     enable = true;
@@ -11,12 +14,10 @@
       # before the Nerd Font, causing symbol codepoints (U+23F8, U+273B)
       # to render as oversized color emoji instead of monochrome glyphs.
       font-family = lib.mkForce [
-        "JetBrains Mono Nerd Font" # Primary: monospace + Nerd Font symbols
-        "Symbols Nerd Font" # Nerd Font private-use-area icons
-        "Noto Sans Symbols 2" # Monochrome glyphs for standard codepoints
-        # (⏸ U+23F8, ✻ U+273B, etc.) — prevents
-        # color emoji from overriding terminal colors
-        "Noto Color Emoji" # Fallback: actual emoji only
+        themeLib.fonts.monospace.nerdName # Primary: monospace + Nerd Font symbols
+        themeLib.fonts.symbols.name # Nerd Font private-use-area icons
+        themeLib.fonts.symbols.fallback # Monochrome glyphs (⏸ U+23F8, ✻ U+273B, etc.)
+        themeLib.fonts.emoji.name # Fallback: actual emoji only
       ];
       font-size = 11;
 

@@ -1,11 +1,17 @@
-{ ... }:
+{ pkgs, ... }:
 
 {
-  # Phase 3: Applications
   imports = [
     ./terminals.nix
-    ./browsers.nix
-    ./communication.nix
-    ./claude.nix # Phase 4: Claude Code CLI
+    ./claude.nix
+    ./jasper.nix
+  ];
+
+  # Applications (direct installs — no extra configuration needed)
+  environment.systemPackages = with pkgs; [
+    google-chrome # Browser
+    slack # Communication
+    discord # Communication
+    obsidian # Knowledge management (install Terminal + Web Clipper community plugins)
   ];
 }

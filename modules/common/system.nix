@@ -28,6 +28,9 @@
     nil # Nix LSP
   ];
 
+  # Enable redistributable firmware (includes CPU microcode)
+  hardware.enableRedistributableFirmware = true;
+
   # Enable firmware updates
   services.fwupd.enable = true;
 
@@ -51,6 +54,7 @@
 
   # Enable magic SysRq keys for emergency recovery (REISUB)
   boot.kernel.sysctl."kernel.sysrq" = 1;
+
 
   # Periodic btrfs scrub to detect and repair data corruption
   services.btrfs.autoScrub = {

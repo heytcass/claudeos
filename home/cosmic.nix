@@ -1,6 +1,16 @@
 { pkgs, ... }:
 
+let
+  themeLib = import ../lib/theme.nix;
+in
 {
+  # Stylix target configuration — controls which apps get themed
+  stylix.targets = {
+    gtk.enable = true;
+    ghostty.enable = true;
+    vscode.enable = true;
+  };
+
   # GTK theme preferences
   # These apply to GTK applications running under COSMIC
   gtk = {
@@ -8,7 +18,7 @@
 
     # Icon theme — Adwaita provides symbolic icons for GTK/libadwaita apps
     iconTheme = {
-      name = "Adwaita";
+      name = themeLib.icons.name;
       package = pkgs.adwaita-icon-theme;
     };
 
@@ -17,18 +27,19 @@
     gtk4.extraConfig.gtk-application-prefer-dark-theme = 1;
   };
 
+  # Force overwrite GTK CSS files that Stylix manages
+  xdg.configFile = {
+    "gtk-3.0/gtk.css".force = true;
+    "gtk-4.0/gtk.css".force = true;
+  };
+
   # dconf settings for GTK app compatibility
   # COSMIC uses its own config system in ~/.config/cosmic
   # but respects dconf for GTK applications
   dconf.settings = {
-    # Desktop interface preferences (for GTK apps)
     "org/gnome/desktop/interface" = {
       color-scheme = "prefer-dark";
-      icon-theme = "Adwaita";
+      icon-theme = themeLib.icons.name;
     };
   };
-
-  # COSMIC configuration
-  # Most COSMIC settings are managed through the Settings app GUI
-  # Advanced configuration can be done via ~/.config/cosmic/ files
 }
