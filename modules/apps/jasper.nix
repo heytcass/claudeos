@@ -30,6 +30,13 @@ in
     wants = [ "graphical-session.target" ];
     wantedBy = [ "default.target" ];
 
+    # SOPS + age for runtime secret decryption
+    path = [ pkgs.sops pkgs.age ];
+
+    environment = {
+      JASPER_SOPS_PATH = "/home/tom/Projects/jasper/secrets.yaml";
+    };
+
     serviceConfig = {
       Type = "simple";
       ExecStart = "${jasperPkgs.daemon}/bin/jasper-companion-daemon start";
