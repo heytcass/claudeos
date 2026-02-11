@@ -12,22 +12,7 @@ This is a multi-device NixOS flake. Changes may need to apply to multiple hosts.
 
 ## CRITICAL: Ask Questions, Don't Assume
 
-**ALWAYS use the `AskUserQuestion` tool whenever you need clarification.**
-
-- ❌ **DO NOT make assumptions** about what the user wants
-- ❌ **DO NOT guess** at implementation details or preferences
-- ❌ **DO NOT assume** you know the user's intent
-- ✅ **DO ask** for clarification at ANY point during development
-- ✅ **DO use** the `AskUserQuestion` tool for ALL questions
-- ✅ **DO stop and ask** if anything is unclear or ambiguous
-
-**Examples of when to ask:**
-
-- "Should I use approach A or B?"
-- "Which module should this configuration go in?"
-- "Do you want me to test this before committing?"
-- "Should I update the documentation as well?"
-- "Is this the behavior you expected?"
+**Never assume — always use `AskUserQuestion` when anything is unclear.** Ask about: approach choices, which module to use, whether to test/commit/update docs, or if behavior matches expectations.
 
 ## Quick Reference
 
@@ -38,14 +23,34 @@ This is a multi-device NixOS flake. Changes may need to apply to multiple hosts.
 
 **Stack:** NixOS unstable • COSMIC • Wayland • Pipewire • home-manager • sops-nix (future) • Stylix
 
+## Architecture
+
+```
+flake.nix              # Entry point — defines transporter + gti hosts
+lib/mkSystem.nix       # Host builder — wires common modules + home-manager
+hosts/<hostname>/      # Per-host: default.nix (overrides) + hardware-configuration.nix
+modules/common/        # Shared NixOS config: boot, networking, nix, users, locale, disko
+modules/desktop/       # COSMIC, audio, fonts, Stylix theme
+modules/apps/          # System packages: terminals, claude, jasper
+home/                  # home-manager modules: shell, git, ghostty, vscode, cosmic-theme
+lib/                   # Helpers: mkSystem, hideDesktopEntries, theme utilities
+assets/                # Static files (wallpapers, etc.)
+```
+
+**Key inputs:** nixpkgs (unstable), home-manager, nixos-hardware, sops-nix, disko, stylix, claude-for-linux, jasper
+
+home-manager runs as a NixOS module (not standalone) — configured in `lib/mkSystem.nix`.
+
 ## Workflow
 
 All work is done directly on NixOS machines:
 
 1. **Edit** configuration in `~/.config/claudeos`
-2. **Validate** changes with `nix flake check`
-3. **Apply** changes with `sudo nixos-rebuild switch --flake ~/.config/claudeos#$(hostname)`
-4. **Sync** between machines with `git push` / `git pull`
+2. **Validate** with `nix build .#nixosConfigurations.<hostname>.config.system.build.toplevel --dry-run` (both hosts)
+3. **Check** with `nix flake check`
+4. **Format** with `nix fmt`
+5. **Apply** with `sudo nixos-rebuild switch --flake ~/.config/claudeos#$(hostname)`
+6. **Sync** between machines with `git push` / `git pull`
 
 ## Debugging / NixOS
 
@@ -53,15 +58,4 @@ When diagnosing NixOS build issues, trace the actual dependency chain (e.g., `ni
 
 ## Documentation
 
-All documentation is in the repository:
-
-- [INSTALL.md](INSTALL.md) - Fresh NixOS installation
-- [docs/WORKFLOW.md](docs/WORKFLOW.md) - Development workflow
-- [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) - Deployment procedures
-- [docs/MODULES.md](docs/MODULES.md) - Module documentation
-- [docs/HARDWARE.md](docs/HARDWARE.md) - Hardware configs
-- [docs/SECRETS.md](docs/SECRETS.md) - Secrets management (future)
-- [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) - Common issues
-- [docs/IMPLEMENTATION_STATUS.md](docs/IMPLEMENTATION_STATUS.md) - Current state
-- [docs/THEME.md](docs/THEME.md) - Theme system
-- [docs/DISKO.md](docs/DISKO.md) - Disk layout
+Documentation lives in `docs/` and `INSTALL.md` — check there for workflow, deployment, hardware, theme, and troubleshooting details.
