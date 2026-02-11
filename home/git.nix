@@ -51,6 +51,9 @@
         editor = "code";
         autocrlf = "input";
       };
+
+      # GitHub CLI credential helper
+      credential.helper = "!gh auth git-credential";
     };
 
     # Git LFS (Large File Storage)

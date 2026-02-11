@@ -10,10 +10,10 @@
     enable = true;
     settings.Resolve = {
       DNSSEC = "allow-downgrade"; # Validate DNSSEC when available, don't break if unavailable
-      DNSOverTLS = "opportunistic"; # Use DNS-over-TLS when the server supports it
+      DNSOverTLS = "no"; # Disabled - caused slow DNS lookups with non-DoT servers
       FallbackDNS = [
-        "1.1.1.1#cloudflare-dns.com"
-        "9.9.9.9#dns.quad9.net"
+        "1.1.1.1"
+        "9.9.9.9"
       ];
     };
   };
@@ -32,7 +32,7 @@
   services.openssh = {
     enable = true;
     settings = {
-      PasswordAuthentication = lib.mkDefault false; # Set to true temporarily for initial key setup
+      PasswordAuthentication = false; # Disabled - using SSH keys
       PermitRootLogin = "no";
     };
   };

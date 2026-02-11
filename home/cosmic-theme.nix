@@ -36,35 +36,32 @@ let
 
   # Helper to format RGB for COSMIC RON format (with alpha)
   formatRgba = rgb: ''
-    (
-                red: ${toString rgb.red},
-                green: ${toString rgb.green},
-                blue: ${toString rgb.blue},
-                alpha: 1.0,
-            )'';
-
-  # Helper to format RGB without alpha (for accent)
-  formatRgb = rgb: ''
-    (
+(
             red: ${toString rgb.red},
             green: ${toString rgb.green},
             blue: ${toString rgb.blue},
+            alpha: 1.0,
         )'';
+
+  # Helper to format RGBA for Some((tuple)) format
+  formatRgbaSome = rgb: ''
+((
+        red: ${toString rgb.red},
+        green: ${toString rgb.green},
+        blue: ${toString rgb.blue},
+        alpha: 1.0,
+    ))'';
+
+  # Helper to format RGB without alpha (for Some((tuple)) format)
+  formatRgb = rgb: ''
+((
+        red: ${toString rgb.red},
+        green: ${toString rgb.green},
+        blue: ${toString rgb.blue},
+    ))'';
 
   # Extract colors from Stylix base16 scheme
   scheme = config.stylix.base16Scheme;
-
-  # Map base16 colors to COSMIC theme
-  # Base16 -> COSMIC mapping:
-  #   base00-07: neutral grays (background to foreground)
-  #   base08: red/error (terracotta)
-  #   base09: orange
-  #   base0A: yellow
-  #   base0B: green
-  #   base0C: cyan
-  #   base0D: blue (accent)
-  #   base0E: magenta
-  #   base0F: brown
 
   # Convert all base16 colors
   c00 = hexToRgb scheme.base00;
@@ -84,95 +81,123 @@ let
   c0E = hexToRgb scheme.base0E; # magenta
   c0F = hexToRgb scheme.base0F; # brown
 
-  # COSMIC theme RON content
-  cosmicTheme = pkgs.writeText "claude-cosmic-theme.ron" ''
-    (
-        palette: Dark((
-            name: "Claude",
-            bright_red: ${formatRgba c08},
-            bright_green: ${formatRgba c0B},
-            bright_orange: ${formatRgba c09},
-            gray_1: ${formatRgba c01},
-            gray_2: ${formatRgba c02},
-            neutral_0: ${formatRgba c00},
-            neutral_1: ${formatRgba c00},
-            neutral_2: ${formatRgba c01},
-            neutral_3: ${formatRgba c02},
-            neutral_4: ${formatRgba c03},
-            neutral_5: ${formatRgba c03},
-            neutral_6: ${formatRgba c04},
-            neutral_7: ${formatRgba c05},
-            neutral_8: ${formatRgba c05},
-            neutral_9: ${formatRgba c06},
-            neutral_10: ${formatRgba c07},
-            accent_blue: ${formatRgba c0D},
-            accent_indigo: ${formatRgba c0E},
-            accent_purple: ${formatRgba c0E},
-            accent_pink: ${formatRgba c08},
-            accent_red: ${formatRgba c08},
-            accent_orange: ${formatRgba c09},
-            accent_yellow: ${formatRgba c0A},
-            accent_green: ${formatRgba c0B},
-            accent_warm_grey: ${formatRgba c03},
-            ext_warm_grey: ${formatRgba c03},
-            ext_orange: ${formatRgba c09},
-            ext_yellow: ${formatRgba c0A},
-            ext_blue: ${formatRgba c0D},
-            ext_purple: ${formatRgba c0E},
-            ext_pink: ${formatRgba c08},
-            ext_indigo: ${formatRgba c0D},
-        )),
-        spacing: (
-            space_none: 0,
-            space_xxxs: 4,
-            space_xxs: 8,
-            space_xs: 12,
-            space_s: 16,
-            space_m: 24,
-            space_l: 32,
-            space_xl: 48,
-            space_xxl: 64,
-            space_xxxl: 128,
-        ),
-        corner_radii: (
-            radius_0: (0.0, 0.0, 0.0, 0.0),
-            radius_xs: (2.0, 2.0, 2.0, 2.0),
-            radius_s: (8.0, 8.0, 8.0, 8.0),
-            radius_m: (8.0, 8.0, 8.0, 8.0),
-            radius_l: (12.0, 12.0, 12.0, 12.0),
-            radius_xl: (16.0, 16.0, 16.0, 16.0),
-        ),
-        neutral_tint: None,
-        bg_color: Some${formatRgba c00},
-        primary_container_bg: Some${formatRgba c01},
-        secondary_container_bg: Some${formatRgba c02},
-        text_tint: None,
-        accent: Some${formatRgb c08},
-        success: Some${formatRgb c0B},
-        warning: Some${formatRgb c0A},
-        destructive: Some${formatRgb c08},
-        is_frosted: false,
-        gaps: (0, 8),
-        active_hint: 3,
-        window_hint: None,
-    )
+  # Complete COSMIC theme in export format
+  claudeTheme = pkgs.writeText "Claude.ron" ''
+(
+    palette: Dark((
+        name: "Claude",
+        bright_red: ${formatRgba c08},
+        bright_green: ${formatRgba c0B},
+        bright_orange: ${formatRgba c09},
+        gray_1: ${formatRgba c01},
+        gray_2: ${formatRgba c02},
+        neutral_0: ${formatRgba c00},
+        neutral_1: ${formatRgba c00},
+        neutral_2: ${formatRgba c01},
+        neutral_3: ${formatRgba c02},
+        neutral_4: ${formatRgba c03},
+        neutral_5: ${formatRgba c03},
+        neutral_6: ${formatRgba c04},
+        neutral_7: ${formatRgba c05},
+        neutral_8: ${formatRgba c05},
+        neutral_9: ${formatRgba c06},
+        neutral_10: ${formatRgba c07},
+        accent_blue: ${formatRgba c0D},
+        accent_indigo: ${formatRgba c0E},
+        accent_purple: ${formatRgba c0E},
+        accent_pink: ${formatRgba c08},
+        accent_red: ${formatRgba c08},
+        accent_orange: ${formatRgba c09},
+        accent_yellow: ${formatRgba c0A},
+        accent_green: ${formatRgba c0B},
+        accent_warm_grey: ${formatRgba c03},
+        ext_warm_grey: ${formatRgba c03},
+        ext_orange: ${formatRgba c09},
+        ext_yellow: ${formatRgba c0A},
+        ext_blue: ${formatRgba c0D},
+        ext_purple: ${formatRgba c0E},
+        ext_pink: ${formatRgba c08},
+        ext_indigo: ${formatRgba c0D},
+    )),
+    spacing: (
+        space_none: 0,
+        space_xxxs: 4,
+        space_xxs: 8,
+        space_xs: 12,
+        space_s: 16,
+        space_m: 24,
+        space_l: 32,
+        space_xl: 48,
+        space_xxl: 64,
+        space_xxxl: 128,
+    ),
+    corner_radii: (
+        radius_0: (0.0, 0.0, 0.0, 0.0),
+        radius_xs: (6.0, 6.0, 6.0, 6.0),
+        radius_s: (8.0, 8.0, 8.0, 8.0),
+        radius_m: (12.0, 12.0, 12.0, 12.0),
+        radius_l: (20.0, 20.0, 20.0, 20.0),
+        radius_xl: (160.0, 160.0, 160.0, 160.0),
+    ),
+    neutral_tint: Some((
+        red: 0.788235,
+        green: 0.721569,
+        blue: 0.486275,
+    )),
+    bg_color: Some${formatRgbaSome c00},
+    primary_container_bg: Some((
+        red: 0.188235,
+        green: 0.188235,
+        blue: 0.180392,
+        alpha: 1.0,
+    )),
+    secondary_container_bg: Some((
+        red: 0.121569,
+        green: 0.117647,
+        blue: 0.113725,
+        alpha: 1.0,
+    )),
+    text_tint: None,
+    accent: Some${formatRgb c08},
+    success: Some${formatRgb c0B},
+    warning: Some${formatRgb c0A},
+    destructive: Some((
+        red: 0.866667,
+        green: 0.325490,
+        blue: 0.325490,
+    )),
+    is_frosted: false,
+    gaps: (0, 4),
+    active_hint: 2,
+    window_hint: None,
+)
+  '';
+  # COSMIC wallpaper configuration
+  cosmicWallpaperConfig = pkgs.writeText "cosmic-wallpaper.ron" ''
+(
+    output: "all",
+    source: Path("${config.stylix.image}"),
+    filter_by_theme: false,
+    rotation_frequency: 300,
+    filter_method: Lanczos,
+    scaling_mode: Zoom,
+    sampling_method: Alphanumeric,
+)
   '';
 in
 {
-  # Install the COSMIC theme file
-  home.file.".config/cosmic/com.system76.CosmicSettings/v1/theme".source = cosmicTheme;
+  # Generate the Claude theme file (used to regenerate assets/Claude-theme.ron)
+  # To regenerate: nix build .#nixosConfigurations.transporter.config.home-manager.users.tom.home.file.\"Claude-theme.ron\".source
+  home.file."Claude-theme.ron".source = claudeTheme;
 
-  # Set the Claude wallpaper for COSMIC
-  # COSMIC stores wallpaper settings in a separate config file
-  home.file.".config/cosmic/com.system76.CosmicBackground/v1/all".text = ''
-    (
-        output: "all",
-        source: Image("${config.stylix.image}"),
-        filter_by_theme: false,
-        rotation_frequency: 300,
-        filter_method: Lanczos,
-        scaling_mode: Fit,
-        sampling_method: Alphanumeric,
-    )
+  # Import theme into COSMIC's custom theme location
+  # This activates the theme instead of just providing a reference file
+  home.file.".config/cosmic/com.system76.CosmicTheme.Dark/v1/custom_theme".source = claudeTheme;
+
+  # Set the Claude wallpaper for COSMIC using activation script
+  # This ensures the wallpaper config is written after COSMIC's config directory exists
+  home.activation.cosmicWallpaper = lib.hm.dag.entryAfter ["writeBoundary"] ''
+    $DRY_RUN_CMD mkdir -p ${config.home.homeDirectory}/.config/cosmic/com.system76.CosmicBackground/v1
+    $DRY_RUN_CMD cp ${cosmicWallpaperConfig} ${config.home.homeDirectory}/.config/cosmic/com.system76.CosmicBackground/v1/all
   '';
 }

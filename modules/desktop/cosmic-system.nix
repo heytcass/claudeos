@@ -18,11 +18,37 @@
   # Disable X11 forwarding over SSH for security
   services.openssh.settings.X11Forwarding = lib.mkDefault false;
 
+  # Enable System76 scheduler for COSMIC-optimized performance
+  services.system76-scheduler.enable = true;
+
+  # Enable clipboard manager support via wlr-data-control protocol
+  environment.sessionVariables.COSMIC_DATA_CONTROL_ENABLED = "1";
+
   # Core COSMIC packages and tools
   environment.systemPackages = with pkgs; [
     # COSMIC built-in applications
     cosmic-edit # Text editor
     cosmic-files # File manager
+    cosmic-applets # System tray applets (volume, network, etc.)
+    cosmic-screenshot # Screenshot and screen recording tool
+    cosmic-applibrary # Application library/launcher
+    cosmic-notifications # Notification daemon
+    cosmic-osd # On-screen display (volume, brightness)
+    cosmic-workspaces-epoch # Workspace management
+
+    # COSMIC extensions
+    cosmic-ext-tweaks # Additional customization and tweaks
+    cosmic-ext-calculator # Calculator app
+    cosmic-ext-applet-minimon # System monitor (CPU/RAM/Network/Disk/GPU)
+    cosmic-ext-applet-weather # Weather information
+    cosmic-ext-applet-caffeine # Prevent screen sleep
+    cosmic-ext-applet-privacy-indicator # Camera/mic usage indicator
+    cosmic-ext-ctl # CLI for COSMIC configuration
+
+    # COSMIC community applications
+    tasks # Task management application
+    examine # File/data inspector
+    quick-webapps # Web App Manager
 
     # Icon themes
     # adwaita-icon-theme provides the base symbolic icons that GTK4/libadwaita

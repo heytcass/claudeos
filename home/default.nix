@@ -19,6 +19,23 @@
   home.username = user;
   home.homeDirectory = "/home/${user}";
 
+  # XDG user directories
+  xdg.userDirs = {
+    enable = true;
+    createDirectories = true;
+    desktop = "/home/${user}/Desktop";
+    documents = "/home/${user}/Documents";
+    download = "/home/${user}/Downloads";
+    music = "/home/${user}/Music";
+    pictures = "/home/${user}/Pictures";
+    publicShare = "/home/${user}/Public";
+    templates = "/home/${user}/Templates";
+    videos = "/home/${user}/Videos";
+    extraConfig = {
+      XDG_PROJECTS_DIR = "/home/${user}/Projects";
+    };
+  };
+
   # Let home-manager manage itself
   programs.home-manager.enable = true;
 

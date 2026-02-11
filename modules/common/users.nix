@@ -16,12 +16,9 @@
     shell = pkgs.fish;
 
     # SSH public keys for passwordless login
-    # Add your key here, then PasswordAuthentication can stay false:
-    #   ssh-keygen -t ed25519 -C "tom@<hostname>"
-    #   cat ~/.ssh/id_ed25519.pub
-    # openssh.authorizedKeys.keys = [
-    #   "ssh-ed25519 AAAA... tom@transporter"
-    # ];
+    openssh.authorizedKeys.keys = [
+      "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFqJcKOf70muwJzsxYzNf988D7uJty0rtS7cCquQWBsl tom@ubuntu-dev"
+    ];
   };
 
   # Enable fish system-wide

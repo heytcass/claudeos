@@ -20,6 +20,7 @@ lib.nixosSystem {
       home-manager.useUserPackages = true;
       home-manager.users.${user} = import ../home;
       home-manager.extraSpecialArgs = specialArgs // { inherit user; };
+      home-manager.backupFileExtension = "backup"; # Auto-backup conflicting files
     }
 
     # Common modules shared by all machines

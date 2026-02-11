@@ -10,9 +10,9 @@
     # Claude-inspired base16 color scheme
     # Warm, muted palette with terracotta accents
     base16Scheme = {
-      base00 = "262624"; # Default background — the dominant warm dark grey
-      base01 = "30302e"; # Elevated surface (cards, input box, popovers)
-      base02 = "3a3a38"; # Selection / highlighted regions (slightly lighter step)
+      base00 = "1f1e1d"; # Default background — Claude's deepest surface
+      base01 = "262624"; # Elevated surface (cards, input box, popovers)
+      base02 = "30302e"; # Selection / highlighted regions (slightly lighter step)
       base03 = "9c9a92"; # Comments / dim text / placeholders
       base04 = "c2c0b6"; # Secondary foreground text
       base05 = "faf9f5"; # Primary foreground text
