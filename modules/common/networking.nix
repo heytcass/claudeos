@@ -18,7 +18,7 @@
   services.openssh = {
     enable = true;
     settings = {
-      PasswordAuthentication = lib.mkDefault true; # Disable after key setup
+      PasswordAuthentication = lib.mkDefault false; # Set to true temporarily for initial key setup
       PermitRootLogin = "no";
     };
   };

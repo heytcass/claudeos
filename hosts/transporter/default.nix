@@ -10,6 +10,9 @@
     ./hardware-configuration.nix
   ];
 
+  # Disko disk device: defaults to /dev/sda (SATA SSD in this machine)
+  # Override in host config if different: disko.devices.disk.main.device = "/dev/sdX";
+
   # Machine-specific overrides
   # Boot options if needed
   # boot.kernelParams = [ ... ];

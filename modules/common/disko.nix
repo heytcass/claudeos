@@ -1,4 +1,4 @@
-{ lib, config, ... }:
+{ lib, ... }:
 
 {
   # Disko configuration for ClaudeOS btrfs layout

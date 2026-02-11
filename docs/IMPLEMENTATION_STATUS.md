@@ -72,7 +72,7 @@ This document tracks implementation progress for ClaudeOS. Agents should update 
 
 ## Phase 2: Desktop Environment ✅ COMPLETE
 
-**Goal:** GNOME on Wayland with audio
+**Goal:** Desktop environment on Wayland with audio (migrated from GNOME to COSMIC)
 
 ### Status: ✅ Complete and deployed to transporter
 
@@ -108,6 +108,24 @@ This document tracks implementation progress for ClaudeOS. Agents should update 
 - [x] Verify Pipewire 1.4.9 installed
 - [x] Verify extensions installed (appindicator, caffeine, just-perfection)
 
+### Desktop Theme (Phase 2 Enhancement)
+
+**Status:** ✅ Complete
+
+**Components:**
+- [x] Stylix base16 color scheme (Claude colors)
+- [x] Papirus icon theme with folder colorization
+- [x] GNOME accent color integration (hybrid approach)
+- [x] GTK3/GTK4 theming via Stylix
+- [x] Home Manager activation scripts
+- [x] dconf configuration
+
+**Files:**
+- `modules/desktop/theme.nix` - NixOS Stylix config
+- `modules/desktop/theme-home.nix` - Home Manager Stylix targets
+- `modules/desktop/gnome.nix` - GNOME dconf settings
+- `docs/THEME.md` - Theme documentation
+
 ### Implementation Notes:
 - Typography mirrors Claude AI: Inter for UI (clean, modern, readable)
 - GNOME extensions selected: Appindicator, Just Perfection, Caffeine (no Dash to Dock)
@@ -115,7 +133,8 @@ This document tracks implementation progress for ClaudeOS. Agents should update 
 - Pipewire with full compatibility (ALSA 32-bit, PulseAudio, JACK)
 - Bluetooth disabled on boot for battery saving
 - Using deprecated option names updated to current NixOS standards
-- Adwaita theme for now; Stylix with Claude brand colors considered for future enhancement
+- Comprehensive theme implementation with Stylix base16 (Claude brand colors)
+- Hybrid approach: Stylix for apps, GNOME for shell (best of both worlds)
 - Alternative themes researched and documented for future use
 
 ### Next Step:
@@ -323,10 +342,10 @@ Deploy to transporter and verify desktop environment functionality
 - [ ] Deploy configuration: `sudo nixos-rebuild switch --flake .#gti`
 - [ ] Copy SSH keys manually (scp from transporter)
 - [ ] Verify all functionality on gti:
-  - [ ] GNOME desktop loads
+  - [ ] COSMIC desktop loads
   - [ ] Applications launch (Chrome, Slack, Discord, VSCode)
   - [ ] Claude Code CLI works
-  - [ ] Claude Desktop works
+  - [ ] Claude Code CLI works
   - [ ] Shell configuration (Fish + Starship)
   - [ ] direnv works
 - [ ] Verify transporter and gti are identical (compare configs)
@@ -433,7 +452,7 @@ Deploy to transporter and verify desktop environment functionality
 | Phase | Status | Duration | Notes |
 |-------|--------|----------|-------|
 | 1. Foundation | ✅ Complete | ~2h | Core system ready for install |
-| 2. Desktop | ✅ Complete | ~1h | GNOME + Wayland + Audio configured |
+| 2. Desktop | ✅ Complete | ~1h | COSMIC + Wayland + Audio configured |
 | 3. Apps & Shell | ✅ Complete | ~3h | CLI tools, Ghostty, Home Manager, deployed & verified |
 | 4. Claude Tools | ✅ Complete | ~2h | nix-ld + flake, ready for deployment |
 | 5. Production | ⏳ Not started | 1-1.5h | gti deployment (sops-nix moved to future) |

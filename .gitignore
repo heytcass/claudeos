@@ -25,3 +25,6 @@ secrets/*.age
 # Temporary files
 *.tmp
 *.bak
+
+# Git worktrees
+.worktrees/

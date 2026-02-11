@@ -58,15 +58,13 @@
   };
 
   # Delta - Better git diffs (separate program)
+  # Colors are managed by Stylix - see modules/desktop/theme.nix
   programs.delta = {
     enable = true;
     enableGitIntegration = true;
 
     options = {
       features = "line-numbers decorations";
-      syntax-theme = "TwoDark";
-      plus-style = "syntax #003800";
-      minus-style = "syntax #3f0001";
       line-numbers = true;
       side-by-side = false;
     };

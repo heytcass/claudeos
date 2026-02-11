@@ -31,7 +31,8 @@
   programs.bat = {
     enable = true;
     config = {
-      theme = "TwoDark";
+      # Let Stylix provide the theme (base16-stylix)
+      # Override with mkForce only if needed
       style = "numbers,changes,header";
       pager = "less -FR";
     };

@@ -20,9 +20,19 @@
       url = "github:nix-community/disko";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+
+    claude-for-linux = {
+      url = "github:heytcass/claude-for-linux";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+
+    stylix = {
+      url = "github:danth/stylix";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
-  outputs = { self, nixpkgs, home-manager, nixos-hardware, sops-nix, disko }@inputs:
+  outputs = { self, nixpkgs, home-manager, nixos-hardware, sops-nix, disko, claude-for-linux, stylix }@inputs:
     let
       lib = import ./lib { inherit (nixpkgs) lib; };
       specialArgs = { inherit inputs; };
@@ -38,6 +48,7 @@
             home-manager.nixosModules.home-manager
             sops-nix.nixosModules.sops
             disko.nixosModules.disko
+            stylix.nixosModules.stylix
           ];
           modules = [ ./hosts/transporter ];
           inherit specialArgs;
@@ -52,11 +63,15 @@
             home-manager.nixosModules.home-manager
             sops-nix.nixosModules.sops
             disko.nixosModules.disko
+            stylix.nixosModules.stylix
           ];
           modules = [ ./hosts/gti ];
           inherit specialArgs;
         };
       };
+
+      # Formatter for `nix fmt`
+      formatter.x86_64-linux = nixpkgs.legacyPackages.x86_64-linux.nixpkgs-fmt;
 
       # Development shell for working on this configuration
       devShells.x86_64-linux.default = nixpkgs.legacyPackages.x86_64-linux.mkShell {

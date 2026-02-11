@@ -3,13 +3,15 @@
 # ClaudeOS Installation Script with Disko
 #
 # This script automates NixOS installation using disko for disk partitioning.
+# The target disk device is configured per-host in hosts/<hostname>/default.nix
+# (via disko.devices.disk.main.device).
 #
 # Usage:
-#   sudo ./install-with-disko.sh <hostname> [device]
+#   sudo ./install-with-disko.sh <hostname>
 #
 # Examples:
+#   sudo ./install-with-disko.sh transporter
 #   sudo ./install-with-disko.sh gti
-#   sudo ./install-with-disko.sh gti /dev/nvme0n1
 #
 # WARNING: This will DESTROY all data on the target disk!
 
@@ -41,19 +43,21 @@ if [[ $EUID -ne 0 ]]; then
 fi
 
 # Check arguments
-if [[ $# -lt 1 ]] || [[ $# -gt 2 ]]; then
-    echo "Usage: $0 <hostname> [device]"
+if [[ $# -ne 1 ]]; then
+    echo "Usage: $0 <hostname>"
     echo ""
     echo "Examples:"
+    echo "  $0 transporter"
     echo "  $0 gti"
-    echo "  $0 gti /dev/nvme0n1"
     echo ""
     echo "Available hostnames: transporter, gti"
+    echo ""
+    echo "The target disk device is configured per-host in hosts/<hostname>/default.nix"
+    echo "(via disko.devices.disk.main.device). Edit that file to change the device."
     exit 1
 fi
 
 HOSTNAME="$1"
-DEVICE="${2:-/dev/sda}"
 
 # Validate hostname
 case "$HOSTNAME" in
@@ -64,18 +68,10 @@ case "$HOSTNAME" in
         ;;
 esac
 
-# Check if device exists
-if [[ ! -b "$DEVICE" ]]; then
-    error "Device $DEVICE does not exist"
-fi
-
-# Get device size
-DEVICE_SIZE=$(lsblk -b -d -n -o SIZE "$DEVICE" | numfmt --to=iec)
+info "Disk device is configured in hosts/$HOSTNAME/default.nix (disko.devices.disk.main.device)"
 
 # Final confirmation
-warn "This will DESTROY all data on $DEVICE ($DEVICE_SIZE)"
-echo ""
-lsblk "$DEVICE"
+warn "This will DESTROY all data on the configured disk device for $HOSTNAME"
 echo ""
 read -p "Type 'yes' to continue: " -r
 if [[ ! $REPLY == "yes" ]]; then
@@ -83,45 +79,34 @@ if [[ ! $REPLY == "yes" ]]; then
     exit 0
 fi
 
-info "Starting ClaudeOS installation for $HOSTNAME on $DEVICE"
+info "Starting ClaudeOS installation for $HOSTNAME"
 
 # Step 1: Unmount any existing mounts
 info "Step 1: Cleaning up existing mounts..."
 umount -R /mnt 2>/dev/null || true
 
-# Step 2: Override device in disko config if needed
-if [[ "$DEVICE" != "/dev/sda" ]]; then
-    info "Step 2: Using custom device $DEVICE"
-    # We'll pass this to disko
-    DISKO_DEVICE_ARG="--argstr device $DEVICE"
-else
-    DISKO_DEVICE_ARG=""
-fi
-
-# Step 3: Run disko to partition and format
-info "Step 3: Partitioning and formatting $DEVICE with disko..."
-info "This may take a few minutes..."
+# Step 2: Run disko to partition and format
+info "Step 2: Partitioning and formatting with disko..."
 
 # Enable disko for installation
 export DISKO_ENABLE_CONFIG=true
 
 nix run github:nix-community/disko -- \
     --mode disko \
-    --flake ".#$HOSTNAME" \
-    $DISKO_DEVICE_ARG
+    --flake ".#$HOSTNAME"
 
 info "Disk partitioning complete"
 
-# Step 4: Verify mounts
-info "Step 4: Verifying mounts..."
+# Step 3: Verify mounts
+info "Step 3: Verifying mounts..."
 if ! mountpoint -q /mnt; then
     error "Root filesystem not mounted at /mnt"
 fi
 
 df -h | grep /mnt || true
 
-# Step 5: Generate hardware configuration
-info "Step 5: Generating hardware configuration..."
+# Step 4: Generate hardware configuration
+info "Step 4: Generating hardware configuration..."
 
 # Generate without filesystem info (disko handles that)
 nixos-generate-config --no-filesystems --root /mnt
@@ -132,13 +117,12 @@ cp /mnt/etc/nixos/hardware-configuration.nix "./hosts/$HOSTNAME.backup/hardware-
 
 info "Hardware configuration saved to hosts/$HOSTNAME.backup/"
 
-# Step 6: Install NixOS
-info "Step 6: Installing NixOS..."
-info "This may take 15-30 minutes depending on internet speed..."
+# Step 5: Install NixOS
+info "Step 5: Installing NixOS..."
 
 nixos-install --flake ".#$HOSTNAME" --no-root-password
 
-# Step 7: Success
+# Step 6: Success
 echo ""
 info "═══════════════════════════════════════════════════════"
 info "ClaudeOS installation complete!"

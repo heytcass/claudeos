@@ -46,7 +46,7 @@ This project has two operational contexts. Read the appropriate documentation:
 | transporter | 10.0.10.205 | Test system | 🟢 Phase 2 complete |
 | gti | TBD | Production | ⚪ Not started |
 
-**Stack:** NixOS unstable • GNOME 49 • Wayland • Pipewire • home-manager • sops-nix
+**Stack:** NixOS unstable • COSMIC • Wayland • Pipewire • home-manager • sops-nix
 
 **Development Flow:** Ubuntu dev → validate → commit → deploy to NixOS target
 

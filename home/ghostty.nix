@@ -5,55 +5,36 @@
     enable = true;
 
     # Ghostty configuration
+    # Colors are managed by Stylix - see modules/desktop/theme.nix
     settings = {
-      # Font configuration - JetBrains Mono for readability
-      font-family = "JetBrains Mono Nerd Font";
+      # Font configuration
+      # Use mkForce to override Stylix's font-family list, which puts
+      # Noto Color Emoji before the Nerd Font — causing symbol codepoints
+      # (pause icon, star glyphs) to render as color emoji instead of
+      # monochrome terminal glyphs from the Nerd Font.
+      font-family = lib.mkForce [
+        "JetBrains Mono Nerd Font" # Primary: monospace + Nerd Font symbols
+        "Symbols Nerd Font" # Nerd Font private-use-area icons
+        "Noto Sans Symbols 2" # Monochrome glyphs for standard codepoints
+        # (⏸ U+23F8, ✻ U+273B, etc.) — prevents
+        # color emoji from overriding terminal colors
+        "Noto Color Emoji" # Fallback: actual emoji only
+      ];
       font-size = 11;
 
-      # Claude-inspired color scheme (no theme name, define colors directly)
-      # Background and foreground
-      background = "1a1d23";
-      foreground = "e0e0e0";
-
       # Cursor
-      cursor-color = "f5a97f";
-      cursor-text = "1a1d23";
       cursor-style = "block";
       cursor-style-blink = false;
-
-      # Selection
-      selection-foreground = "1a1d23";
-      selection-background = "4a5568";
-
-      # ANSI colors - normal (0-7) and bright (8-15)
-      # Format: "index=#hexcolor"
-      palette = [
-        "0=#1a1d23" # black
-        "1=#e06c75" # red
-        "2=#98c379" # green
-        "3=#e5c07b" # yellow
-        "4=#61afef" # blue
-        "5=#c678dd" # magenta
-        "6=#56b6c2" # cyan
-        "7=#abb2bf" # white
-        "8=#5c6370" # bright black
-        "9=#e06c75" # bright red
-        "10=#98c379" # bright green
-        "11=#e5c07b" # bright yellow
-        "12=#61afef" # bright blue
-        "13=#c678dd" # bright magenta
-        "14=#56b6c2" # bright cyan
-        "15=#ffffff" # bright white
-      ];
 
       # Window configuration
       window-padding-x = 8;
       window-padding-y = 8;
       window-decoration = true; # Use native GTK decorations
 
-      # GTK/libadwaita integration for native GNOME look
+      # GTK/libadwaita integration
       gtk-titlebar = true;
-      gtk-tabs-location = "hidden"; # No tab bar for clean look
+      # Tab bar uses Adwaita symbolic icons (adwaita-icon-theme-legacy in cosmic-system.nix)
+      # Default behavior: show tab bar when multiple tabs are open
 
       # Performance and platform integration
       # Note: Ghostty automatically uses Wayland when available, no config needed
@@ -88,9 +69,4 @@
     };
   };
 
-  # Shell integration for Fish
-  # Ghostty provides automatic integration when shell-integration is enabled
-  programs.fish.shellInit = lib.mkAfter ''
-    # Ghostty shell integration is automatically loaded
-  '';
 }

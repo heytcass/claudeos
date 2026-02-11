@@ -8,7 +8,6 @@
     micro # Modern terminal text editor
     wget
     curl
-    git
     gh # GitHub CLI
     htop
     tree
@@ -36,4 +35,13 @@
 
   # Enable thermald for Intel CPU thermal management
   services.thermald.enable = lib.mkDefault true;
+
+  # Zram swap for compressed in-memory swap
+  zramSwap.enable = true;
+
+  # Periodic btrfs scrub to detect and repair data corruption
+  services.btrfs.autoScrub = {
+    enable = true;
+    fileSystems = [ "/" ];
+  };
 }

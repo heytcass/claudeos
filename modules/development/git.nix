@@ -1,18 +1,9 @@
-{ pkgs, ... }:
+{ ... }:
 
 {
-  # Install git system-wide
-  environment.systemPackages = with pkgs; [
-    git
-    git-lfs
-  ];
-
-  # System-level git configuration (minimal)
-  # User-specific configuration is in home/git.nix
-
-  # Enable git LFS system-wide
-  programs.git = {
-    enable = true;
-    lfs.enable = true;
-  };
+  # Git is fully managed by home-manager in home/git.nix
+  # (programs.git with delta, aliases, LFS, etc.)
+  #
+  # This module intentionally left empty to avoid duplication.
+  # System-level git package is in modules/common/system.nix.
 }

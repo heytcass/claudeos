@@ -1,4 +1,4 @@
-{ ... }:
+{ pkgs, lib, user, ... }:
 
 {
   # Import all Home Manager modules
@@ -7,48 +7,39 @@
     ./ghostty.nix
     ./git.nix
     ./vscode.nix
+    ../modules/desktop/theme-home.nix
+    ../modules/desktop/cosmic.nix
   ];
 
   # This is required for home-manager
   home.stateVersion = "24.11";
 
   # Basic home configuration
-  home.username = "tom";
-  home.homeDirectory = "/home/tom";
+  home.username = user;
+  home.homeDirectory = "/home/${user}";
 
   # Let home-manager manage itself
   programs.home-manager.enable = true;
 
-  # Hide CLI tools from application launcher
-  # These are useful utilities but shouldn't clutter the app menu
-  xdg.dataFile."applications/vim.desktop".text = ''
-    [Desktop Entry]
-    Hidden=true
-  '';
-  xdg.dataFile."applications/htop.desktop".text = ''
-    [Desktop Entry]
-    Hidden=true
-  '';
-  xdg.dataFile."applications/micro.desktop".text = ''
-    [Desktop Entry]
-    Hidden=true
-  '';
-  xdg.dataFile."applications/yazi.desktop".text = ''
-    [Desktop Entry]
-    Hidden=true
-  '';
-  xdg.dataFile."applications/xterm.desktop".text = ''
-    [Desktop Entry]
-    Hidden=true
-  '';
-  xdg.dataFile."applications/uxterm.desktop".text = ''
-    [Desktop Entry]
-    Hidden=true
-  '';
-
-  # Hide modern Chrome desktop file (use google-chrome.desktop instead)
-  xdg.dataFile."applications/com.google.Chrome.desktop".text = ''
-    [Desktop Entry]
-    Hidden=true
-  '';
+  # Hide unwanted apps from COSMIC launcher (per-user profile entries)
+  # COSMIC doesn't do cross-path XDG deduplication, so overrides must be
+  # in the same path. For per-user profile entries, use lib.hiPrio package.
+  # System-level hides are in modules/desktop/cosmic-system.nix
+  home.packages = [
+    (lib.hiPrio (pkgs.runCommand "desktop-hide-user-overrides" { } ''
+      mkdir -p $out/share/applications
+      for name in \
+        yazi \
+        code-url-handler \
+        kvantummanager \
+        qt5ct \
+        qt6ct
+      do
+        cat > "$out/share/applications/$name.desktop" <<EOF
+      [Desktop Entry]
+      NoDisplay=true
+      EOF
+      done
+    ''))
+  ];
 }

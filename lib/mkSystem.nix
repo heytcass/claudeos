@@ -9,7 +9,8 @@
 }:
 
 lib.nixosSystem {
-  inherit system specialArgs;
+  inherit system;
+  specialArgs = specialArgs // { inherit user; };
   modules = [
     {
       networking.hostName = hostname;
@@ -18,7 +19,7 @@ lib.nixosSystem {
       home-manager.useGlobalPkgs = true;
       home-manager.useUserPackages = true;
       home-manager.users.${user} = import ../home;
-      home-manager.extraSpecialArgs = specialArgs;
+      home-manager.extraSpecialArgs = specialArgs // { inherit user; };
     }
 
     # Common modules shared by all machines
@@ -26,6 +27,5 @@ lib.nixosSystem {
     ../modules/desktop
     ../modules/apps
     ../modules/development
-    ../modules/services
   ] ++ hardwareModules ++ modules;
 }

@@ -35,8 +35,8 @@
     };
   };
 
-  # Bluetooth GUI support in GNOME
-  services.blueman.enable = false; # GNOME has built-in Bluetooth settings
+  # Bluetooth GUI support
+  services.blueman.enable = false; # COSMIC has built-in Bluetooth settings
 
   # Audio tools
   environment.systemPackages = with pkgs; [

@@ -7,10 +7,7 @@
     # Shell aliases integrating modern CLI tools
     shellAliases = {
       # Modern CLI replacements
-      ls = "eza --icons --group-directories-first";
-      ll = "eza --icons --group-directories-first -l";
-      la = "eza --icons --group-directories-first -la";
-      lt = "eza --icons --group-directories-first --tree";
+      # Note: ls/ll/la/lt are provided by programs.eza in cli-tools.nix
       cat = "bat --style=auto";
 
       # Git shortcuts

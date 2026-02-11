@@ -8,6 +8,9 @@
     # Optimize store automatically
     auto-optimise-store = true;
 
+    # Suppress "Git tree is dirty" warning during builds
+    warn-dirty = false;
+
     # Trusted users for nix commands
     trusted-users = [ "root" "@wheel" ];
 
