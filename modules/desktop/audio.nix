@@ -1,4 +1,4 @@
-{ config, lib, pkgs, ... }:
+{ pkgs, ... }:
 
 {
   # Enable sound with Pipewire (modern audio server)
@@ -12,10 +12,10 @@
     enable = true;
 
     # Compatibility layers for legacy applications
-    alsa.enable = true;           # ALSA support
-    alsa.support32Bit = true;     # 32-bit ALSA for games/Wine
-    pulse.enable = true;          # PulseAudio compatibility
-    jack.enable = true;           # JACK compatibility for pro audio
+    alsa.enable = true; # ALSA support
+    alsa.support32Bit = true; # 32-bit ALSA for games/Wine
+    pulse.enable = true; # PulseAudio compatibility
+    jack.enable = true; # JACK compatibility for pro audio
 
     # Wireplumber is the session manager for Pipewire
     wireplumber.enable = true;
@@ -40,7 +40,7 @@
 
   # Audio tools
   environment.systemPackages = with pkgs; [
-    pavucontrol  # PulseAudio Volume Control (works with Pipewire)
-    helvum       # Pipewire graph patchbay (visual audio routing)
+    pavucontrol # PulseAudio Volume Control (works with Pipewire)
+    helvum # Pipewire graph patchbay (visual audio routing)
   ];
 }

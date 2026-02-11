@@ -1,4 +1,4 @@
-{ config, lib, pkgs, ... }:
+{ lib, pkgs, ... }:
 
 {
   # Use systemd-boot (modern, simple UEFI bootloader)

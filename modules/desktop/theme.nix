@@ -1,4 +1,4 @@
-{ config, lib, pkgs, ... }:
+{ pkgs, ... }:
 
 {
   # Using GNOME's default Adwaita theme for now
@@ -18,7 +18,7 @@
   # Adwaita is GNOME's default - clean, minimal, universally recognizable
   environment.systemPackages = with pkgs; [
     # Additional theme tools
-    adwaita-icon-theme  # Explicit inclusion for consistency
+    adwaita-icon-theme # Explicit inclusion for consistency
   ];
 
   # Enable GTK themes

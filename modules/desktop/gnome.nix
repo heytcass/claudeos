@@ -1,4 +1,4 @@
-{ config, lib, pkgs, ... }:
+{ lib, pkgs, ... }:
 
 {
   # Enable X server (required for display managers)
@@ -24,28 +24,28 @@
   # Core GNOME packages
   environment.systemPackages = with pkgs; [
     # Essential GNOME tools
-    gnome-tweaks           # Advanced GNOME settings
+    gnome-tweaks # Advanced GNOME settings
     gnome-extension-manager # Manage GNOME extensions
 
     # Extensions for enhanced functionality
-    gnomeExtensions.appindicator           # Tray icons support
-    gnomeExtensions.just-perfection        # Customize GNOME UI
-    gnomeExtensions.caffeine               # Prevent screen sleep
+    gnomeExtensions.appindicator # Tray icons support
+    gnomeExtensions.just-perfection # Customize GNOME UI
+    gnomeExtensions.caffeine # Prevent screen sleep
   ];
 
   # Exclude unwanted GNOME apps to keep system lean
   environment.gnome.excludePackages = with pkgs; [
-    epiphany       # GNOME Web (we'll use Chrome)
-    geary          # Email client
+    epiphany # GNOME Web (we'll use Chrome)
+    geary # Email client
     gnome-contacts
     gnome-maps
     gnome-music
     gnome-photos
-    gnome-tour     # First-run tour
+    gnome-tour # First-run tour
     gnome-weather
-    totem          # Video player
-    yelp           # Help browser
-    gnome-console  # GNOME terminal (we'll use WezTerm)
+    totem # Video player
+    yelp # Help browser
+    gnome-console # GNOME terminal (we'll use WezTerm)
   ];
 
   # Enable GVfs for virtual filesystems (Trash, network shares, etc.)

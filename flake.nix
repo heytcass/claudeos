@@ -15,9 +15,14 @@
       url = "github:Mic92/sops-nix";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+
+    disko = {
+      url = "github:nix-community/disko";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
-  outputs = { self, nixpkgs, home-manager, nixos-hardware, sops-nix }@inputs:
+  outputs = { self, nixpkgs, home-manager, nixos-hardware, sops-nix, disko }@inputs:
     let
       lib = import ./lib { inherit (nixpkgs) lib; };
       specialArgs = { inherit inputs; };
@@ -32,6 +37,7 @@
             nixos-hardware.nixosModules.dell-latitude-7280
             home-manager.nixosModules.home-manager
             sops-nix.nixosModules.sops
+            disko.nixosModules.disko
           ];
           modules = [ ./hosts/transporter ];
           inherit specialArgs;
@@ -45,6 +51,7 @@
             nixos-hardware.nixosModules.dell-xps-13-9370
             home-manager.nixosModules.home-manager
             sops-nix.nixosModules.sops
+            disko.nixosModules.disko
           ];
           modules = [ ./hosts/gti ];
           inherit specialArgs;

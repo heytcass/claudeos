@@ -1,7 +1,7 @@
 # This file will be generated during NixOS installation on gti.
 # Phase 5 deployment.
 
-{ config, lib, pkgs, modulesPath, ... }:
+{ config, lib, modulesPath, ... }:
 
 {
   imports = [

@@ -1,4 +1,4 @@
-{ config, lib, pkgs, ... }:
+{ pkgs, ... }:
 
 {
   # Claude Code CLI - Official tool with nix-ld for dynamic linking

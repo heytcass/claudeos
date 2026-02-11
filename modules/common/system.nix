@@ -1,15 +1,15 @@
-{ config, lib, pkgs, ... }:
+{ lib, pkgs, ... }:
 
 {
   # Essential system packages available to all users
   environment.systemPackages = with pkgs; [
     # Basic utilities
     vim
-    micro     # Modern terminal text editor
+    micro # Modern terminal text editor
     wget
     curl
     git
-    gh        # GitHub CLI
+    gh # GitHub CLI
     htop
     tree
     file

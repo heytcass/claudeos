@@ -1,4 +1,4 @@
-{ config, lib, pkgs, ... }:
+{ lib, ... }:
 
 {
   programs.ghostty = {
@@ -28,32 +28,32 @@
       # ANSI colors - normal (0-7) and bright (8-15)
       # Format: "index=#hexcolor"
       palette = [
-        "0=#1a1d23"   # black
-        "1=#e06c75"   # red
-        "2=#98c379"   # green
-        "3=#e5c07b"   # yellow
-        "4=#61afef"   # blue
-        "5=#c678dd"   # magenta
-        "6=#56b6c2"   # cyan
-        "7=#abb2bf"   # white
-        "8=#5c6370"   # bright black
-        "9=#e06c75"   # bright red
-        "10=#98c379"  # bright green
-        "11=#e5c07b"  # bright yellow
-        "12=#61afef"  # bright blue
-        "13=#c678dd"  # bright magenta
-        "14=#56b6c2"  # bright cyan
-        "15=#ffffff"  # bright white
+        "0=#1a1d23" # black
+        "1=#e06c75" # red
+        "2=#98c379" # green
+        "3=#e5c07b" # yellow
+        "4=#61afef" # blue
+        "5=#c678dd" # magenta
+        "6=#56b6c2" # cyan
+        "7=#abb2bf" # white
+        "8=#5c6370" # bright black
+        "9=#e06c75" # bright red
+        "10=#98c379" # bright green
+        "11=#e5c07b" # bright yellow
+        "12=#61afef" # bright blue
+        "13=#c678dd" # bright magenta
+        "14=#56b6c2" # bright cyan
+        "15=#ffffff" # bright white
       ];
 
       # Window configuration
       window-padding-x = 8;
       window-padding-y = 8;
-      window-decoration = true;  # Use native GTK decorations
+      window-decoration = true; # Use native GTK decorations
 
       # GTK/libadwaita integration for native GNOME look
       gtk-titlebar = true;
-      gtk-tabs-location = "hidden";  # No tab bar for clean look
+      gtk-tabs-location = "hidden"; # No tab bar for clean look
 
       # Performance and platform integration
       # Note: Ghostty automatically uses Wayland when available, no config needed
@@ -67,11 +67,11 @@
       scrollback-limit = 10000;
 
       # Mouse integration
-      copy-on-select = true;  # Auto-copy selection to clipboard
+      copy-on-select = true; # Auto-copy selection to clipboard
       mouse-hide-while-typing = true;
 
       # Window behavior
-      window-save-state = "always";  # Remember window size/position
+      window-save-state = "always"; # Remember window size/position
       window-inherit-working-directory = true;
       window-inherit-font-size = true;
 
