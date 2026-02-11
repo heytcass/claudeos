@@ -2,6 +2,9 @@
 
 {
   # Phase 3: Development environment
-  # For now, empty
-  imports = [ ];
+  imports = [
+    ./direnv.nix
+    ./git.nix
+    ./vscode.nix
+  ];
 }

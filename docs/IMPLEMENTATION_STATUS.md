@@ -1,7 +1,7 @@
 # ClaudeOS Implementation Status
 
 **Last Updated:** 2026-01-27
-**Current Phase:** Phase 2 - Desktop Environment ✅ COMPLETE & DEPLOYED
+**Current Phase:** Phase 3 - Applications & Shell ✅ COMPLETE & DEPLOYED
 
 ## Overview
 
@@ -125,71 +125,125 @@ Deploy to transporter and verify desktop environment functionality
 
 ---
 
-## Phase 3: Applications & Shell ⏳ NOT STARTED
+## Phase 3: Applications & Shell ✅ COMPLETE & DEPLOYED
 
 **Goal:** Terminal, browser, essential apps, modern shell
 
-### Status: ⏳ Not started
+### Status: ✅ Complete, deployed, and verified on transporter
 
-### Tasks:
+### Completed Tasks:
 
 #### Home Manager (home/)
-- [ ] Implement home/shell/fish.nix
-  - [ ] Fish shell configuration
-  - [ ] Aliases
-  - [ ] Environment variables
-- [ ] Implement home/shell/cli-tools.nix
-  - [ ] eza (ls replacement)
-  - [ ] zoxide (cd replacement)
-  - [ ] bat (cat replacement)
-  - [ ] atuin (history search)
-  - [ ] yazi (file manager)
-  - [ ] ripgrep, fd, etc.
-- [ ] Implement home/shell/starship.nix
-  - [ ] Starship prompt
-  - [ ] Custom configuration
-- [ ] Implement home/wezterm.nix
-  - [ ] WezTerm terminal
-  - [ ] Configuration
-- [ ] Implement home/git.nix
-  - [ ] Git configuration
-  - [ ] Aliases
-- [ ] Implement home/vscode.nix
-  - [ ] VSCode configuration
-  - [ ] Extensions
-- [ ] Update home/default.nix to import modules
+- [x] Implement home/shell/fish.nix
+  - [x] Fish shell configuration with plugins
+  - [x] Comprehensive aliases and abbreviations
+  - [x] Custom functions (mkcd, extract, etc.)
+  - [x] Environment variables and colored man pages
+- [x] Implement home/shell/cli-tools.nix
+  - [x] eza (ls replacement with icons and git)
+  - [x] zoxide (smart cd with frecency tracking)
+  - [x] bat (cat with syntax highlighting)
+  - [x] atuin (history search, not synced yet)
+  - [x] yazi (TUI file manager)
+  - [x] ripgrep, fd, fzf for searching
+  - [x] Integration with Fish shell
+- [x] Implement home/shell/starship.nix
+  - [x] Clean, single-line prompt
+  - [x] Shows directory, git, exit status
+  - [x] Nix shell indicator
+  - [x] Fast performance (no language detection)
+- [x] Implement home/wezterm.nix
+  - [x] Claude-branded theme (Inter font, custom colors)
+  - [x] Clean UI (tab bar disabled)
+  - [x] GPU acceleration and Wayland support
+  - [x] Custom key bindings
+- [x] Implement home/git.nix
+  - [x] Git configuration with modern settings
+  - [x] Helpful aliases
+  - [x] Delta integration for better diffs
+  - [x] Identity left unconfigured (Phase 5)
+- [x] Implement home/vscode.nix
+  - [x] VSCode configuration with profiles
+  - [x] Nix extensions (nix-ide, direnv, nix-env-selector)
+  - [x] Claude extension (manual install noted)
+  - [x] JetBrains Mono font with ligatures
+- [x] Update home/default.nix to import all modules
 
 #### Applications (modules/apps/)
-- [ ] Implement apps/terminals.nix
-  - [ ] WezTerm
-- [ ] Implement apps/browsers.nix
-  - [ ] Chrome (unfree)
-- [ ] Implement apps/communication.nix
-  - [ ] Slack
-  - [ ] Discord
-- [ ] Update apps/default.nix to import modules
+- [x] Implement apps/terminals.nix
+  - [x] WezTerm installation
+  - [x] Only terminal in launcher
+- [x] Implement apps/browsers.nix
+  - [x] Chrome (unfree)
+  - [x] Manual sync noted
+- [x] Implement apps/communication.nix
+  - [x] Slack (unfree)
+  - [x] Discord (unfree)
+  - [x] Manual login noted
+- [x] Update apps/default.nix to import all modules
 
 #### Development (modules/development/)
-- [ ] Implement development/direnv.nix
-  - [ ] direnv
-  - [ ] nix-direnv
-- [ ] Implement development/git.nix
-  - [ ] Git system config
-- [ ] Implement development/vscode.nix
-  - [ ] VSCode system config
-- [ ] Update development/default.nix to import modules
+- [x] Implement development/direnv.nix
+  - [x] direnv enabled system-wide
+  - [x] nix-direnv for flake support
+  - [x] Fish integration configured
+- [x] Implement development/git.nix
+  - [x] Git system installation
+  - [x] Git LFS enabled
+- [x] Implement development/vscode.nix
+  - [x] VSCode system installation
+  - [x] System integration enabled
+- [x] Update development/default.nix to import all modules
+
+#### Validation
+- [x] Staged all files with git add
+- [x] Fixed deprecated Home Manager options:
+  - [x] VSCode: Updated to profiles.default.* format
+  - [x] Git: Updated to settings.* format
+  - [x] Delta: Moved to programs.delta with enableGitIntegration
+- [x] nix flake check passes (no deprecation warnings)
+- [x] Dry-run build succeeds (336 derivations)
+- [x] All modules follow established patterns
 
 #### Deployment & Verification
-- [ ] Deploy to transporter
-- [ ] Test WezTerm launches
-- [ ] Verify Fish is default shell
-- [ ] Test CLI tools (eza, bat, zoxide, atuin, yazi)
-- [ ] Test Chrome launches
-- [ ] Test Slack, Discord launch
-- [ ] Create test project with .envrc
-- [ ] Verify direnv works
+- [x] Deploy to transporter
+- [x] Test Ghostty launches with native GNOME decorations
+- [x] Verify Fish is default shell with starship
+- [x] Test CLI tools (eza, bat, zoxide, atuin, yazi)
+- [x] Test Chrome launches (single icon)
+- [x] Test Slack, Discord launch
+- [x] Create test project with .envrc
+- [x] Verify direnv works with nix flakes
+- [ ] Manually install Claude VSCode extension (Phase 4)
+- [ ] Set git user.name and user.email (manual step)
 
-### Estimated Duration: 2-3 hours
+### Implementation Notes:
+- **Shell:** Full Fish customization with plugins (fzf.fish, z, puffer-fish)
+- **Terminal:** Ghostty with GTK/libadwaita for native GNOME integration
+  - Replaced WezTerm for better window decorations on GNOME Wayland
+  - Shell integration for Fish (cursor, sudo, title)
+  - Claude-inspired color scheme with JetBrains Mono Nerd Font
+  - Auto-copy on selection, mouse hiding, window state persistence
+- **CLI Tools:** Modern replacements integrated (eza, bat, zoxide, atuin, yazi, ripgrep, fd, fzf)
+- **Prompt:** Clean Starship configuration (dir + git + status + nix-shell indicator)
+- **Git:** Modern settings with delta integration; identity unconfigured for manual setup
+- **VSCode:** Nix + Markdown + YAML extensions; Claude extension manual install (Phase 4)
+- **Applications:** Chrome (single icon), Slack, Discord
+- **Development:** direnv with nix-direnv for per-project environments
+- **Launcher:** CLI apps hidden via Home Manager xdg.dataFile (vim, htop, micro, yazi, xterm)
+- **System:** xterm excluded via services.xserver.excludePackages
+- **Fixed:** All deprecated Home Manager options updated to current format
+  - VSCode: profiles.default.* format
+  - Git: settings.* format
+  - Delta: separate programs.delta with enableGitIntegration
+- **Hash fixes:** Corrected Fish plugin hashes (z, fzf.fish)
+- **Iterative improvements:** Multiple rounds of fixes for launcher cleanup and terminal decorations
+
+### Post-Deployment Manual Tasks:
+- Set git user.name and user.email (or configure via sops-nix in Phase 5)
+- Install Claude VSCode extension from marketplace (Phase 4)
+
+### Duration: ~3 hours (including troubleshooting and Ghostty migration)
 
 ---
 
@@ -323,14 +377,14 @@ Deploy to transporter and verify desktop environment functionality
 |-------|--------|----------|-------|
 | 1. Foundation | ✅ Complete | ~2h | Core system ready for install |
 | 2. Desktop | ✅ Complete | ~1h | GNOME + Wayland + Audio configured |
-| 3. Apps & Shell | ⏳ Not started | 2-3h | CLI tools, browser, terminal |
+| 3. Apps & Shell | ✅ Complete | ~3h | CLI tools, Ghostty, Home Manager, deployed & verified |
 | 4. Claude Tools | ⏳ Not started | 3-5h | May need custom packaging |
 | 5. Secrets & Prod | ⏳ Not started | 2-3h | sops-nix + gti deployment |
 | 6. Docs & Polish | ⏳ Not started | 2-3h | Complete documentation |
 
-**Total Estimated:** 12-20 hours
-**Completed:** ~3 hours
-**Remaining:** ~9-17 hours
+**Total Estimated:** 13-21 hours
+**Completed:** ~6 hours
+**Remaining:** ~7-15 hours
 
 ---
 
@@ -357,6 +411,50 @@ Ideas for after initial implementation:
 ---
 
 ## Maintenance Log
+
+### 2026-01-27 (Phase 3 Deployment & Verification)
+- **Phase 3 deployed to transporter:** All applications and shell configuration working
+- Deployed and verified all Phase 3 components
+- Terminal: Ghostty with native GTK/libadwaita decorations
+- Shell: Fish with Starship prompt, modern CLI tools (eza, bat, zoxide, atuin, yazi)
+- Applications: Chrome (single icon), Slack, Discord, VSCode with extensions
+- Development: direnv working with nix-direnv
+- Post-deployment fixes:
+  - Fixed Fish plugin hash mismatches (z, fzf.fish)
+  - Hid CLI apps from launcher using Home Manager xdg.dataFile
+  - Excluded xterm using services.xserver.excludePackages
+  - Fixed duplicate Chrome launcher icon
+  - Replaced WezTerm with Ghostty for better GNOME integration
+  - Fixed Ghostty config errors (removed invalid wayland and theme options)
+  - Enhanced Ghostty with shell integration and GNOME best practices
+- All verification tests passed
+- Ready for Phase 4 (Claude Tools)
+
+### 2026-01-27 (Phase 3 Implementation)
+- **Phase 3 complete:** Applications & Shell configuration implemented
+- Created home/shell/ modules: fish.nix, cli-tools.nix, starship.nix
+  - Fish shell with plugins (fzf.fish, z, puffer-fish)
+  - Modern CLI tools (eza, bat, zoxide, atuin, yazi, ripgrep, fd, fzf)
+  - Clean Starship prompt (dir, git, status, nix-shell indicator)
+- Created home/ user configs: wezterm.nix, git.nix, vscode.nix
+  - Claude-branded WezTerm (Inter font, custom dark theme, GPU acceleration)
+  - Git with modern settings and delta integration
+  - VSCode with Nix extensions (nix-ide, direnv, nix-env-selector)
+- Created modules/apps/: terminals.nix, browsers.nix, communication.nix
+  - WezTerm as only terminal in launcher
+  - Chrome browser (unfree)
+  - Slack and Discord (unfree)
+- Created modules/development/: direnv.nix, git.nix, vscode.nix
+  - direnv with nix-direnv for per-project environments
+  - Git system installation with LFS
+  - VSCode system integration
+- Fixed deprecated Home Manager options:
+  - VSCode: profiles.default.* format
+  - Git: settings.* format
+  - Delta: separate programs.delta with enableGitIntegration
+- Configuration validates with nix flake check (no warnings)
+- Dry-run build succeeds (336 new derivations)
+- Ready for deployment to transporter
 
 ### 2026-01-27 (Deployment)
 - **Phase 2 deployed to transporter:** Desktop environment fully operational
@@ -399,4 +497,4 @@ Ideas for after initial implementation:
 
 ---
 
-**Next Immediate Step:** Begin Phase 3 - Applications & Shell (terminals, browsers, CLI tools, Home Manager)
+**Next Immediate Step:** Begin Phase 4 - Claude Tools (CLI, Desktop, Chrome extension, VSCode extension)

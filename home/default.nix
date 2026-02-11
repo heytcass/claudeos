@@ -1,8 +1,13 @@
 { config, pkgs, ... }:
 
 {
-  # Phase 3: Home Manager configuration
-  # For now, minimal setup
+  # Import all Home Manager modules
+  imports = [
+    ./shell
+    ./ghostty.nix
+    ./git.nix
+    ./vscode.nix
+  ];
 
   # This is required for home-manager
   home.stateVersion = "24.11";
@@ -14,16 +19,36 @@
   # Let home-manager manage itself
   programs.home-manager.enable = true;
 
-  # Imports will be added in Phase 3
-  # imports = [
-  #   ./shell
-  #   ./git.nix
-  #   ./wezterm.nix
-  #   ./vscode.nix
-  # ];
+  # Hide CLI tools from application launcher
+  # These are useful utilities but shouldn't clutter the app menu
+  xdg.dataFile."applications/vim.desktop".text = ''
+    [Desktop Entry]
+    Hidden=true
+  '';
+  xdg.dataFile."applications/htop.desktop".text = ''
+    [Desktop Entry]
+    Hidden=true
+  '';
+  xdg.dataFile."applications/micro.desktop".text = ''
+    [Desktop Entry]
+    Hidden=true
+  '';
+  xdg.dataFile."applications/yazi.desktop".text = ''
+    [Desktop Entry]
+    Hidden=true
+  '';
+  xdg.dataFile."applications/xterm.desktop".text = ''
+    [Desktop Entry]
+    Hidden=true
+  '';
+  xdg.dataFile."applications/uxterm.desktop".text = ''
+    [Desktop Entry]
+    Hidden=true
+  '';
 
-  # Phase 3: Add this useful alias for rebuilding system
-  # programs.fish.shellAliases = {
-  #   nixos-rebuild-switch = "sudo nixos-rebuild switch --flake ~/.config/claudeos#(hostname)";
-  # };
+  # Hide legacy Chrome desktop file (use com.google.Chrome.desktop instead)
+  xdg.dataFile."applications/google-chrome.desktop".text = ''
+    [Desktop Entry]
+    Hidden=true
+  '';
 }
