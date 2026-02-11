@@ -1,7 +1,7 @@
 { ... }:
 
 {
-  # Phase 2: Desktop Environment
+  # Desktop environment — system-level configuration
   imports = [
     ./cosmic-system.nix
     ./audio.nix

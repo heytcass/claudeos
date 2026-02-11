@@ -45,9 +45,10 @@
   };
 
   # fzf - Fuzzy finder configuration
+  # fzf configuration (Fish keybindings provided by fzf.fish plugin in fish.nix)
   programs.fzf = {
     enable = true;
-    enableFishIntegration = true;
+    enableFishIntegration = false;
 
     # Default options
     defaultCommand = "fd --type f --hidden --exclude .git";
@@ -107,9 +108,7 @@
     };
   };
 
-  # direnv - Per-project environment management
-  # Note: System-level direnv is enabled in modules/development/direnv.nix
-  # This just configures the Fish integration
+  # direnv - Per-project environment management with nix-direnv
   programs.direnv = {
     enable = true;
     nix-direnv.enable = true;

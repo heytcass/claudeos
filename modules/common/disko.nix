@@ -14,11 +14,10 @@
   #
   # Mount options are optimized for SSD with compression
   #
-  # NOTE: This module is disabled by default (disko.enableConfig = false)
-  # to avoid conflicts with existing hardware-configuration.nix on
-  # already-installed systems. Enable it only during installation.
+  # Disko generates fileSystems and swapDevices entries declaratively.
+  # hardware-configuration.nix only needs kernel modules and CPU config.
 
-  disko.enableConfig = lib.mkDefault false;
+  disko.enableConfig = lib.mkDefault true;
 
   disko.devices = {
     disk = {

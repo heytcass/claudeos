@@ -42,10 +42,6 @@
       nerd-fonts.jetbrains-mono # Primary coding font with icons
       nerd-fonts.fira-code # Alternative with ligatures and icons
       nerd-fonts.symbols-only # Standalone symbol fallback for UI glyphs
-
-      # Non-Nerd Font versions (for compatibility)
-      fira-code # Mozilla's programming font
-      jetbrains-mono # JetBrains monospace
     ];
 
     # Enable support for additional font formats

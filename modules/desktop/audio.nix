@@ -12,10 +12,8 @@
     enable = true;
 
     # Compatibility layers for legacy applications
-    alsa.enable = true; # ALSA support
-    alsa.support32Bit = true; # 32-bit ALSA for games/Wine
+    alsa.enable = true;
     pulse.enable = true; # PulseAudio compatibility
-    jack.enable = true; # JACK compatibility for pro audio
 
     # Wireplumber is the session manager for Pipewire
     wireplumber.enable = true;
@@ -38,9 +36,6 @@
   # Bluetooth GUI support
   services.blueman.enable = false; # COSMIC has built-in Bluetooth settings
 
-  # Audio tools
-  environment.systemPackages = with pkgs; [
-    pavucontrol # PulseAudio Volume Control (works with Pipewire)
-    helvum # Pipewire graph patchbay (visual audio routing)
-  ];
+  # Audio is managed through COSMIC Settings
+  # For advanced needs: install pavucontrol or helvum per-project via nix shell
 }

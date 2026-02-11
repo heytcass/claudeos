@@ -33,18 +33,12 @@ Complete documentation for ClaudeOS hardware configurations, issues, and optimiz
   - `@log` - logs (subvolid=259, mounted at /var/log)
 - **Boot:** 511MB vfat partition on /dev/sda1
 
-**Status:** ✅ Phase 1 complete and tested
+**Status:** ✅ Deployed and operational
 
 **Installation Date:** 2026-01-27
 
 **Known Issues:**
 - **Resolved:** Home directory ownership (fixed post-install with `sudo chown -R tom:users /home/tom`)
-
-**Deployment History:**
-- **Phase 1:** Core system installed and tested (2026-01-27)
-- **Phase 2:** GNOME desktop deployed (2026-01-27)
-- **Phase 3:** Applications and shell deployed (2026-01-27)
-- **Phase 4:** Claude Code CLI deployed (2026-01-27)
 
 **Working Features:**
 - systemd-boot bootloader
@@ -54,12 +48,14 @@ Complete documentation for ClaudeOS hardware configurations, issues, and optimiz
 - SSH access
 - Git, vim, htop
 - Nix flakes
+- COSMIC desktop
+- Ghostty terminal
 
 ### gti - Dell XPS 13 9370
 
 **Hardware Profile:** `nixos-hardware.nixosModules.dell-xps-13-9370`
 
-**Status:** ⏳ Not deployed (Phase 5)
+**Status:** Ready for deployment
 
 **Planned Configuration:**
 - Will use same btrfs subvolume layout as transporter
@@ -73,14 +69,7 @@ Complete documentation for ClaudeOS hardware configurations, issues, and optimiz
 - Display: 13" (resolution TBD)
 - Network: WiFi + optional USB-C ethernet
 
-**Known Issues:** (To be discovered during Phase 5 deployment)
-
-**Deployment Plan:**
-1. Create NixOS installation USB
-2. Install with btrfs layout matching transporter
-3. Generate hardware-configuration.nix
-4. Deploy configuration from this repository
-5. Document actual hardware specs and any issues
+**Known Issues:** (To be discovered during deployment)
 
 ## Hardware-Specific Notes
 
@@ -96,13 +85,13 @@ Complete documentation for ClaudeOS hardware configurations, issues, and optimiz
 - SSD detected and optimized automatically
 - Compression level 3 (zstd:3) provides good balance of speed/compression
 
-**Recommended Tweaks for Phase 2+:**
+**Recommended Tweaks:**
 - Consider btrfs snapshots before/after system rebuilds
 - May want to adjust swappiness for SSD longevity
 
 ### Dell XPS 13 9370
 
-_To be documented after Phase 5 deployment_
+_To be documented after deployment_
 
 **Expected Optimizations:**
 - Intel graphics acceleration
@@ -122,40 +111,6 @@ _To be documented after Phase 5 deployment_
 - **Cause:** NixOS installation creates home directory with root ownership
 - **Fix:** `sudo chown -R tom:users /home/tom`
 - **Status:** Fixed on transporter, documented for gti
-
-### Package Renames (Phase 2 Deployment)
-
-**Font Package Changes:**
-- **Issue:** `noto-fonts-emoji` renamed to `noto-fonts-color-emoji`
-- **Issue:** `nerdfonts.override` replaced with individual `nerd-fonts.*` packages
-- **Fix:** Updated modules/desktop/fonts.nix to use new package names
-- **Status:** Resolved
-
-### Launcher Icons (Phase 3 Deployment)
-
-**Duplicate Chrome Icon:**
-- **Issue:** Multiple Chrome launcher icons
-- **Fix:** Proper desktop file management
-- **Status:** Resolved
-
-**Unwanted Terminal Icons:**
-- **Issue:** CLI apps (vim, htop, yazi, xterm) appearing in launcher
-- **Fix:** Hidden via Home Manager `xdg.dataFile` and `services.xserver.excludePackages`
-- **Status:** Resolved
-
-### Fish Plugin Hashes (Phase 3 Deployment)
-
-**Hash Mismatches:**
-- **Issue:** Fish plugins (z, fzf.fish) had incorrect hash values
-- **Fix:** Updated to correct hashes in home/shell/fish.nix
-- **Status:** Resolved
-
-### Terminal Configuration (Phase 3 Deployment)
-
-**WezTerm Window Decorations:**
-- **Issue:** WezTerm didn't integrate well with GNOME Wayland
-- **Solution:** Replaced with Ghostty for native GTK/libadwaita decorations
-- **Status:** Resolved with Ghostty
 
 ---
 
@@ -375,4 +330,4 @@ When adding new machines to ClaudeOS:
 
 ---
 
-*Last updated: Phase 6 (Documentation & Polish)*
+*Last updated: 2026-02-02*

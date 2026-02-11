@@ -73,22 +73,7 @@
       # Formatter for `nix fmt`
       formatter.x86_64-linux = nixpkgs.legacyPackages.x86_64-linux.nixpkgs-fmt;
 
-      # Development shell for working on this configuration
-      devShells.x86_64-linux.default = nixpkgs.legacyPackages.x86_64-linux.mkShell {
-        packages = with nixpkgs.legacyPackages.x86_64-linux; [
-          nixpkgs-fmt
-          statix
-          deadnix
-          nil
-        ];
-        shellHook = ''
-          echo "ClaudeOS development environment"
-          echo "Available commands:"
-          echo "  nix flake check        - Validate configuration"
-          echo "  nixpkgs-fmt .          - Format all nix files"
-          echo "  statix check           - Lint for common issues"
-          echo "  deadnix -e             - Find dead code"
-        '';
-      };
+      # Nix dev tools are installed system-wide (modules/common/system.nix)
+      # No devShell needed — this is a NixOS machine
     };
 }

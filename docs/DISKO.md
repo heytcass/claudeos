@@ -314,4 +314,4 @@ nixos-generate-config --no-filesystems --root /mnt
 
 ---
 
-*Last updated: Phase 6 (Disko Integration)*
+*Last updated: 2026-02-02*

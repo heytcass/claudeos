@@ -65,12 +65,9 @@ The script will:
 - Generate hardware-configuration.nix
 - Prepare the system for first boot
 
-#### 4. Set Passwords
+#### 4. Set Password
 
 ```bash
-# Set root password
-nixos-enter --root /mnt -c 'passwd'
-
 # Set user password
 nixos-enter --root /mnt -c 'passwd tom'
 ```
@@ -82,6 +79,8 @@ reboot
 ```
 
 Remove installation USB and boot into ClaudeOS!
+
+The configuration repository is automatically installed at `~/.config/claudeos`.
 
 ### What Gets Installed
 
@@ -108,12 +107,11 @@ Remove installation USB and boot into ClaudeOS!
 
 Based on hostname (gti, transporter, etc.):
 - NixOS unstable
-- GNOME 49 desktop
+- COSMIC desktop
 - Wayland + Pipewire
 - Fish shell
 - Home Manager
-- Claude Code CLI
-- Development tools (git, vim, VSCode)
+- Claude Code CLI + Claude Desktop
 
 See [docs/MODULES.md](docs/MODULES.md) for complete feature list.
 
@@ -127,11 +125,14 @@ See [docs/MODULES.md](docs/MODULES.md) for complete feature list.
 
 ### Configuration Location
 
+The install script automatically places the configuration at `~/.config/claudeos`:
+
 ```bash
-# Clone configuration to home directory
-cd ~/.config
-git clone https://github.com/yourusername/claudeos.git
-cd claudeos
+# Configuration is already installed at:
+cd ~/.config/claudeos
+
+# Pull latest changes from your development machine:
+git pull
 
 # Update system
 sudo nixos-rebuild switch --flake .#$(hostname)

@@ -2,25 +2,6 @@
 
 NixOS configuration optimized for Claude Code workflow.
 
-## Context Detection
-
-This project has two operational contexts. Read the appropriate documentation:
-
-**Are you helping develop/modify the NixOS configuration?**
-- Working on Ubuntu dev machine
-- Making changes to modules, flake.nix, or configuration
-- Validating, building, or deploying changes
-→ **Read [`docs/CLAUDE-DEVELOPMENT.md`](docs/CLAUDE-DEVELOPMENT.md)**
-
-**Are you helping administer a deployed NixOS system?**
-- Working on/with the live NixOS machine
-- Troubleshooting running services
-- Inspecting logs or system state
-- Performing rollbacks or quick fixes
-→ **Read [`docs/CLAUDE-OPERATIONS.md`](docs/CLAUDE-OPERATIONS.md)**
-
-**Not sure which context?** Ask the user: "Are we working on the dev machine (Ubuntu) to build the config, or on the NixOS target machine to administer the running system?"
-
 ## CRITICAL: Ask Questions, Don't Assume
 
 **ALWAYS use the `AskUserQuestion` tool whenever you need clarification.**
@@ -43,19 +24,31 @@ This project has two operational contexts. Read the appropriate documentation:
 
 | Machine | IP | Purpose | Status |
 |---------|-----|---------|--------|
-| transporter | 10.0.10.205 | Test system | 🟢 Phase 2 complete |
-| gti | TBD | Production | ⚪ Not started |
+| transporter | 10.0.10.205 | Test system (Dell Latitude 7280) | Deployed |
+| gti | TBD | Production (Dell XPS 13 9370) | Ready for deployment |
 
-**Stack:** NixOS unstable • COSMIC • Wayland • Pipewire • home-manager • sops-nix
+**Stack:** NixOS unstable • COSMIC • Wayland • Pipewire • home-manager • sops-nix (future) • Stylix
 
-**Development Flow:** Ubuntu dev → validate → commit → deploy to NixOS target
+## Workflow
+
+All work is done directly on NixOS machines:
+
+1. **Edit** configuration in `~/.config/claudeos`
+2. **Validate** changes with `nix flake check`
+3. **Apply** changes with `sudo nixos-rebuild switch --flake ~/.config/claudeos#$(hostname)`
+4. **Sync** between machines with `git push` / `git pull`
 
 ## Documentation
 
-All documentation is in `docs/`:
-- [CLAUDE-DEVELOPMENT.md](docs/CLAUDE-DEVELOPMENT.md) - Building the configuration
-- [CLAUDE-OPERATIONS.md](docs/CLAUDE-OPERATIONS.md) - Operating deployed systems
-- [WORKFLOW.md](docs/WORKFLOW.md) - Detailed development workflow
-- [DEPLOYMENT.md](docs/DEPLOYMENT.md) - Deployment procedures
-- [TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) - Common issues and fixes
-- [IMPLEMENTATION_STATUS.md](docs/IMPLEMENTATION_STATUS.md) - Project progress
+All documentation is in the repository:
+
+- [INSTALL.md](INSTALL.md) - Fresh NixOS installation
+- [docs/WORKFLOW.md](docs/WORKFLOW.md) - Development workflow
+- [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) - Deployment procedures
+- [docs/MODULES.md](docs/MODULES.md) - Module documentation
+- [docs/HARDWARE.md](docs/HARDWARE.md) - Hardware configs
+- [docs/SECRETS.md](docs/SECRETS.md) - Secrets management (future)
+- [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) - Common issues
+- [docs/IMPLEMENTATION_STATUS.md](docs/IMPLEMENTATION_STATUS.md) - Current state
+- [docs/THEME.md](docs/THEME.md) - Theme system
+- [docs/DISKO.md](docs/DISKO.md) - Disk layout

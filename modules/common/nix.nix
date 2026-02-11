@@ -5,6 +5,9 @@
   nix.settings = {
     experimental-features = [ "nix-command" "flakes" ];
 
+    # Store Nix config under XDG directories instead of ~/.nix-*
+    use-xdg-base-directories = true;
+
     # Optimize store automatically
     auto-optimise-store = true;
 

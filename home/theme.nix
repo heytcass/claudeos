@@ -18,5 +18,5 @@
     '';
   };
 
-  # Note: Icon theme is Adwaita, configured in modules/desktop/cosmic.nix
+  # Note: Icon theme is Adwaita, configured in home/cosmic.nix
 }

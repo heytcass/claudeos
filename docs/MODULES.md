@@ -10,17 +10,17 @@ ClaudeOS uses a modular architecture where functionality is split into focused, 
 
 ```
 modules/
-├── common/         # Foundation modules (loaded for all machines)
-├── desktop/        # Desktop environment (GNOME, audio, fonts, theme)
-├── apps/          # Applications (terminals, browsers, communication, Claude)
-├── development/   # Development tools (direnv, git, VSCode)
-└── services/      # System services (currently empty)
+├── common/         # Foundation (boot, nix, users, networking, locale, system, disko)
+├── desktop/        # Desktop environment (cosmic-system, audio, fonts, theme)
+└── apps/           # Applications (terminals, browsers, communication, claude)
 
 home/
-├── shell/         # Shell configuration (fish, CLI tools, starship)
-├── ghostty.nix    # Ghostty terminal user config
-├── git.nix        # Git user config
-└── vscode.nix     # VSCode user config
+├── shell/          # Shell config (fish, cli-tools, starship)
+├── ghostty.nix     # Ghostty terminal user config
+├── git.nix         # Git user config
+├── vscode.nix      # VSCode user config
+├── cosmic.nix      # COSMIC/GTK user config (dconf, icon theme)
+└── theme.nix       # Stylix Home Manager targets
 ```
 
 ---
@@ -174,33 +174,29 @@ time.timeZone = lib.mkForce "America/Los_Angeles";
 
 ## desktop/ - Desktop Environment
 
-GNOME desktop with Wayland, audio, fonts, and theming.
+COSMIC desktop with Wayland, audio, fonts, and theming.
 
-### modules/desktop/gnome.nix
+### modules/desktop/cosmic-system.nix
 
-**Purpose:** GNOME desktop environment with Wayland
+**Purpose:** COSMIC desktop environment (system-level)
 
 **Configuration:**
-- GDM display manager with Wayland (X11 fallback available)
-- GNOME Desktop Environment
-- Essential extensions: Appindicator, Just Perfection, Caffeine
-- GNOME Tweaks and Extension Manager
-- Excludes bloat: Epiphany, Geary, Maps, Music, Photos, Weather, Totem, Tour, Console
+- COSMIC display manager (cosmic-greeter)
+- COSMIC Desktop Environment
+- Wayland session
 - Excludes xterm (pulled in by X dependencies)
 - GVfs for virtual filesystems
-- GNOME Keyring for credentials
-- GNOME Online Accounts
-- Crash reporter disabled for privacy
+- GNOME Keyring for credential storage
 
 **Dependencies:**
-- X server (required for display managers)
 - Wayland support
 
-**Location:** modules/desktop/gnome.nix:1
+**Location:** modules/desktop/cosmic-system.nix:1
 
 **Integration:**
 - Works with modules/apps/terminals.nix (Ghostty)
-- Works with modules/desktop/theme.nix (Adwaita theme)
+- Works with home/cosmic.nix (GTK app theming)
+- Works with home/theme.nix (Stylix theming)
 
 ---
 
@@ -261,20 +257,15 @@ GNOME desktop with Wayland, audio, fonts, and theming.
 **Purpose:** GTK, Qt, and XDG portal theming
 
 **Configuration:**
-- Adwaita theme (GNOME default - clean, minimal, professional)
+- Adwaita theme (clean, minimal, professional)
 - Qt applications use GTK theme for consistency
 - XDG portals for desktop integration
 - Dconf enabled for settings
 
 **Dependencies:**
-- GNOME desktop
+- COSMIC desktop
 
 **Location:** modules/desktop/theme.nix:1
-
-**Future Enhancement:**
-Consider Stylix with Claude brand colors:
-- Dark: #141413, Light: #faf9f5, Orange: #d97757
-- Alternative themes: Prof-Gnome, HyperFluent, MoreWaita icons, Bibata cursor
 
 ---
 
@@ -290,7 +281,7 @@ User-facing applications.
 - Installs Ghostty terminal
 - Sets Ghostty as default terminal (TERMINAL env var)
 - Desktop file for terminal:// URL handling
-- gnome-console and xterm hidden (see desktop/gnome.nix)
+- xterm hidden (see desktop/cosmic-system.nix)
 
 **Dependencies:**
 - Ghostty package
@@ -298,7 +289,7 @@ User-facing applications.
 
 **Location:** modules/apps/terminals.nix:1
 
-**Integration:** User configuration in home/ghostty.nix provides GTK/libadwaita integration for native GNOME decorations
+**Integration:** User configuration in home/ghostty.nix provides GTK/libadwaita integration for native decorations
 
 ---
 
@@ -368,67 +359,6 @@ User-facing applications.
 
 ---
 
-## development/ - Development Tools
-
-Development environment and tools.
-
-### modules/development/direnv.nix
-
-**Purpose:** Per-project environment management
-
-**Configuration:**
-- Enables direnv system-wide
-- nix-direnv for flake support and caching
-- Fish integration configured in home/shell/cli-tools.nix
-
-**Dependencies:**
-- Fish shell integration
-
-**Location:** modules/development/direnv.nix:1
-
-**Usage:** Create .envrc files in projects:
-```bash
-echo "use flake" > .envrc
-direnv allow
-```
-
----
-
-### modules/development/git.nix
-
-**Purpose:** Git system installation
-
-**Configuration:**
-- Git and git-lfs installation
-- Git LFS enabled system-wide
-- User config in home/git.nix
-
-**Dependencies:** None
-
-**Location:** modules/development/git.nix:1
-
-**Integration:** User-specific configuration in home/git.nix
-
----
-
-### modules/development/vscode.nix
-
-**Purpose:** VSCode system installation
-
-**Configuration:**
-- VSCode installation (unfree package)
-- VSCode system integration enabled
-- User config in home/vscode.nix
-
-**Dependencies:**
-- Unfree packages enabled
-
-**Location:** modules/development/vscode.nix:1
-
-**Integration:** Extensions and settings configured in home/vscode.nix
-
----
-
 ## home/ - Home Manager User Configuration
 
 User-specific configuration managed by home-manager.
@@ -440,7 +370,7 @@ User-specific configuration managed by home-manager.
 **Configuration:**
 - Font: JetBrains Mono Nerd Font (size 11)
 - Claude-inspired color scheme (dark background #1a1d23)
-- GTK/libadwaita integration for native GNOME decorations
+- GTK/libadwaita integration for native decorations
 - No tab bar (clean look)
 - Fish shell integration (cursor, sudo, title)
 - Scrollback: 10,000 lines
@@ -454,7 +384,7 @@ User-specific configuration managed by home-manager.
 **Location:** home/ghostty.nix:1
 
 **Key Features:**
-- Native GNOME window decorations
+- Native COSMIC/GTK window decorations
 - Shell integration with Fish
 - Auto-copy on selection
 - Window position/size persistence
@@ -479,7 +409,6 @@ User-specific configuration managed by home-manager.
 - Delta integration for better diffs
 
 **Dependencies:**
-- Git system installation (development/git.nix)
 - Delta package
 
 **Location:** home/git.nix:1
@@ -508,7 +437,7 @@ git config --global user.email "your.email@example.com"
 - Telemetry disabled
 
 **Dependencies:**
-- VSCode system installation (development/vscode.nix)
+- VSCode system installation (installed via system packages)
 - JetBrains Mono font (desktop/fonts.nix)
 - nil language server
 - nixpkgs-fmt formatter
@@ -517,6 +446,50 @@ git config --global user.email "your.email@example.com"
 
 **Manual Steps:**
 - Install Claude extension from marketplace
+
+---
+
+### home/cosmic.nix
+
+**Purpose:** GTK preferences for apps running under COSMIC
+
+**Configuration:**
+- Adwaita icon theme
+- Dark mode for GTK3/GTK4 applications
+- dconf settings for GTK app compatibility
+- Ensures consistent theming for GTK apps under COSMIC
+
+**Dependencies:**
+- COSMIC desktop environment
+- dconf support
+
+**Location:** home/cosmic.nix:1
+
+**Integration:**
+- Complements desktop/theme.nix (system-level theming)
+- Provides user-level GTK preferences
+
+---
+
+### home/theme.nix
+
+**Purpose:** Stylix Home Manager targets
+
+**Configuration:**
+- Enables Stylix for GTK
+- Enables Stylix for Ghostty
+- Enables Stylix for VSCode
+- Provides consistent theming across applications
+
+**Dependencies:**
+- Stylix module
+- GTK, Ghostty, VSCode installations
+
+**Location:** home/theme.nix:1
+
+**Integration:**
+- Works with desktop/theme.nix (system-level Stylix)
+- Applies theming to user applications
 
 ---
 
@@ -607,9 +580,8 @@ Visual dependency tree:
 ```
 common/ (no dependencies)
   └─> desktop/ (depends on common)
-       └─> apps/ (depends on desktop for GNOME)
-       └─> development/ (independent)
-       └─> home/ (depends on apps + development)
+       └─> apps/ (depends on desktop for COSMIC)
+       └─> home/ (depends on apps)
             └─> home/shell/ (depends on CLI tools)
 ```
 
@@ -617,9 +589,8 @@ common/ (no dependencies)
 1. common/ - Foundation
 2. desktop/ - Desktop environment
 3. apps/ - Applications
-4. development/ - Dev tools
-5. home/ - User configuration
-6. home/shell/ - Shell configuration
+4. home/ - User configuration
+5. home/shell/ - Shell configuration
 
 ---
 
@@ -694,4 +665,4 @@ in {
 
 ---
 
-*Last updated: Phase 6 (Documentation & Polish)*
+*Last updated: 2026-02-02*

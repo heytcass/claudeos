@@ -1,14 +1,13 @@
-# GNOME Theme System
+# Theme System
 
-Comprehensive GNOME visual theme with Papirus icons, custom accent colors, and Shell customization. Built on Stylix base16 implementation to create a cohesive Claude-branded desktop environment.
+Comprehensive visual theme system built on Stylix base16 implementation. Creates a cohesive Claude-branded desktop environment with warm terracotta accent colors across applications.
 
 ## Overview
 
-The ClaudeOS theme system combines Stylix's powerful base16 theming with GNOME-specific customizations to create a consistent visual experience across the desktop environment. The theme features:
+The ClaudeOS theme system uses Stylix's powerful base16 theming to create a consistent visual experience across the desktop environment. The theme features:
 
 - **Custom color scheme** based on Claude's brand colors (warm terracotta accent)
-- **Papirus icon theme** with terracotta-brown folder colorization
-- **GNOME accent color integration** using a hybrid approach
+- **Adwaita icon theme** for GTK/libadwaita applications
 - **Dark mode by default** with system-wide consistency
 - **100+ applications themed** via Stylix targets
 
@@ -23,32 +22,32 @@ The theme system is split across three modules following NixOS best practices:
 **Responsibilities:**
 - Defines the base16 color palette
 - Enables Stylix for system-level theming
-- Configures icon theme package (Papirus)
+- Configures icon theme package
 - Sets polarity (dark mode)
 
-**Why system-level:** Color schemes and Stylix foundation need to be available at boot and for system services (e.g., GDM login screen).
+**Why system-level:** Color schemes and Stylix foundation need to be available at boot and for system services.
 
-### 2. `modules/desktop/theme-home.nix` (Home Manager)
+### 2. `home/theme.nix` (Home Manager)
 
-**Purpose:** User-level Stylix targets and icon customization
+**Purpose:** User-level Stylix targets and application theming
 
 **Responsibilities:**
 - Enables Stylix for specific applications (Ghostty, VS Code, Firefox, etc.)
-- Runs Papirus folder colorization script on activation
+- Configures per-user theme preferences
 - Provides GTK CSS override hooks if needed
 
-**Why Home Manager:** Application-specific theming belongs in the user session, not system-wide. Icon colorization is a user preference.
+**Why Home Manager:** Application-specific theming belongs in the user session, not system-wide.
 
-### 3. `modules/desktop/gnome.nix` (Home Manager)
+### 3. `home/cosmic.nix` (Home Manager)
 
-**Purpose:** GNOME-specific settings via dconf and GTK configuration
+**Purpose:** COSMIC-specific settings via dconf and GTK configuration
 
 **Responsibilities:**
-- Sets GNOME accent color (via dconf)
-- Configures GTK icon theme and dark mode preferences
-- Manages GNOME Shell and interface settings
+- Sets GTK icon theme (Adwaita) for GTK app compatibility
+- Configures GTK dark mode preferences
+- Manages dconf settings for GTK applications running under COSMIC
 
-**Why separate:** GNOME configuration is independent of Stylix and may need frequent adjustments. Keeping it separate makes changes easier.
+**Why separate:** COSMIC uses its own configuration system (`~/.config/cosmic/`) independent of Stylix. This module ensures GTK applications have proper theming when running under COSMIC.
 
 ## Color Scheme
 
@@ -82,52 +81,13 @@ base16Scheme = {
 - Muted earth tones for semantic colors (green, yellow, cyan)
 - Bright blue (`#2c84db`) preserved for links and information states
 
-## Hybrid Accent Color Approach
-
-### The Problem
-
-GNOME 47+ accent colors are restricted to 9 enum presets:
-- `blue`, `teal`, `green`, `yellow`, `orange`, `red`, `pink`, `purple`, `slate`
-
-The accent-color dconf setting accepts **only these enum values**, not custom hex colors. This is a schema-level limitation in libadwaita.
-
-### The Solution
-
-We use a **hybrid approach** that provides visual consistency while working within GNOME's constraints:
-
-1. **GNOME accent set to "orange"** (`#ed5b00`)
-   - Closest available preset to our terracotta (`#c6613f`)
-   - Applied to: Shell UI, system dialogs, libadwaita native widgets
-
-2. **Stylix CSS provides exact terracotta** in GTK apps
-   - Applied to: GTK3/GTK4 applications, custom widgets, CSS-based themes
-   - Overrides libadwaita's orange with our precise brand color
-
-**Color difference:** ~15% between GNOME's orange and our terracotta
-- In practice: Barely noticeable due to adaptive color blending in libadwaita
-- Shell chrome uses orange, app content uses terracotta
-- Creates visual harmony without being identical
-
-**Why not custom GNOME Shell theme?**
-- Requires User Themes extension (fragile, conflicts in GNOME 49)
-- Shell theme maintenance burden is high
-- Stylix handles GTK theming better than custom Shell CSS
-- Stability over perfect color matching
-
 ## Icon Theme
 
-### Papirus Integration
+**Package:** `pkgs.adwaita-icon-theme`
 
-**Package:** `pkgs.papirus-icon-theme`
+**Variant:** Adwaita (standard icon theme for GTK/libadwaita)
 
-**Variant:** Papirus-Dark (optimized for dark backgrounds)
-
-**Folder colorization:**
-```bash
-papirus-folders -C brown --theme Papirus-Dark
-```
-
-This command recolors all folder icons to a warm brown tone that complements the terracotta accent.
+Adwaita provides symbolic icons that integrate well with GTK applications and the modern libadwaita design language. COSMIC uses its own icon system, but GTK applications running under COSMIC respect this theme setting.
 
 ### Implementation Details
 
@@ -135,52 +95,37 @@ This command recolors all folder icons to a warm brown tone that complements the
 ```nix
 stylix.icons = {
   enable = true;
-  package = pkgs.papirus-icon-theme;
+  package = pkgs.adwaita-icon-theme;
 };
 ```
 
-**Home Manager (gnome.nix):**
+**Home Manager (cosmic.nix):**
 ```nix
 gtk.iconTheme = {
-  name = "Papirus-Dark";
-  package = pkgs.papirus-icon-theme;
+  name = "Adwaita";
+  package = pkgs.adwaita-icon-theme;
 };
 ```
-
-**Activation script (theme-home.nix):**
-```nix
-home.activation.papirus-folders = lib.hm.dag.entryAfter ["writeBoundary"] ''
-  ${pkgs.papirus-folders}/bin/papirus-folders -C brown --theme Papirus-Dark
-'';
-```
-
-The activation script runs on every Home Manager activation, ensuring folder colors remain consistent even after icon theme updates.
 
 ## Configuration Layers
 
-The theme system builds up in four distinct layers:
+The theme system builds up in three distinct layers:
 
 ### Layer 1: Stylix Foundation
 - Base16 color scheme definition
 - Automatic CSS generation for GTK3/GTK4
-- GNOME Shell theme package replacement
 - System-wide application theming (100+ apps)
+- Terminal color schemes
 
 ### Layer 2: Icon Theme
-- Papirus-Dark package installation
-- Folder icon colorization to brown/terracotta
-- Home Manager activation script for persistence
+- Adwaita package installation
+- GTK icon theme configuration
+- Symbolic icon support for modern applications
 
-### Layer 3: GNOME Integration
-- Accent color set to "orange" (closest to terracotta)
-- Dark mode preference enforcement
-- Built-in rounded corners (GNOME 47+ feature)
-- dconf settings for desktop interface
-
-### Layer 4: Excluded Elements
-- **No cursor theme** - Electron apps (VS Code, Claude Desktop) often override cursor themes, causing inconsistency
-- **No heavy extensions** - Stability prioritized over visual effects
-- **No User Themes extension** - Package conflicts in GNOME 49, Stylix handles Shell theming
+### Layer 3: Desktop Integration
+- COSMIC desktop environment
+- GTK dark mode preference enforcement
+- dconf settings for GTK application compatibility
 
 ## Testing
 
@@ -193,44 +138,15 @@ The theme system builds up in four distinct layers:
 - [ ] Firefox themed (toolbars, menus)
 - [ ] Check syntax highlighting in terminal and editors
 
-**GNOME settings:**
-- [ ] Settings → Appearance shows "orange" accent selected
+**Desktop settings:**
 - [ ] Dark mode active system-wide
-- [ ] Rounded corners visible on windows (GNOME 47+ built-in)
-- [ ] Shell UI elements use orange accent
-
-**Papirus icons:**
-- [ ] Folder icons display brown/terracotta tone
-- [ ] Application icons use Papirus-Dark variants
-- [ ] Icon consistency across Files, launcher, and dash
+- [ ] GTK applications integrate well with COSMIC
+- [ ] Icon consistency across applications
 
 **Integration:**
-- [ ] No visual conflicts between Stylix CSS and GNOME accent
-- [ ] Smooth color transitions in libadwaita apps
+- [ ] Smooth color transitions in applications
 - [ ] Terminal and GUI apps feel cohesive
-
-### Discovery Workflow
-
-To capture additional GNOME preferences dynamically:
-
-```bash
-# Open a terminal and start watching dconf changes
-dconf watch /
-
-# In GNOME Settings, change preferences
-# Example: adjust font scaling, enable night light, etc.
-
-# Copy the dconf paths from the watch output
-# Convert to Nix format using dconf2nix
-dconf dump / | dconf2nix > new-settings.nix
-
-# Add desired settings to modules/desktop/gnome.nix
-```
-
-This workflow is useful for:
-- Discovering hidden GNOME settings
-- Capturing user preference changes
-- Converting manual tweaks into reproducible config
+- [ ] No visual conflicts between Stylix CSS and desktop theme
 
 ## Customization
 
@@ -246,38 +162,26 @@ stylix.base16Scheme = {
 };
 ```
 
-Rebuild and restart GNOME Shell (Alt+F2, type `r`, press Enter).
-
-### Adjusting GNOME Accent
-
-Edit `modules/desktop/gnome.nix`:
-
-```nix
-dconf.settings."org/gnome/desktop/interface" = {
-  accent-color = "purple";  # Choose from: blue, teal, green, yellow, orange, red, pink, purple, slate
-};
-```
+Rebuild and log out/in to apply changes.
 
 ### Changing Icon Theme
 
-Edit `modules/desktop/theme.nix` and `modules/desktop/gnome.nix`:
+Edit `modules/desktop/theme.nix` and `home/cosmic.nix`:
 
 ```nix
 # In theme.nix
 stylix.icons.package = pkgs.your-icon-theme;
 
-# In gnome.nix
+# In cosmic.nix
 gtk.iconTheme = {
   name = "Your-Theme-Name";
   package = pkgs.your-icon-theme;
 };
 ```
 
-Remove or adjust the `papirus-folders` activation script in `theme-home.nix` if not using Papirus.
-
 ### Adding Stylix Targets
 
-Edit `modules/desktop/theme-home.nix`:
+Edit `home/theme.nix`:
 
 ```nix
 stylix.targets = {
@@ -292,49 +196,29 @@ Available targets: `bat`, `firefox`, `fish`, `fzf`, `gnome-terminal`, `gtk`, `he
 
 ## Troubleshooting
 
-### Icons Not Changing
-
-**Symptom:** Folder icons remain default blue after rebuild
-
-**Solution:**
-```bash
-# Manually run the colorization script
-papirus-folders -C brown --theme Papirus-Dark
-
-# Restart GNOME Shell
-Alt+F2, type 'r', press Enter
-```
-
-**Persistent issues:** Check that `pkgs.papirus-folders` is installed and in PATH.
-
-### GNOME Accent Color Not Applied
-
-**Symptom:** Accent color in Settings shows a different value
-
-**Solution:**
-```bash
-# Check current dconf value
-dconf read /org/gnome/desktop/interface/accent-color
-
-# Manually set if needed
-dconf write /org/gnome/desktop/interface/accent-color "'orange'"
-
-# Verify config is being applied
-home-manager generations | head -n 5
-```
-
-**Common cause:** Conflicting dconf settings in other Home Manager modules.
-
 ### GTK Apps Not Themed
 
 **Symptom:** Some GTK applications ignore Stylix theming
 
 **Solution:**
-1. Verify Stylix targets are enabled in `theme-home.nix`
+1. Verify Stylix targets are enabled in `home/theme.nix`
 2. Check that the app is supported by Stylix
 3. Force GTK4 apps to prefer dark theme:
 ```bash
 gsettings set org.gnome.desktop.interface color-scheme 'prefer-dark'
+```
+
+### Icons Not Appearing Correctly
+
+**Symptom:** Missing or incorrect icons in applications
+
+**Solution:**
+```bash
+# Rebuild icon cache
+gtk-update-icon-cache ~/.icons/Adwaita
+
+# Verify icon theme package is installed
+nix-store -q --references ~/.nix-profile | grep adwaita-icon-theme
 ```
 
 ### Cursor Theme Issues with Electron
@@ -344,17 +228,6 @@ gsettings set org.gnome.desktop.interface color-scheme 'prefer-dark'
 **Expected behavior:** Electron apps often override cursor themes. This is why we don't configure a custom cursor theme - it would be inconsistent anyway.
 
 **Workaround:** Accept default cursor in Electron apps, or configure per-app if really needed.
-
-### Stylix Overriding GNOME Settings
-
-**Symptom:** GNOME Settings changes get reverted after rebuild
-
-**Cause:** Stylix manages GTK and GNOME Shell themes, which can override manual changes.
-
-**Solution:**
-- Add desired settings to `gnome.nix` dconf configuration
-- Use dconf watch to discover the correct paths
-- Keep theme configuration declarative in Nix
 
 ## Rollback
 
@@ -375,10 +248,8 @@ sudo nixos-rebuild switch --switch-generation 123
 git checkout main
 
 # Rebuild from main
-sudo nixos-rebuild switch --flake .#transporter
+sudo nixos-rebuild switch --flake ~/.config/claudeos#$(hostname)
 ```
-
-The feature branch remains intact for debugging and can be rebased/fixed without affecting the main configuration.
 
 ## Import Structure
 
@@ -395,12 +266,12 @@ imports = [
 
 ### Home Manager Configuration
 
-In your Home Manager config (e.g., `home-manager/tom/home.nix`):
+In your Home Manager config (e.g., `home/default.nix`):
 
 ```nix
 imports = [
-  ../../modules/desktop/theme-home.nix
-  ../../modules/desktop/gnome.nix
+  ./theme.nix
+  ./cosmic.nix
   # other modules
 ];
 ```
@@ -408,31 +279,21 @@ imports = [
 ## Dependencies
 
 **System packages required:**
-- `pkgs.papirus-icon-theme` - Icon theme package
-- `pkgs.papirus-folders` - Folder colorization utility
+- `pkgs.adwaita-icon-theme` - Icon theme package
 
 **NixOS modules:**
 - Stylix (configured at system level)
 - Home Manager (for user-level theming)
 
-**No GNOME extensions required** - All features use GNOME 47+ built-in capabilities (rounded corners, accent colors, dark mode).
-
 ## References
 
 - [Stylix Documentation](https://nix-community.github.io/stylix/) - Official Stylix theming engine docs
-- [Papirus Icon Theme](https://github.com/PapirusDevelopmentTeam/papirus-icon-theme) - Icon theme repository
-- [GNOME 47 Accent Colors](https://release.gnome.org/47/) - Release notes for accent color feature
+- [Adwaita Icon Theme](https://gitlab.gnome.org/GNOME/adwaita-icon-theme) - Icon theme repository
 - [libadwaita CSS Variables](https://gnome.pages.gitlab.gnome.org/libadwaita/doc/1.2/css-variables.html) - CSS customization reference
 - [Base16 Styling Guidelines](https://github.com/chriskempson/base16/blob/main/styling.md) - Color scheme standards
-- [dconf2nix](https://github.com/gvolpe/dconf2nix) - Tool for converting dconf dumps to Nix
-
-**Research citations:**
-- Stylix GNOME capabilities (agentId: a77caf8)
-- NixOS theme organization patterns (agentId: a3f6716)
-- GNOME custom accent colors (agentId: a032f3b)
+- [COSMIC Desktop](https://github.com/pop-os/cosmic-epoch) - COSMIC desktop environment
 
 ## See Also
 
 - [`MODULES.md`](MODULES.md) - Complete module system documentation
-- [`CLAUDE-DEVELOPMENT.md`](CLAUDE-DEVELOPMENT.md) - Development workflow and build process
 - [`TROUBLESHOOTING.md`](TROUBLESHOOTING.md) - General NixOS troubleshooting guide

@@ -7,8 +7,9 @@
     ./ghostty.nix
     ./git.nix
     ./vscode.nix
-    ../modules/desktop/theme-home.nix
-    ../modules/desktop/cosmic.nix
+    ./theme.nix
+    ./cosmic.nix
+    ./cosmic-theme.nix
   ];
 
   # This is required for home-manager

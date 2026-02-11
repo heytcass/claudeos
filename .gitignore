@@ -2,9 +2,6 @@
 result
 result-*
 
-# direnv
-.direnv/
-
 # Editor/IDE files
 .vscode/
 .idea/

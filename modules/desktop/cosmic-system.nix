@@ -34,13 +34,13 @@
     # packaged theme includes it. We drop a minimal SVG into hicolor
     # (the universal fallback theme) so GTK can find it.
     (pkgs.runCommand "hicolor-tab-new-symbolic" { } ''
-      mkdir -p $out/share/icons/hicolor/scalable/actions
-      cat > $out/share/icons/hicolor/scalable/actions/tab-new-symbolic.svg <<'SVG'
-<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16">
-  <rect x="7.25" y="3" width="1.5" height="10" rx=".75" fill="#222222"/>
-  <rect x="3" y="7.25" width="10" height="1.5" rx=".75" fill="#222222"/>
-</svg>
-SVG
+            mkdir -p $out/share/icons/hicolor/scalable/actions
+            cat > $out/share/icons/hicolor/scalable/actions/tab-new-symbolic.svg <<'SVG'
+      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16">
+        <rect x="7.25" y="3" width="1.5" height="10" rx=".75" fill="#222222"/>
+        <rect x="3" y="7.25" width="10" height="1.5" rx=".75" fill="#222222"/>
+      </svg>
+      SVG
     '')
 
     # Hide unwanted .desktop entries from COSMIC launcher
@@ -50,6 +50,7 @@ SVG
       mkdir -p $out/share/applications
       for name in \
         com.system76.CosmicTerm \
+        com.google.Chrome \
         vim gvim htop micro \
         xterm uxterm \
         nixos-manual \

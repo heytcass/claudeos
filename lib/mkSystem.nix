@@ -26,6 +26,5 @@ lib.nixosSystem {
     ../modules/common
     ../modules/desktop
     ../modules/apps
-    ../modules/development
   ] ++ hardwareModules ++ modules;
 }

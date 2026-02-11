@@ -50,7 +50,7 @@ ls -la ~/.ssh/
 **Application Credentials:**
 - Stored in app-specific locations
 - Protected by file permissions
-- Managed by applications (Keyring, Gnome Keychain, etc.)
+- Managed by applications (GNOME Keyring, etc.)
 
 **Git Configuration:**
 - User identity set manually (not secret)
@@ -369,5 +369,5 @@ When you're ready to use sops-nix, here are example scenarios:
 
 ---
 
-*Last updated: Phase 6 (Documentation & Polish)*
+*Last updated: 2026-02-02*
 *Status: sops-nix is a future enhancement, not currently implemented*

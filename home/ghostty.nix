@@ -7,11 +7,9 @@
     # Ghostty configuration
     # Colors are managed by Stylix - see modules/desktop/theme.nix
     settings = {
-      # Font configuration
-      # Use mkForce to override Stylix's font-family list, which puts
-      # Noto Color Emoji before the Nerd Font — causing symbol codepoints
-      # (pause icon, star glyphs) to render as color emoji instead of
-      # monochrome terminal glyphs from the Nerd Font.
+      # Font fallback order — overrides Stylix which puts Noto Color Emoji
+      # before the Nerd Font, causing symbol codepoints (U+23F8, U+273B)
+      # to render as oversized color emoji instead of monochrome glyphs.
       font-family = lib.mkForce [
         "JetBrains Mono Nerd Font" # Primary: monospace + Nerd Font symbols
         "Symbols Nerd Font" # Nerd Font private-use-area icons
@@ -60,12 +58,7 @@
       quit-after-last-window-closed = true;
       confirm-close-surface = false;
 
-      # Key bindings
-      # Ghostty uses different keybind syntax than WezTerm
-      # New tab: Ctrl+Shift+T (default)
-      # Close tab: Ctrl+Shift+W (default)
-      # Copy: Ctrl+Shift+C (default)
-      # Paste: Ctrl+Shift+V (default)
+      # Key bindings — Ghostty defaults are fine (Ctrl+Shift+T/W/C/V)
     };
   };
 

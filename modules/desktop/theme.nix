@@ -29,8 +29,9 @@
       base0F = "d97757"; # Brown — lighter terracotta
     };
 
-    # No wallpaper - keep clean desktop
-    image = null;
+    # Claude wallpaper — centered asterisk on dark background
+    image = ../../assets/claude.png;
+    imageScalingMode = "fill";
 
     # Dark mode theme
     polarity = "dark";
