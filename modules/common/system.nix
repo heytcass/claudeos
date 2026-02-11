@@ -5,9 +5,11 @@
   environment.systemPackages = with pkgs; [
     # Basic utilities
     vim
+    micro     # Modern terminal text editor
     wget
     curl
     git
+    gh        # GitHub CLI
     htop
     tree
     file
