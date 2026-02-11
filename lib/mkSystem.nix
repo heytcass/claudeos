@@ -9,10 +9,10 @@
 }:
 
 lib.nixosSystem {
-  inherit system;
   specialArgs = specialArgs // { inherit user; };
   modules = [
     {
+      nixpkgs.hostPlatform = system;
       networking.hostName = hostname;
 
       # Integrate home-manager as NixOS module

@@ -135,6 +135,12 @@
       set -gx LESS_TERMCAP_ue (printf "\033[0m")
       set -gx LESS_TERMCAP_us (printf "\033[01;32m")
 
+      # System fetch on first shell in terminal
+      if not set -q MACCHINA_SHOWN
+        set -gx MACCHINA_SHOWN 1
+        macchina
+      end
+
       # Vi key bindings (disabled by default, uncomment to enable)
       # fish_vi_key_bindings
     '';

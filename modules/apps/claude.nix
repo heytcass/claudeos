@@ -95,7 +95,14 @@
         claudeDesktopFHS = pkgs.buildFHSEnv {
           name = "claude-desktop";
           targetPkgs = pkgs: with pkgs; [
-            bubblewrap nodejs glibc openssl coreutils bash git curl
+            bubblewrap
+            nodejs
+            glibc
+            openssl
+            coreutils
+            bash
+            git
+            curl
           ];
           runScript = "${claudeDesktop}/bin/claude-desktop";
         };

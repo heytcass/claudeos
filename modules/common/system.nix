@@ -28,6 +28,12 @@
     nil # Nix LSP
   ];
 
+  # Many third-party scripts assume /bin/bash exists (e.g. Claude Code plugin hooks)
+  system.activationScripts.binbash = ''
+    mkdir -p /bin
+    ln -sfn ${pkgs.bash}/bin/bash /bin/bash
+  '';
+
   # Enable redistributable firmware (includes CPU microcode)
   hardware.enableRedistributableFirmware = true;
 

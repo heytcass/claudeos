@@ -12,6 +12,7 @@ in
     ./vscode.nix
     ./cosmic.nix
     ./cosmic-theme.nix
+    ./macchina.nix
   ];
 
   # This is required for home-manager

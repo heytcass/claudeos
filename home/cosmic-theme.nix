@@ -189,10 +189,6 @@ let
   '';
 in
 {
-  # Generate the Claude theme file (used to regenerate assets/Claude-theme.ron)
-  # To regenerate: nix build .#nixosConfigurations.transporter.config.home-manager.users.tom.home.file."Claude-theme.ron".source
-  home.file."Claude-theme.ron".source = claudeTheme;
-
   # Import theme into COSMIC's custom theme location
   # This activates the theme instead of just providing a reference file
   home.file.".config/cosmic/com.system76.CosmicTheme.Dark/v1/custom_theme".source = claudeTheme;
@@ -201,6 +197,6 @@ in
   # This ensures the wallpaper config is written after COSMIC's config directory exists
   home.activation.cosmicWallpaper = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
     $DRY_RUN_CMD mkdir -p ${config.home.homeDirectory}/.config/cosmic/com.system76.CosmicBackground/v1
-    $DRY_RUN_CMD cp ${cosmicWallpaperConfig} ${config.home.homeDirectory}/.config/cosmic/com.system76.CosmicBackground/v1/all
+    $DRY_RUN_CMD install -m 644 ${cosmicWallpaperConfig} ${config.home.homeDirectory}/.config/cosmic/com.system76.CosmicBackground/v1/all
   '';
 }

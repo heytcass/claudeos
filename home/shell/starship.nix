@@ -1,12 +1,14 @@
 { lib, ... }:
 
+# Claude Code-inspired prompt — uses Stylix base16 palette colors
+# Warm, minimal, clean. All color names resolve via Stylix's injected palette.
 {
   programs.starship = {
     enable = true;
     enableFishIntegration = true;
 
     settings = {
-      # Clean, single-line format
+      # Two-line: context on top, input character below
       format = lib.concatStrings [
         "$username"
         "$hostname"
@@ -19,76 +21,75 @@
         "$character"
       ];
 
-      # Prompt character
+      # Terracotta prompt character — the Claude signature
       character = {
-        success_symbol = "[❯](bold green)";
-        error_symbol = "[❯](bold red)";
+        success_symbol = "[❯](orange)";
+        error_symbol = "[❯](red)";
       };
 
-      # Directory display
+      # Directory in warm off-white — clean, not shouty
       directory = {
         truncation_length = 3;
         truncate_to_repo = true;
-        style = "bold cyan";
+        style = "white";
         format = "[$path]($style) ";
       };
 
-      # Git branch
+      # Git branch in terracotta accent
       git_branch = {
         symbol = " ";
-        style = "bold purple";
+        style = "orange";
         format = "[$symbol$branch]($style) ";
       };
 
-      # Git status
+      # Git status — terracotta for dirty, olive for staged
       git_status = {
-        style = "bold red";
+        style = "red";
         format = "([$all_status$ahead_behind]($style) )";
-        conflicted = "🏳 ";
+        conflicted = "= ";
         ahead = "⇡\${count}";
         behind = "⇣\${count}";
         diverged = "⇕⇡\${ahead_count}⇣\${behind_count}";
         untracked = "?\${count}";
-        stashed = "$\${count}";
+        stashed = "*\${count}";
         modified = "!\${count}";
-        staged = "+\${count}";
+        staged = "[+\${count}](green)";
         renamed = "»\${count}";
         deleted = "✘\${count}";
       };
 
-      # Nix shell indicator
+      # Nix shell in sage
       nix_shell = {
         symbol = " ";
         format = "[$symbol$state]($style) ";
-        style = "bold blue";
+        style = "cyan";
         impure_msg = "impure";
         pure_msg = "pure";
       };
 
-      # Command duration (only show if > 2s)
+      # Command duration — dim, stays out of the way
       cmd_duration = {
         min_time = 2000;
         format = "took [$duration]($style) ";
-        style = "bold yellow";
+        style = "bright-black";
       };
 
-      # Username (only show if not default user)
+      # Username — warm sand, only when relevant
       username = {
         show_always = false;
         format = "[$user]($style) ";
-        style_user = "bold green";
+        style_user = "yellow";
         style_root = "bold red";
       };
 
-      # Hostname (only show if SSH)
+      # Hostname — only over SSH
       hostname = {
         ssh_only = true;
         format = "[@$hostname]($style) ";
-        style = "bold green";
+        style = "yellow";
       };
 
-      # Disable language-specific modules for faster prompt
-      # Enable these if you want language version detection
+      # Keep prompt fast — disable language modules
       nodejs.disabled = true;
       python.disabled = true;
       rust.disabled = true;

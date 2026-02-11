@@ -1,7 +1,7 @@
 { pkgs, inputs, ... }:
 
 let
-  jasperPkgs = inputs.jasper.packages.x86_64-linux;
+  jasperPkgs = inputs.jasper.packages.${pkgs.system};
 in
 {
   # Install daemon and COSMIC applet system-wide

@@ -4,12 +4,13 @@
   programs.git = {
     enable = true;
 
-    # User identity - left unconfigured for manual setup or Phase 5 secrets
-    # userName = "Your Name";
-    # userEmail = "your.email@example.com";
-
     # Git configuration using settings format
     settings = {
+      user = {
+        name = "Tom Cassady";
+        email = "heytcass@gmail.com";
+      };
+
       # Aliases
       alias = {
         st = "status";
