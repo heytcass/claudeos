@@ -4,17 +4,20 @@ Documentation for secrets management in ClaudeOS.
 
 ## Current Status
 
-**ClaudeOS currently does NOT use declarative secrets management.**
+**ClaudeOS uses sops-nix for declarative secrets management.** Secrets are encrypted with age and stored in `secrets/secrets.yaml`. Currently managed secrets:
 
-All authentication is handled through:
+- **Jasper API key:** Decrypted at runtime for the Jasper AI daemon
+- **Atuin key:** Placeholder for cross-machine shell history sync
+
+All other authentication is handled through:
 - **OAuth/OIDC:** Chrome, Slack, Discord, VSCode extensions
 - **SSH keys:** Stored in `~/.ssh/` with proper permissions (not managed declaratively)
 - **Manual login:** Applications handle their own credential storage
 - **User passwords:** Set during NixOS installation with `passwd`
 
-## When to Add sops-nix
+## When to Add More Secrets
 
-**sops-nix is a future enhancement**, not currently needed. Add it only when you have secrets that need to be IN your Nix configuration.
+**sops-nix is implemented.** Add new secrets when you have credentials that need to be in your Nix configuration.
 
 ### Use Cases for sops-nix
 
@@ -89,9 +92,9 @@ ls -la ~/.ssh/
    ~/.gnupg/*
    ```
 
-## Future: sops-nix Setup
+## Setup Reference
 
-When you're ready to add sops-nix, follow this setup guide.
+Follow this guide to manage sops-nix keys, secrets, and deployment.
 
 ### Installation
 
@@ -369,5 +372,5 @@ When you're ready to use sops-nix, here are example scenarios:
 
 ---
 
-*Last updated: 2026-02-02*
-*Status: sops-nix is a future enhancement, not currently implemented*
+*Last updated: 2026-02-14*
+*Status: sops-nix is implemented for Jasper API key and Atuin key*

@@ -76,7 +76,8 @@
     enableFishIntegration = true;
 
     settings = {
-      # Don't sync to cloud (will configure in Phase 5 with secrets)
+      # Sync disabled — enable after adding real atuin_key to secrets/secrets.yaml
+      # and setting key_path = config.sops.secrets.atuin_key.path
       auto_sync = false;
       sync_address = "";
 

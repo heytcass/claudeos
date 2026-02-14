@@ -1,4 +1,4 @@
-{ pkgs, inputs, ... }:
+{ pkgs, inputs, config, ... }:
 
 let
   jasperPkgs = inputs.jasper.packages.${pkgs.system};
@@ -30,16 +30,12 @@ in
     wants = [ "graphical-session.target" ];
     wantedBy = [ "default.target" ];
 
-    # SOPS + age for runtime secret decryption
-    path = [ pkgs.sops pkgs.age ];
-
-    environment = {
-      JASPER_SOPS_PATH = "/home/tom/Projects/jasper/secrets.yaml";
-    };
-
     serviceConfig = {
       Type = "simple";
-      ExecStart = "${jasperPkgs.daemon}/bin/jasper-companion-daemon start";
+      ExecStart = "${pkgs.writeShellScript "jasper-start" ''
+        export ANTHROPIC_API_KEY=$(cat ${config.sops.secrets.jasper_anthropic_api_key.path})
+        exec ${jasperPkgs.daemon}/bin/jasper-companion-daemon start
+      ''}";
       Restart = "on-failure";
       RestartSec = 5;
     };
