@@ -78,6 +78,8 @@ let
             blue: ${toString rgb.blue},
         ))'';
 
+  themeLib = import ../lib/theme.nix;
+
   # Extract colors from Stylix base16 scheme
   scheme = config.stylix.base16Scheme;
 
@@ -100,7 +102,7 @@ let
   c0F = hexToRgb scheme.base0F; # brown
 
   # Custom destructive red — intentionally more vivid than base08 terracotta
-  cDestructive = hexToRgb "dd5353";
+  cDestructive = hexToRgb themeLib.colors.destructiveRed;
 
   # Complete COSMIC theme in export format
   claudeTheme = pkgs.writeText "Claude.ron" ''

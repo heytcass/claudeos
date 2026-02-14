@@ -1,6 +1,6 @@
 # ClaudeOS Status
 
-**Last Updated:** 2026-02-02
+**Last Updated:** 2026-02-14
 
 ## Current State
 
@@ -25,9 +25,9 @@ Test machine, fully deployed and operational since 2026-01-27.
 
 **Storage:** 238.5GB SSD, btrfs with ~30% compression savings
 
-### Ready for deployment: gti (Dell XPS 13 9370)
+### Deployed: gti (Dell XPS 13 9370)
 
-Configuration exists and builds successfully. Awaiting physical installation.
+Production machine, deployed and operational.
 
 ## Module Summary
 
@@ -35,13 +35,13 @@ Configuration exists and builds successfully. Awaiting physical installation.
 |----------|---------|---------|
 | common/ | boot, nix, users, networking, locale, system, disko | Foundation |
 | desktop/ | cosmic-system, audio, fonts, theme | COSMIC desktop |
-| apps/ | terminals, browsers, communication, claude | Applications |
-| home/ | shell (fish, cli-tools, starship), ghostty, git, vscode, cosmic, theme | User config |
+| apps/ | terminals, claude, jasper | Applications + AI |
+| home/ | shell (fish, cli-tools, starship), ghostty, git, vscode, cosmic, macchina, theme | User config |
 
 ## Future Enhancements
 
-- [ ] Deploy to gti (production machine)
-- [ ] sops-nix for declarative secrets management
+- [x] Deploy to gti (production machine)
+- [x] sops-nix for declarative secrets management
 - [ ] NixOS impermanence for stateless system
 - [ ] Automated btrfs snapshots before rebuilds
 - [ ] Binary cache for faster builds
@@ -49,6 +49,21 @@ Configuration exists and builds successfully. Awaiting physical installation.
 - [ ] TLP or auto-cpufreq for laptop power management
 
 ## Maintenance Log
+
+### 2026-02-14
+- Hardened CLAUDE.md with theming conventions, workflow guardrails, and config location rules
+- Centralised hardcoded destructive red into lib/theme.nix extended palette
+- Updated documentation to reflect current state
+
+### 2026-02-12
+- Added SOPS/age runtime secret decryption for Jasper daemon
+- Deployed gti (Dell XPS 13 9370) to production
+
+### 2026-02-10
+- Added macchina system fetch with custom ASCII art and Stylix-themed colors
+- Redesigned Starship prompt to match Claude Code aesthetic
+- Flake updates and breaking change fixes (stale patches)
+- Config cleanup, Claude automation improvements
 
 ### 2026-02-02
 - Major cleanup: removed dead code, consolidated documentation, updated for direct NixOS workflow

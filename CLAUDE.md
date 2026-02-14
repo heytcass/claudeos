@@ -6,6 +6,10 @@ This is a NixOS system configuration repo optimized for tight Claude integration
 
 User runs NixOS with COSMIC desktop environment, Fish shell with Starship prompt. Do not assume bash/PS1 or GNOME/KDE defaults.
 
+## Theming & Styling
+
+**Always use Stylix/base16 palette references — never hardcode hex color values.** The system uses a unified theming approach via Stylix (defined in `modules/desktop/theme.nix`). When a module needs colors, reference the base16 scheme through `config.lib.stylix.colors` or equivalent — do not paste raw `#rrggbb` values.
+
 ## NixOS Configuration
 
 This is a multi-device NixOS flake. Changes may need to apply to multiple hosts. Always check which hosts are affected and ensure consistency (e.g., Intel microcode was only conditionally set on one device).
@@ -19,9 +23,9 @@ This is a multi-device NixOS flake. Changes may need to apply to multiple hosts.
 | Machine | IP | Purpose | Status |
 |---------|-----|---------|--------|
 | transporter | 10.0.10.205 | Test system (Dell Latitude 7280) | Deployed |
-| gti | TBD | Production (Dell XPS 13 9370) | Ready for deployment |
+| gti | 10.0.10.x | Production (Dell XPS 13 9370) | Deployed |
 
-**Stack:** NixOS unstable • COSMIC • Wayland • Pipewire • home-manager • sops-nix (future) • Stylix
+**Stack:** NixOS unstable • COSMIC • Wayland • Pipewire • home-manager • sops-nix • Stylix
 
 ## Architecture
 
@@ -45,12 +49,16 @@ home-manager runs as a NixOS module (not standalone) — configured in `lib/mkSy
 
 All work is done directly on NixOS machines:
 
-1. **Edit** configuration in `~/.config/claudeos`
-2. **Validate** with `nix build .#nixosConfigurations.<hostname>.config.system.build.toplevel --dry-run` (both hosts)
-3. **Check** with `nix flake check`
-4. **Format** with `nix fmt`
-5. **Apply** with `sudo nixos-rebuild switch --flake ~/.config/claudeos#$(hostname)`
-6. **Sync** between machines with `git push` / `git pull`
+1. **Stage** new files with `git add` — Nix flakes only see tracked files
+2. **Edit** configuration in `~/.config/claudeos`
+3. **Validate** with `nix build .#nixosConfigurations.<hostname>.config.system.build.toplevel --dry-run` (both hosts)
+4. **Check** with `nix flake check`
+5. **Format** with `nix fmt`
+6. **Apply** with `sudo nixos-rebuild switch --flake ~/.config/claudeos#$(hostname)`
+7. **Push** with `git push` — remote rebuilds pull from the repo, so never skip this
+8. **Sync** between machines with `git pull`
+
+**Important:** Always modify files in `~/.config/claudeos/` — never edit upstream module files or flake input sources directly.
 
 ## Debugging / NixOS
 
