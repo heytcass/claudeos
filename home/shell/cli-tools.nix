@@ -125,6 +125,9 @@
     gitCredentialHelper.enable = true;
   };
 
+  # lazygit - TUI git client
+  programs.lazygit.enable = true;
+
   # direnv - Per-project environment management with nix-direnv
   programs.direnv = {
     enable = true;

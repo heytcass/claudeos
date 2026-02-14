@@ -48,6 +48,10 @@
     options = "--delete-older-than 30d";
   };
 
+  # Trigger GC early if disk space is low (bytes)
+  nix.settings.min-free = 1073741824; # 1 GiB — start GC when free space drops below this
+  nix.settings.max-free = 5368709120; # 5 GiB — stop GC once this much space is reclaimed
+
   # Allow unfree packages (Chrome, VSCode, etc.)
   nixpkgs.config.allowUnfree = true;
 
