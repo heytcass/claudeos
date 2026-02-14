@@ -28,6 +28,20 @@
     allowedUDPPorts = [ ];
   };
 
+  # Brute-force protection for SSH
+  services.fail2ban = {
+    enable = true;
+    maxretry = 3;
+    bantime = "1h";
+    jails.sshd = {
+      settings = {
+        filter = "sshd[mode=aggressive]";
+        maxretry = 3;
+        bantime = "24h";
+      };
+    };
+  };
+
   # Enable SSH server
   services.openssh = {
     enable = true;

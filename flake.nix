@@ -35,6 +35,11 @@
       url = "github:heytcass/jasper";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+
+    treefmt-nix = {
+      url = "github:numtide/treefmt-nix";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
   outputs =
@@ -48,6 +53,7 @@
       claude-for-linux,
       stylix,
       jasper,
+      treefmt-nix,
     }@inputs:
     let
       lib = import ./lib { inherit (nixpkgs) lib; };
@@ -90,8 +96,12 @@
         gti = self.nixosConfigurations.gti.config.system.build.toplevel;
       };
 
-      # Formatter for `nix fmt`
-      formatter.x86_64-linux = nixpkgs.legacyPackages.x86_64-linux.nixfmt;
+      # Formatter for `nix fmt` (treefmt-nix handles directory traversal)
+      formatter.x86_64-linux =
+        (treefmt-nix.lib.evalModule nixpkgs.legacyPackages.x86_64-linux {
+          projectRootFile = "flake.nix";
+          programs.nixfmt.enable = true;
+        }).config.build.wrapper;
 
       # Nix dev tools are installed system-wide (modules/common/system.nix)
       # No devShell needed — this is a NixOS machine

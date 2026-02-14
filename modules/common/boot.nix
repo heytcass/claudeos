@@ -5,6 +5,10 @@
   boot.loader.systemd-boot.enable = true;
   boot.loader.efi.canTouchEfiVariables = true;
 
+  # Use systemd-based initrd for faster boot, better error handling,
+  # and dependency-ordered service startup during early boot
+  boot.initrd.systemd.enable = true;
+
   # Keep last 10 generations for rollback headroom (GC handles cleanup independently)
   boot.loader.systemd-boot.configurationLimit = 10;
 

@@ -25,7 +25,13 @@ in
   services.system76-scheduler.enable = true;
 
   # Enable clipboard manager support via wlr-data-control protocol
-  environment.sessionVariables.COSMIC_DATA_CONTROL_ENABLED = "1";
+  environment.sessionVariables = {
+    COSMIC_DATA_CONTROL_ENABLED = "1";
+
+    # Ensure toolkits use native Wayland rendering instead of XWayland fallback
+    GDK_BACKEND = "wayland,x11"; # GTK: prefer Wayland, fall back to X11
+    QT_QPA_PLATFORM = "wayland;xcb"; # Qt: prefer Wayland, fall back to XCB
+  };
 
   # Core COSMIC packages and tools
   environment.systemPackages = with pkgs; [

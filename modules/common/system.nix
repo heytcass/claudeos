@@ -37,6 +37,13 @@
   # Enable redistributable firmware (includes CPU microcode)
   hardware.enableRedistributableFirmware = true;
 
+  # Hardware video acceleration (Intel VA-API)
+  # Reduces CPU load during video playback and extends battery life on laptops
+  hardware.graphics = {
+    enable = true;
+    extraPackages = with pkgs; [ intel-media-driver ];
+  };
+
   # Enable firmware updates
   services.fwupd.enable = true;
 
