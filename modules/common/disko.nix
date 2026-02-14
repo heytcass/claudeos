@@ -48,13 +48,8 @@ in
                 ];
               };
             };
-            swap = {
-              size = "8G";
-              content = {
-                type = "swap";
-                resumeDevice = true; # Enable hibernation (suspend-to-disk)
-              };
-            };
+            # Swap is handled by zram (modules/common/system.nix)
+            # No disk-based swap partition — keeps layout simple
             root = {
               size = "100%";
               content = {
