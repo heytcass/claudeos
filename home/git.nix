@@ -53,6 +53,9 @@
       # Auto-prune stale remote-tracking branches on fetch
       fetch.prune = true;
 
+      # Show diff in commit message editor
+      commit.verbose = true;
+
       # Core settings
       core = {
         autocrlf = "input";
@@ -76,6 +79,8 @@
       features = "line-numbers decorations";
       line-numbers = true;
       side-by-side = false;
+      navigate = true; # Jump between files with n/N
+      hyperlinks = true; # Clickable file paths in supporting terminals
     };
   };
 }

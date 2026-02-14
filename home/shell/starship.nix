@@ -1,7 +1,7 @@
 { lib, ... }:
 
-# Claude Code-inspired prompt — uses Stylix base16 palette colors
-# Warm, minimal, clean. All color names resolve via Stylix's injected palette.
+# Claude Code-inspired prompt — colors use ANSI names (orange, red, cyan, etc.)
+# which map to the Stylix-themed terminal palette. Warm, minimal, clean.
 {
   programs.starship = {
     enable = true;

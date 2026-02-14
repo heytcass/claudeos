@@ -1,4 +1,4 @@
-{ pkgs, ... }:
+{ ... }:
 
 {
   # Enable sound with Pipewire (modern audio server)
@@ -32,9 +32,6 @@
       };
     };
   };
-
-  # Bluetooth GUI support
-  services.blueman.enable = false; # COSMIC has built-in Bluetooth settings
 
   # Audio is managed through COSMIC Settings
   # For advanced needs: install pavucontrol or helvum per-project via nix shell

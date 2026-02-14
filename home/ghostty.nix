@@ -44,7 +44,7 @@ in
       shell-integration-features = "cursor,sudo,title";
 
       # Scrollback
-      scrollback-limit = 10000;
+      scrollback-limit = 50000;
 
       # Mouse integration
       copy-on-select = true; # Auto-copy selection to clipboard

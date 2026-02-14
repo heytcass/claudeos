@@ -17,6 +17,13 @@
     # Suppress "Git tree is dirty" warning during builds
     warn-dirty = false;
 
+    # Disable global flake registry lookups
+    flake-registry = "";
+
+    # Keep build outputs and derivations for faster rebuilds
+    keep-outputs = true;
+    keep-derivations = true;
+
     # Trusted users for nix commands
     trusted-users = [
       "root"

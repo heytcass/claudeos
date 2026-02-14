@@ -6,6 +6,8 @@
     ripgrep # Fast grep alternative
     fd # Fast find alternative
     jq # JSON processor
+    btop # System monitor
+    ouch # Universal archive extractor/compressor
   ];
 
   # eza - Modern ls replacement
