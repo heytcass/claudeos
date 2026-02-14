@@ -123,10 +123,6 @@
       # Add ~/.local/bin to PATH for Claude Code CLI
       fish_add_path ~/.local/bin
 
-      # Set environment variables
-      set -gx EDITOR code
-      set -gx VISUAL code
-
       # Themed man pages via batman (bat-extras, uses Stylix terminal palette)
 
       # System fetch on first shell in terminal

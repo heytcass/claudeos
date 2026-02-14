@@ -48,6 +48,13 @@ in
                 ];
               };
             };
+            swap = {
+              size = "8G";
+              content = {
+                type = "swap";
+                resumeDevice = true; # Enable hibernation (suspend-to-disk)
+              };
+            };
             root = {
               size = "100%";
               content = {

@@ -50,6 +50,12 @@ in
     Icon=folder-development
   '';
 
+  # Default editor for all shells and programs (not just interactive Fish)
+  home.sessionVariables = {
+    EDITOR = "code";
+    VISUAL = "code";
+  };
+
   # Let home-manager manage itself
   programs.home-manager.enable = true;
 

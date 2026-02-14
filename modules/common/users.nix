@@ -1,8 +1,13 @@
-{ lib, pkgs, ... }:
+{
+  lib,
+  pkgs,
+  user,
+  ...
+}:
 
 {
   # Define user account
-  users.users.tom = {
+  users.users.${user} = {
     isNormalUser = true;
     description = "Tom";
     extraGroups = [

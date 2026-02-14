@@ -5,8 +5,8 @@
   boot.loader.systemd-boot.enable = true;
   boot.loader.efi.canTouchEfiVariables = true;
 
-  # Keep last 5 generations to save space
-  boot.loader.systemd-boot.configurationLimit = 5;
+  # Keep last 10 generations for rollback headroom (GC handles cleanup independently)
+  boot.loader.systemd-boot.configurationLimit = 10;
 
   # Plymouth boot splash (themed automatically by Stylix)
   boot.plymouth.enable = lib.mkDefault true;

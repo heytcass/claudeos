@@ -58,8 +58,18 @@
   # Mount /tmp as tmpfs (RAM-backed, auto-cleaned on reboot)
   boot.tmp.useTmpfs = true;
 
-  # Enable magic SysRq keys for emergency recovery (REISUB)
-  boot.kernel.sysctl."kernel.sysrq" = 1;
+  # Kernel security hardening
+  boot.kernel.sysctl = {
+    "kernel.sysrq" = 1; # Magic SysRq keys for emergency recovery (REISUB)
+    "kernel.kptr_restrict" = 2; # Hide kernel pointers in /proc
+    "kernel.dmesg_restrict" = 1; # Restrict dmesg to root
+    "net.core.bpf_jit_harden" = 2; # Harden BPF JIT compiler
+    "kernel.unprivileged_bpf_disabled" = 1; # Restrict BPF to root
+    "net.ipv4.conf.all.rp_filter" = 1; # Reverse path filtering (anti-spoofing)
+    "net.ipv4.conf.default.rp_filter" = 1;
+    "net.ipv4.conf.all.send_redirects" = 0; # Don't send ICMP redirects
+    "net.ipv4.conf.default.send_redirects" = 0;
+  };
 
   # Periodic btrfs scrub to detect and repair data corruption
   services.btrfs.autoScrub = {

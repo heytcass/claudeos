@@ -84,6 +84,12 @@
         };
       };
 
+      # Validate both host configurations with `nix flake check`
+      checks.x86_64-linux = {
+        transporter = self.nixosConfigurations.transporter.config.system.build.toplevel;
+        gti = self.nixosConfigurations.gti.config.system.build.toplevel;
+      };
+
       # Formatter for `nix fmt`
       formatter.x86_64-linux = nixpkgs.legacyPackages.x86_64-linux.nixfmt;
 
