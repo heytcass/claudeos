@@ -9,6 +9,9 @@ in
     gtk.enable = true;
     ghostty.enable = true;
     vscode.enable = true;
+    fzf.enable = true;
+    bat.enable = true;
+    lazygit.enable = true;
   };
 
   # GTK theme preferences

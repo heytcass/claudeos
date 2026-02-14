@@ -42,6 +42,9 @@
       ndev = "nix develop";
       nbuild = "nix build";
       nrun = "nix run";
+      nshell = "nix shell";
+      nrepl = "nix repl";
+      nupdate = "nix flake update";
 
       # System operations
       sctl = "systemctl";

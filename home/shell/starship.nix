@@ -89,6 +89,11 @@
         style = "yellow";
       };
 
+      # Transient prompt — previous commands show a minimal prompt for cleaner scrollback
+      transient_prompt = {
+        format = "[❯](orange) ";
+      };
+
       # Keep prompt fast — disable language modules
       nodejs.disabled = true;
       python.disabled = true;
