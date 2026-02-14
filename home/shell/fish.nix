@@ -9,6 +9,7 @@
       # Modern CLI replacements
       # Note: ls/ll/la/lt are provided by programs.eza in cli-tools.nix
       cat = "bat --style=auto";
+      man = "batman";
 
       # Git shortcuts
       gs = "git status";
@@ -24,7 +25,7 @@
       zc = "z ~/.config/claudeos";
       rebuild = "sudo nixos-rebuild switch --flake ~/.config/claudeos#(hostname)";
       rebuild-test = "sudo nixos-rebuild test --flake ~/.config/claudeos#(hostname)";
-      flake-check = "cd ~/.config/claudeos && nix flake check";
+      flake-check = "nix flake check --flake ~/.config/claudeos";
     };
 
     # Fish abbreviations (expand as you type)
@@ -37,7 +38,7 @@
       gcm = "git checkout main";
 
       # NixOS operations
-      nfmt = "nixpkgs-fmt";
+      nfmt = "nix fmt";
       ndev = "nix develop";
       nbuild = "nix build";
       nrun = "nix run";
@@ -126,14 +127,7 @@
       set -gx EDITOR code
       set -gx VISUAL code
 
-      # Enable colored man pages
-      set -gx LESS_TERMCAP_mb (printf "\033[01;31m")
-      set -gx LESS_TERMCAP_md (printf "\033[01;31m")
-      set -gx LESS_TERMCAP_me (printf "\033[0m")
-      set -gx LESS_TERMCAP_se (printf "\033[0m")
-      set -gx LESS_TERMCAP_so (printf "\033[01;44;33m")
-      set -gx LESS_TERMCAP_ue (printf "\033[0m")
-      set -gx LESS_TERMCAP_us (printf "\033[01;32m")
+      # Themed man pages via batman (bat-extras, uses Stylix terminal palette)
 
       # System fetch on first shell in terminal
       if not set -q MACCHINA_SHOWN

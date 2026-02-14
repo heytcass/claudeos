@@ -20,8 +20,7 @@ in
     "LC_PAPER"
     "LC_TELEPHONE"
     "LC_TIME"
-  ]
-    (_: defaultLocale);
+  ] (_: defaultLocale);
 
   # Console keymap (TTY)
   console = {

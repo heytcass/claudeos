@@ -10,9 +10,21 @@ in
       enable = true;
       defaultFonts = {
         # Mirroring Claude AI's typography choices
-        sansSerif = [ themeLib.fonts.sansSerif.name "Noto Sans" "DejaVu Sans" ];
-        serif = [ themeLib.fonts.serif.name "DejaVu Serif" ];
-        monospace = [ themeLib.fonts.monospace.name themeLib.fonts.symbols.name "Fira Code" "DejaVu Sans Mono" ];
+        sansSerif = [
+          themeLib.fonts.sansSerif.name
+          "Noto Sans"
+          "DejaVu Sans"
+        ];
+        serif = [
+          themeLib.fonts.serif.name
+          "DejaVu Serif"
+        ];
+        monospace = [
+          themeLib.fonts.monospace.name
+          themeLib.fonts.symbols.name
+          "Fira Code"
+          "DejaVu Sans Mono"
+        ];
         emoji = [ themeLib.fonts.emoji.name ];
       };
 

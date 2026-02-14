@@ -1,4 +1,9 @@
-{ pkgs, inputs, user, ... }:
+{
+  pkgs,
+  inputs,
+  user,
+  ...
+}:
 
 {
   # Claude Code CLI - Official tool with nix-ld for dynamic linking
@@ -94,27 +99,34 @@
 
         claudeDesktopFHS = pkgs.buildFHSEnv {
           name = "claude-desktop";
-          targetPkgs = pkgs: with pkgs; [
-            bubblewrap
-            nodejs
-            glibc
-            openssl
-            coreutils
-            bash
-            git
-            curl
-          ];
+          targetPkgs =
+            pkgs: with pkgs; [
+              bubblewrap
+              nodejs
+              glibc
+              openssl
+              coreutils
+              bash
+              git
+              curl
+            ];
           runScript = "${claudeDesktop}/bin/claude-desktop";
         };
       in
-      [ claudeDesktopFHS pkgs.bubblewrap ];
+      [
+        claudeDesktopFHS
+        pkgs.bubblewrap
+      ];
 
     xdg.desktopEntries.claude-desktop = {
       name = "Claude";
       genericName = "AI Assistant";
       exec = "claude-desktop %U";
       icon = "claude";
-      categories = [ "Development" "Utility" ];
+      categories = [
+        "Development"
+        "Utility"
+      ];
       comment = "Claude Desktop with Linux Cowork support";
       mimeType = [ "x-scheme-handler/claude" ];
       settings.StartupWMClass = "Claude";

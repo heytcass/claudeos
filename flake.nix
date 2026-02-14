@@ -37,7 +37,18 @@
     };
   };
 
-  outputs = { self, nixpkgs, home-manager, nixos-hardware, sops-nix, disko, claude-for-linux, stylix, jasper }@inputs:
+  outputs =
+    {
+      self,
+      nixpkgs,
+      home-manager,
+      nixos-hardware,
+      sops-nix,
+      disko,
+      claude-for-linux,
+      stylix,
+      jasper,
+    }@inputs:
     let
       lib = import ./lib { inherit (nixpkgs) lib; };
       specialArgs = { inherit inputs; };
@@ -74,7 +85,7 @@
       };
 
       # Formatter for `nix fmt`
-      formatter.x86_64-linux = nixpkgs.legacyPackages.x86_64-linux.nixpkgs-fmt;
+      formatter.x86_64-linux = nixpkgs.legacyPackages.x86_64-linux.nixfmt;
 
       # Nix dev tools are installed system-wide (modules/common/system.nix)
       # No devShell needed — this is a NixOS machine

@@ -11,7 +11,7 @@
         # Nix development
         jnoortheen.nix-ide
         mkhl.direnv
-        arrterian.nix-env-selector
+        # nix-env-selector removed — direnv handles Nix environments
 
         # Markdown
         yzhang.markdown-all-in-one
@@ -31,7 +31,10 @@
         "editor.formatOnSave" = true;
         "editor.minimap.enabled" = false;
         "editor.renderWhitespace" = "selection";
-        "editor.rulers" = [ 80 120 ];
+        "editor.rulers" = [
+          80
+          120
+        ];
 
         # Files
         "files.autoSave" = "onFocusChange";
@@ -50,7 +53,7 @@
         "nix.serverSettings" = {
           "nil" = {
             "formatting" = {
-              "command" = [ "nixpkgs-fmt" ];
+              "command" = [ "nixfmt" ];
             };
           };
         };

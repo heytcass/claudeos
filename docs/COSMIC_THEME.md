@@ -13,7 +13,7 @@ This configuration provides manual COSMIC theme integration that:
 
 The COSMIC theme integration is implemented in `home/cosmic-theme.nix` and consists of two parts:
 
-### 1. Theme Configuration (`~/.config/cosmic/com.system76.CosmicSettings/v1/theme`)
+### 1. Theme Configuration (`~/.config/cosmic/com.system76.CosmicTheme.Dark/v1/custom_theme`)
 
 Maps Stylix base16 colors to COSMIC's RON (Rusty Object Notation) format:
 

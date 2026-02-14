@@ -1,4 +1,9 @@
-{ pkgs, lib, user, ... }:
+{
+  pkgs,
+  lib,
+  user,
+  ...
+}:
 
 let
   hideDesktopEntries = import ../lib/hideDesktopEntries.nix { inherit pkgs lib; };

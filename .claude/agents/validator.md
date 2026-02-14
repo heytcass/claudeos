@@ -28,12 +28,12 @@ nix flake check
 ### 2. Format Check
 
 ```bash
-nixpkgs-fmt --check .
+nix fmt -- --check .
 ```
 
 If files need formatting:
 ```bash
-nixpkgs-fmt .
+nix fmt
 ```
 
 ### 3. Lint Check

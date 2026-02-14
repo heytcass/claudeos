@@ -18,7 +18,10 @@
   };
 
   # Silent boot
-  boot.kernelParams = [ "quiet" "splash" ];
+  boot.kernelParams = [
+    "quiet"
+    "splash"
+  ];
 
   # Latest kernel for best hardware support
   boot.kernelPackages = lib.mkDefault pkgs.linuxPackages_latest;

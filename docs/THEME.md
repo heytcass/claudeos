@@ -27,7 +27,7 @@ The theme system is split across three modules following NixOS best practices:
 
 **Why system-level:** Color schemes and Stylix foundation need to be available at boot and for system services.
 
-### 2. `home/theme.nix` (Home Manager)
+### 2. `home/cosmic.nix` (Home Manager)
 
 **Purpose:** User-level Stylix targets and application theming
 
@@ -55,23 +55,23 @@ The ClaudeOS base16 scheme uses warm, earthy tones inspired by Claude's brand id
 
 ```nix
 base16Scheme = {
-  base00 = "262624";  # Default background - deep charcoal
-  base01 = "30302e";  # Elevated surface - slightly lighter
-  base02 = "3a3a38";  # Selection background
-  base03 = "9c9a92";  # Comments, disabled text
-  base04 = "c2c0b6";  # Secondary foreground
-  base05 = "faf9f5";  # Primary foreground - warm white
-  base06 = "faf9f5";  # Light foreground
-  base07 = "ffffff";  # Brightest white
+  base00 = "1f1e1d";  # Default background — Claude's deepest surface
+  base01 = "262624";  # Elevated surface (cards, input box, popovers)
+  base02 = "30302e";  # Selection / highlighted regions
+  base03 = "9c9a92";  # Comments / dim text / placeholders
+  base04 = "c2c0b6";  # Secondary foreground text
+  base05 = "faf9f5";  # Primary foreground text
+  base06 = "faf9f5";  # Light foreground (same warm off-white)
+  base07 = "ffffff";  # Brightest white (rare, high-contrast)
 
-  base08 = "c6613f";  # Red - terracotta accent (primary brand color)
-  base09 = "d97757";  # Orange - lighter terracotta
-  base0A = "c9b87c";  # Yellow - warm sand
-  base0B = "8a9a6b";  # Green - muted olive
-  base0C = "6b9e8a";  # Cyan - warm sage
-  base0D = "2c84db";  # Blue - links and info states
-  base0E = "a67a5b";  # Magenta - warm brown
-  base0F = "d97757";  # Brown - lighter terracotta
+  base08 = "c6613f";  # Red — terracotta accent
+  base09 = "d97757";  # Orange — lighter terracotta
+  base0A = "c9b87c";  # Yellow — warm sand
+  base0B = "8a9a6b";  # Green — muted olive
+  base0C = "6b9e8a";  # Cyan — warm sage
+  base0D = "2c84db";  # Blue — link/info blue
+  base0E = "a67a5b";  # Magenta — warm brown
+  base0F = "d97757";  # Brown — lighter terracotta
 };
 ```
 
@@ -181,7 +181,7 @@ gtk.iconTheme = {
 
 ### Adding Stylix Targets
 
-Edit `home/theme.nix`:
+Edit `home/cosmic.nix`:
 
 ```nix
 stylix.targets = {
@@ -201,7 +201,7 @@ Available targets: `bat`, `firefox`, `fish`, `fzf`, `gnome-terminal`, `gtk`, `he
 **Symptom:** Some GTK applications ignore Stylix theming
 
 **Solution:**
-1. Verify Stylix targets are enabled in `home/theme.nix`
+1. Verify Stylix targets are enabled in `home/cosmic.nix`
 2. Check that the app is supported by Stylix
 3. Force GTK4 apps to prefer dark theme:
 ```bash

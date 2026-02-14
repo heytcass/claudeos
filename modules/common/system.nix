@@ -22,7 +22,7 @@
     traceroute
 
     # Nix development tools
-    nixpkgs-fmt
+    nixfmt
     statix
     deadnix
     nil # Nix LSP
@@ -60,7 +60,6 @@
 
   # Enable magic SysRq keys for emergency recovery (REISUB)
   boot.kernel.sysctl."kernel.sysrq" = 1;
-
 
   # Periodic btrfs scrub to detect and repair data corruption
   services.btrfs.autoScrub = {

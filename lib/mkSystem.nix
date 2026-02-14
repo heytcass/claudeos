@@ -1,15 +1,18 @@
 { lib }:
 
-{ hostname
-, system
-, user
-, hardwareModules ? [ ]
-, modules ? [ ]
-, specialArgs ? { }
+{
+  hostname,
+  system,
+  user,
+  hardwareModules ? [ ],
+  modules ? [ ],
+  specialArgs ? { },
 }:
 
 lib.nixosSystem {
-  specialArgs = specialArgs // { inherit user; };
+  specialArgs = specialArgs // {
+    inherit user;
+  };
   modules = [
     {
       nixpkgs.hostPlatform = system;
@@ -19,7 +22,9 @@ lib.nixosSystem {
       home-manager.useGlobalPkgs = true;
       home-manager.useUserPackages = true;
       home-manager.users.${user} = import ../home;
-      home-manager.extraSpecialArgs = specialArgs // { inherit user; };
+      home-manager.extraSpecialArgs = specialArgs // {
+        inherit user;
+      };
       home-manager.backupFileExtension = "backup"; # Auto-backup conflicting files
     }
 
@@ -27,5 +32,7 @@ lib.nixosSystem {
     ../modules/common
     ../modules/desktop
     ../modules/apps
-  ] ++ hardwareModules ++ modules;
+  ]
+  ++ hardwareModules
+  ++ modules;
 }

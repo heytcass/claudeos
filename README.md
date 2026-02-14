@@ -24,7 +24,7 @@ NixOS configuration optimized for Claude Code workflow.
 - home-manager integration for user config
 - Hardware-optimized with nixos-hardware profiles
 - Stylix theming with Claude-inspired color scheme
-- Dev shell with validation tools (nixpkgs-fmt, statix, deadnix, nil)
+- Validation tools (nixfmt, statix, deadnix, nil)
 - Documentation optimized for Claude agents and subagents
 - Modern CLI tools (eza, bat, zoxide, atuin, yazi, fzf)
 - Automated garbage collection and nix store optimization
@@ -33,7 +33,7 @@ NixOS configuration optimized for Claude Code workflow.
 
 - **OS:** NixOS unstable
 - **Desktop:** COSMIC + Wayland
-- **Audio:** Pipewire with ALSA, PulseAudio, and JACK compatibility
+- **Audio:** PipeWire with ALSA and PulseAudio compatibility
 - **Shell:** Fish + Starship prompt + modern CLI tools
 - **Terminal:** Ghostty
 - **Fonts:** Inter (UI), JetBrains Mono Nerd Font (terminal/code)
@@ -62,7 +62,6 @@ NixOS configuration optimized for Claude Code workflow.
 Transporter (test machine) is fully deployed and operational. Gti (production) is configured and ready for deployment.
 
 **Future Enhancements:**
-- sops-nix for declarative secrets management
 - NixOS impermanence for stateless system
 - Binary cache setup for faster builds
 

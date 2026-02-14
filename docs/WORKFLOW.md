@@ -30,7 +30,7 @@ Always validate before applying:
 nix flake check
 
 # Format code
-nixpkgs-fmt .
+nix fmt
 
 # Lint for issues
 statix check
@@ -138,7 +138,7 @@ nix flake check
 
 ### Build Errors
 
-1. Check syntax: `nixpkgs-fmt --check .`
+1. Check formatting: `nix fmt -- --check .`
 2. Check for common issues: `statix check`
 3. Look for undefined variables: `deadnix -e`
 4. Read error message carefully - Nix errors include file and line numbers

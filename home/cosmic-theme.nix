@@ -1,8 +1,14 @@
-{ config, lib, pkgs, ... }:
+{
+  config,
+  lib,
+  pkgs,
+  ...
+}:
 
 let
   # Helper function to convert hex digit to int
-  hexDigitToInt = digit:
+  hexDigitToInt =
+    digit:
     let
       digits = {
         "0" = 0;
@@ -32,7 +38,8 @@ let
     digits.${digit};
 
   # Helper function to convert two hex digits to int
-  hexToInt = hex:
+  hexToInt =
+    hex:
     let
       high = builtins.substring 0 1 hex;
       low = builtins.substring 1 1 hex;
@@ -40,7 +47,8 @@ let
     (hexDigitToInt high) * 16 + (hexDigitToInt low);
 
   # Helper function to convert hex color to COSMIC RGB format (0.0-1.0 range)
-  hexToRgb = hex:
+  hexToRgb =
+    hex:
     let
       r = hexToInt (builtins.substring 0 2 hex);
       g = hexToInt (builtins.substring 2 2 hex);

@@ -47,9 +47,14 @@
       # Rebase configuration
       rebase.autoStash = true;
 
+      # Reuse recorded conflict resolutions
+      rerere.enabled = true;
+
+      # Auto-prune stale remote-tracking branches on fetch
+      fetch.prune = true;
+
       # Core settings
       core = {
-        editor = "code";
         autocrlf = "input";
       };
 

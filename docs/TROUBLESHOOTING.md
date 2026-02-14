@@ -7,7 +7,7 @@
 **Symptom:** `nix flake check` reports errors
 
 **Solutions:**
-1. Check syntax: `nixpkgs-fmt --check .`
+1. Check formatting: `nix fmt -- --check .`
 2. Check for common issues: `statix check`
 3. Look for undefined variables: `deadnix -e`
 4. Read error message carefully - includes file and line number
@@ -139,11 +139,9 @@ sudo nixos-rebuild switch --rollback
 
 ## Known Limitations
 
-1. **sops-nix not configured** — no declarative secrets management yet (see SECRETS.md)
-2. **Atuin sync disabled** — shell history not synced across machines
-3. **Git identity not configured** — set manually with `git config --global`
-4. **VSCode Claude extension** — must install manually (VSCode limitation)
-5. **Chrome extensions** — must install manually (browser limitation)
+1. **Atuin sync disabled** — shell history not synced across machines
+2. **VSCode Claude extension** — must install manually (VSCode limitation)
+3. **Chrome extensions** — must install manually (browser limitation)
 
 ## Getting Help
 

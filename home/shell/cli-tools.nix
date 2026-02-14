@@ -5,9 +5,7 @@
   home.packages = with pkgs; [
     ripgrep # Fast grep alternative
     fd # Fast find alternative
-    fzf # Fuzzy finder
     jq # JSON processor
-    yazi # TUI file manager
   ];
 
   # eza - Modern ls replacement

@@ -1,668 +1,542 @@
 # Module Documentation
 
-Complete documentation for all ClaudeOS modules.
+Complete reference for all ClaudeOS NixOS configuration modules, generated from source.
 
-## Overview
+## Architecture Overview
 
-ClaudeOS uses a modular architecture where functionality is split into focused, composable modules. This document describes each module's purpose, configuration options, dependencies, and usage patterns.
+ClaudeOS is a multi-host NixOS flake. The entry point (`flake.nix`) defines two hosts -- `transporter` and `gti` -- both built via `lib/mkSystem.nix`. Every host automatically receives:
 
-## Module Organization
+- **NixOS modules:** `modules/common/`, `modules/desktop/`, `modules/apps/`
+- **home-manager** (as a NixOS module, not standalone): imports `home/default.nix`
+- **Flake inputs:** home-manager, sops-nix, disko, stylix (loaded as NixOS modules)
+- **Per-host hardware module** from nixos-hardware
 
-```
-modules/
-├── common/         # Foundation (boot, nix, users, networking, locale, system, disko)
-├── desktop/        # Desktop environment (cosmic-system, audio, fonts, theme)
-└── apps/           # Applications (terminals, browsers, communication, claude)
+The formatter is `nixfmt` (set in `flake.nix`).
 
-home/
-├── shell/          # Shell config (fish, cli-tools, starship)
-├── ghostty.nix     # Ghostty terminal user config
-├── git.nix         # Git user config
-├── vscode.nix      # VSCode user config
-├── cosmic.nix      # COSMIC/GTK user config (dconf, icon theme)
-└── theme.nix       # Stylix Home Manager targets
-```
+### Flake Inputs
+
+| Input | Source | Purpose |
+|-------|--------|---------|
+| nixpkgs | nixos-unstable | Package set and NixOS modules |
+| home-manager | nix-community | User-level configuration |
+| nixos-hardware | nixos | Hardware-specific quirks |
+| sops-nix | Mic92 | Declarative secrets management |
+| disko | nix-community | Declarative disk partitioning |
+| stylix | danth | Unified theming (base16) |
+| claude-for-linux | heytcass | Claude Desktop Electron app |
+| jasper | heytcass | Jasper AI companion daemon + COSMIC applet |
 
 ---
 
-## common/ - Foundation Modules
+## lib/ -- Helper Library
 
-Core system configuration loaded for all machines.
+### lib/default.nix
+
+Exports the custom library. Currently exposes a single function:
+
+- `mkSystem` -- imported from `lib/mkSystem.nix`
+
+### lib/mkSystem.nix
+
+Host builder function. Accepts `{ hostname, system, user, hardwareModules, modules, specialArgs }` and calls `lib.nixosSystem`.
+
+Key behavior:
+- Sets `nixpkgs.hostPlatform` and `networking.hostName` from arguments
+- Configures home-manager as a NixOS module (`home-manager.useGlobalPkgs = true`, `home-manager.useUserPackages = true`)
+- Imports `home/default.nix` as the home-manager config for the given user
+- Sets `home-manager.backupFileExtension = "backup"` to auto-backup conflicting files
+- Passes `inputs` and `user` through `specialArgs` and `home-manager.extraSpecialArgs`
+- Always loads `modules/common`, `modules/desktop`, and `modules/apps`
+- Appends `hardwareModules` and per-host `modules`
+
+### lib/hideDesktopEntries.nix
+
+Utility function that generates a derivation to hide `.desktop` entries from the application launcher. Takes `{ pkgs, lib }` and returns a function accepting a list of app names. Each name gets a `.desktop` file with `NoDisplay=true`, wrapped in `lib.hiPrio` so it takes precedence over real entries.
+
+Used in both `modules/desktop/cosmic-system.nix` (system-level) and `home/default.nix` (user-level).
+
+### lib/theme.nix
+
+Pure data file -- no packages, no imports. Central source of truth for font and icon names used across modules.
+
+Contents:
+- `colors.destructiveRed` = `"dd5353"` (vivid red for COSMIC destructive actions, deliberately brighter than base08)
+- `fonts.monospace.name` = `"JetBrains Mono"`, `fonts.monospace.nerdName` = `"JetBrains Mono Nerd Font"`
+- `fonts.sansSerif.name` = `"Inter"`
+- `fonts.serif.name` = `"Noto Serif"`
+- `fonts.emoji.name` = `"Noto Color Emoji"`
+- `fonts.symbols.name` = `"Symbols Nerd Font"`, `fonts.symbols.fallback` = `"Noto Sans Symbols 2"`
+- `icons.name` = `"Adwaita"`
+
+---
+
+## modules/common/ -- Foundation
+
+Core system configuration shared by all hosts. Imported via `modules/common/default.nix` which pulls in: `boot.nix`, `disko.nix`, `nix.nix`, `users.nix`, `networking.nix`, `locale.nix`, `system.nix`, `secrets.nix`.
 
 ### modules/common/boot.nix
 
-**Purpose:** Boot loader configuration using systemd-boot
+Boot loader and kernel configuration.
 
-**Configuration:**
-- systemd-boot UEFI bootloader
-- Keeps last 5 generations to save space
-- Latest kernel for best hardware support
-- Silent boot with "quiet splash" parameters
-- Plymouth disabled by default (can be enabled per-machine)
+- **Bootloader:** systemd-boot (UEFI), `canTouchEfiVariables = true`
+- **Generations:** limited to 5 (`configurationLimit = 5`)
+- **Plymouth:** enabled by default (`lib.mkDefault true`) with Claude logo (`assets/claude-logo.png`), animated spinning
+- **Silent boot:** kernel params `quiet` and `splash`
+- **Kernel:** latest (`linuxPackages_latest`, via `lib.mkDefault`)
 
-**Dependencies:** None
+### modules/common/disko.nix
 
-**Location:** modules/common/boot.nix:1
+Declarative disk layout via disko.
 
-**Usage:** Automatically loaded for all machines via common/default.nix
-
----
+- **EFI partition:** 512MB vfat, mounted at `/boot`
+- **Root partition:** remainder of disk, btrfs with subvolumes:
+  - `@` mounted at `/`
+  - `@home` mounted at `/home`
+  - `@nix` mounted at `/nix`
+  - `@log` mounted at `/var/log`
+- **Mount options:** `noatime`, `compress=zstd:3`, `ssd`, `discard=async`, `space_cache=v2`
+- **Default device:** `/dev/sda` (overridden to `/dev/nvme0n1` on gti)
+- `disko.enableConfig` defaults to `true`
 
 ### modules/common/nix.nix
 
-**Purpose:** Nix package manager configuration
+Nix daemon and nixpkgs configuration.
 
-**Configuration:**
-- Enables flakes and nix-command experimental features
-- Auto-optimizes nix store
-- Trusted users: root and wheel group
-- Binary cache: NixOS and nix-community cachix
-- Weekly automatic garbage collection (30-day retention)
-- Allows unfree packages system-wide
-- System state version: 24.11
-
-**Dependencies:** None
-
-**Location:** modules/common/nix.nix:1
-
-**Options:**
-```nix
-{
-  nix.settings.experimental-features = [ "nix-command" "flakes" ];
-  nix.settings.auto-optimise-store = true;
-  nix.gc.automatic = true;
-  nixpkgs.config.allowUnfree = true;
-}
-```
-
----
+- **Experimental features:** `nix-command`, `flakes`
+- **XDG base directories:** enabled (`use-xdg-base-directories = true`)
+- **Store optimization:** `auto-optimise-store = true`
+- **Dirty warning:** suppressed (`warn-dirty = false`)
+- **Trusted users:** `root`, `@wheel`
+- **Substituters:** `cache.nixos.org`, `nix-community.cachix.org` (with corresponding public keys)
+- **Garbage collection:** weekly, deletes older than 30 days
+- **Unfree packages:** allowed (`allowUnfree = true`)
+- **State version:** `"24.11"`
 
 ### modules/common/users.nix
 
-**Purpose:** User account configuration
+User account and shell setup.
 
-**Configuration:**
-- Defines "tom" user account
-- Groups: wheel (sudo), networkmanager, video, audio, docker
-- Default shell: Fish
-- Sudo for wheel group (password required by default)
-- Fish enabled system-wide
-
-**Dependencies:**
-- Fish shell package
-
-**Location:** modules/common/users.nix:1
-
-**Usage:** Customization options:
-```nix
-# To enable passwordless sudo:
-security.sudo.wheelNeedsPassword = false;
-
-# To add SSH keys:
-users.users.tom.openssh.authorizedKeys.keys = [ "ssh-ed25519 ..." ];
-```
-
----
+- **User:** `tom` (normal user)
+- **Groups:** `wheel`, `networkmanager`, `video`, `audio`
+- **Shell:** Fish (`pkgs.fish`)
+- **SSH keys:** one ed25519 key authorized (`tom@ubuntu-dev`)
+- **Fish:** enabled system-wide (`programs.fish.enable = true`)
+- **Sudo:** wheel group requires password by default (`lib.mkDefault true`)
 
 ### modules/common/networking.nix
 
-**Purpose:** Network and SSH configuration
+Network, DNS, firewall, and SSH.
 
-**Configuration:**
-- NetworkManager for network management
-- Firewall enabled (empty port lists by default)
-- SSH server enabled
-- Password authentication enabled (disable after key setup)
-- Root login disabled
-- Disables NetworkManager-wait-online for faster boot
-
-**Dependencies:** None
-
-**Location:** modules/common/networking.nix:1
-
-**Options:**
-```nix
-{
-  networking.firewall.allowedTCPPorts = [ ]; # Add ports as needed
-  services.openssh.settings.PasswordAuthentication = true; # Disable after key setup
-}
-```
-
----
+- **NetworkManager:** enabled
+- **systemd-resolved:** enabled with `DNSSEC = "allow-downgrade"`, `DNSOverTLS = "no"`, fallback DNS `1.1.1.1` and `9.9.9.9`
+- **Boot optimization:** `NetworkManager-wait-online` disabled
+- **Firewall:** enabled, no ports opened by default
+- **SSH server:** enabled, `PasswordAuthentication = false`, `PermitRootLogin = "no"`
 
 ### modules/common/locale.nix
 
-**Purpose:** Timezone, language, and keyboard configuration
+Timezone, locale, and keyboard.
 
-**Configuration:**
-- Timezone: America/New_York (configurable per-machine)
-- Locale: en_US.UTF-8
-- Console keymap: Colemak
-- X11/Wayland keyboard: US Colemak variant
-
-**Dependencies:** None
-
-**Location:** modules/common/locale.nix:1
-
-**Customization:**
-```nix
-# To change timezone per-machine:
-time.timeZone = lib.mkForce "America/Los_Angeles";
-```
-
----
+- **Timezone:** `America/New_York` (via `lib.mkDefault`)
+- **Locale:** `en_US.UTF-8` for all `LC_*` categories
+- **Console:** font `Lat2-Terminus16`, keymap `colemak`
+- **Xkb:** layout `us`, variant `colemak`
 
 ### modules/common/system.nix
 
-**Purpose:** Essential system packages and firmware
+System packages, hardware, and kernel tuning.
 
-**Configuration:**
-- Basic utilities: vim, micro, wget, curl, git, gh, htop, tree
-- File utilities: file, unzip, zip
-- Hardware tools: pciutils, usbutils
-- Network tools: dig, nmap, traceroute
-- Build essentials: gcc, gnumake
-- NTFS filesystem support
-- Firmware updates (fwupd)
-- Thermald for Intel CPU thermal management
+**Packages:**
+- Basic: `vim`, `micro`, `wget`, `curl`, `gh`, `htop`, `tree`, `file`, `unzip`, `zip`, `pciutils`, `usbutils`
+- Network: `dig`, `traceroute`
+- Nix dev: `nixfmt`, `statix`, `deadnix`, `nil`
 
-**Dependencies:** None
+**System configuration:**
+- Creates `/bin/bash` symlink (activation script, for third-party scripts)
+- `hardware.enableRedistributableFirmware = true`
+- `services.fwupd.enable = true` (firmware updates)
+- `services.thermald.enable = true` (Intel thermal management, `lib.mkDefault`)
+- `zramSwap.enable = true` (compressed in-memory swap)
+- `systemd.oomd` enabled on root, user, and system slices
+- `boot.tmp.useTmpfs = true` (tmpfs for /tmp)
+- `boot.kernel.sysctl."kernel.sysrq" = 1` (magic SysRq keys)
+- `services.btrfs.autoScrub` enabled on `/`
 
-**Location:** modules/common/system.nix:1
+### modules/common/secrets.nix
+
+Declarative secrets via sops-nix.
+
+- **Sops file:** `secrets/secrets.yaml`
+- **Age key:** `/home/tom/.config/sops/age/keys.txt`
+- **Managed secrets:**
+  - `jasper_anthropic_api_key` -- owner `tom`, mode `0400`
+  - `atuin_key` -- owner `tom`, mode `0400`
 
 ---
 
-## desktop/ - Desktop Environment
+## modules/desktop/ -- Desktop Environment
 
-COSMIC desktop with Wayland, audio, fonts, and theming.
+COSMIC desktop, audio, fonts, and theming. Imported via `modules/desktop/default.nix` which pulls in: `cosmic-system.nix`, `audio.nix`, `fonts.nix`, `theme.nix`.
 
 ### modules/desktop/cosmic-system.nix
 
-**Purpose:** COSMIC desktop environment (system-level)
+COSMIC desktop environment at the system level.
 
-**Configuration:**
-- COSMIC display manager (cosmic-greeter)
-- COSMIC Desktop Environment
-- Wayland session
-- Excludes xterm (pulled in by X dependencies)
-- GVfs for virtual filesystems
-- GNOME Keyring for credential storage
+**Services:**
+- `services.xserver.enable = true` (compatibility layer; xterm excluded)
+- `services.displayManager.cosmic-greeter.enable = true`
+- `services.desktopManager.cosmic.enable = true`
+- `services.system76-scheduler.enable = true` (COSMIC-optimized performance)
+- `services.gvfs.enable = true` (virtual filesystems: Trash, network shares)
+- `services.openssh.settings.X11Forwarding = false`
 
-**Dependencies:**
-- Wayland support
+**Session variables:**
+- `COSMIC_DATA_CONTROL_ENABLED = "1"` (clipboard manager support)
 
-**Location:** modules/desktop/cosmic-system.nix:1
+**System packages:**
+- COSMIC apps: `cosmic-edit`, `cosmic-files`, `cosmic-applets`, `cosmic-screenshot`, `cosmic-applibrary`, `cosmic-notifications`, `cosmic-osd`, `cosmic-workspaces-epoch`
+- COSMIC extensions: `cosmic-ext-tweaks`, `cosmic-ext-calculator`, `cosmic-ext-applet-minimon`, `cosmic-ext-applet-weather`, `cosmic-ext-applet-caffeine`, `cosmic-ext-applet-privacy-indicator`, `cosmic-ext-ctl`
+- COSMIC community: `tasks`, `examine`, `quick-webapps`
+- Icon theme: `adwaita-icon-theme`
+- Custom inline derivations: `tab-new-symbolic` SVG icon (for Ghostty libadwaita tab bar), `folder-development` SVG icon (for ~/Projects)
 
-**Integration:**
-- Works with modules/apps/terminals.nix (Ghostty)
-- Works with home/cosmic.nix (GTK app theming)
-- Works with home/theme.nix (Stylix theming)
-
----
+**Hidden desktop entries** (via `hideDesktopEntries`):
+`com.system76.CosmicTerm`, `com.google.Chrome`, `vim`, `gvim`, `htop`, `micro`, `xterm`, `uxterm`, `nixos-manual`, `nm-applet`, `nm-connection-editor`, `org.freedesktop.Xwayland`, `xdg-desktop-portal-gtk`, `geoclue-where-am-i`
 
 ### modules/desktop/audio.nix
 
-**Purpose:** Pipewire audio server with full compatibility
+PipeWire audio and Bluetooth.
 
-**Configuration:**
-- Pipewire (replaces PulseAudio and JACK)
-- ALSA support with 32-bit compatibility
-- PulseAudio compatibility layer
-- JACK compatibility for pro audio
-- Wireplumber session manager
-- Bluetooth audio with experimental codecs
-- Bluetooth disabled on boot (battery saving)
-- Real-time scheduling (rtkit)
-- Audio tools: pavucontrol, helvum
-
-**Dependencies:**
-- Bluetooth hardware support
-
-**Location:** modules/desktop/audio.nix:1
-
-**Options:**
-```nix
-{
-  hardware.bluetooth.powerOnBoot = false; # Can enable for auto-start
-  hardware.bluetooth.settings.General.Experimental = true; # Better codecs
-}
-```
-
----
+- **PulseAudio:** explicitly disabled
+- **rtkit:** enabled (real-time scheduling for audio)
+- **PipeWire:** enabled with `alsa.enable`, `pulse.enable`, `wireplumber.enable`
+- **Bluetooth:** enabled, `powerOnBoot = false`, experimental features on, `Source,Sink,Media,Socket` enabled
+- **Blueman:** disabled (COSMIC has built-in Bluetooth settings)
+- No audio GUI tools installed system-wide (pavucontrol/helvum suggested via `nix shell` for advanced use)
 
 ### modules/desktop/fonts.nix
 
-**Purpose:** Font configuration matching Claude AI aesthetics
+Font packages and fontconfig. References `lib/theme.nix` for font names.
 
-**Configuration:**
-- Primary UI font: Inter (matches Claude AI interface)
-- System fonts: Noto Sans, Noto Serif, Liberation TTF, DejaVu
-- CJK support: Noto Sans CJK
+**Font packages:**
+- `inter` (primary UI font)
+- `noto-fonts`, `noto-fonts-cjk-sans`, `noto-fonts-color-emoji`
+- `liberation_ttf`, `dejavu_fonts`
+- `nerd-fonts.jetbrains-mono`, `nerd-fonts.fira-code`, `nerd-fonts.symbols-only`
+
+**Fontconfig defaults:**
+- Sans-serif: Inter, Noto Sans, DejaVu Sans
+- Serif: Noto Serif, DejaVu Serif
+- Monospace: JetBrains Mono, Symbols Nerd Font, Fira Code, DejaVu Sans Mono
 - Emoji: Noto Color Emoji
-- Programming fonts: JetBrains Mono Nerd Font, Fira Code Nerd Font
-- Font rendering: RGB subpixel, slight hinting, antialiasing
 
-**Dependencies:** None
-
-**Location:** modules/desktop/fonts.nix:1
-
-**Font Priorities:**
-- Sans-serif: Inter → Noto Sans → DejaVu Sans
-- Monospace: JetBrains Mono → Fira Code → DejaVu Sans Mono
-
----
+**Rendering:** RGB subpixel, slight hinting (no autohint), antialiasing enabled. Custom `localConf` to prioritize Symbols Nerd Font before Noto Color Emoji in monospace fallback chain.
 
 ### modules/desktop/theme.nix
 
-**Purpose:** GTK, Qt, and XDG portal theming
+Stylix theming, Qt, and XDG portals. References `lib/theme.nix` for font names.
 
-**Configuration:**
-- Adwaita theme (clean, minimal, professional)
-- Qt applications use GTK theme for consistency
-- XDG portals for desktop integration
-- Dconf enabled for settings
+**Stylix:**
+- `enable = true`, `polarity = "dark"`
+- Custom base16 color scheme (Claude-inspired warm palette):
+  - Backgrounds: `base00` = `1f1e1d`, `base01` = `262624`, `base02` = `30302e`
+  - Dim/secondary text: `base03` = `9c9a92`, `base04` = `c2c0b6`
+  - Primary foreground: `base05` = `faf9f5`, `base06` = `faf9f5`, `base07` = `ffffff`
+  - Accents: `base08` = `c6613f` (terracotta), `base09` = `d97757` (orange), `base0A` = `c9b87c` (sand), `base0B` = `8a9a6b` (olive), `base0C` = `6b9e8a` (sage), `base0D` = `2c84db` (blue), `base0E` = `a67a5b` (brown), `base0F` = `d97757` (terracotta)
+- Wallpaper: `assets/claude.png`, scaling mode `fill`
+- Fonts: serif = Noto Serif, sansSerif = Inter, monospace = JetBrains Mono, emoji = Noto Color Emoji (packages declared inline)
 
-**Dependencies:**
-- COSMIC desktop
+**Qt:** enabled, platform theme forced to `gtk2`, style forced to `adwaita-dark`.
 
-**Location:** modules/desktop/theme.nix:1
+**XDG portals:** enabled with `xdg-desktop-portal-cosmic` and `xdg-desktop-portal-gtk`, default set to `cosmic`.
 
 ---
 
-## apps/ - Applications
+## modules/apps/ -- Applications
 
-User-facing applications.
+User-facing applications. Imported via `modules/apps/default.nix` which pulls in: `terminals.nix`, `claude.nix`, `jasper.nix`.
+
+**Direct installs** (in `default.nix`): `google-chrome`, `slack`, `discord`, `obsidian`
 
 ### modules/apps/terminals.nix
 
-**Purpose:** Terminal emulator installation
+Terminal emulator configuration (system-level).
 
-**Configuration:**
-- Installs Ghostty terminal
-- Sets Ghostty as default terminal (TERMINAL env var)
-- Desktop file for terminal:// URL handling
-- xterm hidden (see desktop/cosmic-system.nix)
-
-**Dependencies:**
-- Ghostty package
-- User config: home/ghostty.nix
-
-**Location:** modules/apps/terminals.nix:1
-
-**Integration:** User configuration in home/ghostty.nix provides GTK/libadwaita integration for native decorations
-
----
-
-### modules/apps/browsers.nix
-
-**Purpose:** Web browser installation
-
-**Configuration:**
-- Google Chrome installation
-- Requires allowUnfree (configured in common/nix.nix)
-- Extensions and sync configured manually
-
-**Dependencies:**
-- Unfree packages enabled
-
-**Location:** modules/apps/browsers.nix:1
-
-**Manual Steps:** Configure Chrome extensions and sign in to Google account
-
----
-
-### modules/apps/communication.nix
-
-**Purpose:** Communication applications
-
-**Configuration:**
-- Slack installation
-- Discord installation
-- Both are unfree packages
-- Authentication configured manually
-
-**Dependencies:**
-- Unfree packages enabled
-
-**Location:** modules/apps/communication.nix:1
-
-**Manual Steps:** Login to Slack and Discord accounts
-
----
+- Sets `TERMINAL = "ghostty"` session variable
+- Ghostty itself is installed via home-manager (`home/ghostty.nix`), not as a system package
+- No custom `.desktop` file -- home-manager provides `com.mitchellh.ghostty.desktop`
 
 ### modules/apps/claude.nix
 
-**Purpose:** Claude Code CLI support with nix-ld
+Claude Code CLI and Claude Desktop.
 
-**Configuration:**
-- Enables nix-ld for dynamic library compatibility
-- Provides libraries: glibc, openssl, zlib, curl, icu
-- PATH configuration in home/shell/fish.nix
-- Installation via official Anthropic installer
+**nix-ld** (for dynamic binary compatibility):
+- `programs.nix-ld.enable = true`
+- Libraries: `stdenv.cc.cc.lib`, `glibc`, `openssl`, `zlib`, `curl`, `libz`, `icu`
 
-**Dependencies:**
-- nix-ld
-- Fish shell (for PATH)
+**SSL compatibility:** symlinks `/etc/ssl/cert.pem` to the NixOS CA bundle.
 
-**Location:** modules/apps/claude.nix:1
+**System packages:** `socat` (sandbox dependency)
 
-**Installation Steps:**
-1. Deploy configuration with nix-ld
-2. Run: `curl -fsSL https://claude.ai/install.sh | bash`
-3. Claude Code installs to ~/.local/bin/claude
-4. Auto-updates work seamlessly
+**Insecure packages:** permits `electron-37.10.3` (required by Claude Desktop)
 
-**Other Claude Interfaces:**
-- **Chrome Extension:** Manual install from Chrome Web Store
-- **VSCode Extension:** Manual install from VSCode marketplace
-- **Claude Desktop:** Not included (no official Linux support)
+**Claude Code CLI auto-installer:** systemd user service `claude-code-installer` that runs on first login if `~/.local/bin/claude` does not exist. Executes `curl -fsSL https://claude.ai/install.sh | bash`.
 
----
+**Claude Desktop:** Installed via home-manager using the `claude-for-linux` flake input. The app.asar from the flake is wrapped with the system's `electron_37` in an FHS environment (with bubblewrap, nodejs, glibc, openssl, coreutils, bash, git, curl). A custom XDG desktop entry is created with name "Claude", categories Development/Utility, and `x-scheme-handler/claude` MIME type.
 
-## home/ - Home Manager User Configuration
+### modules/apps/jasper.nix
 
-User-specific configuration managed by home-manager.
+Jasper AI companion daemon and COSMIC applet.
 
-### home/ghostty.nix
+**System packages:** `jasperPkgs.daemon`, `jasperPkgs.cosmic-applet` (from `inputs.jasper`)
 
-**Purpose:** Ghostty terminal user configuration
+**D-Bus service:** registers `org.jasper.Daemon` for socket activation.
 
-**Configuration:**
-- Font: JetBrains Mono Nerd Font (size 11)
-- Claude-inspired color scheme (dark background #1a1d23)
-- GTK/libadwaita integration for native decorations
-- No tab bar (clean look)
-- Fish shell integration (cursor, sudo, title)
-- Scrollback: 10,000 lines
-- Copy on select
-- Window state persistence
+**Systemd user service** (`jasper-companion`):
+- Starts after `graphical-session.target`
+- Reads `ANTHROPIC_API_KEY` from sops secret (`jasper_anthropic_api_key`) at runtime
+- Restarts on failure (5 second delay)
 
-**Dependencies:**
-- Ghostty system installation (apps/terminals.nix)
-- JetBrains Mono Nerd Font (desktop/fonts.nix)
-
-**Location:** home/ghostty.nix:1
-
-**Key Features:**
-- Native COSMIC/GTK window decorations
-- Shell integration with Fish
-- Auto-copy on selection
-- Window position/size persistence
+**Dependency:** `modules/common/secrets.nix` (provides the sops secret)
 
 ---
+
+## home/ -- Home Manager Modules
+
+User-level configuration. Imported from `home/default.nix` which pulls in: `shell/`, `ghostty.nix`, `git.nix`, `vscode.nix`, `cosmic.nix`, `cosmic-theme.nix`, `macchina.nix`.
+
+### home/default.nix
+
+Root home-manager module.
+
+- `home.stateVersion = "24.11"`
+- `home.username` and `home.homeDirectory` set from the `user` argument
+- **XDG user directories:** enabled with standard directories plus `PROJECTS = "/home/${user}/Projects"`
+- Creates `~/Projects/.directory` with `Icon=folder-development`
+- `programs.home-manager.enable = true`
+- **Hidden desktop entries** (user-level): `yazi`, `code-url-handler`, `kvantummanager`, `qt5ct`, `qt6ct`
 
 ### home/git.nix
 
-**Purpose:** Git user configuration
+Git and delta configuration.
 
-**Configuration:**
-- User identity left unconfigured (manual setup)
-- Helpful aliases (st, co, br, ci, graph)
-- Default branch: main
-- Pull strategy: rebase
-- Push: auto-setup remote
-- Diff algorithm: histogram
-- Merge conflict style: diff3
-- Auto-stash on rebase
-- Editor: micro
-- Git LFS enabled
-- Delta integration for better diffs
+**Git identity:** `user.name = "Tom Cassady"`, `user.email = "heytcass@gmail.com"` (declaratively configured)
 
-**Dependencies:**
-- Delta package
+**Aliases:** `st`, `co`, `br`, `ci`, `last`, `unstage`, `amend`, `graph`
 
-**Location:** home/git.nix:1
+**Settings:**
+- `init.defaultBranch = "main"`
+- `pull.rebase = true`
+- `push.default = "simple"`, `push.autoSetupRemote = true`
+- `diff.algorithm = "histogram"`
+- `merge.conflictstyle = "diff3"`
+- `rebase.autoStash = true`
+- `rerere.enabled = true`
+- `fetch.prune = true`
+- `core.autocrlf = "input"`
+- `credential.helper = "!gh auth git-credential"` (GitHub CLI)
+- `color.ui = true`
 
-**Manual Setup Required:**
-```bash
-git config --global user.name "Your Name"
-git config --global user.email "your.email@example.com"
-```
+**Git LFS:** enabled
 
----
+**Delta:** enabled with git integration, `line-numbers` and `decorations` features, `side-by-side = false`. Colors managed by Stylix.
+
+### home/ghostty.nix
+
+Ghostty terminal emulator (user-level). References `lib/theme.nix` for font names.
+
+**Font:** forced font-family list overriding Stylix order: JetBrains Mono Nerd Font, Symbols Nerd Font, Noto Sans Symbols 2, Noto Color Emoji. Size 11.
+
+**Settings:**
+- Cursor: block, no blink
+- Window padding: 8px each axis
+- Window decoration: native GTK (`window-decoration = true`, `gtk-titlebar = true`)
+- `linux-cgroup = "always"`
+- Shell integration: Fish with `cursor,sudo,title` features
+- Scrollback: 10000 lines
+- `copy-on-select = true`, `mouse-hide-while-typing = true`
+- `window-save-state = "always"`, `window-inherit-working-directory = true`, `window-inherit-font-size = true`
+- `quit-after-last-window-closed = true`, `confirm-close-surface = false`
+
+Colors are managed by Stylix (not hardcoded).
 
 ### home/vscode.nix
 
-**Purpose:** VSCode user configuration
+VS Code with declarative extensions and settings.
 
-**Configuration:**
-- Extensions: Nix IDE, direnv, nix-env-selector, Markdown, YAML
-- Font: JetBrains Mono with ligatures (size 13)
-- Theme: Default Dark+
-- Terminal: Fish integration
-- Nix language server: nil with nixpkgs-fmt
-- Format on save
-- Minimap disabled
-- Auto-save on focus change
-- Telemetry disabled
+**Extensions:** `jnoortheen.nix-ide`, `mkhl.direnv`, `yzhang.markdown-all-in-one`, `davidanson.vscode-markdownlint`, `redhat.vscode-yaml`
 
-**Dependencies:**
-- VSCode system installation (installed via system packages)
-- JetBrains Mono font (desktop/fonts.nix)
-- nil language server
-- nixpkgs-fmt formatter
+**Editor settings:**
+- Font ligatures on, format on save, minimap off
+- Rulers at 80 and 120
+- Whitespace rendering on selection
+- Auto-save on focus change, trim trailing whitespace, insert final newline
 
-**Location:** home/vscode.nix:1
+**Nix integration:** nil language server with `nixfmt` as formatter
 
-**Manual Steps:**
-- Install Claude extension from marketplace
-
----
+**Other:**
+- Default terminal profile: Fish
+- `direnv.restart.automatic = true`
+- Git: auto-fetch, no confirm sync, smart commit
+- Telemetry off
+- YAML schema for GitHub workflows
+- Keybinding: `Ctrl+Shift+T` for new terminal
+- Theme/fonts managed by Stylix
 
 ### home/cosmic.nix
 
-**Purpose:** GTK preferences for apps running under COSMIC
+Stylix targets and GTK theming for COSMIC. References `lib/theme.nix` for icon name.
 
-**Configuration:**
-- Adwaita icon theme
-- Dark mode for GTK3/GTK4 applications
-- dconf settings for GTK app compatibility
-- Ensures consistent theming for GTK apps under COSMIC
+**Stylix targets:** `gtk`, `ghostty`, `vscode` all enabled.
 
-**Dependencies:**
-- COSMIC desktop environment
-- dconf support
+**GTK:**
+- Icon theme: Adwaita (`adwaita-icon-theme` package)
+- GTK3/GTK4: `gtk-application-prefer-dark-theme = 1`
+- Force-overwrites Stylix-managed `gtk-3.0/gtk.css` and `gtk-4.0/gtk.css`
 
-**Location:** home/cosmic.nix:1
+**dconf:** sets `org/gnome/desktop/interface` to `color-scheme = "prefer-dark"` and `icon-theme = "Adwaita"`
 
-**Integration:**
-- Complements desktop/theme.nix (system-level theming)
-- Provides user-level GTK preferences
+### home/cosmic-theme.nix
 
----
+COSMIC desktop theme generated from Stylix base16 scheme. Includes hex-to-RGB conversion helpers.
 
-### home/theme.nix
+- Reads all base16 colors from `config.stylix.base16Scheme`
+- Uses `themeLib.colors.destructiveRed` for the destructive action color
+- Generates a complete COSMIC RON theme file (`Claude.ron`) with dark palette, spacing, corner radii, accent/success/warning/destructive colors, gap and hint settings
+- Writes theme to `~/.config/cosmic/com.system76.CosmicTheme.Dark/v1/custom_theme`
+- Generates COSMIC wallpaper config pointing to `config.stylix.image` with Lanczos filter and Zoom scaling
+- Writes wallpaper config to `~/.config/cosmic/com.system76.CosmicBackground/v1/all` via activation script
+- COSMIC accent color: base08 (terracotta), success: base0B (olive), warning: base0A (sand), destructive: `dd5353` (vivid red)
+- `is_frosted = false`, `gaps = (0, 4)`, `active_hint = 2`
 
-**Purpose:** Stylix Home Manager targets
+### home/macchina.nix
 
-**Configuration:**
-- Enables Stylix for GTK
-- Enables Stylix for Ghostty
-- Enables Stylix for VSCode
-- Provides consistent theming across applications
+System fetch tool with custom ASCII art and Stylix-derived colors.
 
-**Dependencies:**
-- Stylix module
-- GTK, Ghostty, VSCode installations
+- Installs `macchina` package
+- Theme name: `claudeos`
+- Displayed fields: Host, Distribution, DesktopEnvironment, Shell, Uptime, Memory, Packages
+- Key color: `base09` (orange), separator color: `base03` (dim), ASCII art color: `base08` (terracotta)
+- Custom ASCII art in `~/.config/macchina/ascii/clawd.txt` (Claude asterisk glyph)
+- Rounded box border, bars with `"●"` glyph, palette hidden
 
-**Location:** home/theme.nix:1
+### home/shell/default.nix
 
-**Integration:**
-- Works with desktop/theme.nix (system-level Stylix)
-- Applies theming to user applications
-
----
+Shell module index. Imports: `fish.nix`, `cli-tools.nix`, `starship.nix`.
 
 ### home/shell/fish.nix
 
-**Purpose:** Fish shell configuration
+Fish shell configuration.
 
-**Configuration:**
-- Modern CLI aliases (eza, bat integration)
-- Git shortcuts
-- NixOS-specific aliases (rebuild, flake-check)
-- Abbreviations for quick expansion
-- Custom functions: mkcd, extract, gcam, findbig
-- Fish plugins: fzf.fish, z (zoxide), puffer-fish
-- Environment variables
-- Colored man pages
-- ~/.local/bin added to PATH (for Claude Code)
+**Aliases:**
+- `cat` = `bat --style=auto`, `man` = `batman`
+- Git: `gs`, `gd`, `gl`, `gp`
+- Navigation: `..`, `...`
+- NixOS: `zc` (jump to config), `rebuild`, `rebuild-test`, `flake-check`
 
-**Dependencies:**
-- eza, bat, zoxide (home/shell/cli-tools.nix)
-- Fish system installation (common/users.nix)
+**Abbreviations:** `gco`, `gci`, `gca`, `gaa`, `gcm`, `nfmt`, `ndev`, `nbuild`, `nrun`, `sctl`, `jctl`
 
-**Location:** home/shell/fish.nix:1
+**Functions:** `mkcd`, `extract` (archive extractor), `gcam`, `findbig`
 
-**Key Features:**
-- Seamless integration with modern CLI tools
-- Git workflow shortcuts
-- NixOS system management helpers
-- Archive extraction utility
+**Plugins:**
+- `fzf.fish` (v10.3, PatrickF1)
+- `puffer-fish` (nickeb96, text expansion)
 
----
-
-### home/shell/cli-tools.nix
-
-**Purpose:** Modern CLI tool replacements
-
-**Configuration:**
-- **eza:** ls replacement with icons and git integration
-- **zoxide:** Smart cd with frecency tracking
-- **bat:** cat with syntax highlighting and paging
-- **fzf:** Fuzzy finder with bat previews
-- **atuin:** Shell history search (sync disabled)
-- **yazi:** TUI file manager
-- **ripgrep, fd:** Fast search tools
-- **jq:** JSON processor
-- **direnv:** Per-project environments
-
-**Dependencies:**
-- Fish shell (for integrations)
-
-**Location:** home/shell/cli-tools.nix:1
-
-**Integration:**
-- All tools integrate with Fish shell
-- fzf uses bat for file previews
-- fzf uses eza for directory previews
-
----
+**Interactive init:**
+- Disables greeting
+- Adds `~/.local/bin` to PATH (for Claude Code CLI)
+- `EDITOR` and `VISUAL` set to `code`
+- Runs `macchina` on first shell in terminal (tracked via `MACCHINA_SHOWN` env var)
 
 ### home/shell/starship.nix
 
-**Purpose:** Cross-shell prompt configuration
+Starship prompt with Fish integration.
 
-**Configuration:**
-- Clean, single-line format
-- Shows: directory, git branch/status, nix-shell, exit code
-- Username/hostname only when relevant (SSH, non-default user)
-- Command duration for slow commands (>2s)
-- Language version detection disabled (faster prompt)
+**Format:** two-line prompt -- context on top line, input character below.
 
-**Dependencies:**
-- Fish shell integration
+**Modules shown:** `username`, `hostname`, `directory`, `git_branch`, `git_status`, `nix_shell`, `cmd_duration`, `line_break`, `character`
 
-**Location:** home/shell/starship.nix:1
+**Styling:**
+- Character: orange `❯` on success, red on error
+- Directory: white, truncated to 3 segments / repo root
+- Git branch: orange with ` ` symbol
+- Git status: red (staged shown in green)
+- Nix shell: cyan with ` ` symbol
+- Command duration: bright-black, shown for commands > 2 seconds
+- Username: yellow (shown only when non-default or SSH)
+- Hostname: yellow (SSH only)
 
-**Prompt Components:**
-- Directory (cyan, truncated to repo)
-- Git branch (purple) and status (red)
-- Nix shell indicator (blue)
-- Character: green (❯) on success, red on error
+**Disabled language modules:** nodejs, python, rust, golang, java, ruby, php
+
+### home/shell/cli-tools.nix
+
+Modern CLI tool replacements.
+
+**Packages (direct install):** `ripgrep`, `fd`, `jq`
+
+**Configured programs:**
+- **eza:** icons auto, git integration, group directories first, show header
+- **zoxide:** Fish integration enabled
+- **bat:** style `numbers,changes,header`, pager `less -FR`, extras: `batdiff`, `batman`, `batgrep`, `batwatch`
+- **fzf:** Fish integration disabled (handled by `fzf.fish` plugin), uses `fd` for file/directory search, `bat` for file preview, `eza --tree` for directory preview
+- **atuin:** Fish integration enabled, sync disabled, compact style, fuzzy search, global filter, preview enabled, inline height 20
+- **yazi:** Fish integration enabled, hidden files off, natural sort, directories first
+- **direnv:** enabled with `nix-direnv`
 
 ---
 
-## Module Dependencies
+## hosts/ -- Per-Host Configuration
 
-Visual dependency tree:
+### hosts/transporter/default.nix
+
+Dell Latitude 7280 (test system). Imports only `hardware-configuration.nix`. No overrides -- uses all defaults (disk device `/dev/sda`, etc.).
+
+### hosts/transporter/hardware-configuration.nix
+
+Generated by `nixos-generate-config --no-filesystems` (filesystems managed by disko).
+
+- initrd modules: `xhci_pci`, `ahci`, `usb_storage`, `sd_mod`, `rtsx_pci_sdmmc`
+- Kernel modules: `kvm-intel`
+- Intel microcode: enabled when redistributable firmware is on
+- Platform: `x86_64-linux`
+
+### hosts/gti/default.nix
+
+Dell XPS 13 9370 (production). Imports `hardware-configuration.nix`.
+
+- Overrides disko device to `/dev/nvme0n1` (NVMe SSD)
+
+### hosts/gti/hardware-configuration.nix
+
+Generated by `nixos-generate-config`.
+
+- initrd modules: `xhci_pci`, `nvme`, `usb_storage`, `sd_mod`, `rtsx_pci_sdmmc`
+- Kernel modules: `kvm-intel`
+- Intel microcode: enabled when redistributable firmware is on
+- Platform: `x86_64-linux`
+
+---
+
+## Cross-Module Dependencies
 
 ```
-common/ (no dependencies)
-  └─> desktop/ (depends on common)
-       └─> apps/ (depends on desktop for COSMIC)
-       └─> home/ (depends on apps)
-            └─> home/shell/ (depends on CLI tools)
+flake.nix
+  +-- lib/mkSystem.nix          (builds each host)
+  |     +-- modules/common/     (foundation for all hosts)
+  |     +-- modules/desktop/    (COSMIC, audio, fonts, Stylix)
+  |     +-- modules/apps/       (applications, Claude, Jasper)
+  |     +-- home/               (home-manager user config)
+  +-- hosts/<hostname>/         (per-host hardware + overrides)
 ```
 
-**Load Order:**
-1. common/ - Foundation
-2. desktop/ - Desktop environment
-3. apps/ - Applications
-4. home/ - User configuration
-5. home/shell/ - Shell configuration
+Notable dependency chains:
+- `modules/apps/jasper.nix` reads secrets from `modules/common/secrets.nix` (sops)
+- `modules/apps/claude.nix` uses `inputs.claude-for-linux` and `inputs.nixpkgs` (electron)
+- `home/cosmic-theme.nix` reads `config.stylix.base16Scheme` and `config.stylix.image` (set in `modules/desktop/theme.nix`)
+- `home/cosmic.nix` enables Stylix targets for GTK, Ghostty, and VS Code
+- `home/shell/fish.nix` relies on tools configured in `home/shell/cli-tools.nix` (eza, bat, batman, zoxide)
+- `lib/theme.nix` is imported as pure data by `modules/desktop/fonts.nix`, `modules/desktop/theme.nix`, `home/ghostty.nix`, `home/cosmic.nix`, and `home/cosmic-theme.nix`
 
 ---
 
-## Usage Patterns
-
-### Adding a New Module
-
-1. Create module file in appropriate category
-2. Follow module template from .claude/agents/module-creator.md
-3. Add import to category's default.nix
-4. Run validation: `nix flake check`
-5. Test build before deploying
-6. Document in this file
-
-### Per-Machine Overrides
-
-```nix
-# In hosts/<hostname>/default.nix
-{
-  # Override default timezone
-  time.timeZone = lib.mkForce "America/Los_Angeles";
-
-  # Add machine-specific packages
-  environment.systemPackages = with pkgs; [
-    machine-specific-tool
-  ];
-}
-```
-
-### Module Enable/Disable Pattern
-
-Most modules are always enabled. To selectively disable:
-
-```nix
-# In module file
-{ config, lib, pkgs, ... }:
-
-with lib;
-
-let
-  cfg = config.programs.mymodule;
-in {
-  options.programs.mymodule = {
-    enable = mkEnableOption "mymodule";
-  };
-
-  config = mkIf cfg.enable {
-    # Configuration here
-  };
-}
-```
-
----
-
-## Best Practices
-
-1. **Keep modules focused:** Each module should have one clear purpose
-2. **Use mkDefault:** Allow per-machine overrides with `lib.mkDefault`
-3. **Document options:** Add clear descriptions to all options
-4. **Minimize dependencies:** Avoid circular dependencies between modules
-5. **Test incrementally:** Validate after each module addition
-6. **Follow conventions:** Use existing modules as templates
-
----
-
-## Reference
-
-- [NixOS Manual](https://nixos.org/manual/nixos/stable/)
-- [Home Manager Manual](https://nix-community.github.io/home-manager/)
-- [NixOS Options Search](https://search.nixos.org/options)
-- [Home Manager Options](https://nix-community.github.io/home-manager/options.html)
-
----
-
-*Last updated: 2026-02-02*
+*Last updated: 2026-02-14*

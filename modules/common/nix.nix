@@ -3,7 +3,10 @@
 {
   # Enable flakes and nix-command
   nix.settings = {
-    experimental-features = [ "nix-command" "flakes" ];
+    experimental-features = [
+      "nix-command"
+      "flakes"
+    ];
 
     # Store Nix config under XDG directories instead of ~/.nix-*
     use-xdg-base-directories = true;
@@ -15,7 +18,10 @@
     warn-dirty = false;
 
     # Trusted users for nix commands
-    trusted-users = [ "root" "@wheel" ];
+    trusted-users = [
+      "root"
+      "@wheel"
+    ];
 
     # Substituters and keys for faster builds
     substituters = [
