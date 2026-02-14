@@ -63,6 +63,12 @@
 
       # GitHub CLI credential helper
       credential.helper = "!gh auth git-credential";
+
+      # SSH-based commit signing (simpler than GPG, uses existing SSH key)
+      gpg.format = "ssh";
+      user.signingkey = "~/.ssh/id_ed25519.pub";
+      commit.gpgSign = true;
+      tag.gpgSign = true;
     };
 
     # Git LFS (Large File Storage)

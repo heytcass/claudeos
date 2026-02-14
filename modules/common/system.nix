@@ -8,7 +8,6 @@
     micro # Modern terminal text editor
     wget
     curl
-    gh # GitHub CLI
     htop
     tree
     file
@@ -49,6 +48,10 @@
 
   # Enable thermald for Intel CPU thermal management
   services.thermald.enable = lib.mkDefault true;
+
+  # Dynamic power profiles for laptops (balanced/power-saver/performance)
+  # Works alongside thermald — thermald manages thermal limits, this manages power policy
+  services.power-profiles-daemon.enable = lib.mkDefault true;
 
   # Zram swap for compressed in-memory swap
   zramSwap.enable = true;

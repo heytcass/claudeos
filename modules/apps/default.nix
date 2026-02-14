@@ -1,4 +1,4 @@
-{ pkgs, ... }:
+{ lib, pkgs, ... }:
 
 {
   imports = [
@@ -6,6 +6,10 @@
     ./claude.nix
     ./jasper.nix
   ];
+
+  # Enable Claude and Jasper by default (override per-host with `false`)
+  claude-os.claude.enable = lib.mkDefault true;
+  claude-os.jasper.enable = lib.mkDefault true;
 
   # Applications (direct installs — no extra configuration needed)
   environment.systemPackages = with pkgs; [

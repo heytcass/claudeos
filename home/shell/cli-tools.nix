@@ -109,6 +109,22 @@
     };
   };
 
+  # carapace - Multi-shell completion engine
+  programs.carapace = {
+    enable = true;
+    enableFishIntegration = true;
+  };
+
+  # GitHub CLI - declarative configuration
+  programs.gh = {
+    enable = true;
+    settings = {
+      git_protocol = "ssh";
+      prompt = "enabled";
+    };
+    gitCredentialHelper.enable = true;
+  };
+
   # direnv - Per-project environment management with nix-direnv
   programs.direnv = {
     enable = true;

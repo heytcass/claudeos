@@ -10,10 +10,16 @@
     enable = true;
     settings.Resolve = {
       DNSSEC = "allow-downgrade"; # Validate DNSSEC when available, don't break if unavailable
-      DNSOverTLS = "no"; # Disabled - caused slow DNS lookups with non-DoT servers
+      DNSOverTLS = "opportunistic"; # Use DoT when server supports it, plain DNS otherwise
+
+      # No global DNS= set — NetworkManager/DHCP provides the primary DNS server,
+      # preserving internal DNS resolution (e.g. local services, split-horizon DNS).
+      # DoT is used opportunistically: encrypted if the server supports it, plain otherwise.
+
+      # Fallback: public DoT-capable servers if DHCP-provided DNS is unavailable
       FallbackDNS = [
-        "1.1.1.1"
-        "9.9.9.9"
+        "1.1.1.1#one.one.one.one"
+        "9.9.9.9#dns.quad9.net"
       ];
     };
   };
@@ -48,6 +54,21 @@
     settings = {
       PasswordAuthentication = false; # Disabled - using SSH keys
       PermitRootLogin = "no";
+
+      # Restrict to modern cryptographic algorithms only
+      KexAlgorithms = [
+        "curve25519-sha256"
+        "curve25519-sha256@libssh.org"
+      ];
+      Ciphers = [
+        "chacha20-poly1305@openssh.com"
+        "aes256-gcm@openssh.com"
+        "aes128-gcm@openssh.com"
+      ];
+      Macs = [
+        "hmac-sha2-512-etm@openssh.com"
+        "hmac-sha2-256-etm@openssh.com"
+      ];
     };
   };
 }
