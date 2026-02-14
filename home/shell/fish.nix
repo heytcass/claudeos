@@ -53,6 +53,10 @@
 
     # Custom functions
     functions = {
+      # Transient prompt — after a command runs, collapse the full prompt to just ❯
+      # Keeps scrollback clean while showing full context on the current line
+      starship_transient_prompt_func = "starship module character";
+
       # Create directory and cd into it
       mkcd = "mkdir -p $argv[1]; and cd $argv[1]";
 
