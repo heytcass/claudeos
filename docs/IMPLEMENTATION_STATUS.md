@@ -1,6 +1,6 @@
 # ClaudeOS Status
 
-**Last Updated:** 2026-02-14
+**Last Updated:** 2026-02-15
 
 ## Current State
 
@@ -33,22 +33,34 @@ Production machine, deployed and operational.
 
 | Category | Modules | Purpose |
 |----------|---------|---------|
-| common/ | boot, nix, users, networking, locale, system, disko | Foundation |
+| common/ | boot, nix, users, networking, locale, system, disko, snapshots | Foundation |
 | desktop/ | cosmic-system, audio, fonts, theme | COSMIC desktop |
-| apps/ | terminals, claude, jasper | Applications + AI |
-| home/ | shell (fish, cli-tools, starship), ghostty, git, vscode, cosmic, macchina, theme | User config |
+| apps/ | terminals, claude, jasper, mcp-system-health | Applications + AI |
+| home/ | shell (fish, cli-tools, starship), ghostty, git, vscode, cosmic, macchina, theme, claude-code | User config |
 
 ## Future Enhancements
 
 - [x] Deploy to gti (production machine)
 - [x] sops-nix for declarative secrets management
+- [x] Automated btrfs snapshots before rebuilds (snapper with pre/post rebuild pairs)
+- [x] Declarative Claude Code configuration (settings.json + .mcp.json from Nix)
+- [x] System health MCP server for Claude Code diagnostics
+- [x] COSMIC keybindings for Claude Code (Super+C) and Claude Desktop (Ctrl+Alt+Space)
+- [x] Desktop notifications for Claude Code events
 - [ ] NixOS impermanence for stateless system
-- [ ] Automated btrfs snapshots before rebuilds
 - [ ] Binary cache for faster builds
 - [ ] Atuin sync across machines (needs sops-nix for key)
 - [ ] TLP or auto-cpufreq for laptop power management
 
 ## Maintenance Log
+
+### 2026-02-15
+- Phase 4: Deep Claude Integration
+  - Declarative Claude Code config (settings.json + .mcp.json from Nix)
+  - Snapper btrfs snapshots with pre/post rebuild safety
+  - System health MCP server (8 diagnostic tools)
+  - COSMIC keybindings: Super+C (Claude Code), Ctrl+Alt+Space (Claude Desktop)
+  - Desktop notifications via notify-send hooks
 
 ### 2026-02-14
 - Hardened CLAUDE.md with theming conventions, workflow guardrails, and config location rules

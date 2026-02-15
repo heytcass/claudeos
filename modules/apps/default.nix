@@ -5,6 +5,7 @@
     ./terminals.nix
     ./claude.nix
     ./jasper.nix
+    ./mcp-system-health
   ];
 
   # Enable Claude and Jasper by default (override per-host with `false`)

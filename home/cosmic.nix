@@ -36,6 +36,14 @@ in
     "gtk-4.0/gtk.css".force = true;
   };
 
+  # COSMIC custom keyboard shortcuts for Claude
+  home.file.".config/cosmic/com.system76.CosmicSettings.Shortcuts/v1/custom".text = ''
+    {
+        (modifiers: [Super], key: "c"): Spawn("claude-quick"),
+        (modifiers: [Ctrl, Alt], key: "space"): Spawn("claude-desktop"),
+    }
+  '';
+
   # dconf settings for GTK app compatibility
   # COSMIC uses its own config system in ~/.config/cosmic
   # but respects dconf for GTK applications
