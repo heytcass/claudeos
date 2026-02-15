@@ -81,6 +81,40 @@
     "net.ipv4.conf.default.send_redirects" = 0;
   };
 
+  # Polkit — allow wheel group to manage systemd units without repeated password prompts
+  security.polkit = {
+    enable = true;
+    extraConfig = ''
+      polkit.addRule(function(action, subject) {
+        if (
+          (action.id == "org.freedesktop.systemd1.manage-units" ||
+           action.id == "org.freedesktop.systemd1.manage-unit-files") &&
+          subject.isInGroup("wheel")
+        ) {
+          return polkit.Result.YES;
+        }
+      });
+    '';
+  };
+
+  # Audit logging — forensic trail for security-relevant system events
+  security.auditd.enable = true;
+  security.audit = {
+    enable = true;
+    rules = [
+      # Log time changes (potential indicator of log tampering)
+      "-a always,exit -F arch=b64 -S adjtimex -S settimeofday -k time-change"
+
+      # Log modifications to user/group databases
+      "-w /etc/passwd -p wa -k identity"
+      "-w /etc/group -p wa -k identity"
+      "-w /etc/shadow -p wa -k identity"
+
+      # Log sudo usage
+      "-w /var/log/sudo.log -p wa -k sudo-log"
+    ];
+  };
+
   # Periodic btrfs scrub to detect and repair data corruption
   services.btrfs.autoScrub = {
     enable = true;

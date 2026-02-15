@@ -27,6 +27,9 @@
   # Disable wait-online service (speeds up boot)
   systemd.services.NetworkManager-wait-online.enable = false;
 
+  # Use nftables backend (modern, faster, cleaner rule syntax than iptables)
+  networking.nftables.enable = true;
+
   # Enable firewall
   networking.firewall = {
     enable = true;
