@@ -9,9 +9,9 @@
   # and dependency-ordered service startup during early boot
   boot.initrd.systemd.enable = true;
 
-  # Provide the Terminus font for the virtual console (required by systemd-based initrd —
-  # systemd-vconsole-setup runs before the full filesystem is mounted)
-  console.packages = [ pkgs.terminus_font ];
+  # Include console fonts in the initrd so systemd-vconsole-setup can find them
+  # before the NixOS activation script sets up /etc/kbd
+  console.earlySetup = true;
 
   # Keep last 10 generations for rollback headroom (GC handles cleanup independently)
   boot.loader.systemd-boot.configurationLimit = 10;
