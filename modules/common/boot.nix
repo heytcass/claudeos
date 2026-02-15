@@ -22,7 +22,7 @@
   # Use Claude logo for Plymouth boot screen
   stylix.targets.plymouth = {
     logo = ../../assets/claude-logo.png;
-    logoAnimated = true; # Spinning animation (logo has rotational symmetry)
+    logoAnimated = false;
   };
 
   # Silent boot
