@@ -71,18 +71,31 @@
 
       # Rebuild NixOS with snapper pre/post snapshots for safe rollback
       rebuild = ''
-        set -l pre_root (sudo snapper -c root create --type pre --cleanup-algorithm number --print-number --description "pre-rebuild")
-        set -l pre_home (snapper -c home create --type pre --cleanup-algorithm number --print-number --description "pre-rebuild")
-        echo "Snapshots: root#$pre_root, home#$pre_home"
+        set -l pre_root (sudo snapper -c root create --type pre --cleanup-algorithm number --print-number --description "pre-rebuild" 2>/dev/null)
+        set -l pre_home (snapper -c home create --type pre --cleanup-algorithm number --print-number --description "pre-rebuild" 2>/dev/null)
+        if test -n "$pre_root" -a -n "$pre_home"
+          echo "Snapshots: root#$pre_root, home#$pre_home"
+        else
+          echo "Warning: snapper pre-snapshots failed (root#$pre_root, home#$pre_home)"
+        end
 
         sudo nixos-rebuild switch --flake ~/.config/claudeos#(hostname) $argv
+        set -l rebuild_status $status
 
-        if test $status -eq 0
-          sudo snapper -c root create --type post --pre-number $pre_root --cleanup-algorithm number --description "post-rebuild"
-          snapper -c home create --type post --pre-number $pre_home --cleanup-algorithm number --description "post-rebuild"
-          echo "Rebuild complete. Rollback: sudo snapper -c root undochange $pre_root..(math $pre_root + 1)"
+        if test $rebuild_status -eq 0
+          if test -n "$pre_root"
+            sudo snapper -c root create --type post --pre-number $pre_root --cleanup-algorithm number --description "post-rebuild"
+          end
+          if test -n "$pre_home"
+            snapper -c home create --type post --pre-number $pre_home --cleanup-algorithm number --description "post-rebuild"
+          end
+          if test -n "$pre_root"
+            echo "Rebuild complete. Rollback: sudo snapper -c root undochange $pre_root..(math $pre_root + 1)"
+          else
+            echo "Rebuild complete. (No snapshots for rollback)"
+          end
         else
-          echo "Rebuild failed. Pre-snapshots preserved: root#$pre_root, home#$pre_home"
+          echo "Rebuild failed (exit $rebuild_status). Pre-snapshots: root#$pre_root, home#$pre_home"
         end
       '';
     };
