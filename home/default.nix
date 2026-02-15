@@ -18,6 +18,7 @@ in
     ./cosmic.nix
     ./cosmic-theme.nix
     ./macchina.nix
+    ./claude-code.nix
   ];
 
   # This is required for home-manager

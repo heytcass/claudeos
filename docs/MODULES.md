@@ -72,7 +72,7 @@ Contents:
 
 ## modules/common/ -- Foundation
 
-Core system configuration shared by all hosts. Imported via `modules/common/default.nix` which pulls in: `boot.nix`, `disko.nix`, `nix.nix`, `users.nix`, `networking.nix`, `locale.nix`, `system.nix`, `secrets.nix`.
+Core system configuration shared by all hosts. Imported via `modules/common/default.nix` which pulls in: `boot.nix`, `disko.nix`, `nix.nix`, `users.nix`, `networking.nix`, `locale.nix`, `system.nix`, `secrets.nix`, `snapshots.nix`.
 
 ### modules/common/boot.nix
 
@@ -147,9 +147,10 @@ Timezone, locale, and keyboard.
 System packages, hardware, and kernel tuning.
 
 **Packages:**
-- Basic: `vim`, `micro`, `wget`, `curl`, `gh`, `htop`, `tree`, `file`, `unzip`, `zip`, `pciutils`, `usbutils`
+- Basic: `vim`, `micro`, `wget`, `curl`, `gh`, `htop`, `tree`, `file`, `unzip`, `zip`, `pciutils`, `usbutils`, `libnotify`
 - Network: `dig`, `traceroute`
 - Nix dev: `nixfmt`, `statix`, `deadnix`, `nil`
+- Scripts: `claude-quick` launcher script (opens Claude Code in Ghostty)
 
 **System configuration:**
 - Creates `/bin/bash` symlink (activation script, for third-party scripts)
@@ -171,6 +172,14 @@ Declarative secrets via sops-nix.
 - **Managed secrets:**
   - `jasper_anthropic_api_key` -- owner `tom`, mode `0400`
   - `atuin_key` -- owner `tom`, mode `0400`
+
+### modules/common/snapshots.nix
+
+Snapper btrfs snapshot management.
+
+- **Snapper:** enabled with hourly snapshot interval, daily cleanup, persistent timer
+- **Root config:** SUBVOLUME `/`, timeline snapshots (hourly x 10, daily x 7, weekly x 2)
+- **Home config:** SUBVOLUME `/home`, same retention, `ALLOW_USERS` includes the system user (no sudo needed)
 
 ---
 
@@ -254,7 +263,7 @@ Stylix theming, Qt, and XDG portals. References `lib/theme.nix` for font names.
 
 ## modules/apps/ -- Applications
 
-User-facing applications. Imported via `modules/apps/default.nix` which pulls in: `terminals.nix`, `claude.nix`, `jasper.nix`.
+User-facing applications. Imported via `modules/apps/default.nix` which pulls in: `terminals.nix`, `claude.nix`, `jasper.nix`, `mcp-system-health`.
 
 **Direct installs** (in `default.nix`): `google-chrome`, `slack`, `discord`, `obsidian`
 
@@ -299,11 +308,20 @@ Jasper AI companion daemon and COSMIC applet.
 
 **Dependency:** `modules/common/secrets.nix` (provides the sops secret)
 
+### modules/apps/mcp-system-health/
+
+System health MCP server for Claude Code.
+
+- **Package:** `mcp-system-health` -- self-contained Python3 MCP stdio server (no external deps)
+- **Protocol:** JSON-RPC 2.0 with Content-Length framing (MCP standard)
+- **Tools exposed:** `disk_usage`, `failed_services`, `recent_errors`, `system_status`, `snapshot_list`, `network_status`, `nix_store_size`, `scrub_status`
+- Registered as `system-health` MCP server in `home/claude-code.nix`
+
 ---
 
 ## home/ -- Home Manager Modules
 
-User-level configuration. Imported from `home/default.nix` which pulls in: `shell/`, `ghostty.nix`, `git.nix`, `vscode.nix`, `cosmic.nix`, `cosmic-theme.nix`, `macchina.nix`.
+User-level configuration. Imported from `home/default.nix` which pulls in: `shell/`, `ghostty.nix`, `git.nix`, `vscode.nix`, `cosmic.nix`, `cosmic-theme.nix`, `macchina.nix`, `claude-code.nix`.
 
 ### home/default.nix
 
@@ -396,6 +414,8 @@ Stylix targets and GTK theming for COSMIC. References `lib/theme.nix` for icon n
 
 **dconf:** sets `org/gnome/desktop/interface` to `color-scheme = "prefer-dark"` and `icon-theme = "Adwaita"`
 
+**Custom shortcuts:** `Super+C` launches Claude Code in Ghostty (`claude-quick`), `Ctrl+Alt+Space` launches Claude Desktop
+
 ### home/cosmic-theme.nix
 
 COSMIC desktop theme generated from Stylix base16 scheme. Includes hex-to-RGB conversion helpers.
@@ -420,6 +440,17 @@ System fetch tool with custom ASCII art and Stylix-derived colors.
 - Custom ASCII art in `~/.config/macchina/ascii/clawd.txt` (Claude asterisk glyph)
 - Rounded box border, bars with `"●"` glyph, palette hidden
 
+### home/claude-code.nix
+
+Declarative Claude Code configuration via home-manager.
+
+- Generates `~/.claude/settings.json` from Nix (statusline, plugins, env, hooks)
+- Generates `~/.claude/.mcp.json` (MCP server registrations: nixos, system-health)
+- **Statusline script:** reads Stylix palette for themed status bar showing directory, git info, model, context usage, and cost estimate
+- **Notification hook:** reads JSON from stdin, sends desktop notification via `notify-send`
+- **Plugins:** frontend-design, github, feature-dev, superpowers, pr-review-toolkit, agent-sdk-dev, plugin-dev, learning-output-style, and more
+- `force = true` on both files (Nix is authoritative over runtime edits)
+
 ### home/shell/default.nix
 
 Shell module index. Imports: `fish.nix`, `cli-tools.nix`, `starship.nix`.
@@ -432,7 +463,7 @@ Fish shell configuration.
 - `cat` = `bat --style=auto`, `man` = `batman`
 - Git: `gs`, `gd`, `gl`, `gp`
 - Navigation: `..`, `...`
-- NixOS: `zc` (jump to config), `rebuild`, `rebuild-test`, `flake-check`
+- NixOS: `zc` (jump to config), `rebuild` (function with snapper pre/post snapshots), `rebuild-test`, `flake-check`
 
 **Abbreviations:** `gco`, `gci`, `gca`, `gaa`, `gcm`, `nfmt`, `ndev`, `nbuild`, `nrun`, `sctl`, `jctl`
 
@@ -536,7 +567,10 @@ Notable dependency chains:
 - `home/cosmic.nix` enables Stylix targets for GTK, Ghostty, and VS Code
 - `home/shell/fish.nix` relies on tools configured in `home/shell/cli-tools.nix` (eza, bat, batman, zoxide)
 - `lib/theme.nix` is imported as pure data by `modules/desktop/fonts.nix`, `modules/desktop/theme.nix`, `home/ghostty.nix`, `home/cosmic.nix`, and `home/cosmic-theme.nix`
+- `home/claude-code.nix` generates Claude Code settings referencing store-path scripts (statusline, notify)
+- `modules/apps/mcp-system-health/` registered in `home/claude-code.nix` MCP config
+- `modules/common/snapshots.nix` enables snapper used by `home/shell/fish.nix` rebuild function
 
 ---
 
-*Last updated: 2026-02-14*
+*Last updated: 2026-02-15*

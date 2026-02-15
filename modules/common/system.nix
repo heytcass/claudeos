@@ -20,6 +20,16 @@
     dig
     traceroute
 
+    # Desktop integration
+    libnotify # notify-send for Claude Code notification hooks
+
+    # Claude Code quick-launch (bound to Super+C via COSMIC shortcut)
+    (pkgs.writeShellScriptBin "claude-quick" ''
+      exec ghostty \
+        --class=claude-quick \
+        -e claude
+    '')
+
     # Nix development tools
     nixfmt
     statix

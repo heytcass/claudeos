@@ -10,5 +10,6 @@
     ./locale.nix
     ./system.nix
     ./secrets.nix
+    ./snapshots.nix
   ];
 }

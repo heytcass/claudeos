@@ -23,7 +23,6 @@
 
       # NixOS specific
       zc = "z ~/.config/claudeos";
-      rebuild = "sudo nixos-rebuild switch --flake ~/.config/claudeos#(hostname)";
       rebuild-test = "sudo nixos-rebuild test --flake ~/.config/claudeos#(hostname)";
       flake-check = "nix flake check --flake ~/.config/claudeos";
     };
@@ -69,6 +68,23 @@
 
       # Find large files
       findbig = "du -sh * | sort -h | tail -20";
+
+      # Rebuild NixOS with snapper pre/post snapshots for safe rollback
+      rebuild = ''
+        set -l pre_root (sudo snapper -c root create --type pre --cleanup-algorithm number --print-number --description "pre-rebuild")
+        set -l pre_home (snapper -c home create --type pre --cleanup-algorithm number --print-number --description "pre-rebuild")
+        echo "Snapshots: root#$pre_root, home#$pre_home"
+
+        sudo nixos-rebuild switch --flake ~/.config/claudeos#(hostname) $argv
+
+        if test $status -eq 0
+          sudo snapper -c root create --type post --pre-number $pre_root --cleanup-algorithm number --description "post-rebuild"
+          snapper -c home create --type post --pre-number $pre_home --cleanup-algorithm number --description "post-rebuild"
+          echo "Rebuild complete. Rollback: sudo snapper -c root undochange $pre_root..(math $pre_root + 1)"
+        else
+          echo "Rebuild failed. Pre-snapshots preserved: root#$pre_root, home#$pre_home"
+        end
+      '';
     };
 
     # Plugin configuration
@@ -104,7 +120,7 @@
       # Add ~/.local/bin to PATH for Claude Code CLI
       fish_add_path ~/.local/bin
 
-      # Export GitHub token for MCP server (pulls from gh CLI keyring auth)
+      # Export GitHub token for MCP server + Claude Code plugins (pulls from gh CLI keyring auth)
       if command -q gh
         set -gx GITHUB_PERSONAL_ACCESS_TOKEN (gh auth token 2>/dev/null)
       end
