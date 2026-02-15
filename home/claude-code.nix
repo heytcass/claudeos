@@ -79,54 +79,21 @@ let
     printf "''${white}''${dir_display}''${reset}''${git_info} ''${purple}''${model_short}''${reset}''${context_info}''${cost}\n"
   '';
 
-  # Notification script — reads JSON from stdin, sends desktop notification
-  notifyScript = pkgs.writeShellScript "claude-notify" ''
-    input=$(cat)
-    title=$(echo "$input" | ${pkgs.jq}/bin/jq -r '.title // "Claude Code"')
-    message=$(echo "$input" | ${pkgs.jq}/bin/jq -r '.message // ""')
-    ${pkgs.libnotify}/bin/notify-send --app-name="Claude Code" "$title" "$message"
-  '';
-
   # Claude Code global settings
+  # Plugins: minimal global set — opt-in per project via .claude/settings.local.json
+  # e.g. { "enabledPlugins": { "superpowers@claude-plugins-official": true } }
   claudeSettings = {
     statusLine = {
       type = "command";
       command = "bash ${statuslineScript}";
     };
     enabledPlugins = {
-      "frontend-design@claude-plugins-official" = true;
       "github@claude-plugins-official" = true;
-      "feature-dev@claude-plugins-official" = true;
-      "ralph-loop@claude-plugins-official" = true;
-      "superpowers@claude-plugins-official" = true;
-      "security-guidance@claude-plugins-official" = true;
-      "pr-review-toolkit@claude-plugins-official" = true;
-      "agent-sdk-dev@claude-plugins-official" = true;
-      "plugin-dev@claude-plugins-official" = true;
-      "explanatory-output-style@claude-plugins-official" = true;
-      "claude-md-management@claude-plugins-official" = true;
-      "claude-code-setup@claude-plugins-official" = true;
       "learning-output-style@claude-plugins-official" = true;
-      "rust-analyzer-lsp@claude-plugins-official" = true;
-      "playground@claude-plugins-official" = true;
     };
     skipDangerousModePermissionPrompt = true;
     env = {
       CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS = "1";
-    };
-    hooks = {
-      Notification = [
-        {
-          matcher = "";
-          hooks = [
-            {
-              type = "command";
-              command = "bash ${notifyScript}";
-              timeout = 5;
-            }
-          ];
-        }
-      ];
     };
   };
 
