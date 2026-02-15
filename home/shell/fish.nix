@@ -104,6 +104,11 @@
       # Add ~/.local/bin to PATH for Claude Code CLI
       fish_add_path ~/.local/bin
 
+      # Export GitHub token for MCP server (pulls from gh CLI keyring auth)
+      if command -q gh
+        set -gx GITHUB_PERSONAL_ACCESS_TOKEN (gh auth token 2>/dev/null)
+      end
+
       # Themed man pages via batman (bat-extras, uses Stylix terminal palette)
 
       # System fetch on first shell in terminal
