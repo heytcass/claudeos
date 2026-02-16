@@ -60,7 +60,10 @@ if [[ -n "$oom" ]]; then
 fi
 
 # --- Critical journal entries in last 15 min ---
-crit=$(journalctl --since "15 min ago" -p crit --no-pager -q 2>/dev/null | head -20 || true)
+# Exclude systemd-coredump: transient boot crashes are handled by Restart=on-failure
+# and real service failures are caught by the "failed services" check above.
+crit=$(journalctl --since "15 min ago" -p crit --no-pager -q 2>/dev/null \
+  | grep -v "systemd-coredump" | head -20 || true)
 if [[ -n "$crit" ]]; then
   printf '=== Critical Log Entries ===\n%s\n\n' "$crit" >> "$CONTEXT_FILE"
   issues=1

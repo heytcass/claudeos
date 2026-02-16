@@ -1,5 +1,6 @@
 {
   config,
+  lib,
   pkgs,
   inputs,
   ...
@@ -7,6 +8,8 @@
 
 let
   themeLib = import ../lib/theme.nix;
+  # Stylix base16 palette — used to derive Noctalia Material Design color tokens
+  c = config.lib.stylix.colors.withHashtag;
 in
 {
   # niri-flake NixOS module auto-imports homeModules.niri + homeModules.stylix
@@ -78,7 +81,7 @@ in
         proportion = 1.0 / 2;
       };
       center-focused-column = "on-overflow";
-      # Transparent background so Noctalia wallpaper shows through
+      # Transparent so Noctalia's layer-shell wallpaper surface shows through
       background-color = "transparent";
     };
 
@@ -124,8 +127,9 @@ in
     };
 
     # Processes to spawn at startup
+    # NOTE: Noctalia Shell is managed by systemd (programs.noctalia-shell.systemd.enable)
+    # — do NOT also spawn it here or you get duplicate bars
     spawn-at-startup = [
-      { command = [ "noctalia-shell" ]; }
       {
         command = [
           "${pkgs.wl-clipboard}/bin/wl-paste"
@@ -209,9 +213,144 @@ in
   };
 
   # Noctalia Shell — bar, notifications, OSD, wallpaper, lock screen, launcher
-  # Start with defaults; refine via Noctalia's built-in settings UI, then declare in Nix
   programs.noctalia-shell = {
     enable = true;
-    systemd.enable = true;
+    systemd.enable = true; # Auto-restarts on failure, reloads on config change
+
+    # Stylix-derived Material Design color tokens — keeps bar in sync with the rest of the desktop
+    colors = {
+      mPrimary = c.base0D; # Blue accent (links, active states)
+      mSecondary = c.base0E; # Warm brown (secondary accent)
+      mTertiary = c.base0C; # Sage green (tertiary accent)
+      mError = c.base08; # Terracotta red (errors, destructive)
+      mSurface = c.base00; # Dark background
+      mSurfaceVariant = c.base01; # Elevated surface (cards, popovers)
+      mOnPrimary = c.base00; # Text on primary accent
+      mOnSecondary = c.base00; # Text on secondary accent
+      mOnTertiary = c.base00; # Text on tertiary accent
+      mOnSurface = c.base05; # Primary foreground text
+      mOnSurfaceVariant = c.base04; # Secondary foreground text
+      mOnError = c.base00; # Text on error
+      mOutline = c.base03; # Borders, dividers, dim text
+      mShadow = c.base00; # Drop shadows
+      mHover = c.base0C; # Hover highlight
+      mOnHover = c.base00; # Text on hover
+    };
+
+    # Declarative settings — mkForce overrides Noctalia module defaults
+    settings = lib.mkForce {
+      # Bar — floating minimal style
+      bar = {
+        barType = "floating";
+        position = "top";
+        density = "compact";
+        backgroundOpacity = 0.85;
+        capsuleOpacity = 0.9;
+        showCapsule = true;
+        showOutline = false;
+        marginVertical = 6;
+        marginHorizontal = 8;
+        hideOnOverview = true;
+        displayMode = "always_visible";
+        # Minimal widget layout — essentials only
+        widgets = {
+          left = [
+            { id = "Launcher"; }
+            { id = "Clock"; }
+          ];
+          center = [
+            { id = "Workspace"; }
+          ];
+          right = [
+            { id = "Tray"; }
+            { id = "NotificationHistory"; }
+            { id = "Battery"; }
+            { id = "Volume"; }
+            { id = "Brightness"; }
+            { id = "ControlCenter"; }
+          ];
+        };
+      };
+
+      # Dock — auto-hide at bottom
+      dock = {
+        enabled = true;
+        position = "bottom";
+        displayMode = "auto_hide";
+        backgroundOpacity = 0.85;
+        size = 1;
+        onlySameOutput = true;
+        pinnedApps = [
+          "com.system76.CosmicFiles"
+          "ghostty"
+          "claude-desktop"
+          "google-chrome"
+          "code"
+        ];
+      };
+
+      # Notifications — top-right, overlay
+      notifications = {
+        enabled = true;
+        density = "compact";
+        location = "top_right";
+        overlayLayer = true;
+        backgroundOpacity = 0.9;
+        normalUrgencyDuration = 6;
+        criticalUrgencyDuration = 12;
+      };
+
+      # OSD — volume/brightness popups
+      osd = {
+        enabled = true;
+        location = "top_right";
+        autoHideMs = 1500;
+        backgroundOpacity = 0.9;
+      };
+
+      # Wallpaper — Noctalia renders the Stylix image via layer-shell backdrop
+      wallpaper = {
+        enabled = true;
+        viewMode = "single";
+        fillMode = "crop";
+      };
+
+      # Color scheme — use our Nix-declared colors, not wallpaper-derived
+      colorSchemes = {
+        useWallpaperColors = false;
+        darkMode = true;
+      };
+
+      # Templates — disabled so Noctalia doesn't overwrite Stylix's GTK CSS / Ghostty theme
+      templates = {
+        activeTemplates = [ ];
+        enableUserTheming = false;
+      };
+
+      # App launcher
+      appLauncher = {
+        position = "center";
+        viewMode = "list";
+        terminalCommand = "ghostty -e";
+        sortByMostUsed = true;
+      };
+
+      # UI — fonts from Stylix, panels attached to bar
+      ui = {
+        fontDefault = themeLib.fonts.sansSerif.name;
+        fontFixed = themeLib.fonts.monospace.name;
+        panelBackgroundOpacity = 0.85;
+        panelsAttachedToBar = true;
+        tooltipsEnabled = true;
+      };
+
+      # General shell behavior
+      general = {
+        lockOnSuspend = true;
+        enableShadows = true;
+        animationSpeed = 1.0;
+        scaleRatio = 1.0;
+      };
+    };
   };
 }
