@@ -8,26 +8,27 @@ in
   stylix = {
     enable = true;
 
-    # Claude-inspired base16 color scheme
-    # Warm, muted palette with terracotta accents
+    # Claude.ai base16 color scheme — values extracted from live claude.ai CSS tokens
+    # Backgrounds (base00–02) = --bg-200/100/000, Text (03–07) = --text-400/200/100
+    # Accent hierarchy: terracotta (--accent-brand) is primary, blue (--accent-secondary) is secondary
     base16Scheme = {
-      base00 = "1f1e1d"; # Default background — Claude's deepest surface
-      base01 = "262624"; # Elevated surface (cards, input box, popovers)
-      base02 = "30302e"; # Selection / highlighted regions (slightly lighter step)
-      base03 = "9c9a92"; # Comments / dim text / placeholders
-      base04 = "c2c0b6"; # Secondary foreground text
-      base05 = "faf9f5"; # Primary foreground text
-      base06 = "faf9f5"; # Light foreground (same warm off-white)
-      base07 = "ffffff"; # Brightest white (rare, high-contrast)
+      base00 = "1f1e1d"; # --bg-200  — deepest background
+      base01 = "262624"; # --bg-100  — main body background
+      base02 = "30302e"; # --bg-000  — elevated surface (input box, cards)
+      base03 = "9c9a92"; # --text-400 — muted text / placeholders
+      base04 = "c2c0b6"; # --text-200 — secondary text
+      base05 = "faf9f5"; # --text-100 — primary text
+      base06 = "faf9f5"; # --text-000 — bright text
+      base07 = "ffffff"; # --oncolor-100 — pure white
 
-      base08 = "c6613f"; # Red — terracotta accent
-      base09 = "d97757"; # Orange — lighter terracotta
-      base0A = "c9b87c"; # Yellow — warm sand
-      base0B = "8a9a6b"; # Green — muted olive
-      base0C = "6b9e8a"; # Cyan — warm sage
-      base0D = "2c84db"; # Blue — link/info blue
-      base0E = "a67a5b"; # Magenta — warm brown
-      base0F = "d97757"; # Brown — lighter terracotta
+      base08 = "c6613f"; # --accent-main-000 — dark terracotta (errors, destructive)
+      base09 = "e6956b"; # Warm peach — lighter accent for constants/highlights
+      base0A = "c9b87c"; # Warm sand — warnings, classes
+      base0B = "8a9a6b"; # Muted olive — success, strings
+      base0C = "2c84db"; # --accent-secondary-100 — blue (info, links, secondary accent)
+      base0D = "d97757"; # --accent-brand — TERRACOTTA (primary accent, functions, borders)
+      base0E = "a67a5b"; # Warm brown — keywords, special
+      base0F = "bd5d3a"; # Deep terracotta — hover state, embedded
     };
 
     # Claude wallpaper — centered asterisk on dark background
