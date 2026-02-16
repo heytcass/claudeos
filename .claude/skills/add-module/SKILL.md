@@ -68,8 +68,10 @@ For home-manager modules, add to `home/default.nix`.
 cd ~/.config/claudeos
 git add -N modules/<category>/<name>.nix
 nix flake check
-nix build .#nixosConfigurations.transporter.config.system.build.toplevel --dry-run
-nix build .#nixosConfigurations.gti.config.system.build.toplevel --dry-run
+# Build all hosts
+for host in $(ls hosts/); do
+  nix build .#nixosConfigurations.$host.config.system.build.toplevel --dry-run
+done
 ```
 
 ### 5. Report

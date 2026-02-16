@@ -10,13 +10,12 @@ let
   jasperPkgs = inputs.jasper.packages.${pkgs.system};
 in
 {
-  options.claude-os.jasper.enable = lib.mkEnableOption "Jasper AI companion daemon and COSMIC applet";
+  options.claude-os.jasper.enable = lib.mkEnableOption "Jasper AI companion daemon";
 
   config = lib.mkIf config.claude-os.jasper.enable {
-    # Install daemon and COSMIC applet system-wide
+    # Install daemon system-wide (Noctalia bar plugin is a follow-up task)
     environment.systemPackages = [
       jasperPkgs.daemon
-      jasperPkgs.cosmic-applet
     ];
 
     # User systemd service — auto-starts after graphical session

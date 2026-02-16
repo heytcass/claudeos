@@ -3,7 +3,7 @@
 {
   # Desktop environment — system-level configuration
   imports = [
-    ./cosmic-system.nix
+    ./niri-system.nix
     ./audio.nix
     ./fonts.nix
     ./theme.nix

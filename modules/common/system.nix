@@ -20,7 +20,7 @@
     dig
     traceroute
 
-    # Claude Code quick-launch (bound to Super+C via COSMIC shortcut)
+    # Claude Code quick-launch (bound to Mod+C via Niri keybinding)
     (pkgs.writeShellScriptBin "claude-quick" ''
       exec ghostty \
         --class=claude-quick \

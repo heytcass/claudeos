@@ -83,7 +83,7 @@ Run doc-generator agent or manually add to MODULES.md
 
 4. **Test build:**
 ```bash
-nix build .#nixosConfigurations.transporter.config.system.build.toplevel
+nix build .#nixosConfigurations.$(hostname).config.system.build.toplevel
 ```
 
 ## Best Practices

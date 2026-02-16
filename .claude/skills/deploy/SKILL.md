@@ -9,15 +9,13 @@ Full deployment pipeline: validate → build → apply.
 
 ## Usage
 
-`/deploy` or `/deploy transporter` or `/deploy gti`
+`/deploy` or `/deploy <hostname>`
 
 ## Steps
 
 ### 1. Determine Target
 
-If no host specified, ask:
-- **transporter** (test machine — safe to break)
-- **gti** (production — confirm before applying)
+If no host specified, default to `$(hostname)` (current machine). If deploying to a different host, confirm with user. List available hosts from `hosts/` directory.
 
 ### 2. Stage New Files
 
@@ -47,15 +45,11 @@ nix build .#nixosConfigurations.<host>.config.system.build.toplevel
 
 ### 5. Apply
 
-For **transporter** — apply directly:
 ```bash
-sudo nixos-rebuild switch --flake ~/.config/claudeos#transporter
+sudo nixos-rebuild switch --flake ~/.config/claudeos#<host>
 ```
 
-For **gti** — confirm with user first, then:
-```bash
-sudo nixos-rebuild switch --flake ~/.config/claudeos#gti
-```
+If deploying to a host other than `$(hostname)`, confirm with user first.
 
 ### 6. Verify
 

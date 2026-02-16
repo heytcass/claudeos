@@ -5,9 +5,7 @@
   # Extended palette — colors outside the base16 scheme
   # that are used across modules. Centralised here so they're
   # easy to update without grepping for hex values.
-  colors = {
-    destructiveRed = "dd5353"; # vivid red for COSMIC destructive actions (deliberately brighter than base08 terracotta)
-  };
+  colors = { };
 
   fonts = {
     monospace = {

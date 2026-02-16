@@ -75,14 +75,7 @@ nixos-rebuild switch --flake .#<hostname> \
 
 ## Machine-Specific Behavior
 
-### transporter (test machine)
-- Can deploy more freely
-- Used for testing changes
-- Breakage is acceptable
-
-### gti (production)
-- Require explicit user confirmation
-- Should be tested on transporter first
+The SessionStart hook tells you which machine you're on. Check `$(hostname)` and the host's `hosts/<hostname>/default.nix` for machine-specific context. Always confirm with the user before deploying to any production machine.
 
 ## Rollback
 
