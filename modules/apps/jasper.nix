@@ -35,6 +35,7 @@ in
           export ANTHROPIC_API_KEY=$(cat ${config.sops.secrets.jasper_anthropic_api_key.path})
           export GOOGLE_CLIENT_ID=$(cat ${config.sops.secrets.jasper_google_client_id.path})
           export GOOGLE_CLIENT_SECRET=$(cat ${config.sops.secrets.jasper_google_client_secret.path})
+          export GOOGLE_WEATHER_API_KEY=$(cat ${config.sops.secrets.jasper_google_weather_api_key.path})
           exec ${jasperPkgs.daemon}/bin/jasper-companion-daemon start
         ''}";
         Restart = "on-failure";
