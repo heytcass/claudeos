@@ -79,7 +79,7 @@ let
       "System Alert" "$fallback"
   '';
 
-  # Tier 3: Daily morning briefing
+  # Tier 3: Daily morning briefing (writes to cache file for terminal MOTD)
   dailyBriefScript = pkgs.writeShellScript "claudeos-daily-brief" ''
     export PATH="${
       pkgs.lib.makeBinPath [
@@ -89,6 +89,10 @@ let
         pkgs.gawk
       ]
     }:/run/current-system/sw/bin:$PATH"
+
+    CACHE_DIR="''${XDG_CACHE_HOME:-$HOME/.cache}/claudeos-monitor"
+    BRIEF_FILE="$CACHE_DIR/daily-brief.txt"
+    mkdir -p "$CACHE_DIR"
 
     # Gather system stats
     stats="System: $(hostname 2>/dev/null || echo unknown)
@@ -109,17 +113,13 @@ let
       brief=$("$CLAUDE_BIN" -p "$prompt" --model sonnet 2>/dev/null) || brief=""
 
       if [[ -n "$brief" ]]; then
-        ${pkgs.libnotify}/bin/notify-send \
-          --app-name=ClaudeOS --icon=claude \
-          "Good Morning" "$brief"
+        echo "$brief" > "$BRIEF_FILE"
         exit 0
       fi
     fi
 
-    # Fallback: raw stats
-    ${pkgs.libnotify}/bin/notify-send \
-      --app-name=ClaudeOS --icon=dialog-information \
-      "Morning Brief" "$stats"
+    # Fallback: raw stats if Claude unavailable
+    echo "$stats" > "$BRIEF_FILE"
   '';
 in
 {
@@ -170,8 +170,6 @@ in
       (lib.mkIf config.claude-os.monitor.dailyBrief {
         systemd.user.services.claudeos-daily-brief = {
           description = "ClaudeOS morning system briefing";
-          after = [ "graphical-session.target" ];
-          wants = [ "graphical-session.target" ];
           serviceConfig = {
             Type = "oneshot";
             ExecStart = toString dailyBriefScript;
