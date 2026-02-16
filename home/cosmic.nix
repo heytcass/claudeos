@@ -44,6 +44,44 @@ in
     }
   '';
 
+  # COSMIC Panel layout
+  # Center: Jasper AI status + clock + weather (ambient glance targets)
+  # Left wing: workspace switcher
+  # Right wing: decluttered — StatusArea covers audio/bluetooth/network/battery
+  home.file.".config/cosmic/com.system76.CosmicPanel.Panel/v1/plugins_center".text = ''
+    Some([
+        "com.system76.CosmicAppletJasper",
+        "com.system76.CosmicAppletTime",
+        "io.github.cosmic_utils.weather-applet",
+    ])
+  '';
+  home.file.".config/cosmic/com.system76.CosmicPanel.Panel/v1/plugins_wings".text = ''
+    Some(([
+        "com.system76.CosmicPanelWorkspacesButton",
+    ], [
+        "net.tropicbliss.CosmicExtAppletCaffeine",
+        "com.system76.CosmicAppletStatusArea",
+        "com.system76.CosmicAppletTiling",
+        "com.system76.CosmicAppletAudio",
+        "com.system76.CosmicAppletBluetooth",
+        "com.system76.CosmicAppletNetwork",
+        "com.system76.CosmicAppletBattery",
+        "com.system76.CosmicAppletNotifications",
+        "com.system76.CosmicAppletPower",
+    ]))
+  '';
+
+  # COSMIC Dock — medium icons, snappy auto-hide
+  home.file.".config/cosmic/com.system76.CosmicPanel.Dock/v1/size".text = "M";
+  home.file.".config/cosmic/com.system76.CosmicPanel.Dock/v1/autohide".text = ''
+    Some((
+        wait_time: 500,
+        transition_time: 200,
+        handle_size: 4,
+        unhide_delay: 100,
+    ))
+  '';
+
   # dconf settings for GTK app compatibility
   # COSMIC uses its own config system in ~/.config/cosmic
   # but respects dconf for GTK applications
