@@ -71,7 +71,7 @@ in
     # Layout
     layout = {
       gaps = 8;
-      border.width = 2; # Colors auto-derived from Stylix via niri.homeModules.stylix
+      border.width = 1; # 1px like claude.ai — colors from Stylix via niri.homeModules.stylix
       preset-column-widths = [
         { proportion = 1.0 / 3; }
         { proportion = 1.0 / 2; }
@@ -244,29 +244,62 @@ in
         barType = "floating";
         position = "top";
         density = "compact";
-        backgroundOpacity = 0.85;
-        capsuleOpacity = 0.9;
+        backgroundOpacity = 0.7;
+        capsuleOpacity = 0.75;
         showCapsule = true;
         showOutline = false;
         marginVertical = 6;
         marginHorizontal = 8;
         hideOnOverview = true;
         displayMode = "always_visible";
-        # Minimal widget layout — essentials only
         widgets = {
           left = [
             { id = "Launcher"; }
-            { id = "Clock"; }
+            {
+              id = "Workspace";
+              hideUnoccupied = true;
+              focusedColor = "primary";
+              pillSize = 0.6;
+            }
+            {
+              id = "ActiveWindow";
+              showIcon = true;
+              maxWidth = 200;
+              scrollingMode = "hover";
+              hideMode = "hidden";
+            }
           ];
           center = [
-            { id = "Workspace"; }
+            {
+              id = "Clock";
+              formatHorizontal = "h:mm AP  |  ddd, MMM dd";
+              clockColor = "none";
+            }
           ];
           right = [
+            {
+              id = "Network";
+              displayMode = "onhover";
+            }
             { id = "Tray"; }
-            { id = "NotificationHistory"; }
-            { id = "Battery"; }
-            { id = "Volume"; }
-            { id = "Brightness"; }
+            {
+              id = "Volume";
+              displayMode = "onhover";
+            }
+            {
+              id = "Battery";
+              displayMode = "graphic-clean";
+              hideIfIdle = false;
+            }
+            {
+              id = "Brightness";
+              displayMode = "onhover";
+            }
+            {
+              id = "NotificationHistory";
+              showUnreadBadge = true;
+              unreadBadgeColor = "primary";
+            }
             { id = "ControlCenter"; }
           ];
         };
@@ -277,7 +310,7 @@ in
         enabled = true;
         position = "bottom";
         displayMode = "auto_hide";
-        backgroundOpacity = 0.85;
+        backgroundOpacity = 0.7;
         size = 1;
         onlySameOutput = true;
         pinnedApps = [
@@ -295,7 +328,7 @@ in
         density = "compact";
         location = "top_right";
         overlayLayer = true;
-        backgroundOpacity = 0.9;
+        backgroundOpacity = 0.75;
         normalUrgencyDuration = 6;
         criticalUrgencyDuration = 12;
       };
@@ -305,7 +338,7 @@ in
         enabled = true;
         location = "top_right";
         autoHideMs = 1500;
-        backgroundOpacity = 0.9;
+        backgroundOpacity = 0.75;
       };
 
       # Wallpaper — Noctalia renders the Stylix image via layer-shell backdrop
@@ -339,7 +372,7 @@ in
       ui = {
         fontDefault = themeLib.fonts.sansSerif.name;
         fontFixed = themeLib.fonts.monospace.name;
-        panelBackgroundOpacity = 0.85;
+        panelBackgroundOpacity = 0.7;
         panelsAttachedToBar = true;
         tooltipsEnabled = true;
       };
