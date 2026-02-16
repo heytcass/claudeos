@@ -18,19 +18,16 @@ This is a multi-device NixOS flake. Changes may need to apply to multiple hosts.
 
 **Never assume — always use `AskUserQuestion` when anything is unclear.** Ask about: approach choices, which module to use, whether to test/commit/update docs, or if behavior matches expectations.
 
-## Quick Reference
+## Hosts
 
-| Machine | IP | Purpose | Status |
-|---------|-----|---------|--------|
-| transporter | 10.0.10.205 | Test system (Dell Latitude 7280) | Deployed |
-| gti | 10.0.10.x | Production (Dell XPS 13 9370) | Deployed |
+This is a multi-host flake. The SessionStart hook injects which machine you're on — always use `$(hostname)` in build/deploy commands. Available hosts are defined in `hosts/` and `flake.nix`.
 
 **Stack:** NixOS unstable • COSMIC • Wayland • Pipewire • home-manager • sops-nix • Stylix
 
 ## Architecture
 
 ```
-flake.nix              # Entry point — defines transporter + gti hosts
+flake.nix              # Entry point — defines all hosts (see hosts/ directory)
 lib/mkSystem.nix       # Host builder — wires common modules + home-manager
 hosts/<hostname>/      # Per-host: default.nix (overrides) + hardware-configuration.nix
 modules/common/        # Shared NixOS config: boot, networking, nix, users, locale, disko

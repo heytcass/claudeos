@@ -61,17 +61,17 @@ in
   # Qt applications should use GTK theme for consistency
   qt = {
     enable = true;
-    platformTheme = lib.mkForce "gtk2"; # COSMIC uses GTK platform theme
+    platformTheme = lib.mkForce "gtk2";
     style = lib.mkForce "adwaita-dark";
   };
 
   # XDG portal for better desktop integration
+  # niri-flake auto-adds xdg-desktop-portal-gnome; we keep GTK as fallback
   xdg.portal = {
     enable = true;
     extraPortals = with pkgs; [
-      xdg-desktop-portal-cosmic
       xdg-desktop-portal-gtk
     ];
-    config.common.default = "cosmic";
+    config.common.default = "gtk";
   };
 }

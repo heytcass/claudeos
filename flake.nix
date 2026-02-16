@@ -36,6 +36,16 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
+    niri = {
+      url = "github:sodiboo/niri-flake";
+      # DO NOT follow nixpkgs — niri-flake pins specific commits for its builds
+    };
+
+    noctalia = {
+      url = "github:noctalia-dev/noctalia-shell";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+
     treefmt-nix = {
       url = "github:numtide/treefmt-nix";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -53,6 +63,8 @@
       claude-for-linux,
       stylix,
       jasper,
+      niri,
+      noctalia,
       treefmt-nix,
     }@inputs:
     let
@@ -63,6 +75,8 @@
         sops-nix.nixosModules.sops
         disko.nixosModules.disko
         stylix.nixosModules.stylix
+        niri.nixosModules.niri
+        noctalia.nixosModules.default
       ];
     in
     {

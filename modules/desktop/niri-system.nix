@@ -4,62 +4,46 @@ let
   hideDesktopEntries = import ../../lib/hideDesktopEntries.nix { inherit pkgs lib; };
 in
 {
-  # Enable X server (required for compatibility layer)
-  services.xserver.enable = true;
+  # Enable Niri compositor (niri-flake handles the package and session registration)
+  programs.niri.enable = true;
 
-  # Exclude xterm (pulled in by X server dependencies)
-  services.xserver.excludePackages = with pkgs; [
-    xterm
-  ];
-
-  # Use COSMIC Greeter (COSMIC's display manager)
-  services.displayManager.cosmic-greeter.enable = true;
-
-  # Enable COSMIC Desktop Environment
-  services.desktopManager.cosmic.enable = true;
+  # greetd + tuigreet — minimal TUI greeter
+  services.greetd = {
+    enable = true;
+    settings = {
+      default_session = {
+        command = "${pkgs.greetd.tuigreet}/bin/tuigreet --time --remember --remember-session --cmd niri-session";
+        user = "greeter";
+      };
+    };
+  };
 
   # Disable X11 forwarding over SSH for security
   services.openssh.settings.X11Forwarding = lib.mkDefault false;
 
-  # Enable System76 scheduler for COSMIC-optimized performance
-  services.system76-scheduler.enable = true;
-
-  # Enable clipboard manager support via wlr-data-control protocol
+  # Wayland session environment variables
   environment.sessionVariables = {
-    COSMIC_DATA_CONTROL_ENABLED = "1";
-
-    # Ensure toolkits use native Wayland rendering instead of XWayland fallback
     GDK_BACKEND = "wayland,x11"; # GTK: prefer Wayland, fall back to X11
     QT_QPA_PLATFORM = "wayland;xcb"; # Qt: prefer Wayland, fall back to XCB
+    NIXOS_OZONE_WL = "1"; # Electron apps use native Wayland
   };
 
-  # Core COSMIC packages and tools
+  # Core packages for the Niri desktop
   environment.systemPackages = with pkgs; [
-    # COSMIC built-in applications
-    cosmic-edit # Text editor
-    cosmic-files # File manager
-    cosmic-applets # System tray applets (volume, network, etc.)
-    cosmic-screenshot # Screenshot and screen recording tool
-    cosmic-applibrary # Application library/launcher
-    cosmic-notifications # Notification daemon
-    cosmic-osd # On-screen display (volume, brightness)
-    cosmic-workspaces-epoch # Workspace management
-
-    # COSMIC extensions
-    cosmic-ext-tweaks # Additional customization and tweaks
-    cosmic-ext-calculator # Calculator app
-    cosmic-ext-applet-weather # Weather information
-    cosmic-ext-applet-caffeine # Prevent screen sleep
-    cosmic-ext-ctl # CLI for COSMIC configuration
-
-    # COSMIC community applications
-    tasks # Task management application
-    examine # File/data inspector
-    quick-webapps # Web App Manager
+    # Wayland utilities
+    wl-clipboard # Clipboard access (wl-copy / wl-paste)
+    cliphist # Clipboard history manager
+    swaylock # Screen locker
+    fuzzel # Application launcher
+    brightnessctl # Backlight control
+    grim # Screenshot capture
+    slurp # Region selection
+    satty # Screenshot annotation
+    nautilus # File manager
 
     # Icon themes
     # adwaita-icon-theme provides the base symbolic icons that GTK4/libadwaita
-    # apps expect. COSMIC doesn't ship these, unlike GNOME.
+    # apps expect — not bundled by Niri or Noctalia
     adwaita-icon-theme
 
     # Provide tab-new-symbolic for Ghostty's libadwaita tab bar.
@@ -118,9 +102,8 @@ in
       SVG
     '')
 
-    # Hide unwanted .desktop entries from COSMIC launcher
+    # Hide unwanted .desktop entries from launcher
     (hideDesktopEntries [
-      "com.system76.CosmicTerm"
       "com.google.Chrome"
       "vim"
       "gvim"

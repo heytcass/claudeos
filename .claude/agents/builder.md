@@ -17,23 +17,22 @@ tools: [Bash, Read]
 
 ## Build Commands
 
-### Build Specific Machine
+### Build Current Machine
 
 ```bash
 cd ~/.config/claudeos
-
-# Build for transporter
-nix build .#nixosConfigurations.transporter.config.system.build.toplevel
-
-# Build for gti
-nix build .#nixosConfigurations.gti.config.system.build.toplevel
+nix build .#nixosConfigurations.$(hostname).config.system.build.toplevel
 ```
 
 ### Build All Machines
 
+Build for every host in the `hosts/` directory:
+
 ```bash
-nix build .#nixosConfigurations.transporter.config.system.build.toplevel \
-          .#nixosConfigurations.gti.config.system.build.toplevel
+cd ~/.config/claudeos
+for host in $(ls hosts/); do
+  nix build .#nixosConfigurations.$host.config.system.build.toplevel
+done
 ```
 
 ## What This Tests

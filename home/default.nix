@@ -15,8 +15,7 @@ in
     ./ghostty.nix
     ./git.nix
     ./vscode.nix
-    ./cosmic.nix
-    ./cosmic-theme.nix
+    ./niri.nix
     ./macchina.nix
     ./claude-code.nix
   ];
@@ -60,7 +59,7 @@ in
   # Let home-manager manage itself
   programs.home-manager.enable = true;
 
-  # Hide unwanted apps from COSMIC launcher (per-user profile entries)
+  # Hide unwanted apps from launcher (per-user profile entries)
   home.packages = [
     (hideDesktopEntries [
       "yazi"

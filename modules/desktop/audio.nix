@@ -33,6 +33,6 @@
     };
   };
 
-  # Audio is managed through COSMIC Settings
+  # Audio is managed through Noctalia Shell and wpctl
   # For advanced needs: install pavucontrol or helvum per-project via nix shell
 }

@@ -8,7 +8,7 @@ ClaudeOS is a multi-host NixOS flake. The entry point (`flake.nix`) defines two 
 
 - **NixOS modules:** `modules/common/`, `modules/desktop/`, `modules/apps/`
 - **home-manager** (as a NixOS module, not standalone): imports `home/default.nix`
-- **Flake inputs:** home-manager, sops-nix, disko, stylix (loaded as NixOS modules)
+- **Flake inputs:** home-manager, sops-nix, disko, stylix, niri, noctalia (loaded as NixOS modules)
 - **Per-host hardware module** from nixos-hardware
 
 The formatter is `nixfmt` (set in `flake.nix`).
@@ -24,7 +24,9 @@ The formatter is `nixfmt` (set in `flake.nix`).
 | disko | nix-community | Declarative disk partitioning |
 | stylix | danth | Unified theming (base16) |
 | claude-for-linux | heytcass | Claude Desktop Electron app |
-| jasper | heytcass | Jasper AI companion daemon + COSMIC applet |
+| jasper | heytcass | Jasper AI companion daemon |
+| niri | sodiboo | Niri scrollable tiling compositor (flake) |
+| noctalia | noctalia-dev | Noctalia Shell (bar, notifications, OSD, wallpaper) |
 
 ---
 
@@ -53,14 +55,14 @@ Key behavior:
 
 Utility function that generates a derivation to hide `.desktop` entries from the application launcher. Takes `{ pkgs, lib }` and returns a function accepting a list of app names. Each name gets a `.desktop` file with `NoDisplay=true`, wrapped in `lib.hiPrio` so it takes precedence over real entries.
 
-Used in both `modules/desktop/cosmic-system.nix` (system-level) and `home/default.nix` (user-level).
+Used in both `modules/desktop/niri-system.nix` (system-level) and `home/default.nix` (user-level).
 
 ### lib/theme.nix
 
 Pure data file -- no packages, no imports. Central source of truth for font and icon names used across modules.
 
 Contents:
-- `colors.destructiveRed` = `"dd5353"` (vivid red for COSMIC destructive actions, deliberately brighter than base08)
+- `colors` = `{ }` (reserved for future extended palette colors)
 - `fonts.monospace.name` = `"JetBrains Mono"`, `fonts.monospace.nerdName` = `"JetBrains Mono Nerd Font"`
 - `fonts.sansSerif.name` = `"Inter"`
 - `fonts.serif.name` = `"Noto Serif"`
@@ -185,32 +187,32 @@ Snapper btrfs snapshot management.
 
 ## modules/desktop/ -- Desktop Environment
 
-COSMIC desktop, audio, fonts, and theming. Imported via `modules/desktop/default.nix` which pulls in: `cosmic-system.nix`, `audio.nix`, `fonts.nix`, `theme.nix`.
+Niri compositor + Noctalia Shell, audio, fonts, and theming. Imported via `modules/desktop/default.nix` which pulls in: `niri-system.nix`, `audio.nix`, `fonts.nix`, `theme.nix`.
 
-### modules/desktop/cosmic-system.nix
+### modules/desktop/niri-system.nix
 
-COSMIC desktop environment at the system level.
+Niri compositor and greeter at the system level.
+
+**Compositor:**
+- `programs.niri.enable = true` (niri-flake handles package and session registration)
+
+**Greeter:**
+- `services.greetd` with `tuigreet --time --remember --remember-session --cmd niri-session`
 
 **Services:**
-- `services.xserver.enable = true` (compatibility layer; xterm excluded)
-- `services.displayManager.cosmic-greeter.enable = true`
-- `services.desktopManager.cosmic.enable = true`
-- `services.system76-scheduler.enable = true` (COSMIC-optimized performance)
 - `services.gvfs.enable = true` (virtual filesystems: Trash, network shares)
 - `services.openssh.settings.X11Forwarding = false`
 
 **Session variables:**
-- `COSMIC_DATA_CONTROL_ENABLED = "1"` (clipboard manager support)
+- `GDK_BACKEND = "wayland,x11"`, `QT_QPA_PLATFORM = "wayland;xcb"`, `NIXOS_OZONE_WL = "1"` (Electron Wayland)
 
 **System packages:**
-- COSMIC apps: `cosmic-edit`, `cosmic-files`, `cosmic-applets`, `cosmic-screenshot`, `cosmic-applibrary`, `cosmic-notifications`, `cosmic-osd`, `cosmic-workspaces-epoch`
-- COSMIC extensions: `cosmic-ext-tweaks`, `cosmic-ext-calculator`, `cosmic-ext-applet-minimon`, `cosmic-ext-applet-weather`, `cosmic-ext-applet-caffeine`, `cosmic-ext-applet-privacy-indicator`, `cosmic-ext-ctl`
-- COSMIC community: `tasks`, `examine`, `quick-webapps`
+- Wayland utilities: `wl-clipboard`, `cliphist`, `swaylock`, `fuzzel`, `brightnessctl`, `grim`, `slurp`, `satty`, `nautilus`
 - Icon theme: `adwaita-icon-theme`
 - Custom inline derivations: `tab-new-symbolic` SVG icon (for Ghostty libadwaita tab bar), `folder-development` SVG icon (for ~/Projects)
 
 **Hidden desktop entries** (via `hideDesktopEntries`):
-`com.system76.CosmicTerm`, `com.google.Chrome`, `vim`, `gvim`, `htop`, `micro`, `xterm`, `uxterm`, `nixos-manual`, `nm-applet`, `nm-connection-editor`, `org.freedesktop.Xwayland`, `xdg-desktop-portal-gtk`, `geoclue-where-am-i`
+`com.google.Chrome`, `vim`, `gvim`, `htop`, `micro`, `xterm`, `uxterm`, `nixos-manual`, `nm-applet`, `nm-connection-editor`, `org.freedesktop.Xwayland`, `xdg-desktop-portal-gtk`, `geoclue-where-am-i`
 
 ### modules/desktop/audio.nix
 
@@ -220,8 +222,7 @@ PipeWire audio and Bluetooth.
 - **rtkit:** enabled (real-time scheduling for audio)
 - **PipeWire:** enabled with `alsa.enable`, `pulse.enable`, `wireplumber.enable`
 - **Bluetooth:** enabled, `powerOnBoot = false`, experimental features on, `Source,Sink,Media,Socket` enabled
-- **Blueman:** disabled (COSMIC has built-in Bluetooth settings)
-- No audio GUI tools installed system-wide (pavucontrol/helvum suggested via `nix shell` for advanced use)
+- Audio managed through Noctalia Shell and `wpctl`; `pavucontrol`/`helvum` suggested via `nix shell` for advanced use
 
 ### modules/desktop/fonts.nix
 
@@ -257,7 +258,7 @@ Stylix theming, Qt, and XDG portals. References `lib/theme.nix` for font names.
 
 **Qt:** enabled, platform theme forced to `gtk2`, style forced to `adwaita-dark`.
 
-**XDG portals:** enabled with `xdg-desktop-portal-cosmic` and `xdg-desktop-portal-gtk`, default set to `cosmic`.
+**XDG portals:** enabled with `xdg-desktop-portal-gtk` (niri-flake auto-adds `xdg-desktop-portal-gnome`), default set to `gtk`.
 
 ---
 
@@ -295,11 +296,9 @@ Claude Code CLI and Claude Desktop.
 
 ### modules/apps/jasper.nix
 
-Jasper AI companion daemon and COSMIC applet.
+Jasper AI companion daemon.
 
-**System packages:** `jasperPkgs.daemon`, `jasperPkgs.cosmic-applet` (from `inputs.jasper`)
-
-**D-Bus service:** registers `org.jasper.Daemon` for socket activation.
+**System packages:** `jasperPkgs.daemon` (from `inputs.jasper`). Noctalia bar plugin is a follow-up task.
 
 **Systemd user service** (`jasper-companion`):
 - Starts after `graphical-session.target`
@@ -321,7 +320,7 @@ System health MCP server for Claude Code.
 
 ## home/ -- Home Manager Modules
 
-User-level configuration. Imported from `home/default.nix` which pulls in: `shell/`, `ghostty.nix`, `git.nix`, `vscode.nix`, `cosmic.nix`, `cosmic-theme.nix`, `macchina.nix`, `claude-code.nix`.
+User-level configuration. Imported from `home/default.nix` which pulls in: `shell/`, `ghostty.nix`, `git.nix`, `vscode.nix`, `niri.nix`, `macchina.nix`, `claude-code.nix`.
 
 ### home/default.nix
 
@@ -401,11 +400,13 @@ VS Code with declarative extensions and settings.
 - Keybinding: `Ctrl+Shift+T` for new terminal
 - Theme/fonts managed by Stylix
 
-### home/cosmic.nix
+### home/niri.nix
 
-Stylix targets and GTK theming for COSMIC. References `lib/theme.nix` for icon name.
+Niri compositor settings, Noctalia Shell, Stylix targets, and GTK theming. References `lib/theme.nix` for icon name.
 
-**Stylix targets:** `gtk`, `ghostty`, `vscode` all enabled.
+**Imports:** `niri.homeModules.niri` (portal/keyring), `niri.homeModules.stylix` (auto-derives border colors), `noctalia.homeModules.default`
+
+**Stylix targets:** `gtk`, `ghostty`, `vscode`, `fzf`, `bat`, `lazygit`, `niri` all enabled.
 
 **GTK:**
 - Icon theme: Adwaita (`adwaita-icon-theme` package)
@@ -414,20 +415,25 @@ Stylix targets and GTK theming for COSMIC. References `lib/theme.nix` for icon n
 
 **dconf:** sets `org/gnome/desktop/interface` to `color-scheme = "prefer-dark"` and `icon-theme = "Adwaita"`
 
-**Custom shortcuts:** `Super+C` launches Claude Code in Ghostty (`claude-quick`), `Ctrl+Alt+Space` launches Claude Desktop
+**Niri settings** (`programs.niri.settings`):
+- Input: Colemak layout (`xkb.variant = "colemak"`)
+- Layout: 8px gaps, 2px border (Stylix-derived colors), preset widths 1/3 + 1/2 + 2/3, transparent background
+- Window rules: `claude-quick` opens floating, all windows get 12px corner radius
+- Layer rules: `noctalia-wallpaper` and `noctalia-overview` use `place-within-backdrop`
+- Debug: `honor-xdg-activation-with-invalid-serial` (for Noctalia notifications)
+- Spawn at startup: `noctalia-shell`, `wl-paste --watch cliphist store`
 
-### home/cosmic-theme.nix
+**Keybindings** (via `config.lib.niri.actions`):
+- `Mod+Return` = Ghostty, `Mod+C` = claude-quick, `Ctrl+Alt+Space` = Claude Desktop
+- `Mod+D` = fuzzel, `Mod+Q` = close, `Mod+F` = fullscreen, `Mod+Space` = cycle widths
+- `Mod+Left/Right` = focus columns, `Mod+Up/Down` = focus workspaces
+- `Mod+Shift+Left/Right/Up/Down` = move windows/columns
+- `Mod+1..5` = workspace switch, `Mod+Shift+1..5` = move to workspace
+- `Mod+Tab` = overview, `Mod+L` = swaylock, `Print` = screenshot
+- `Mod+Shift+C` = clipboard history (fuzzel + cliphist)
+- Media keys for volume/brightness via wpctl/brightnessctl
 
-COSMIC desktop theme generated from Stylix base16 scheme. Includes hex-to-RGB conversion helpers.
-
-- Reads all base16 colors from `config.stylix.base16Scheme`
-- Uses `themeLib.colors.destructiveRed` for the destructive action color
-- Generates a complete COSMIC RON theme file (`Claude.ron`) with dark palette, spacing, corner radii, accent/success/warning/destructive colors, gap and hint settings
-- Writes theme to `~/.config/cosmic/com.system76.CosmicTheme.Dark/v1/custom_theme`
-- Generates COSMIC wallpaper config pointing to `config.stylix.image` with Lanczos filter and Zoom scaling
-- Writes wallpaper config to `~/.config/cosmic/com.system76.CosmicBackground/v1/all` via activation script
-- COSMIC accent color: base08 (terracotta), success: base0B (olive), warning: base0A (sand), destructive: `dd5353` (vivid red)
-- `is_frosted = false`, `gaps = (0, 4)`, `active_hint = 2`
+**Noctalia Shell:** enabled with systemd service, default configuration (refine via built-in settings UI)
 
 ### home/macchina.nix
 
@@ -554,7 +560,7 @@ Generated by `nixos-generate-config`.
 flake.nix
   +-- lib/mkSystem.nix          (builds each host)
   |     +-- modules/common/     (foundation for all hosts)
-  |     +-- modules/desktop/    (COSMIC, audio, fonts, Stylix)
+  |     +-- modules/desktop/    (Niri, Noctalia, audio, fonts, Stylix)
   |     +-- modules/apps/       (applications, Claude, Jasper)
   |     +-- home/               (home-manager user config)
   +-- hosts/<hostname>/         (per-host hardware + overrides)
@@ -563,14 +569,13 @@ flake.nix
 Notable dependency chains:
 - `modules/apps/jasper.nix` reads secrets from `modules/common/secrets.nix` (sops)
 - `modules/apps/claude.nix` uses `inputs.claude-for-linux` and `inputs.nixpkgs` (electron)
-- `home/cosmic-theme.nix` reads `config.stylix.base16Scheme` and `config.stylix.image` (set in `modules/desktop/theme.nix`)
-- `home/cosmic.nix` enables Stylix targets for GTK, Ghostty, and VS Code
+- `home/niri.nix` imports niri-flake and noctalia home-manager modules, enables Stylix targets for GTK, Ghostty, VS Code, and Niri
 - `home/shell/fish.nix` relies on tools configured in `home/shell/cli-tools.nix` (eza, bat, batman, zoxide)
-- `lib/theme.nix` is imported as pure data by `modules/desktop/fonts.nix`, `modules/desktop/theme.nix`, `home/ghostty.nix`, `home/cosmic.nix`, and `home/cosmic-theme.nix`
+- `lib/theme.nix` is imported as pure data by `modules/desktop/fonts.nix`, `modules/desktop/theme.nix`, `home/ghostty.nix`, and `home/niri.nix`
 - `home/claude-code.nix` generates Claude Code settings referencing store-path scripts (statusline, notify)
 - `modules/apps/mcp-system-health/` registered in `home/claude-code.nix` MCP config
 - `modules/common/snapshots.nix` enables snapper used by `home/shell/fish.nix` rebuild function
 
 ---
 
-*Last updated: 2026-02-15*
+*Last updated: 2026-02-16*
