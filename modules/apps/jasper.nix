@@ -19,20 +19,10 @@ in
       jasperPkgs.cosmic-applet
     ];
 
-    # D-Bus service for socket activation
-    services.dbus.packages = [
-      (pkgs.writeTextFile {
-        name = "jasper-dbus-service";
-        text = ''
-          [D-BUS Service]
-          Name=org.jasper.Daemon
-          Exec=${jasperPkgs.daemon}/bin/jasper-companion-daemon start
-        '';
-        destination = "/share/dbus-1/services/org.jasper.Daemon.service";
-      })
-    ];
-
     # User systemd service — auto-starts after graphical session
+    # Note: D-Bus activation service intentionally removed — it races with the
+    # systemd service and spawns instances without SOPS env vars. The systemd
+    # service claims the bus name, and the COSMIC applet connects via polling.
     systemd.user.services.jasper-companion = {
       description = "Jasper AI Companion Daemon";
       after = [ "graphical-session.target" ];
@@ -43,6 +33,8 @@ in
         Type = "simple";
         ExecStart = "${pkgs.writeShellScript "jasper-start" ''
           export ANTHROPIC_API_KEY=$(cat ${config.sops.secrets.jasper_anthropic_api_key.path})
+          export GOOGLE_CLIENT_ID=$(cat ${config.sops.secrets.jasper_google_client_id.path})
+          export GOOGLE_CLIENT_SECRET=$(cat ${config.sops.secrets.jasper_google_client_secret.path})
           exec ${jasperPkgs.daemon}/bin/jasper-companion-daemon start
         ''}";
         Restart = "on-failure";
