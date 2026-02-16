@@ -48,10 +48,8 @@ in
     # COSMIC extensions
     cosmic-ext-tweaks # Additional customization and tweaks
     cosmic-ext-calculator # Calculator app
-    cosmic-ext-applet-minimon # System monitor (CPU/RAM/Network/Disk/GPU)
     cosmic-ext-applet-weather # Weather information
     cosmic-ext-applet-caffeine # Prevent screen sleep
-    cosmic-ext-applet-privacy-indicator # Camera/mic usage indicator
     cosmic-ext-ctl # CLI for COSMIC configuration
 
     # COSMIC community applications
