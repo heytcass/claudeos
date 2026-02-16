@@ -219,10 +219,10 @@ in
 
     # Stylix-derived Material Design color tokens — keeps bar in sync with the rest of the desktop
     colors = {
-      mPrimary = c.base0D; # Blue accent (links, active states)
-      mSecondary = c.base0E; # Warm brown (secondary accent)
-      mTertiary = c.base0C; # Sage green (tertiary accent)
-      mError = c.base08; # Terracotta red (errors, destructive)
+      mPrimary = c.base0D; # Terracotta — primary accent
+      mSecondary = c.base0E; # Warm brown — secondary accent
+      mTertiary = c.base0C; # Blue — tertiary accent (info, links)
+      mError = c.base08; # Dark terracotta — errors, destructive
       mSurface = c.base00; # Dark background
       mSurfaceVariant = c.base01; # Elevated surface (cards, popovers)
       mOnPrimary = c.base00; # Text on primary accent
@@ -233,7 +233,7 @@ in
       mOnError = c.base00; # Text on error
       mOutline = c.base03; # Borders, dividers, dim text
       mShadow = c.base00; # Drop shadows
-      mHover = c.base0C; # Hover highlight
+      mHover = c.base0C; # Blue — hover highlight
       mOnHover = c.base00; # Text on hover
     };
 
