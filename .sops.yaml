@@ -1,8 +1,10 @@
 keys:
-  - &gti age1a7znzdjx0fm4rx9jcd63r5tdaajpxthwgqplx87xyfrmal2pge2qcln96z
+  - &user age1a7znzdjx0fm4rx9jcd63r5tdaajpxthwgqplx87xyfrmal2pge2qcln96z
+  - &gti_host age1ahseuak8pg0x4g9g2j3tg4jcuv2kc5kh0p0m65mxxfaewfy7pg0qnsn6vf
 
 creation_rules:
   - path_regex: secrets/.*\.yaml$
     key_groups:
       - age:
-          - *gti
+          - *user
+          - *gti_host
