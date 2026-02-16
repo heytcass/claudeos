@@ -140,10 +140,16 @@
 
       # Themed man pages via batman (bat-extras, uses Stylix terminal palette)
 
-      # System fetch on first shell in terminal
+      # System fetch + daily brief on first shell in terminal
       if not set -q MACCHINA_SHOWN
         set -gx MACCHINA_SHOWN 1
         macchina
+        # ClaudeOS daily brief
+        set -l brief_file "$HOME/.cache/claudeos-monitor/daily-brief.txt"
+        if test -s "$brief_file"
+          echo ""
+          cat "$brief_file"
+        end
       end
 
       # Vi key bindings (disabled by default, uncomment to enable)
