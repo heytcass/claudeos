@@ -87,26 +87,78 @@ let
         pkgs.systemd
         pkgs.procps
         pkgs.gawk
+        pkgs.git
       ]
     }:/run/current-system/sw/bin:$PATH"
 
     CACHE_DIR="''${XDG_CACHE_HOME:-$HOME/.cache}/claudeos-monitor"
     BRIEF_FILE="$CACHE_DIR/daily-brief.txt"
+    CLAUDEOS_DIR="$HOME/.config/claudeos"
     mkdir -p "$CACHE_DIR"
 
-    # Gather system stats
-    stats="System: $(hostname 2>/dev/null || echo unknown)
-    Uptime: $(uptime -p 2>/dev/null || echo unknown)
-    Load: $(awk '{print $1, $2, $3}' /proc/loadavg 2>/dev/null || echo unknown)
-    Memory: $(free -h 2>/dev/null | awk '/^Mem:/ {printf "%s used / %s total", $3, $2}')
-    Disk: $(df -h / 2>/dev/null | awk 'NR==2 {printf "%s used / %s total (%s)", $3, $2, $5}')
-    Nix generations: $(ls -1d /nix/var/nix/profiles/system-*-link 2>/dev/null | wc -l)
-    Failed services: $(systemctl --failed --no-legend --no-pager 2>/dev/null | grep -c . || echo 0) system, $(systemctl --user --failed --no-legend --no-pager 2>/dev/null | grep -c . || echo 0) user"
+    now=$(date +%s)
+
+    # --- System health (persistent/actionable signals only) ---
+    host=$(hostname 2>/dev/null || echo unknown)
+    up=$(uptime -p 2>/dev/null || echo unknown)
+
+    # Failed services — list names, not just counts
+    failed_sys=$(systemctl --failed --no-legend --no-pager 2>/dev/null | awk '{print $2}' | paste -sd", " || true)
+    failed_usr=$(systemctl --user --failed --no-legend --no-pager 2>/dev/null | awk '{print $2}' | paste -sd", " || true)
+    [[ -z "$failed_sys" ]] && failed_sys="none"
+    [[ -z "$failed_usr" ]] && failed_usr="none"
+
+    # Disk — only flag percentage, noteworthy if high
+    disk_pct=$(df / 2>/dev/null | awk 'NR==2 {gsub(/%/,"",$5); print $5}')
+    nix_store=$(df -h /nix/store 2>/dev/null | awk 'NR==2 {printf "%s used / %s", $3, $2}')
+
+    # Nix generations
+    generations=$(ls -1d /nix/var/nix/profiles/system-*-link 2>/dev/null | wc -l)
+
+    # --- Config status ---
+    # Last rebuild: when the current system profile was activated
+    rebuild_epoch=$(stat -c %Y /nix/var/nix/profiles/system 2>/dev/null || echo 0)
+    rebuild_days=$(( (now - rebuild_epoch) / 86400 ))
+    rebuild_date=$(date -d "@$rebuild_epoch" "+%Y-%m-%d %H:%M" 2>/dev/null || echo unknown)
+
+    # Flake lock age: when was nixpkgs last updated
+    if [[ -f "$CLAUDEOS_DIR/flake.lock" ]]; then
+      lock_epoch=$(stat -c %Y "$CLAUDEOS_DIR/flake.lock" 2>/dev/null || echo 0)
+      lock_days=$(( (now - lock_epoch) / 86400 ))
+    else
+      lock_days="unknown"
+    fi
+
+    # Git status of claudeos repo
+    if [[ -d "$CLAUDEOS_DIR/.git" ]]; then
+      dirty=$(git -C "$CLAUDEOS_DIR" status --porcelain 2>/dev/null | wc -l)
+      unpushed=$(git -C "$CLAUDEOS_DIR" log @{u}..HEAD --oneline 2>/dev/null | wc -l)
+      git_info=""
+      [[ $dirty -gt 0 ]] && git_info="$dirty uncommitted changes"
+      [[ $unpushed -gt 0 ]] && git_info="''${git_info:+$git_info, }$unpushed unpushed commits"
+      [[ -z "$git_info" ]] && git_info="clean, up to date"
+      branch=$(git -C "$CLAUDEOS_DIR" branch --show-current 2>/dev/null || echo unknown)
+    else
+      git_info="not a git repo"
+      branch="n/a"
+    fi
+
+    stats="Host: $host
+    Uptime: $up
+    Failed services (system): $failed_sys
+    Failed services (user): $failed_usr
+    Root disk: ''${disk_pct}% used
+    Nix store: $nix_store
+    Nix generations: $generations
+    Last rebuild: $rebuild_date ($rebuild_days days ago)
+    Flake lock age: $lock_days days
+    Config branch: $branch
+    Config repo: $git_info"
 
     CLAUDE_BIN="$HOME/.local/bin/claude"
 
     if [[ -x "$CLAUDE_BIN" ]]; then
-      prompt="You are ClaudeOS, the AI running this NixOS system. Write a friendly 2-3 sentence morning briefing based on these system stats. Mention anything noteworthy or concerning. Be concise, warm, and helpful. No markdown, no emoji, plain text only.
+      prompt="You are ClaudeOS, the AI that manages this NixOS system. Write a concise daily briefing (2-4 sentences) for the terminal MOTD. Focus on what needs attention or action — failed services, stale config, uncommitted work, disk pressure. If everything looks healthy, say so briefly. No markdown, no emoji, plain text only.
 
     $stats"
 

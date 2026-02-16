@@ -117,10 +117,10 @@ in
       }
     ];
 
-    # Debug flags
+    # Debug flags (no-argument nodes must be empty lists)
     debug = {
       # Required for Noctalia notification activation
-      honor-xdg-activation-with-invalid-serial = true;
+      honor-xdg-activation-with-invalid-serial = [ ];
     };
 
     # Processes to spawn at startup
