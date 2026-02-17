@@ -93,6 +93,9 @@ in
         layout = "us";
         variant = "colemak";
       };
+      touchpad = {
+        click-method = "clickfinger";
+      };
     };
 
     # Layout
@@ -305,6 +308,7 @@ in
             }
           ];
           center = [
+            { id = "plugin:jasper-insights"; }
             {
               id = "Clock";
               formatHorizontal = "h:mm AP  |  ddd, MMM dd";
