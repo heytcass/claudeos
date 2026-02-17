@@ -4,7 +4,7 @@ This is a NixOS system configuration repo optimized for tight Claude integration
 
 ## Environment
 
-User runs NixOS with COSMIC desktop environment, Fish shell with Starship prompt. Do not assume bash/PS1 or GNOME/KDE defaults.
+User runs NixOS with Niri (tiling Wayland compositor) + Noctalia shell (bar, notifications, OSD, wallpaper, lock screen, launcher). Fish shell with Starship prompt. Do not assume bash/PS1, GNOME/KDE/COSMIC defaults.
 
 ## Theming & Styling
 
@@ -22,7 +22,7 @@ This is a multi-device NixOS flake. Changes may need to apply to multiple hosts.
 
 This is a multi-host flake. The SessionStart hook injects which machine you're on — always use `$(hostname)` in build/deploy commands. Available hosts are defined in `hosts/` and `flake.nix`.
 
-**Stack:** NixOS unstable • COSMIC • Wayland • Pipewire • home-manager • sops-nix • Stylix
+**Stack:** NixOS unstable • Niri + Noctalia • Wayland • Pipewire • home-manager • sops-nix • Stylix
 
 ## Architecture
 
@@ -31,14 +31,14 @@ flake.nix              # Entry point — defines all hosts (see hosts/ directory
 lib/mkSystem.nix       # Host builder — wires common modules + home-manager
 hosts/<hostname>/      # Per-host: default.nix (overrides) + hardware-configuration.nix
 modules/common/        # Shared NixOS config: boot, networking, nix, users, locale, disko
-modules/desktop/       # COSMIC, audio, fonts, Stylix theme
+modules/desktop/       # Niri, Noctalia, audio, fonts, Stylix theme
 modules/apps/          # System packages: terminals, claude, jasper
-home/                  # home-manager modules: shell, git, ghostty, vscode, cosmic-theme
+home/                  # home-manager modules: shell, git, ghostty, vscode, niri/noctalia
 lib/                   # Helpers: mkSystem, hideDesktopEntries, theme utilities
 assets/                # Static files (wallpapers, etc.)
 ```
 
-**Key inputs:** nixpkgs (unstable), home-manager, nixos-hardware, sops-nix, disko, stylix, claude-for-linux, jasper
+**Key inputs:** nixpkgs (unstable), home-manager, nixos-hardware, sops-nix, disko, stylix, niri-flake, noctalia, claude-for-linux, jasper
 
 home-manager runs as a NixOS module (not standalone) — configured in `lib/mkSystem.nix`.
 
