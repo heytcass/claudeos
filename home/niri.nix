@@ -60,6 +60,33 @@ in
 
   # Niri compositor configuration
   programs.niri.settings = {
+    # Output arrangement — dock: dual Dell P2419H + laptop
+    # Connector names are dock-port-specific, not monitor-specific
+    outputs = {
+      "DP-4" = {
+        position = {
+          x = 3072;
+          y = 821;
+        };
+        scale = 1.25;
+        transform.rotation = 270;
+      };
+      "DP-3" = {
+        position = {
+          x = 0;
+          y = 1087;
+        };
+        scale = 1.25;
+      };
+      "eDP-1" = {
+        position = {
+          x = 1536;
+          y = 1493;
+        };
+        scale = 1.25;
+      };
+    };
+
     # Input — Colemak layout (must set explicitly since we don't use services.xserver)
     input = {
       keyboard.xkb = {
@@ -239,34 +266,41 @@ in
 
     # Declarative settings — mkForce overrides Noctalia module defaults
     settings = lib.mkForce {
-      # Bar — floating minimal style
+      # Bar — floating compact style
       bar = {
         barType = "floating";
         position = "top";
         density = "compact";
-        backgroundOpacity = 0.7;
-        capsuleOpacity = 0.75;
+        backgroundOpacity = 0.8;
+        capsuleOpacity = 0.8;
         showCapsule = true;
-        showOutline = false;
+        showOutline = true;
+        frameRadius = 12;
+        outerCorners = true;
         marginVertical = 6;
         marginHorizontal = 8;
         hideOnOverview = true;
         displayMode = "always_visible";
         widgets = {
           left = [
-            { id = "Launcher"; }
+            {
+              id = "Launcher";
+              icon = "rocket";
+            }
             {
               id = "Workspace";
               hideUnoccupied = true;
               focusedColor = "primary";
               pillSize = 0.6;
+              showBadge = true;
             }
             {
               id = "ActiveWindow";
               showIcon = true;
+              colorizeIcons = true;
               maxWidth = 200;
               scrollingMode = "hover";
-              hideMode = "hidden";
+              hideMode = "transparent";
             }
           ];
           center = [
@@ -275,13 +309,22 @@ in
               formatHorizontal = "h:mm AP  |  ddd, MMM dd";
               clockColor = "none";
             }
+            {
+              id = "MediaMini";
+              hideMode = "hidden";
+              maxWidth = 145;
+              scrollingMode = "hover";
+              showAlbumArt = true;
+              showProgressRing = true;
+              showArtistFirst = true;
+            }
           ];
           right = [
+            { id = "Tray"; }
             {
               id = "Network";
               displayMode = "onhover";
             }
-            { id = "Tray"; }
             {
               id = "Volume";
               displayMode = "onhover";
@@ -305,20 +348,18 @@ in
         };
       };
 
-      # Dock — auto-hide at bottom
+      # Dock — disabled
       dock = {
-        enabled = true;
+        enabled = false;
         position = "bottom";
         displayMode = "auto_hide";
         backgroundOpacity = 0.7;
         size = 1;
         onlySameOutput = true;
         pinnedApps = [
-          "com.system76.CosmicFiles"
-          "ghostty"
-          "claude-desktop"
           "google-chrome"
           "code"
+          "ghostty"
         ];
       };
 
@@ -366,12 +407,13 @@ in
         viewMode = "list";
         terminalCommand = "ghostty -e";
         sortByMostUsed = true;
+        pinnedApps = [ "com.mitchellh.ghostty" ];
       };
 
-      # UI — fonts from Stylix, panels attached to bar
+      # UI — fonts, panels attached to bar
       ui = {
         fontDefault = themeLib.fonts.sansSerif.name;
-        fontFixed = themeLib.fonts.monospace.name;
+        fontFixed = "JetBrainsMono Nerd Font Mono";
         panelBackgroundOpacity = 0.7;
         panelsAttachedToBar = true;
         tooltipsEnabled = true;
@@ -382,7 +424,80 @@ in
         lockOnSuspend = true;
         enableShadows = true;
         animationSpeed = 1.0;
-        scaleRatio = 1.0;
+        scaleRatio = 0.8;
+        reverseScroll = true;
+        telemetryEnabled = false;
+      };
+
+      # Location & weather
+      location = {
+        name = "Rochester Hills, MI";
+        useFahrenheit = true;
+        use12hourFormat = true;
+        weatherEnabled = true;
+        hideWeatherTimezone = true;
+      };
+
+      # Night light — auto-schedule based on location sunrise/sunset
+      nightLight = {
+        enabled = true;
+        autoSchedule = true;
+        nightTemp = "4000";
+      };
+
+      # Control center cards
+      controlCenter = {
+        cards = [
+          {
+            id = "profile-card";
+            enabled = true;
+          }
+          {
+            id = "shortcuts-card";
+            enabled = true;
+          }
+          {
+            id = "audio-card";
+            enabled = true;
+          }
+          {
+            id = "brightness-card";
+            enabled = false;
+          }
+          {
+            id = "weather-card";
+            enabled = true;
+          }
+          {
+            id = "media-sysmon-card";
+            enabled = true;
+          }
+        ];
+      };
+
+      # Calendar panel cards
+      calendar = {
+        cards = [
+          {
+            id = "calendar-header-card";
+            enabled = true;
+          }
+          {
+            id = "calendar-month-card";
+            enabled = true;
+          }
+          {
+            id = "weather-card";
+            enabled = true;
+          }
+        ];
+      };
+
+      # Audio
+      audio = {
+        volumeStep = 5;
+        volumeOverdrive = false;
+        volumeFeedback = false;
       };
     };
   };
