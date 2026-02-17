@@ -80,31 +80,16 @@ let
   '';
 
   # Claude Code global settings
-  # Plugins: minimal global set — opt-in per project via .claude/settings.local.json
-  # e.g. { "enabledPlugins": { "superpowers@claude-plugins-official": true } }
+  # Plugins: only list globally-enabled plugins here.
+  # All others live in the Discover tab — install per-project via /plugin → Discover → Project scope.
   claudeSettings = {
     statusLine = {
       type = "command";
       command = "bash ${statuslineScript}";
     };
     enabledPlugins = {
-      # Always on
       "github@claude-plugins-official" = true;
       "learning-output-style@claude-plugins-official" = true;
-      # Off globally — opt-in per project via .claude/settings.local.json
-      "agent-sdk-dev@claude-plugins-official" = false;
-      "claude-code-setup@claude-plugins-official" = false;
-      "claude-md-management@claude-plugins-official" = false;
-      "explanatory-output-style@claude-plugins-official" = false;
-      "feature-dev@claude-plugins-official" = false;
-      "frontend-design@claude-plugins-official" = false;
-      "playground@claude-plugins-official" = false;
-      "plugin-dev@claude-plugins-official" = false;
-      "pr-review-toolkit@claude-plugins-official" = false;
-      "ralph-loop@claude-plugins-official" = false;
-      "rust-analyzer-lsp@claude-plugins-official" = false;
-      "security-guidance@claude-plugins-official" = false;
-      "superpowers@claude-plugins-official" = false;
     };
     skipDangerousModePermissionPrompt = true;
     env = {
