@@ -99,6 +99,7 @@
   programs.yazi = {
     enable = true;
     enableFishIntegration = true;
+    shellWrapperName = "y"; # New default in 26.05 (was "yy")
 
     settings = {
       manager = {
