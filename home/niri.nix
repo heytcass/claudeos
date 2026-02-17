@@ -269,6 +269,7 @@ in
       # Bar — floating compact style
       bar = {
         barType = "floating";
+        floating = true;
         position = "top";
         density = "compact";
         backgroundOpacity = 0.8;
@@ -421,6 +422,7 @@ in
 
       # General shell behavior
       general = {
+        avatarImage = builtins.toString ../assets/avatar.jpg;
         lockOnSuspend = true;
         enableShadows = true;
         animationSpeed = 1.0;
