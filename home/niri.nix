@@ -27,6 +27,7 @@ in
     bat.enable = true;
     lazygit.enable = true;
     niri.enable = true; # niri-flake: auto-derives border colors + cursor from Stylix
+    fuzzel.enable = true; # Derives colors + font from Stylix base16 scheme
   };
 
   # GTK theme preferences
@@ -55,6 +56,26 @@ in
     "org/gnome/desktop/interface" = {
       color-scheme = "prefer-dark";
       icon-theme = themeLib.icons.name;
+    };
+  };
+
+  # Fuzzel launcher — colors and font are injected by Stylix
+  programs.fuzzel = {
+    enable = true;
+    settings = {
+      main = {
+        prompt = "\"❯  \"";
+        layer = "overlay";
+        lines = 8;
+        width = 35;
+        horizontal-pad = 16;
+        vertical-pad = 10;
+        inner-pad = 8;
+      };
+      border = {
+        width = 2;
+        radius = 12;
+      };
     };
   };
 
