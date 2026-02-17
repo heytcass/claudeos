@@ -95,6 +95,7 @@ in
       };
       touchpad = {
         click-method = "clickfinger";
+        tap = false;
       };
     };
 
