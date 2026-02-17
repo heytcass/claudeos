@@ -1,4 +1,4 @@
-{ ... }:
+{ lib, ... }:
 
 {
   imports = [
@@ -11,5 +11,9 @@
     ./system.nix
     ./secrets.nix
     ./snapshots.nix
+    ./auto-update.nix
   ];
+
+  # Enable weekly auto-update by default (build-only, no auto-apply)
+  claude-os.autoUpdate.enable = lib.mkDefault true;
 }

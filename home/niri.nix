@@ -184,6 +184,11 @@ in
         "Ctrl+Alt+Space".action = spawn "claude-desktop";
         "Mod+D".action = spawn "fuzzel";
 
+        # Claude integration
+        "Mod+A".action = spawn "claude-ask-desktop"; # Desktop search
+        "Mod+Shift+A".action = spawn "claude-screenshot"; # Screenshot analysis (notification)
+        "Mod+Ctrl+A".action = spawn "claude-screenshot-interactive"; # Screenshot analysis (terminal)
+
         # Window management
         "Mod+Q".action = close-window;
         "Mod+F".action = fullscreen-window;
