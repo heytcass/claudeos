@@ -69,34 +69,121 @@
       # Find large files
       findbig = "du -sh * | sort -h | tail -20";
 
-      # Rebuild NixOS with snapper pre/post snapshots for safe rollback
+      # Claude-powered shell commands (uses haiku for speed/cost)
+      fix = ''
+                set -l cmd $history[1]
+                if test -z "$cmd"
+                  echo "No previous command in history."
+                  return 1
+                end
+                set_color --dim
+                echo "Asking Claude about: $cmd"
+                set_color normal
+                set -l suggestion (claude -p "This Fish shell command on NixOS failed: $cmd
+        Give me ONLY the corrected command. No explanation, no markdown, no code fences. Just the single command." --model haiku 2>/dev/null)
+                if test -z "$suggestion"
+                  echo "No suggestion available."
+                  return 1
+                end
+                echo ""
+                set_color green
+                echo "  $suggestion"
+                set_color normal
+                echo ""
+                read -P "Run? [y/N] " -l confirm
+                if string match -qi y $confirm
+                  eval $suggestion
+                end
+      '';
+
+      explain = ''
+                if not isatty stdin
+                  # Piped input: somecommand | explain
+                  set -l input (cat)
+                  claude -p "Explain this command output concisely. Be brief and focus on what matters:
+        $input" --model haiku 2>/dev/null
+                else if test (count $argv) -gt 0
+                  # explain "some text" or explain <command>
+                  claude -p "Explain this concisely: $argv" --model haiku 2>/dev/null
+                else
+                  # No args: explain what the last command does
+                  set -l cmd $history[1]
+                  if test -z "$cmd"
+                    echo "No previous command in history."
+                    return 1
+                  end
+                  claude -p "Explain what this shell command does concisely: $cmd" --model haiku 2>/dev/null
+                end
+      '';
+
+      ask = ''
+        if test (count $argv) -eq 0
+          echo "Usage: ask <question>"
+          return 1
+        end
+        claude -p "$argv" --model haiku 2>/dev/null
+      '';
+
+      # Rebuild NixOS with snapper pre/post snapshots + auto-commit
       rebuild = ''
-        set -l pre_root (sudo snapper -c root create --type pre --cleanup-algorithm number --print-number --description "pre-rebuild" 2>/dev/null)
-        set -l pre_home (snapper -c home create --type pre --cleanup-algorithm number --print-number --description "pre-rebuild" 2>/dev/null)
-        if test -n "$pre_root" -a -n "$pre_home"
-          echo "Snapshots: root#$pre_root, home#$pre_home"
-        else
-          echo "Warning: snapper pre-snapshots failed (root#$pre_root, home#$pre_home)"
-        end
+                # Parse --no-commit flag
+                set -l no_commit false
+                set -l pass_args
+                for arg in $argv
+                  if test "$arg" = "--no-commit"
+                    set no_commit true
+                  else
+                    set -a pass_args $arg
+                  end
+                end
 
-        sudo nixos-rebuild switch --flake ~/.config/claudeos#(hostname) $argv
-        set -l rebuild_status $status
+                set -l pre_root (sudo snapper -c root create --type pre --cleanup-algorithm number --print-number --description "pre-rebuild" 2>/dev/null)
+                set -l pre_home (snapper -c home create --type pre --cleanup-algorithm number --print-number --description "pre-rebuild" 2>/dev/null)
+                if test -n "$pre_root" -a -n "$pre_home"
+                  echo "Snapshots: root#$pre_root, home#$pre_home"
+                else
+                  echo "Warning: snapper pre-snapshots failed (root#$pre_root, home#$pre_home)"
+                end
 
-        if test $rebuild_status -eq 0
-          if test -n "$pre_root"
-            sudo snapper -c root create --type post --pre-number $pre_root --cleanup-algorithm number --description "post-rebuild"
-          end
-          if test -n "$pre_home"
-            snapper -c home create --type post --pre-number $pre_home --cleanup-algorithm number --description "post-rebuild"
-          end
-          if test -n "$pre_root"
-            echo "Rebuild complete. Rollback: sudo snapper -c root undochange $pre_root..(math $pre_root + 1)"
-          else
-            echo "Rebuild complete. (No snapshots for rollback)"
-          end
-        else
-          echo "Rebuild failed (exit $rebuild_status). Pre-snapshots: root#$pre_root, home#$pre_home"
-        end
+                sudo nixos-rebuild switch --flake ~/.config/claudeos#(hostname) $pass_args
+                set -l rebuild_status $status
+
+                if test $rebuild_status -eq 0
+                  if test -n "$pre_root"
+                    sudo snapper -c root create --type post --pre-number $pre_root --cleanup-algorithm number --description "post-rebuild"
+                  end
+                  if test -n "$pre_home"
+                    snapper -c home create --type post --pre-number $pre_home --cleanup-algorithm number --description "post-rebuild"
+                  end
+                  if test -n "$pre_root"
+                    echo "Rebuild complete. Rollback: sudo snapper -c root undochange $pre_root..(math $pre_root + 1)"
+                  else
+                    echo "Rebuild complete. (No snapshots for rollback)"
+                  end
+
+                  # Auto-commit config changes with Claude-generated message
+                  if not $no_commit
+                    set -l dirty (git -C ~/.config/claudeos status --porcelain 2>/dev/null)
+                    if test -n "$dirty"
+                      set -l diff_output (git -C ~/.config/claudeos diff 2>/dev/null; git -C ~/.config/claudeos diff --cached 2>/dev/null)
+                      if test -z "$diff_output"
+                        set diff_output "$dirty"
+                      end
+                      set -l msg (claude -p "Generate a concise git commit message for this NixOS config change.
+        Use conventional commits (feat:/fix:/chore:). One line, under 72 chars.
+        Just the message, nothing else.
+        $diff_output" --model haiku 2>/dev/null)
+                      if test -n "$msg"
+                        git -C ~/.config/claudeos add -A
+                        and git -C ~/.config/claudeos commit -m "$msg"
+                        and git -C ~/.config/claudeos push
+                        and echo "Auto-committed: $msg"
+                      end
+                    end
+                  end
+                else
+                  echo "Rebuild failed (exit $rebuild_status). Pre-snapshots: root#$pre_root, home#$pre_home"
+                end
       '';
     };
 

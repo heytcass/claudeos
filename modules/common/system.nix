@@ -27,6 +27,48 @@
         -e claude
     '')
 
+    # Screenshot → Claude analysis (notification, bound to Mod+Shift+A)
+    (pkgs.writeShellScriptBin "claude-screenshot" ''
+      SCREENSHOT="/tmp/claudeos-screenshot-$$.png"
+      ${pkgs.grim}/bin/grim "$SCREENSHOT"
+      CLAUDE_BIN="$HOME/.local/bin/claude"
+      if [[ -x "$CLAUDE_BIN" ]]; then
+        response=$("$CLAUDE_BIN" -p "Read the screenshot at $SCREENSHOT and describe what you see. Focus on any errors, issues, or things that need attention. Be brief and actionable." --allowedTools "Read" --model haiku 2>/dev/null)
+        if [[ -n "$response" ]]; then
+          ${pkgs.libnotify}/bin/notify-send --app-name=ClaudeOS "Screen Analysis" "$response"
+        else
+          ${pkgs.libnotify}/bin/notify-send --app-name=ClaudeOS "Screen Analysis" "Claude couldn't analyze the screenshot."
+        fi
+      fi
+      rm -f "$SCREENSHOT"
+    '')
+
+    # Screenshot → Claude analysis (interactive terminal, bound to Mod+Ctrl+A)
+    (pkgs.writeShellScriptBin "claude-screenshot-interactive" ''
+      SCREENSHOT="/tmp/claudeos-screenshot-$$.png"
+      ${pkgs.grim}/bin/grim "$SCREENSHOT"
+      ghostty --class=claude-quick -e bash -c "
+        claude -p \"Read the screenshot at $SCREENSHOT and tell me what you see. Focus on any errors, issues, or things that need attention. Be brief and actionable.\" --allowedTools \"Read\" --model sonnet
+        echo
+        echo \"Press Enter to close...\"
+        read
+        rm -f \"$SCREENSHOT\"
+      "
+    '')
+
+    # Claude-powered desktop search (bound to Mod+A)
+    (pkgs.writeShellScriptBin "claude-ask-desktop" ''
+      query=$(${pkgs.fuzzel}/bin/fuzzel --dmenu --prompt "Ask Claude ❯ ")
+      [[ -z "$query" ]] && exit 0
+      CLAUDE_BIN="$HOME/.local/bin/claude"
+      if [[ -x "$CLAUDE_BIN" ]]; then
+        response=$("$CLAUDE_BIN" -p "$query" --model haiku 2>/dev/null)
+        if [[ -n "$response" ]]; then
+          ${pkgs.libnotify}/bin/notify-send --app-name=ClaudeOS "Claude" "$response"
+        fi
+      fi
+    '')
+
     # Nix development tools
     nixfmt
     statix
