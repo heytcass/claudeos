@@ -1,5 +1,9 @@
 { pkgs, ... }:
 
+# VSCode chosen over Zed (Feb 2026) for Claude ecosystem compatibility:
+# - Official Anthropic extension with checkpointing, diagnostics, Agent Skills
+# - Zed's Claude Code integration is beta (ACP bridge by Zed, not Anthropic)
+# - Zed pre-1.0 with stability issues; revisit when ACP matures or Anthropic adopts it
 {
   programs.vscode = {
     enable = true;
