@@ -7,6 +7,12 @@ in
   # Enable Niri compositor (niri-flake handles the package and session registration)
   programs.niri.enable = true;
 
+  # Disable niri-flake's bundled KDE polkit agent — it crashes on every boot before
+  # the Wayland session is ready (boot race), then self-heals via Restart=on-failure.
+  # Noctalia's native polkit-agent plugin handles auth prompts instead (runs inside
+  # Quickshell, so no race condition possible).
+  systemd.user.services.niri-flake-polkit.enable = lib.mkForce false;
+
   # greetd + tuigreet — minimal TUI greeter
   services.greetd = {
     enable = true;
