@@ -31,8 +31,8 @@ in
       base0F = "bd5d3a"; # Deep terracotta — hover state, embedded
     };
 
-    # Claude wallpaper — centered asterisk on dark background
-    image = ../../assets/claude.png;
+    # Topographic contour wallpaper — terracotta lines on dark charcoal
+    image = ../../assets/topo-wallpaper.png;
     imageScalingMode = "fill";
 
     # Dark mode theme
