@@ -109,7 +109,7 @@ in
     };
 
     # Cursor — Stylix derives the theme; override size for 1.0 scale on 1080p
-    cursor.size = 20;
+    cursor.size = 16;
 
     # Input — Colemak layout (must set explicitly since we don't use services.xserver)
     input = {
