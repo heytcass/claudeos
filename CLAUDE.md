@@ -57,6 +57,10 @@ All work is done directly on NixOS machines:
 
 **Important:** Always modify files in `~/.config/claudeos/` — never edit upstream module files or flake input sources directly.
 
+## Capabilities
+
+Read `CAPABILITIES.md` for the full system capabilities reference — MCP servers, agents, skills, hooks, desktop integration, and proactive behaviors.
+
 ## Debugging / NixOS
 
 When diagnosing NixOS build issues, trace the actual dependency chain (e.g., `nix why-depends`, grep for the package in flake inputs and modules) rather than guessing the source. Do not add config options without verifying they exist in the relevant NixOS module.

@@ -18,6 +18,7 @@ in
     ./niri.nix
     ./macchina.nix
     ./claude-code.nix
+    ./claudeos-help.nix
   ];
 
   # This is required for home-manager
