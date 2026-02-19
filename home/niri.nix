@@ -86,27 +86,30 @@ in
     outputs = {
       "DP-4" = {
         position = {
-          x = 3072;
-          y = 821;
+          x = 3840;
+          y = 1026;
         };
-        scale = 1.25;
+        scale = 1.0;
         transform.rotation = 270;
       };
       "DP-3" = {
         position = {
           x = 0;
-          y = 1087;
+          y = 1359;
         };
-        scale = 1.25;
+        scale = 1.0;
       };
       "eDP-1" = {
         position = {
-          x = 1536;
-          y = 1493;
+          x = 1920;
+          y = 1866;
         };
-        scale = 1.25;
+        scale = 1.0;
       };
     };
+
+    # Cursor — Stylix derives the theme; override size for 1.0 scale on 1080p
+    cursor.size = 20;
 
     # Input — Colemak layout (must set explicitly since we don't use services.xserver)
     input = {
