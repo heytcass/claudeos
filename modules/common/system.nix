@@ -102,6 +102,10 @@
   # Works alongside thermald — thermald manages thermal limits, this manages power policy
   services.power-profiles-daemon.enable = lib.mkDefault true;
 
+  # UPower: D-Bus service for battery/power source reporting
+  # Required for Noctalia's Battery widget (and any other desktop battery indicators)
+  services.upower.enable = true;
+
   # Zram swap for compressed in-memory swap
   zramSwap.enable = true;
 
