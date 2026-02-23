@@ -21,8 +21,8 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
-    claude-for-linux = {
-      url = "github:heytcass/claude-for-linux";
+    claude-desktop-linux = {
+      url = "github:heytcass/claude-desktop-linux-flake";
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
@@ -60,7 +60,7 @@
       nixos-hardware,
       sops-nix,
       disko,
-      claude-for-linux,
+      claude-desktop-linux,
       stylix,
       jasper,
       niri,

@@ -74,69 +74,17 @@
     };
 
     # ============================================================================
-    # Claude Desktop (via claude-for-linux flake)
+    # Claude Desktop (via claude-desktop-linux flake)
     # ============================================================================
 
-    # The claude-for-linux flake's pre-built packages use their own pkgs instance
-    # (nixpkgs.legacyPackages) which ignores NixOS permittedInsecurePackages.
-    # We work around this by using just the app.asar from the flake and wrapping
-    # it with electron from the system pkgs (which respects our config).
-    nixpkgs.config.permittedInsecurePackages = [ "electron-37.10.3" ];
+    # The flake extracts the macOS DMG, patches the Electron app for Linux
+    # (platform detection, tray icons, origin validation), and wraps with
+    # nixpkgs electron. No insecure electron version needed.
 
     home-manager.users.${user} = {
-      home.packages =
-        let
-          claudeApp = inputs.claude-for-linux.packages.${pkgs.system}.claude-app;
-
-          claudeDesktop = pkgs.symlinkJoin {
-            name = "claude-desktop";
-            paths = [ claudeApp ];
-            nativeBuildInputs = [ pkgs.makeWrapper ];
-            postBuild = ''
-              mkdir -p $out/bin
-              makeWrapper ${pkgs.electron_37}/bin/electron $out/bin/claude-desktop \
-                --add-flags "$out/lib/claude-desktop/app.asar" \
-                --add-flags "--no-sandbox" \
-                --add-flags "--ozone-platform-hint=auto" \
-                --prefix PATH : ${pkgs.lib.makeBinPath [ pkgs.bubblewrap ]} \
-                --set BWRAP_PATH "${pkgs.bubblewrap}/bin/bwrap"
-            '';
-          };
-
-          claudeDesktopFHS = pkgs.buildFHSEnv {
-            name = "claude-desktop";
-            targetPkgs =
-              pkgs: with pkgs; [
-                bubblewrap
-                nodejs
-                glibc
-                openssl
-                coreutils
-                bash
-                git
-                curl
-              ];
-            runScript = "${claudeDesktop}/bin/claude-desktop";
-          };
-        in
-        [
-          claudeDesktopFHS
-          pkgs.bubblewrap
-        ];
-
-      xdg.desktopEntries.claude-desktop = {
-        name = "Claude";
-        genericName = "AI Assistant";
-        exec = "claude-desktop %U";
-        icon = "claude";
-        categories = [
-          "Development"
-          "Utility"
-        ];
-        comment = "Claude Desktop with Linux Cowork support";
-        mimeType = [ "x-scheme-handler/claude" ];
-        settings.StartupWMClass = "Claude";
-      };
+      home.packages = [
+        inputs.claude-desktop-linux.packages.${pkgs.system}.claude-desktop
+      ];
     };
 
   }; # end config
