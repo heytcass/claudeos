@@ -38,6 +38,13 @@ in
     # Dark mode theme
     polarity = "dark";
 
+    # Cursor theme — must set all three for Stylix to manage home.pointerCursor
+    cursor = {
+      package = pkgs.adwaita-icon-theme;
+      name = "Adwaita";
+      size = 20;
+    };
+
     # Font configuration — names from lib/theme.nix, packages declared here
     fonts = {
       serif = {
