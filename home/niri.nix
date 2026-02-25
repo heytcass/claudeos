@@ -81,10 +81,11 @@ in
 
   # Niri compositor configuration
   programs.niri.settings = {
-    # Output arrangement — dock: dual Dell P2419H + laptop
-    # Connector names are dock-port-specific, not monitor-specific
+    # Output arrangement — keyed by "Manufacturer Model Serial" for stable
+    # matching across different desks/connectors (niri ≥ 0.1.9)
     outputs = {
-      "DP-4" = {
+      # Dock desk: dual Dell P2419H (landscape + portrait) + laptop
+      "Dell Inc. DELL P2419H 9HYLVF3" = {
         position = {
           x = 3840;
           y = 1026;
@@ -92,13 +93,23 @@ in
         scale = 1.0;
         transform.rotation = 270;
       };
-      "DP-3" = {
+      "Dell Inc. DELL P2419H FXP0RB3" = {
         position = {
           x = 0;
           y = 1359;
         };
         scale = 1.0;
       };
+      # USB-C desk: Dell P2425HE — up and to the right of laptop
+      # TODO: fine-tune with wdisplays
+      "Dell Inc. DELL P2425HE J8CTK14" = {
+        position = {
+          x = 2880;
+          y = 786;
+        };
+        scale = 1.0;
+      };
+      # Laptop — shared across both desks
       "eDP-1" = {
         position = {
           x = 1920;
