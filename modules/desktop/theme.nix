@@ -56,8 +56,8 @@ in
         name = themeLib.fonts.sansSerif.name;
       };
       monospace = {
-        package = pkgs.jetbrains-mono;
-        name = themeLib.fonts.monospace.name;
+        package = pkgs.nerd-fonts.jetbrains-mono;
+        name = themeLib.fonts.monospace.nerdName;
       };
       emoji = {
         package = pkgs.noto-fonts-color-emoji;

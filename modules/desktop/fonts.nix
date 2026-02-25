@@ -20,7 +20,7 @@ in
           "DejaVu Serif"
         ];
         monospace = [
-          themeLib.fonts.monospace.name
+          themeLib.fonts.monospace.nerdName
           themeLib.fonts.symbols.name
           "Fira Code"
           "DejaVu Sans Mono"
