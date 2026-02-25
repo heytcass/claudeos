@@ -10,6 +10,58 @@ let
   themeLib = import ../lib/theme.nix;
   # Stylix base16 palette — used to derive Noctalia Material Design color tokens
   c = config.lib.stylix.colors.withHashtag;
+
+  # Detects which desk (dock vs USB-C monitor) is active and repositions
+  # eDP-1 accordingly — runs at startup and watches for hotplug changes.
+  niri-display-layout = pkgs.writeShellApplication {
+    name = "niri-display-layout";
+    runtimeInputs = [
+      pkgs.jq
+      config.programs.niri.package
+    ];
+    text = ''
+      apply_layout() {
+        local outputs
+        outputs=$(niri msg -j outputs)
+
+        # Known monitor serials
+        local usbc_desk="J8CTK14"       # Dell P2425HE
+        local dock_portrait="9HYLVF3"   # Dell P2419H
+        local dock_landscape="FXP0RB3"  # Dell P2419H
+
+        if echo "$outputs" | jq -e "to_entries[] | select(.value.serial == \"$usbc_desk\")" > /dev/null 2>&1; then
+          # USB-C desk: Dell P2425HE detected — laptop below-left
+          niri msg output eDP-1 position set 960 1476
+        elif echo "$outputs" | jq -e "to_entries[] | select(.value.serial == \"$dock_portrait\" or .value.serial == \"$dock_landscape\")" > /dev/null 2>&1; then
+          # Dock desk — laptop centered below dual monitors
+          niri msg output eDP-1 position set 1920 1866
+        else
+          # Unknown external monitor — center it above laptop, edges touching
+          local unknown
+          unknown=$(echo "$outputs" | jq -r 'to_entries[] | select(.key != "eDP-1") | .key' | head -1)
+          if [ -n "$unknown" ]; then
+            local mon_width mon_height
+            mon_width=$(echo "$outputs" | jq -r ".\"$unknown\".logical.width")
+            mon_height=$(echo "$outputs" | jq -r ".\"$unknown\".logical.height")
+            local mon_x=$(( (1920 - mon_width) / 2 ))
+            niri msg output "$unknown" position set "$mon_x" 0
+            niri msg output eDP-1 position set 0 "$mon_height"
+          fi
+        fi
+      }
+
+      sleep 1
+      apply_layout
+
+      # Re-apply on hotplug — WorkspacesChanged fires when outputs change
+      niri msg -j event-stream | while IFS= read -r line; do
+        if echo "$line" | jq -e 'has("WorkspacesChanged")' > /dev/null 2>&1; then
+          sleep 0.5
+          apply_layout
+        fi
+      done
+    '';
+  };
 in
 {
   # niri-flake NixOS module auto-imports homeModules.niri + homeModules.stylix
@@ -101,7 +153,6 @@ in
         scale = 1.0;
       };
       # USB-C desk: Dell P2425HE — up and to the right of laptop
-      # TODO: fine-tune with wdisplays
       "Dell Inc. DELL P2425HE J8CTK14" = {
         position = {
           x = 2880;
@@ -109,14 +160,9 @@ in
         };
         scale = 1.0;
       };
-      # Laptop — shared across both desks
-      "eDP-1" = {
-        position = {
-          x = 1920;
-          y = 1866;
-        };
-        scale = 1.0;
-      };
+      # Laptop — position managed dynamically by niri-display-layout script
+      # (different position per desk: dock vs USB-C monitor)
+      "eDP-1" = { };
     };
 
     # Input — Colemak layout (must set explicitly since we don't use services.xserver)
@@ -200,6 +246,9 @@ in
           "${pkgs.cliphist}/bin/cliphist"
           "store"
         ];
+      }
+      {
+        command = [ "${lib.getExe niri-display-layout}" ];
       }
     ];
 
