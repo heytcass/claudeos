@@ -19,6 +19,8 @@ in
     ./macchina.nix
     ./claude-code.nix
     ./claudeos-help.nix
+    ./zathura.nix
+    ./imv.nix
   ];
 
   # This is required for home-manager
@@ -55,6 +57,21 @@ in
   home.sessionVariables = {
     EDITOR = "code";
     VISUAL = "code";
+  };
+
+  # Default applications for file types
+  xdg.mimeApps = {
+    enable = true;
+    defaultApplications = {
+      "application/pdf" = "org.pwmt.zathura.desktop";
+      "image/png" = "imv.desktop";
+      "image/jpeg" = "imv.desktop";
+      "image/gif" = "imv.desktop";
+      "image/webp" = "imv.desktop";
+      "image/svg+xml" = "imv.desktop";
+      "image/tiff" = "imv.desktop";
+      "image/bmp" = "imv.desktop";
+    };
   };
 
   # Let home-manager manage itself
