@@ -307,8 +307,8 @@ in
         # Overview
         "Mod+Tab".action = toggle-overview;
 
-        # Screen lock
-        "Mod+L".action = spawn "swaylock";
+        # Screen lock (Noctalia's integrated lock screen)
+        "Mod+L".action = spawn "noctalia-shell" "ipc" "call" "lockScreen" "lock";
 
         # Screenshot (not in config.lib.niri.actions — use object syntax)
         "Print".action.screenshot = [ ];
@@ -327,6 +327,31 @@ in
         "XF86MonBrightnessUp".action = spawn "brightnessctl" "set" "5%+";
         "XF86MonBrightnessDown".action = spawn "brightnessctl" "set" "5%-";
       };
+  };
+
+  # Idle management — lock, DPMS off, suspend after progressive timeouts
+  services.swayidle = {
+    enable = true;
+    timeouts = [
+      {
+        timeout = 300; # 5 min — lock screen
+        command = "noctalia-shell ipc call lockScreen lock";
+      }
+      {
+        timeout = 330; # 5.5 min — turn off displays
+        command = "niri msg action power-off-monitors";
+      }
+      {
+        timeout = 900; # 15 min — suspend
+        command = "systemctl suspend";
+      }
+    ];
+    events = [
+      {
+        event = "before-sleep";
+        command = "noctalia-shell ipc call lockScreen lock";
+      }
+    ];
   };
 
   # Noctalia Shell — bar, notifications, OSD, wallpaper, lock screen, launcher

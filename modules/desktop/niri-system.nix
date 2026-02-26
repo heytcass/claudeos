@@ -39,7 +39,6 @@ in
     # Wayland utilities
     wl-clipboard # Clipboard access (wl-copy / wl-paste)
     cliphist # Clipboard history manager
-    swaylock # Screen locker
     fuzzel # Application launcher
     brightnessctl # Backlight control
     grim # Screenshot capture

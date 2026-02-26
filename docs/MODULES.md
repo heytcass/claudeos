@@ -207,7 +207,7 @@ Niri compositor and greeter at the system level.
 - `GDK_BACKEND = "wayland,x11"`, `QT_QPA_PLATFORM = "wayland;xcb"`, `NIXOS_OZONE_WL = "1"` (Electron Wayland)
 
 **System packages:**
-- Wayland utilities: `wl-clipboard`, `cliphist`, `swaylock`, `fuzzel`, `brightnessctl`, `grim`, `slurp`, `satty`, `nautilus`
+- Wayland utilities: `wl-clipboard`, `cliphist`, `fuzzel`, `brightnessctl`, `grim`, `slurp`, `satty`, `nautilus`
 - Icon theme: `adwaita-icon-theme`
 - Custom inline derivations: `tab-new-symbolic` SVG icon (for Ghostty libadwaita tab bar), `folder-development` SVG icon (for ~/Projects)
 
@@ -429,7 +429,7 @@ Niri compositor settings, Noctalia Shell, Stylix targets, and GTK theming. Refer
 - `Mod+Left/Right` = focus columns, `Mod+Up/Down` = focus workspaces
 - `Mod+Shift+Left/Right/Up/Down` = move windows/columns
 - `Mod+1..5` = workspace switch, `Mod+Shift+1..5` = move to workspace
-- `Mod+Tab` = overview, `Mod+L` = swaylock, `Print` = screenshot
+- `Mod+Tab` = overview, `Mod+L` = Noctalia lock screen, `Print` = screenshot
 - `Mod+Shift+C` = clipboard history (fuzzel + cliphist)
 - Media keys for volume/brightness via wpctl/brightnessctl
 
