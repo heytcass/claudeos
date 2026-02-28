@@ -71,6 +71,20 @@ in
       "image/svg+xml" = "imv.desktop";
       "image/tiff" = "imv.desktop";
       "image/bmp" = "imv.desktop";
+
+      # Archives — Nautilus handles these natively; override zathura-cb which
+      # claims zip/tar/7z/rar for comic book formats
+      "application/zip" = "org.gnome.Nautilus.desktop";
+      "application/gzip" = "org.gnome.Nautilus.desktop";
+      "application/x-tar" = "org.gnome.Nautilus.desktop";
+      "application/x-compressed-tar" = "org.gnome.Nautilus.desktop";
+      "application/x-bzip-compressed-tar" = "org.gnome.Nautilus.desktop";
+      "application/x-bzip2-compressed-tar" = "org.gnome.Nautilus.desktop";
+      "application/x-xz-compressed-tar" = "org.gnome.Nautilus.desktop";
+      "application/x-zstd-compressed-tar" = "org.gnome.Nautilus.desktop";
+      "application/x-7z-compressed" = "org.gnome.Nautilus.desktop";
+      "application/vnd.rar" = "org.gnome.Nautilus.desktop";
+      "application/x-lzip-compressed-tar" = "org.gnome.Nautilus.desktop";
     };
   };
 
