@@ -21,6 +21,7 @@
     google-chrome # Browser
     slack # Communication
     discord # Communication
+    teams-for-linux # Communication (Microsoft Teams)
     obsidian # Knowledge management (install Terminal + Web Clipper community plugins)
   ];
 }
