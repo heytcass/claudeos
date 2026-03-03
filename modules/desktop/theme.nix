@@ -31,8 +31,8 @@ in
       base0F = "bd5d3a"; # Deep terracotta — hover state, embedded
     };
 
-    # Topographic contour wallpaper — terracotta lines on dark charcoal
-    image = ../../assets/topo-wallpaper.png;
+    # Chicago skyline wallpaper
+    image = ../../assets/chicago.jpg;
     imageScalingMode = "fill";
 
     # Dark mode theme
