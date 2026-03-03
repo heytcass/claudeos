@@ -40,10 +40,11 @@ let
           local unknown
           unknown=$(echo "$outputs" | jq -r 'to_entries[] | select(.key != "eDP-1") | .key' | head -1)
           if [ -n "$unknown" ]; then
-            local mon_width mon_height
+            local laptop_width mon_width mon_height
+            laptop_width=$(echo "$outputs" | jq -r '.["eDP-1"].logical.width')
             mon_width=$(echo "$outputs" | jq -r ".\"$unknown\".logical.width")
             mon_height=$(echo "$outputs" | jq -r ".\"$unknown\".logical.height")
-            local mon_x=$(( (1920 - mon_width) / 2 ))
+            local mon_x=$(( (laptop_width - mon_width) / 2 ))
             niri msg output "$unknown" position set "$mon_x" 0
             niri msg output eDP-1 position set 0 "$mon_height"
           fi
@@ -139,8 +140,8 @@ in
       # Dock desk: dual Dell P2419H (landscape + portrait) + laptop
       "Dell Inc. DELL P2419H 9HYLVF3" = {
         position = {
-          x = 3840;
-          y = 1026;
+          x = 3456;
+          y = 872;
         };
         scale = 1.0;
         transform.rotation = 270;
@@ -162,7 +163,9 @@ in
       };
       # Laptop — position managed dynamically by niri-display-layout script
       # (different position per desk: dock vs USB-C monitor)
-      "eDP-1" = { };
+      "eDP-1" = {
+        scale = 1.25;
+      };
     };
 
     # Input — Colemak layout (must set explicitly since we don't use services.xserver)
