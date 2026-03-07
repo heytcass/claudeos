@@ -44,7 +44,10 @@ in
     grim # Screenshot capture
     slurp # Region selection
     satty # Screenshot annotation
-    nautilus # File manager
+    xfce.thunar # File manager
+    xfce.thunar-archive-plugin # Right-click archive handling
+    xfce.thunar-volman # Removable media management
+    xarchiver # Lightweight GTK archive manager
 
     # Icon themes
     # adwaita-icon-theme provides the base symbolic icons that GTK4/libadwaita
@@ -127,4 +130,7 @@ in
 
   # Enable GVfs for virtual filesystems (Trash, network shares, etc.)
   services.gvfs.enable = true;
+
+  # Tumbler — thumbnail service for Thunar (images, videos, PDFs)
+  services.tumbler.enable = true;
 }

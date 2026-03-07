@@ -72,19 +72,21 @@ in
       "image/tiff" = "imv.desktop";
       "image/bmp" = "imv.desktop";
 
-      # Archives — Nautilus handles these natively; override zathura-cb which
-      # claims zip/tar/7z/rar for comic book formats
-      "application/zip" = "org.gnome.Nautilus.desktop";
-      "application/gzip" = "org.gnome.Nautilus.desktop";
-      "application/x-tar" = "org.gnome.Nautilus.desktop";
-      "application/x-compressed-tar" = "org.gnome.Nautilus.desktop";
-      "application/x-bzip-compressed-tar" = "org.gnome.Nautilus.desktop";
-      "application/x-bzip2-compressed-tar" = "org.gnome.Nautilus.desktop";
-      "application/x-xz-compressed-tar" = "org.gnome.Nautilus.desktop";
-      "application/x-zstd-compressed-tar" = "org.gnome.Nautilus.desktop";
-      "application/x-7z-compressed" = "org.gnome.Nautilus.desktop";
-      "application/vnd.rar" = "org.gnome.Nautilus.desktop";
-      "application/x-lzip-compressed-tar" = "org.gnome.Nautilus.desktop";
+      # Archives — override zathura-cb which claims zip/tar/7z/rar for comic book formats
+      "application/zip" = "xarchiver.desktop";
+      "application/gzip" = "xarchiver.desktop";
+      "application/x-tar" = "xarchiver.desktop";
+      "application/x-compressed-tar" = "xarchiver.desktop";
+      "application/x-bzip-compressed-tar" = "xarchiver.desktop";
+      "application/x-bzip2-compressed-tar" = "xarchiver.desktop";
+      "application/x-xz-compressed-tar" = "xarchiver.desktop";
+      "application/x-zstd-compressed-tar" = "xarchiver.desktop";
+      "application/x-7z-compressed" = "xarchiver.desktop";
+      "application/vnd.rar" = "xarchiver.desktop";
+      "application/x-lzip-compressed-tar" = "xarchiver.desktop";
+
+      # Directories — open in Thunar
+      "inode/directory" = "thunar.desktop";
     };
   };
 
