@@ -44,9 +44,9 @@ in
     grim # Screenshot capture
     slurp # Region selection
     satty # Screenshot annotation
-    xfce.thunar # File manager
-    xfce.thunar-archive-plugin # Right-click archive handling
-    xfce.thunar-volman # Removable media management
+    thunar # File manager
+    thunar-archive-plugin # Right-click archive handling
+    thunar-volman # Removable media management
     xarchiver # Lightweight GTK archive manager
 
     # Icon themes
