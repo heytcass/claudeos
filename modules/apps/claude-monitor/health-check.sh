@@ -53,7 +53,7 @@ if (( mem_kb < 512000 )); then
 fi
 
 # --- OOM kills in last 15 min ---
-oom=$(journalctl --since "15 min ago" -k --no-pager -q 2>/dev/null | grep -i "oom\|out of memory" || true)
+oom=$(journalctl --since "15 min ago" -k --no-pager -q 2>/dev/null | grep -i "killed process\|out of memory:" || true)
 if [[ -n "$oom" ]]; then
   printf '=== OOM Kills ===\n%s\n\n' "$oom" >> "$CONTEXT_FILE"
   issues=1

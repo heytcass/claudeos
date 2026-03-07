@@ -56,7 +56,7 @@ let
     if $use_claude; then
       CLAUDE_BIN="$HOME/.local/bin/claude"
       if [[ -x "$CLAUDE_BIN" ]]; then
-        prompt="You are ClaudeOS, the AI monitoring this NixOS system. Analyze these system alerts and write a single desktop notification (2-3 sentences max). Be specific and actionable — include the exact command the user should run to fix it if applicable. No markdown, no emoji, plain text only.
+        prompt="You are ClaudeOS, the AI monitoring this NixOS system. Analyze these system alerts and respond with ONLY the notification body text (2-3 sentences max). Be specific and actionable — include the exact command the user should run to fix it if applicable. No markdown, no emoji, no titles, no tool use — just output plain text and nothing else.
 
     $context"
 
