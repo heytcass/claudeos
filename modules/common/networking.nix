@@ -9,7 +9,7 @@
   services.resolved = {
     enable = true;
     settings.Resolve = {
-      DNSSEC = "allow-downgrade"; # Validate DNSSEC when available, don't break if unavailable
+      DNSSEC = false; # Technitium handles upstream DNSSEC validation; local zones are unsigned
       DNSOverTLS = "opportunistic"; # Use DoT when server supports it, plain DNS otherwise
 
       # No global DNS= set — NetworkManager/DHCP provides the primary DNS server,

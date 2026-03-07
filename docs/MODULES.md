@@ -207,7 +207,7 @@ Niri compositor and greeter at the system level.
 - `GDK_BACKEND = "wayland,x11"`, `QT_QPA_PLATFORM = "wayland;xcb"`, `NIXOS_OZONE_WL = "1"` (Electron Wayland)
 
 **System packages:**
-- Wayland utilities: `wl-clipboard`, `cliphist`, `fuzzel`, `brightnessctl`, `grim`, `slurp`, `satty`, `nautilus`
+- Wayland utilities: `wl-clipboard`, `cliphist`, `fuzzel`, `brightnessctl`, `grim`, `slurp`, `satty`, `thunar`, `xarchiver`
 - Icon theme: `adwaita-icon-theme`
 - Custom inline derivations: `tab-new-symbolic` SVG icon (for Ghostty libadwaita tab bar), `folder-development` SVG icon (for ~/Projects)
 
