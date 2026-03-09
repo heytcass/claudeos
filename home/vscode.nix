@@ -1,4 +1,4 @@
-{ pkgs, ... }:
+{ pkgs, lib, ... }:
 
 # VSCode chosen over Zed (Feb 2026) for Claude ecosystem compatibility:
 # - Official Anthropic extension with checkpointing, diagnostics, Agent Skills
@@ -99,4 +99,18 @@
       ];
     };
   };
+
+  # Replace immutable Nix store symlinks with writable copies so VSCode
+  # and extensions can persist runtime settings changes without errors.
+  home.activation.mutableVscodeFiles = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
+    for f in "$HOME/.config/Code/User/settings.json" \
+             "$HOME/.config/Code/User/keybindings.json"; do
+      if [ -L "$f" ]; then
+        target=$(readlink "$f")
+        $DRY_RUN_CMD rm "$f"
+        $DRY_RUN_CMD cp "$target" "$f"
+        $DRY_RUN_CMD chmod u+w "$f"
+      fi
+    done
+  '';
 }
