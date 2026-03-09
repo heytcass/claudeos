@@ -3,6 +3,16 @@
     "context7": {
       "command": "nix",
       "args": ["shell", "nixpkgs#nodejs_22", "-c", "npx", "-y", "@upstash/context7-mcp@latest"]
+    },
+    "unifi": {
+      "command": "nix",
+      "args": ["shell", "nixpkgs#uv", "-c", "uvx", "unifi-mcp-server"],
+      "env": {
+        "UNIFI_API_KEY": "REDACTED-UNIFI-KEY",
+        "UNIFI_API_TYPE": "local",
+        "UNIFI_LOCAL_HOST": "10.0.0.1",
+        "UNIFI_LOCAL_VERIFY_SSL": "false"
+      }
     }
   }
 }
