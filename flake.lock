@@ -76,11 +76,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1772481330,
-        "narHash": "sha256-EPUNIIqb5lbjTIZfTduowtbaScqhUjcgCIZxyjoR5Mc=",
+        "lastModified": 1773079658,
+        "narHash": "sha256-7Xeo5nPYLI8AcrUxf/xn66ti/zrodj0YcxjPY9n+hsA=",
         "owner": "heytcass",
         "repo": "claude-desktop-linux-flake",
-        "rev": "9a77070cd06fbe5289cee0cee2a13e08c5b30168",
+        "rev": "a3c8d5d4ec90daf2edb620ae8515535357a0d913",
         "type": "github"
       },
       "original": {
@@ -246,11 +246,11 @@
         "rust-overlay": "rust-overlay"
       },
       "locked": {
-        "lastModified": 1771985021,
-        "narHash": "sha256-LCHooLOmqSXDQ4F8/dw6N5adfK2P70zY7ZfGMG8tnW8=",
+        "lastModified": 1773083809,
+        "narHash": "sha256-DKh7WA82YfN5bciBVE4MVtKdcu2Fuf1McpN7DyoF8O0=",
         "owner": "heytcass",
         "repo": "jasper",
-        "rev": "ea64a07a00534e14d8d418c137d9225e06a1bb0f",
+        "rev": "223bf5009580bfaeae2a5ead88719dc98277b493",
         "type": "github"
       },
       "original": {
@@ -380,11 +380,11 @@
     },
     "nixpkgs_3": {
       "locked": {
-        "lastModified": 1772773019,
-        "narHash": "sha256-E1bxHxNKfDoQUuvriG71+f+s/NT0qWkImXsYZNFFfCs=",
+        "lastModified": 1772963539,
+        "narHash": "sha256-9jVDGZnvCckTGdYT53d/EfznygLskyLQXYwJLKMPsZs=",
         "owner": "nixos",
         "repo": "nixpkgs",
-        "rev": "aca4d95fce4914b3892661bcb80b8087293536c6",
+        "rev": "9dcb002ca1690658be4a04645215baea8b95f31d",
         "type": "github"
       },
       "original": {
@@ -402,11 +402,11 @@
         "noctalia-qs": "noctalia-qs"
       },
       "locked": {
-        "lastModified": 1773058465,
-        "narHash": "sha256-i4fKQGI3z86KzYbx1ZThAAMhJsmYT40yJC5xvhmKyQA=",
+        "lastModified": 1773080291,
+        "narHash": "sha256-3rJzXUYZOvAP7HvO9Atqm4/vyj96uus7iXNOk1yuvjI=",
         "owner": "noctalia-dev",
         "repo": "noctalia-shell",
-        "rev": "9536553dc5a6df38470b2a178d88f2c44a69cd2a",
+        "rev": "8be7a34b46d0cd9c615ac39db4efcc4529c67802",
         "type": "github"
       },
       "original": {
