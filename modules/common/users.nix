@@ -15,6 +15,7 @@
       "networkmanager" # network management
       "video" # video devices
       "audio" # audio devices
+      "dialout" # serial devices
     ];
 
     # Fish as default shell
