@@ -27,6 +27,16 @@
     mode = "0400";
   };
 
+  sops.secrets.jasper_google_routes_api_key = {
+    owner = user;
+    mode = "0400";
+  };
+
+  sops.secrets.jasper_home_address = {
+    owner = user;
+    mode = "0400";
+  };
+
   sops.secrets.atuin_key = {
     owner = user;
     mode = "0400";
