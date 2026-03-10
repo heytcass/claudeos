@@ -25,153 +25,216 @@ let
     ${builtins.readFile ./health-check.sh}
   '';
 
-  # Tier 2: Claude-authored notification (or fallback)
+  # Tier 2: Claude-authored notification with action buttons
   notifyScript = pkgs.writeShellScript "claudeos-notify" ''
-    export PATH="${
-      pkgs.lib.makeBinPath [
-        pkgs.coreutils
-        pkgs.systemd
-      ]
-    }:$PATH"
+        export PATH="${
+          pkgs.lib.makeBinPath [
+            pkgs.coreutils
+            pkgs.systemd
+            pkgs.ghostty
+          ]
+        }:$PATH"
 
-    CACHE_DIR="''${XDG_CACHE_HOME:-$HOME/.cache}/claudeos-monitor"
-    CONTEXT_FILE="$CACHE_DIR/alert-context.txt"
-    COOLDOWN_FILE="$CACHE_DIR/last-claude-call"
-    COOLDOWN=1800  # 30 minutes
+        CACHE_DIR="''${XDG_CACHE_HOME:-$HOME/.cache}/claudeos-monitor"
+        CONTEXT_FILE="$CACHE_DIR/alert-context.txt"
+        COOLDOWN_FILE="$CACHE_DIR/last-claude-call"
+        COOLDOWN=1800  # 30 minutes
 
-    # Nothing to report
-    [[ ! -s "$CONTEXT_FILE" ]] && exit 0
+        # Nothing to report
+        [[ ! -s "$CONTEXT_FILE" ]] && exit 0
 
-    context=$(<"$CONTEXT_FILE")
+        context=$(<"$CONTEXT_FILE")
 
-    # --- Rate limit check ---
-    use_claude=true
-    if [[ -f "$COOLDOWN_FILE" ]]; then
-      last=$(stat -c %Y "$COOLDOWN_FILE" 2>/dev/null || echo 0)
-      now=$(date +%s)
-      (( now - last < COOLDOWN )) && use_claude=false
-    fi
-
-    # --- Try Claude-authored notification ---
-    if $use_claude; then
-      CLAUDE_BIN="$HOME/.local/bin/claude"
-      if [[ -x "$CLAUDE_BIN" ]]; then
-        prompt="You are ClaudeOS, the AI monitoring this NixOS system. Analyze these system alerts and respond with ONLY the notification body text (2-3 sentences max). Be specific and actionable — include the exact command the user should run to fix it if applicable. No markdown, no emoji, no titles, no tool use — just output plain text and nothing else.
-
-    $context"
-
-        notification=$("$CLAUDE_BIN" -p "$prompt" --model sonnet 2>/dev/null) || notification=""
-
-        if [[ -n "$notification" ]]; then
-          touch "$COOLDOWN_FILE"
-          ${pkgs.libnotify}/bin/notify-send \
-            --app-name=ClaudeOS --icon=claude --urgency=critical \
-            "ClaudeOS Monitor" "$notification"
-          exit 0
+        # --- Rate limit check ---
+        use_claude=true
+        if [[ -f "$COOLDOWN_FILE" ]]; then
+          last=$(stat -c %Y "$COOLDOWN_FILE" 2>/dev/null || echo 0)
+          now=$(date +%s)
+          (( now - last < COOLDOWN )) && use_claude=false
         fi
-      fi
-    fi
 
-    # --- Fallback: truncated raw context ---
-    fallback=$(echo "$context" | head -15)
-    ${pkgs.libnotify}/bin/notify-send \
-      --app-name=ClaudeOS --icon=dialog-warning --urgency=critical \
-      "System Alert" "$fallback"
+        # --- Try Claude-authored notification ---
+        if $use_claude; then
+          CLAUDE_BIN="$HOME/.local/bin/claude"
+          if [[ -x "$CLAUDE_BIN" ]]; then
+            prompt="You are ClaudeOS, the AI monitoring this NixOS system. Analyze these system alerts and respond with ONLY the notification body text (2-3 sentences max). Be specific and actionable — include the exact command the user should run to fix it if applicable. No markdown, no emoji, no titles, no tool use — just output plain text and nothing else.
+
+        $context"
+
+            notification=$("$CLAUDE_BIN" -p "$prompt" --model sonnet 2>/dev/null) || notification=""
+
+            if [[ -n "$notification" ]]; then
+              touch "$COOLDOWN_FILE"
+              action=$(${pkgs.libnotify}/bin/notify-send \
+                --app-name=ClaudeOS --icon=claude --urgency=critical \
+                -A "fix=Open in Claude" -A "dismiss=Dismiss" \
+                "ClaudeOS Monitor" "$notification")
+
+              if [[ "$action" == "fix" ]]; then
+                # Write context to a temp file for Claude to read
+                alert_file="$CACHE_DIR/alert-for-claude.txt"
+                printf '%s\n\n--- Claude notification summary ---\n%s\n' "$context" "$notification" > "$alert_file"
+
+                ghostty --class=claude-quick -e bash -c "
+                  claude -p 'ClaudeOS health monitor detected issues on this system. Here is the alert context:
+
+    $(cat "$alert_file")
+
+    Diagnose and fix these issues. Check journalctl, systemctl, and other system tools for more information as needed.' --allowedTools 'Bash,Read,Grep,Glob,mcp__system-health*'
+                  echo
+                  echo \"Press Enter to close...\"
+                  read
+                "
+              fi
+              exit 0
+            fi
+          fi
+        fi
+
+        # --- Fallback: truncated raw context ---
+        fallback=$(echo "$context" | head -15)
+        action=$(${pkgs.libnotify}/bin/notify-send \
+          --app-name=ClaudeOS --icon=dialog-warning --urgency=critical \
+          -A "fix=Open in Claude" -A "dismiss=Dismiss" \
+          "System Alert" "$fallback")
+
+        if [[ "$action" == "fix" ]]; then
+          alert_file="$CACHE_DIR/alert-for-claude.txt"
+          cp "$CONTEXT_FILE" "$alert_file"
+
+          ghostty --class=claude-quick -e bash -c "
+            claude -p 'ClaudeOS health monitor detected issues on this system. Here is the raw alert context:
+
+    $(cat "$alert_file")
+
+    Diagnose and fix these issues. Check journalctl, systemctl, and other system tools for more information as needed.' --allowedTools 'Bash,Read,Grep,Glob,mcp__system-health*'
+            echo
+            echo \"Press Enter to close...\"
+            read
+          "
+        fi
   '';
 
-  # Tier 3: Daily morning briefing (writes to cache file for terminal MOTD)
+  # Tier 3: Daily morning briefing (writes to cache file for terminal MOTD + notification)
   dailyBriefScript = pkgs.writeShellScript "claudeos-daily-brief" ''
-    export PATH="${
-      pkgs.lib.makeBinPath [
-        pkgs.coreutils
-        pkgs.systemd
-        pkgs.procps
-        pkgs.gawk
-        pkgs.git
-      ]
-    }:/run/current-system/sw/bin:$PATH"
+        export PATH="${
+          pkgs.lib.makeBinPath [
+            pkgs.coreutils
+            pkgs.systemd
+            pkgs.procps
+            pkgs.gawk
+            pkgs.git
+            pkgs.ghostty
+          ]
+        }:/run/current-system/sw/bin:$PATH"
 
-    CACHE_DIR="''${XDG_CACHE_HOME:-$HOME/.cache}/claudeos-monitor"
-    BRIEF_FILE="$CACHE_DIR/daily-brief.txt"
-    CLAUDEOS_DIR="$HOME/.config/claudeos"
-    mkdir -p "$CACHE_DIR"
+        CACHE_DIR="''${XDG_CACHE_HOME:-$HOME/.cache}/claudeos-monitor"
+        BRIEF_FILE="$CACHE_DIR/daily-brief.txt"
+        STATS_FILE="$CACHE_DIR/daily-stats.txt"
+        CLAUDEOS_DIR="$HOME/.config/claudeos"
+        mkdir -p "$CACHE_DIR"
 
-    now=$(date +%s)
+        now=$(date +%s)
 
-    # --- System health (persistent/actionable signals only) ---
-    host=$(hostname 2>/dev/null || echo unknown)
-    up=$(uptime -p 2>/dev/null || echo unknown)
+        # --- System health (persistent/actionable signals only) ---
+        host=$(hostname 2>/dev/null || echo unknown)
+        up=$(uptime -p 2>/dev/null || echo unknown)
 
-    # Failed services — list names, not just counts
-    failed_sys=$(systemctl --failed --no-legend --no-pager 2>/dev/null | awk '{print $2}' | paste -sd", " || true)
-    failed_usr=$(systemctl --user --failed --no-legend --no-pager 2>/dev/null | awk '{print $2}' | paste -sd", " || true)
-    [[ -z "$failed_sys" ]] && failed_sys="none"
-    [[ -z "$failed_usr" ]] && failed_usr="none"
+        # Failed services — list names, not just counts
+        failed_sys=$(systemctl --failed --no-legend --no-pager 2>/dev/null | awk '{print $2}' | paste -sd", " || true)
+        failed_usr=$(systemctl --user --failed --no-legend --no-pager 2>/dev/null | awk '{print $2}' | paste -sd", " || true)
+        [[ -z "$failed_sys" ]] && failed_sys="none"
+        [[ -z "$failed_usr" ]] && failed_usr="none"
 
-    # Disk — only flag percentage, noteworthy if high
-    disk_pct=$(df / 2>/dev/null | awk 'NR==2 {gsub(/%/,"",$5); print $5}')
-    nix_store=$(df -h /nix/store 2>/dev/null | awk 'NR==2 {printf "%s used / %s", $3, $2}')
+        # Disk — only flag percentage, noteworthy if high
+        disk_pct=$(df / 2>/dev/null | awk 'NR==2 {gsub(/%/,"",$5); print $5}')
+        nix_store=$(df -h /nix/store 2>/dev/null | awk 'NR==2 {printf "%s used / %s", $3, $2}')
 
-    # Nix generations
-    generations=$(ls -1d /nix/var/nix/profiles/system-*-link 2>/dev/null | wc -l)
+        # Nix generations
+        generations=$(ls -1d /nix/var/nix/profiles/system-*-link 2>/dev/null | wc -l)
 
-    # --- Config status ---
-    # Last rebuild: when the current system profile was activated
-    rebuild_epoch=$(stat -c %Y /nix/var/nix/profiles/system 2>/dev/null || echo 0)
-    rebuild_days=$(( (now - rebuild_epoch) / 86400 ))
-    rebuild_date=$(date -d "@$rebuild_epoch" "+%Y-%m-%d %H:%M" 2>/dev/null || echo unknown)
+        # --- Config status ---
+        # Last rebuild: when the current system profile was activated
+        rebuild_epoch=$(stat -c %Y /nix/var/nix/profiles/system 2>/dev/null || echo 0)
+        rebuild_days=$(( (now - rebuild_epoch) / 86400 ))
+        rebuild_date=$(date -d "@$rebuild_epoch" "+%Y-%m-%d %H:%M" 2>/dev/null || echo unknown)
 
-    # Flake lock age: when was nixpkgs last updated
-    if [[ -f "$CLAUDEOS_DIR/flake.lock" ]]; then
-      lock_epoch=$(stat -c %Y "$CLAUDEOS_DIR/flake.lock" 2>/dev/null || echo 0)
-      lock_days=$(( (now - lock_epoch) / 86400 ))
-    else
-      lock_days="unknown"
-    fi
+        # Flake lock age: when was nixpkgs last updated
+        if [[ -f "$CLAUDEOS_DIR/flake.lock" ]]; then
+          lock_epoch=$(stat -c %Y "$CLAUDEOS_DIR/flake.lock" 2>/dev/null || echo 0)
+          lock_days=$(( (now - lock_epoch) / 86400 ))
+        else
+          lock_days="unknown"
+        fi
 
-    # Git status of claudeos repo
-    if [[ -d "$CLAUDEOS_DIR/.git" ]]; then
-      dirty=$(git -C "$CLAUDEOS_DIR" status --porcelain 2>/dev/null | wc -l)
-      unpushed=$(git -C "$CLAUDEOS_DIR" log @{u}..HEAD --oneline 2>/dev/null | wc -l)
-      git_info=""
-      [[ $dirty -gt 0 ]] && git_info="$dirty uncommitted changes"
-      [[ $unpushed -gt 0 ]] && git_info="''${git_info:+$git_info, }$unpushed unpushed commits"
-      [[ -z "$git_info" ]] && git_info="clean, up to date"
-      branch=$(git -C "$CLAUDEOS_DIR" branch --show-current 2>/dev/null || echo unknown)
-    else
-      git_info="not a git repo"
-      branch="n/a"
-    fi
+        # Git status of claudeos repo
+        if [[ -d "$CLAUDEOS_DIR/.git" ]]; then
+          dirty=$(git -C "$CLAUDEOS_DIR" status --porcelain 2>/dev/null | wc -l)
+          unpushed=$(git -C "$CLAUDEOS_DIR" log @{u}..HEAD --oneline 2>/dev/null | wc -l)
+          git_info=""
+          [[ $dirty -gt 0 ]] && git_info="$dirty uncommitted changes"
+          [[ $unpushed -gt 0 ]] && git_info="''${git_info:+$git_info, }$unpushed unpushed commits"
+          [[ -z "$git_info" ]] && git_info="clean, up to date"
+          branch=$(git -C "$CLAUDEOS_DIR" branch --show-current 2>/dev/null || echo unknown)
+        else
+          git_info="not a git repo"
+          branch="n/a"
+        fi
 
-    stats="Host: $host
-    Uptime: $up
-    Failed services (system): $failed_sys
-    Failed services (user): $failed_usr
-    Root disk: ''${disk_pct}% used
-    Nix store: $nix_store
-    Nix generations: $generations
-    Last rebuild: $rebuild_date ($rebuild_days days ago)
-    Flake lock age: $lock_days days
-    Config branch: $branch
-    Config repo: $git_info"
+        stats="Host: $host
+        Uptime: $up
+        Failed services (system): $failed_sys
+        Failed services (user): $failed_usr
+        Root disk: ''${disk_pct}% used
+        Nix store: $nix_store
+        Nix generations: $generations
+        Last rebuild: $rebuild_date ($rebuild_days days ago)
+        Flake lock age: $lock_days days
+        Config branch: $branch
+        Config repo: $git_info"
 
-    CLAUDE_BIN="$HOME/.local/bin/claude"
+        # Save stats for the "Details" action
+        echo "$stats" > "$STATS_FILE"
 
-    if [[ -x "$CLAUDE_BIN" ]]; then
-      prompt="You are ClaudeOS, the AI that manages this NixOS system. Write a concise daily briefing (2-4 sentences) for the terminal MOTD. Focus on what needs attention or action — failed services, stale config, uncommitted work, disk pressure. If everything looks healthy, say so briefly. No markdown, no emoji, plain text only.
+        CLAUDE_BIN="$HOME/.local/bin/claude"
 
-    $stats"
+        if [[ -x "$CLAUDE_BIN" ]]; then
+          prompt="You are ClaudeOS, the AI that manages this NixOS system. Write a concise daily briefing (2-4 sentences) for the terminal MOTD. Focus on what needs attention or action — failed services, stale config, uncommitted work, disk pressure. If everything looks healthy, say so briefly. No markdown, no emoji, plain text only.
 
-      brief=$("$CLAUDE_BIN" -p "$prompt" --model sonnet 2>/dev/null) || brief=""
+        $stats"
 
-      if [[ -n "$brief" ]]; then
-        echo "$brief" > "$BRIEF_FILE"
-        exit 0
-      fi
-    fi
+          brief=$("$CLAUDE_BIN" -p "$prompt" --model sonnet 2>/dev/null) || brief=""
 
-    # Fallback: raw stats if Claude unavailable
-    echo "$stats" > "$BRIEF_FILE"
+          if [[ -n "$brief" ]]; then
+            echo "$brief" > "$BRIEF_FILE"
+
+            # Send notification with action button
+            action=$(${pkgs.libnotify}/bin/notify-send \
+              --app-name=ClaudeOS --icon=claude \
+              -A "details=Details" -A "dismiss=Dismiss" \
+              "Good Morning" "$brief")
+
+            if [[ "$action" == "details" ]]; then
+              ghostty --class=claude-quick -e bash -c "
+                claude -p 'Good morning. Here are the current system stats for this NixOS machine:
+
+    $(cat "$STATS_FILE")
+
+    Review the system state and let me know if anything needs attention. Check journalctl, systemctl, and other system tools for more details on any issues.' --allowedTools 'Bash,Read,Grep,Glob,mcp__system-health*'
+                echo
+                echo \"Press Enter to close...\"
+                read
+              "
+            fi
+            exit 0
+          fi
+        fi
+
+        # Fallback: raw stats if Claude unavailable
+        echo "$stats" > "$BRIEF_FILE"
+        ${pkgs.libnotify}/bin/notify-send \
+          --app-name=ClaudeOS --icon=dialog-information \
+          "Good Morning" "Daily briefing ready — check your terminal."
   '';
 in
 {
@@ -212,6 +275,9 @@ in
           serviceConfig = {
             Type = "oneshot";
             ExecStart = toString notifyScript;
+            # notify-send -A blocks waiting for user to click an action button.
+            # Allow up to 30 min before systemd kills us (matches cooldown period).
+            TimeoutStartSec = "30min";
           };
         };
       }
@@ -225,6 +291,8 @@ in
           serviceConfig = {
             Type = "oneshot";
             ExecStart = toString dailyBriefScript;
+            # notify-send -A blocks waiting for user to click an action button.
+            TimeoutStartSec = "30min";
           };
         };
 
