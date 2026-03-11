@@ -75,6 +75,12 @@
     lfs.enable = true;
   };
 
+  # GitHub CLI
+  programs.gh = {
+    enable = true;
+    settings.git_protocol = "ssh";
+  };
+
   # Delta - Better git diffs (separate program)
   # Colors are managed by Stylix - see modules/desktop/theme.nix
   programs.delta = {
