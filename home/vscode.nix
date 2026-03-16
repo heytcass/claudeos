@@ -100,6 +100,15 @@
     };
   };
 
+  # Remove stale backup files before home-manager's link phase so
+  # backupFileExtension = "backup" doesn't fail on existing .backup files.
+  home.activation.cleanVscodeBackups = lib.hm.dag.entryBefore [ "checkLinkTargets" ] ''
+    for f in "$HOME/.config/Code/User/settings.json.backup" \
+             "$HOME/.config/Code/User/keybindings.json.backup"; do
+      [ -e "$f" ] && $DRY_RUN_CMD rm "$f"
+    done
+  '';
+
   # Replace immutable Nix store symlinks with writable copies so VSCode
   # and extensions can persist runtime settings changes without errors.
   home.activation.mutableVscodeFiles = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
