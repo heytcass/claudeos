@@ -69,6 +69,9 @@
       fi
     '')
 
+    # Supabase CLI for Open Brain deployments
+    supabase-cli
+
     # Nix development tools
     nixfmt
     statix
