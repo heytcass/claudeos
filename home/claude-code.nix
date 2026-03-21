@@ -93,6 +93,20 @@ let
       "telegram@claude-plugins-official" = true;
     };
     skipDangerousModePermissionPrompt = true;
+    permissions = {
+      allow = [
+        "mcp__plugin_telegram_telegram__reply"
+        "mcp__plugin_telegram_telegram__react"
+        "mcp__plugin_telegram_telegram__edit_message"
+        "mcp__claude_ai_Google_Calendar__gcal_list_events"
+        "mcp__claude_ai_open-brain__search_thoughts"
+        "mcp__claude_ai_open-brain__list_thoughts"
+        "mcp__claude_ai_open-brain__thought_stats"
+        "mcp__claude_ai_open-brain__capture_thought"
+        "CronCreate"
+        "CronDelete"
+      ];
+    };
     env = {
       CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS = "1";
     };
