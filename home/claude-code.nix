@@ -90,6 +90,7 @@ let
     enabledPlugins = {
       "github@claude-plugins-official" = true;
       "learning-output-style@claude-plugins-official" = true;
+      "telegram@claude-plugins-official" = true;
     };
     skipDangerousModePermissionPrompt = true;
     env = {
