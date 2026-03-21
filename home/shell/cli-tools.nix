@@ -8,6 +8,7 @@
     jq # JSON processor
     btop # System monitor
     ouch # Universal archive extractor/compressor
+    bun # JavaScript runtime (used by Claude Code Telegram plugin)
   ];
 
   # eza - Modern ls replacement
