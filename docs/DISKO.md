@@ -18,22 +18,23 @@ ClaudeOS uses [disko](https://github.com/nix-community/disko) for declarative di
 - Ensures consistency across machines
 
 **When to Use:**
-- Installing a new ClaudeOS machine (gti, future systems)
+- Installing a new ClaudeOS machine (future systems)
 - Reinstalling an existing machine
 - Documenting the filesystem layout
 
 **When NOT to Use:**
-- Already-installed systems (transporter) - use existing hardware-configuration.nix
 - Making changes to running systems - disko is for installation only
 
 ## Layout
 
 ### Standard ClaudeOS Disk Layout
 
+There is **no default disk device** — each host pins `disko.devices.disk.main.device` in `hosts/<hostname>/default.nix` (gti uses `/dev/nvme0n1`), so a new host fails evaluation instead of silently targeting the wrong drive.
+
 ```
-/dev/sda
-├── /dev/sda1 - 512MB EFI Boot (vfat)
-└── /dev/sda2 - Remainder (btrfs with subvolumes)
+/dev/nvme0n1 (per-host device)
+├── p1 - 1GB EFI Boot (vfat)
+└── p2 - Remainder (btrfs with subvolumes)
     ├── @ → / (root)
     ├── @home → /home (user data)
     ├── @nix → /nix (nix store)
@@ -77,7 +78,7 @@ cd claudeos
 #### 3. Run Disko Installation
 
 ```bash
-# Install system on /dev/sda (DESTRUCTIVE!)
+# Partition the host's pinned device (DESTRUCTIVE!)
 sudo nix run github:nix-community/disko -- \
   --mode disko \
   --flake .#<hostname>
@@ -130,7 +131,7 @@ chmod +x install-with-disko.sh
 sudo ./install-with-disko.sh <hostname> [device]
 
 # Example:
-sudo ./install-with-disko.sh gti /dev/sda
+sudo ./install-with-disko.sh gti /dev/nvme0n1
 ```
 
 The script:
@@ -142,26 +143,17 @@ The script:
 
 ## Existing Systems
 
-### Transporter (Already Installed)
+### gti (Already Installed)
 
-Transporter was installed before disko integration. The disko module is **disabled by default** on existing systems to avoid conflicts.
+gti was installed with disko, and `disko.enableConfig` defaults to `true` — disko generates the `fileSystems` entries declaratively. Its `hardware-configuration.nix` was generated with `--no-filesystems` and contains only hardware detection (kernel modules, CPU config).
 
-**Configuration:**
-- `disko.enableConfig = false` (default)
-- Uses `hosts/transporter/hardware-configuration.nix`
-- Same layout as disko, just not managed by disko
+If a system is ever installed *without* disko, set `disko.enableConfig = false;` in its host config to avoid conflicting filesystem definitions.
 
-**Why Not Enable Disko?**
-- System is already installed and working
-- hardware-configuration.nix contains the UUIDs of existing partitions
-- Enabling disko would conflict with existing configuration
-- No benefit to switching on running systems
-
-### Future Systems (gti, etc.)
+### Future Systems
 
 New installations should use disko:
-1. Boot installer
-2. Run disko installation
+1. Add the host to `flake.nix` and pin its disk device in `hosts/<hostname>/default.nix`
+2. Boot installer and run disko installation
 3. Generate hardware-configuration.nix with `--no-filesystems`
 4. Install NixOS
 
@@ -193,14 +185,14 @@ sudo nix run github:nix-community/disko -- \
   --flake .#<hostname>
 ```
 
-### Custom Disk Device
+### Disk Device (Required Per Host)
 
-Override the default `/dev/sda`:
+`modules/common/disko.nix` deliberately sets no default device — every host must pin its own:
 
 ```nix
 # In hosts/<hostname>/default.nix
 {
-  disko.devices.disk.main.device = lib.mkForce "/dev/nvme0n1";
+  disko.devices.disk.main.device = "/dev/nvme0n1";
 }
 ```
 
@@ -218,7 +210,7 @@ sudo nix run github:nix-community/disko -- \
 
 ## Btrfs Snapshots
 
-While not automated yet, our subvolume layout enables easy snapshots:
+Snapshots are automated via snapper (`modules/common/snapshots.nix`): hourly timeline snapshots plus pre/post pairs around the `rebuild` fish function, with number cleanup. Manual snapshots remain available:
 
 ```bash
 # Create snapshot before system rebuild
@@ -235,9 +227,9 @@ sudo reboot
 ```
 
 **Future Enhancement:**
-- Automatic snapshots before nixos-rebuild
-- Snapshot cleanup/rotation
 - Integration with systemd-boot menu
+
+(Automatic pre-rebuild snapshots and cleanup/rotation are already handled by snapper.)
 
 ## Troubleshooting
 
@@ -259,16 +251,15 @@ sudo cryptsetup close <name>
 
 ### Wrong Disk Device
 
-**Error:** "No such device /dev/sda"
+**Error:** "No such device /dev/nvme0n1" (or evaluation fails because no device is set)
 
 **Solution:**
 ```bash
 # List available disks
 lsblk
 
-# Override device in configuration or command line
-# Option 1: Override in host config (see Custom Disk Device above)
-# Option 2: Manually edit modules/common/disko.nix before running
+# Set the device in the host config (see Disk Device above) —
+# modules/common/disko.nix intentionally has no default to edit
 ```
 
 ### Conflicting Filesystem UUIDs
@@ -277,8 +268,8 @@ lsblk
 
 **Solution:**
 ```bash
-# Wipe existing filesystem signatures
-sudo wipefs -a /dev/sda
+# Wipe existing filesystem signatures (use your target device)
+sudo wipefs -a /dev/nvme0n1
 
 # Run disko again
 ```
@@ -314,4 +305,4 @@ nixos-generate-config --no-filesystems --root /mnt
 
 ---
 
-*Last updated: 2026-02-02*
+*Last updated: 2026-06-11*

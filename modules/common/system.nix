@@ -137,14 +137,16 @@
     "net.ipv4.conf.default.send_redirects" = 0;
   };
 
-  # Polkit — allow wheel group to manage systemd units without repeated password prompts
+  # Polkit — allow wheel group to start/stop/restart systemd units without
+  # repeated password prompts. Deliberately excludes manage-unit-files:
+  # creating/enabling NEW root units stays behind authentication, so a
+  # compromised user process can't silently install a root service.
   security.polkit = {
     enable = true;
     extraConfig = ''
       polkit.addRule(function(action, subject) {
         if (
-          (action.id == "org.freedesktop.systemd1.manage-units" ||
-           action.id == "org.freedesktop.systemd1.manage-unit-files") &&
+          action.id == "org.freedesktop.systemd1.manage-units" &&
           subject.isInGroup("wheel")
         ) {
           return polkit.Result.YES;
@@ -165,9 +167,6 @@
       "-w /etc/passwd -p wa -k identity"
       "-w /etc/group -p wa -k identity"
       "-w /etc/shadow -p wa -k identity"
-
-      # Log sudo usage
-      "-w /var/log/sudo.log -p wa -k sudo-log"
     ];
   };
 
@@ -176,4 +175,8 @@
     enable = true;
     fileSystems = [ "/" ];
   };
+
+  # Weekly TRIM for any non-btrfs filesystems (e.g. the vfat ESP);
+  # btrfs already trims continuously via discard=async in disko mount options
+  services.fstrim.enable = true;
 }

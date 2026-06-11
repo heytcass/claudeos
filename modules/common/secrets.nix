@@ -37,8 +37,6 @@
     mode = "0400";
   };
 
-  sops.secrets.atuin_key = {
-    owner = user;
-    mode = "0400";
-  };
+  # atuin_key intentionally not declared — atuin sync is disabled
+  # (home/shell/cli-tools.nix); re-declare here when enabling sync
 }

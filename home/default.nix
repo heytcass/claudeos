@@ -53,10 +53,13 @@ in
     Icon=folder-development
   '';
 
-  # Default editor for all shells and programs (not just interactive Fish)
+  # Default editor for all shells and programs (not just interactive Fish).
+  # --wait makes VSCode block until the file is closed — without it, anything
+  # that waits on $EDITOR (git commit, sops, systemctl edit) sees the editor
+  # exit instantly and aborts.
   home.sessionVariables = {
-    EDITOR = "code";
-    VISUAL = "code";
+    EDITOR = "code --wait";
+    VISUAL = "code --wait";
   };
 
   # Default applications for file types

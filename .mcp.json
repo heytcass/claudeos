@@ -8,7 +8,7 @@
       "command": "nix",
       "args": ["shell", "nixpkgs#uv", "-c", "uvx", "unifi-mcp-server"],
       "env": {
-        "UNIFI_API_KEY": "nwoao1XA-U0AoIIrcdLF-eKm646R9M9I",
+        "UNIFI_API_KEY": "${UNIFI_API_KEY}",
         "UNIFI_API_TYPE": "local",
         "UNIFI_LOCAL_HOST": "10.0.0.1",
         "UNIFI_LOCAL_VERIFY_SSL": "false"

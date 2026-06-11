@@ -77,8 +77,9 @@
     enableFishIntegration = true;
 
     settings = {
-      # Sync disabled — enable after adding real atuin_key to secrets/secrets.yaml
-      # and setting key_path = config.sops.secrets.atuin_key.path
+      # Sync disabled — to enable: add a real atuin_key to secrets/secrets.yaml,
+      # re-declare sops.secrets.atuin_key in modules/common/secrets.nix,
+      # and set key_path = config.sops.secrets.atuin_key.path
       auto_sync = false;
       sync_address = "";
 
@@ -90,9 +91,6 @@
       # Search preferences
       search_mode = "fuzzy";
       filter_mode = "global";
-
-      # History preferences
-      update_snapshots = true;
     };
   };
 

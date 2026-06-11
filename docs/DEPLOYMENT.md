@@ -64,7 +64,7 @@ sudo nixos-rebuild switch --rollback
 After applying a new configuration:
 
 - [ ] System boots / services running
-- [ ] COSMIC desktop loads
+- [ ] Niri session loads with Noctalia bar
 - [ ] Wayland session active (`echo $XDG_SESSION_TYPE`)
 - [ ] Audio works
 - [ ] Ghostty terminal launches
@@ -107,12 +107,13 @@ nix store optimise
   services.openssh.settings.PasswordAuthentication = lib.mkForce false;
   ```
 - Never commit unencrypted secrets
-- Update flake inputs regularly: `nix flake update`
-- Test updates on transporter before gti
+- Update flake inputs regularly: `nix flake update` (the weekly auto-update timer also handles this)
 
 ## Testing Strategy
 
-- Always test on transporter first
-- Verify critical functionality before deploying to gti
+gti is the only host, so there is no staging machine — test before switching:
+
+- Build first: `nix build .#nixosConfigurations.gti.config.system.build.toplevel` (or `rebuild-test` for a non-persistent switch)
+- The `rebuild` fish function takes snapper pre/post snapshots automatically
 - Keep working generation — don't garbage-collect until verified
 - Document issues in TROUBLESHOOTING.md

@@ -4,373 +4,126 @@ Documentation for secrets management in ClaudeOS.
 
 ## Current Status
 
-**ClaudeOS uses sops-nix for declarative secrets management.** Secrets are encrypted with age and stored in `secrets/secrets.yaml`. Currently managed secrets:
+**ClaudeOS uses sops-nix for declarative secrets management.** Secrets are encrypted with age and committed to `secrets/secrets.yaml`. Declarations live in `modules/common/secrets.nix`.
 
-- **Jasper API key:** Decrypted at runtime for the Jasper AI daemon
-- **Atuin key:** Placeholder for cross-machine shell history sync
+### How decryption works
 
-All other authentication is handled through:
+There is **no separate age key file to manage on the host**. sops-nix uses the host's SSH ed25519 key (`/etc/ssh/ssh_host_ed25519_key`), converted to an age key, to decrypt secrets at activation time. This key exists during early boot — unlike a key stored in a user's home directory — so secrets are available before login.
+
+Decrypted secrets appear at `/run/secrets/<name>` with the owner/mode declared in `modules/common/secrets.nix`.
+
+### Recipients (`.sops.yaml`)
+
+Two age public keys can decrypt `secrets/secrets.yaml`:
+
+| Key | Purpose |
+|-----|---------|
+| `user` | Tom's personal age key (`~/.config/sops/age/keys.txt`) — used to **edit** secrets |
+| `gti_host` | gti's SSH host key converted to age — used by sops-nix to **decrypt at runtime** |
+
+### Declared secrets
+
+`modules/common/secrets.nix` declares six secrets, all owned by the user with mode `0400`, all consumed by the Jasper daemon (`modules/apps/jasper.nix`):
+
+- `jasper_anthropic_api_key`
+- `jasper_google_client_id`
+- `jasper_google_client_secret`
+- `jasper_google_weather_api_key`
+- `jasper_google_routes_api_key`
+- `jasper_home_address`
+
+**Note:** `secrets/secrets.yaml` also contains an `atuin_key` entry, but it is intentionally **not declared** — atuin sync is disabled (`home/shell/cli-tools.nix`). Re-declare it in `modules/common/secrets.nix` when enabling sync.
+
+All other authentication is handled outside sops-nix:
 - **OAuth/OIDC:** Chrome, Slack, Discord, VSCode extensions
 - **SSH keys:** Stored in `~/.ssh/` with proper permissions (not managed declaratively)
-- **Manual login:** Applications handle their own credential storage
+- **GitHub:** `gh` CLI keyring auth (fish exports `GITHUB_PERSONAL_ACCESS_TOKEN` from `gh auth token`)
 - **User passwords:** Set during NixOS installation with `passwd`
 
-## When to Add More Secrets
+## Editing Secrets
 
-**sops-nix is implemented.** Add new secrets when you have credentials that need to be in your Nix configuration.
-
-### Use Cases for sops-nix
-
-Add sops-nix when you need to:
-- Store API keys/tokens in service config files
-- Manage database passwords in module declarations
-- Configure MCP server configs with embedded credentials
-- Set up Atuin sync key for cross-machine shell history
-- Template credentials into declarative configuration files
-
-### NOT Needed For
-
-sops-nix is **NOT** needed for:
-- SSH keys (already secure in `~/.ssh/` with proper permissions)
-- OAuth tokens (managed by applications, not configuration)
-- User passwords (manual `passwd` is simpler for 2-machine setup)
-- Browser/app authentication (handled by apps themselves)
-- Chrome extension credentials
-- VSCode extension authentication
-
-## Current Security Posture
-
-### What's Secure Without sops-nix
-
-**SSH Access:**
-```bash
-# SSH keys have correct permissions
-ls -la ~/.ssh/
--rw------- 1 tom users    id_ed25519
--rw-r--r-- 1 tom users    id_ed25519.pub
-```
-
-**Application Credentials:**
-- Stored in app-specific locations
-- Protected by file permissions
-- Managed by applications (GNOME Keyring, etc.)
-
-**Git Configuration:**
-- User identity set manually (not secret)
-- SSH keys for git authentication (in `~/.ssh/`)
-
-**Firewall:**
-- Enabled by default (modules/common/networking.nix)
-- No ports open by default
-- SSH with password auth (disable after key setup)
-
-### Security Best Practices
-
-**Current Configuration:**
-- Root login disabled (modules/common/networking.nix)
-- Firewall enabled with minimal ports
-- Sudo requires password (modules/common/users.nix)
-- No secrets in Git repository
-- OAuth for modern applications
-
-**Recommended Hardening:**
-1. Disable SSH password authentication after key setup:
-   ```nix
-   services.openssh.settings.PasswordAuthentication = lib.mkForce false;
-   ```
-
-2. Set up SSH keys for deployment:
-   ```nix
-   users.users.tom.openssh.authorizedKeys.keys = [
-     "ssh-ed25519 AAAA... your-key-here"
-   ];
-   ```
-
-3. Keep sensitive files out of git (already configured):
-   ```
-   ~/.ssh/*
-   ~/.gnupg/*
-   ```
-
-## Setup Reference
-
-Follow this guide to manage sops-nix keys, secrets, and deployment.
-
-### Installation
-
-**1. Add sops-nix to flake.nix:**
-
-```nix
-# In flake.nix inputs
-inputs = {
-  # ... existing inputs ...
-  sops-nix = {
-    url = "github:Mic92/sops-nix";
-    inputs.nixpkgs.follows = "nixpkgs";
-  };
-};
-
-# In nixosConfiguration
-modules = [
-  # ... existing modules ...
-  inputs.sops-nix.nixosModules.sops
-];
-```
-
-**2. Install sops and age:**
+Editing requires a machine that has the **user age key** at `~/.config/sops/age/keys.txt` (the host key can only decrypt, and only via sops-nix):
 
 ```bash
-# On development machine
-nix-shell -p sops age
-```
-
-### Key Generation
-
-**Generate age key:**
-
-```bash
-# Create sops directory
-mkdir -p ~/.config/sops/age
-
-# Generate key
-age-keygen -o ~/.config/sops/age/keys.txt
-
-# Get public key for .sops.yaml
-age-keygen -y ~/.config/sops/age/keys.txt
-```
-
-**Output example:**
-```
-Public key: age1ql3z7hjy54pw3hyww5ayyfg7zqgvc7w3j2elw8zmrj2kg5sfn9aqmcac8p
-```
-
-### Configuration
-
-**1. Create .sops.yaml:**
-
-```yaml
-# .sops.yaml in repository root
-keys:
-  - &tom age1ql3z7hjy54pw3hyww5ayyfg7zqgvc7w3j2elw8zmrj2kg5sfn9aqmcac8p
-
-creation_rules:
-  - path_regex: secrets/.*\.yaml$
-    key_groups:
-      - age:
-          - *tom
-```
-
-**2. Create secrets file:**
-
-```bash
-# Create secrets directory
-mkdir -p secrets
-
-# Edit secrets (creates encrypted file)
-sops secrets/secrets.yaml
-```
-
-**Example secrets.yaml (before encryption):**
-```yaml
-example_api_key: "your-secret-api-key-here"
-example_password: "your-secret-password-here"
-atuin_key: "your-atuin-sync-key-here"
-```
-
-### Using Secrets in Modules
-
-**1. Enable sops in configuration:**
-
-```nix
-# In configuration.nix or a module
-{
-  sops = {
-    defaultSopsFile = ../secrets/secrets.yaml;
-    age.keyFile = "/home/tom/.config/sops/age/keys.txt";
-  };
-}
-```
-
-**2. Define secrets:**
-
-```nix
-# In a module
-{
-  sops.secrets.example = {
-    owner = "tom";
-    group = "users";
-    mode = "0400";
-  };
-}
-```
-
-**3. Reference secrets:**
-
-```nix
-# Secrets are available at runtime
-{
-  services.myservice = {
-    enable = true;
-    apiKeyFile = config.sops.secrets.example.path;
-  };
-}
-```
-
-**Secret paths:** `/run/secrets/<secret-name>`
-
-### Deployment Workflow with sops-nix
-
-**On Development Machine:**
-```bash
-# Edit secrets
-sops secrets/secrets.yaml
-
-# Commit encrypted secrets (safe to push)
-git add secrets/secrets.yaml .sops.yaml
-git commit -m "feat(secrets): add API keys"
+cd ~/.config/claudeos
+sops secrets/secrets.yaml   # opens decrypted YAML in $EDITOR
+git add secrets/secrets.yaml
+git commit -m "chore(secrets): ..."
 git push
 ```
 
-**On Target Machine:**
+The encrypted file is safe to commit and push. Hosts pick up new values on the next `rebuild`.
+
+## Adding a New Secret
+
+1. On a machine with the user age key: `sops secrets/secrets.yaml` and add the key/value
+2. Declare it in `modules/common/secrets.nix`:
+   ```nix
+   sops.secrets.my_secret = {
+     owner = user;
+     mode = "0400";
+   };
+   ```
+3. Reference it via `config.sops.secrets.my_secret.path` (resolves to `/run/secrets/my_secret`)
+4. Rebuild and verify the file exists with correct ownership
+
+## Planned: `unifi_api_key`
+
+`.mcp.json` registers a UniFi MCP server that reads `UNIFI_API_KEY` from the environment — fish exports it from `/run/secrets/unifi_api_key` when that file exists (`home/shell/fish.nix`). The secret itself is **not yet in `secrets/secrets.yaml`**. Follow-up:
+
+1. Add `unifi_api_key` via `sops secrets/secrets.yaml`
+2. Declare `sops.secrets.unifi_api_key` in `modules/common/secrets.nix` (owner = user, mode `0400`)
+
+Until then, the UniFi MCP server simply has no key and the fish export is a no-op.
+
+## Adding a New Host
+
+A new host's SSH host key must be added as a recipient before sops-nix can decrypt on it:
+
 ```bash
-# Copy age key to target (first time only)
-scp ~/.config/sops/age/keys.txt target:~/.config/sops/age/
+# On the new host: convert the SSH host key to an age public key
+nix shell nixpkgs#ssh-to-age -c sh -c 'ssh-to-age < /etc/ssh/ssh_host_ed25519_key.pub'
 
-# Deploy configuration
-cd ~/.config/claudeos
-git pull
-sudo nixos-rebuild switch --flake .#$(hostname)
-
-# Secrets are decrypted at runtime to /run/secrets/
-```
-
-### Key Management
-
-**Backup Keys:**
-```bash
-# Backup age key (CRITICAL - store securely)
-cp ~/.config/sops/age/keys.txt ~/secure-backup-location/
-```
-
-**Add New Key:**
-```bash
-# Generate new key
-age-keygen -o ~/.config/sops/age/keys-new.txt
-
-# Get public key
-age-keygen -y ~/.config/sops/age/keys-new.txt
-
-# Update .sops.yaml with new public key
-# Re-encrypt secrets with new key
+# Add the printed age1... key to .sops.yaml, then re-encrypt for all recipients
 sops updatekeys secrets/secrets.yaml
 ```
 
-**Rotate Secrets:**
+Commit both `.sops.yaml` and the re-encrypted `secrets/secrets.yaml`.
+
+## Key Management
+
+**Backup the user age key** (`~/.config/sops/age/keys.txt`) somewhere secure — without it you cannot edit secrets. The host can still decrypt (its SSH key is the second recipient), but if both are lost the file contents are unrecoverable.
+
+**Rotate a secret:**
 ```bash
-# Edit and update secret values
-sops secrets/secrets.yaml
-
-# Git commit changes
-git add secrets/secrets.yaml
-git commit -m "chore(secrets): rotate API keys"
-
-# Deploy to machines
+sops secrets/secrets.yaml          # change the value
+git commit -am "chore(secrets): rotate ..." && git push
+rebuild                            # redeploys /run/secrets/*
 ```
 
-### Security Considerations
+**Rotate recipients:** update `.sops.yaml`, then `sops updatekeys secrets/secrets.yaml`.
 
-**Best Practices:**
-- ✅ Keep age private key out of git repository
-- ✅ Backup age key securely (encrypted USB, password manager)
-- ✅ Use different keys for different environments if needed
-- ✅ Rotate secrets periodically
-- ✅ Encrypted secrets are safe to commit to git
+## Security Considerations
+
+**Do:**
+- ✅ Keep the user age private key out of the repository and backed up securely
+- ✅ Commit encrypted `secrets/secrets.yaml` — it is safe in git
+- ✅ Declare every consumed secret in `modules/common/secrets.nix` with explicit owner/mode
+- ✅ Reference secrets by `.path` so values never enter the Nix store
 
 **Don't:**
-- ❌ Commit age private key to repository
-- ❌ Share age private key insecurely
-- ❌ Store unencrypted secrets in repository
-- ❌ Use same key for all environments in production
-
-## Example Use Cases
-
-When you're ready to use sops-nix, here are example scenarios:
-
-### Atuin Sync Configuration
-
-```nix
-# Enable Atuin with sync
-{
-  sops.secrets.atuin_key = {
-    owner = "tom";
-    mode = "0400";
-  };
-
-  home-manager.users.tom = {
-    programs.atuin = {
-      enable = true;
-      settings = {
-        auto_sync = true;
-        sync_address = "https://api.atuin.sh";
-        key_path = config.sops.secrets.atuin_key.path;
-      };
-    };
-  };
-}
-```
-
-### MCP Server with API Keys
-
-```nix
-# Claude Desktop MCP server config
-{
-  sops.secrets.openai_api_key = {};
-
-  home-manager.users.tom = {
-    home.file.".config/Claude/claude_desktop_config.json".text = ''
-      {
-        "mcpServers": {
-          "openai": {
-            "command": "npx",
-            "args": ["-y", "@modelcontextprotocol/server-openai"],
-            "env": {
-              "OPENAI_API_KEY": "$(cat ${config.sops.secrets.openai_api_key.path})"
-            }
-          }
-        }
-      }
-    '';
-  };
-}
-```
-
-### Custom Service with Database
-
-```nix
-# Service with database password
-{
-  sops.secrets.db_password = {
-    owner = "myservice";
-    group = "users";
-  };
-
-  services.myservice = {
-    enable = true;
-    database = {
-      passwordFile = config.sops.secrets.db_password.path;
-    };
-  };
-}
-```
+- ❌ Commit private keys or unencrypted secrets
+- ❌ Hardcode credentials in tracked files (the UniFi key was moved to the environment for exactly this reason)
+- ❌ Put secret values directly in Nix expressions (they end up world-readable in `/nix/store`)
 
 ## Reference
 
 - [sops-nix GitHub](https://github.com/Mic92/sops-nix)
-- [sops Documentation](https://github.com/mozilla/sops)
+- [sops Documentation](https://github.com/getsops/sops)
 - [age Encryption](https://github.com/FiloSottile/age)
-- [NixOS Wiki: Secrets Management](https://wiki.nixos.org/wiki/Comparison_of_secret_managing_schemes)
+- [ssh-to-age](https://github.com/Mic92/ssh-to-age)
 
 ---
 
-*Last updated: 2026-02-14*
-*Status: sops-nix is implemented for Jasper API key and Atuin key*
+*Last updated: 2026-06-11*
+*Status: sops-nix decrypts via the gti host SSH key; 6 jasper_* secrets declared*
