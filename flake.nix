@@ -81,17 +81,6 @@
     in
     {
       nixosConfigurations = {
-        transporter = lib.mkSystem {
-          hostname = "transporter";
-          system = "x86_64-linux";
-          user = "tom";
-          hardwareModules = commonHardwareModules ++ [
-            nixos-hardware.nixosModules.dell-latitude-7280
-          ];
-          modules = [ ./hosts/transporter ];
-          inherit specialArgs;
-        };
-
         gti = lib.mkSystem {
           hostname = "gti";
           system = "x86_64-linux";
@@ -104,9 +93,8 @@
         };
       };
 
-      # Validate both host configurations with `nix flake check`
+      # Validate host configurations with `nix flake check`
       checks.x86_64-linux = {
-        transporter = self.nixosConfigurations.transporter.config.system.build.toplevel;
         gti = self.nixosConfigurations.gti.config.system.build.toplevel;
       };
 

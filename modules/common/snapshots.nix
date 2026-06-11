@@ -28,6 +28,12 @@
         TIMELINE_LIMIT_WEEKLY = 2;
         TIMELINE_LIMIT_MONTHLY = 0;
         TIMELINE_LIMIT_YEARLY = 0;
+        # Prune the pre/post pairs created by the `rebuild` fish abbreviation —
+        # without NUMBER_CLEANUP snapper keeps them forever, pinning deleted data
+        NUMBER_CLEANUP = true;
+        NUMBER_LIMIT = 10;
+        NUMBER_MIN_AGE = 1800;
+        EMPTY_PRE_POST_CLEANUP = true;
       };
 
       home = {
@@ -40,6 +46,10 @@
         TIMELINE_LIMIT_WEEKLY = 2;
         TIMELINE_LIMIT_MONTHLY = 0;
         TIMELINE_LIMIT_YEARLY = 0;
+        NUMBER_CLEANUP = true;
+        NUMBER_LIMIT = 10;
+        NUMBER_MIN_AGE = 1800;
+        EMPTY_PRE_POST_CLEANUP = true;
       };
     };
   };

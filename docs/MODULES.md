@@ -4,7 +4,7 @@ Complete reference for all ClaudeOS NixOS configuration modules, generated from 
 
 ## Architecture Overview
 
-ClaudeOS is a multi-host NixOS flake. The entry point (`flake.nix`) defines two hosts -- `transporter` and `gti` -- both built via `lib/mkSystem.nix`. Every host automatically receives:
+ClaudeOS is a NixOS flake. The entry point (`flake.nix`) currently defines a single host -- `gti` -- built via `lib/mkSystem.nix`. Every host automatically receives:
 
 - **NixOS modules:** `modules/common/`, `modules/desktop/`, `modules/apps/`
 - **home-manager** (as a NixOS module, not standalone): imports `home/default.nix`
@@ -23,7 +23,7 @@ The formatter is `nixfmt` (set in `flake.nix`).
 | sops-nix | Mic92 | Declarative secrets management |
 | disko | nix-community | Declarative disk partitioning |
 | stylix | danth | Unified theming (base16) |
-| claude-for-linux | heytcass | Claude Desktop Electron app |
+| claude-desktop-linux | heytcass | Claude Desktop Electron app |
 | jasper | heytcass | Jasper AI companion daemon |
 | niri | sodiboo | Niri scrollable tiling compositor (flake) |
 | noctalia | noctalia-dev | Noctalia Shell (bar, notifications, OSD, wallpaper) |
@@ -74,7 +74,7 @@ Contents:
 
 ## modules/common/ -- Foundation
 
-Core system configuration shared by all hosts. Imported via `modules/common/default.nix` which pulls in: `boot.nix`, `disko.nix`, `nix.nix`, `users.nix`, `networking.nix`, `locale.nix`, `system.nix`, `secrets.nix`, `snapshots.nix`.
+Core system configuration shared by all hosts. Imported via `modules/common/default.nix` which pulls in: `boot.nix`, `disko.nix`, `nix.nix`, `users.nix`, `networking.nix`, `locale.nix`, `system.nix`, `secrets.nix`, `snapshots.nix`, `auto-update.nix` (weekly `claudeos-auto-update` timer: `git pull --rebase`, `nix flake update`, test build, Claude-reviewed changelog, commit and verified `git push` with one rebase-and-retry).
 
 ### modules/common/boot.nix
 
@@ -82,6 +82,7 @@ Boot loader and kernel configuration.
 
 - **Bootloader:** systemd-boot (UEFI), `canTouchEfiVariables = true`
 - **Generations:** limited to 5 (`configurationLimit = 5`)
+- **Boot-entry editor:** disabled (`systemd-boot.editor = false`) -- prevents `init=/bin/sh` root shell via physical access
 - **Plymouth:** enabled by default (`lib.mkDefault true`) with Claude logo (`assets/claude-logo.png`), animated spinning
 - **Silent boot:** kernel params `quiet` and `splash`
 - **Kernel:** latest (`linuxPackages_latest`, via `lib.mkDefault`)
@@ -90,14 +91,14 @@ Boot loader and kernel configuration.
 
 Declarative disk layout via disko.
 
-- **EFI partition:** 512MB vfat, mounted at `/boot`
+- **EFI partition:** 1G vfat, mounted at `/boot`
 - **Root partition:** remainder of disk, btrfs with subvolumes:
   - `@` mounted at `/`
   - `@home` mounted at `/home`
   - `@nix` mounted at `/nix`
   - `@log` mounted at `/var/log`
 - **Mount options:** `noatime`, `compress=zstd:3`, `ssd`, `discard=async`, `space_cache=v2`
-- **Default device:** `/dev/sda` (overridden to `/dev/nvme0n1` on gti)
+- **Device:** no default -- each host must pin `disko.devices.disk.main.device` in `hosts/<name>/default.nix` (gti uses `/dev/nvme0n1`), so a new host fails evaluation instead of silently targeting the wrong drive
 - `disko.enableConfig` defaults to `true`
 
 ### modules/common/nix.nix
@@ -130,7 +131,7 @@ User account and shell setup.
 Network, DNS, firewall, and SSH.
 
 - **NetworkManager:** enabled
-- **systemd-resolved:** enabled with `DNSSEC = "allow-downgrade"`, `DNSOverTLS = "no"`, fallback DNS `1.1.1.1` and `9.9.9.9`
+- **systemd-resolved:** enabled with `DNSSEC = false` (upstream validation handled by local DNS server), `DNSOverTLS = "opportunistic"`, `LLMNR = false` (spoofable legacy protocol), fallback DNS `1.1.1.1` and `9.9.9.9`
 - **Boot optimization:** `NetworkManager-wait-online` disabled
 - **Firewall:** enabled, no ports opened by default
 - **SSH server:** enabled, `PasswordAuthentication = false`, `PermitRootLogin = "no"`
@@ -142,7 +143,7 @@ Timezone, locale, and keyboard.
 - **Timezone:** `America/New_York` (via `lib.mkDefault`)
 - **Locale:** `en_US.UTF-8` for all `LC_*` categories
 - **Console:** font `Lat2-Terminus16`, keymap `colemak`
-- **Xkb:** layout `us`, variant `colemak`
+- No `services.xserver.xkb` -- there is no X server; Niri reads its keyboard layout from `home/niri.nix` (`input.keyboard.xkb`)
 
 ### modules/common/system.nix
 
@@ -170,10 +171,11 @@ System packages, hardware, and kernel tuning.
 Declarative secrets via sops-nix.
 
 - **Sops file:** `secrets/secrets.yaml`
-- **Age key:** `/home/tom/.config/sops/age/keys.txt`
-- **Managed secrets:**
-  - `jasper_anthropic_api_key` -- owner `tom`, mode `0400`
-  - `atuin_key` -- owner `tom`, mode `0400`
+- **Decryption:** the host's SSH ed25519 key converted to age (sops-nix default `sshKeyPaths`) -- available during early boot, no user-home key file needed
+- **Managed secrets** (all owner `tom`, mode `0400`): `jasper_anthropic_api_key`, `jasper_google_client_id`, `jasper_google_client_secret`, `jasper_google_weather_api_key`, `jasper_google_routes_api_key`, `jasper_home_address`
+- `atuin_key` exists in `secrets.yaml` but is intentionally **not declared** -- atuin sync is disabled (`home/shell/cli-tools.nix`)
+
+See `docs/SECRETS.md` for editing/rotation workflow.
 
 ### modules/common/snapshots.nix
 
@@ -182,6 +184,7 @@ Snapper btrfs snapshot management.
 - **Snapper:** enabled with hourly snapshot interval, daily cleanup, persistent timer
 - **Root config:** SUBVOLUME `/`, timeline snapshots (hourly x 10, daily x 7, weekly x 2)
 - **Home config:** SUBVOLUME `/home`, same retention, `ALLOW_USERS` includes the system user (no sudo needed)
+- **Number cleanup** (both configs): `NUMBER_CLEANUP = true`, `NUMBER_LIMIT = 10`, `NUMBER_MIN_AGE = 1800`, `EMPTY_PRE_POST_CLEANUP = true` -- prunes the pre/post pairs created by the `rebuild` fish function so they don't pin deleted data forever
 
 ---
 
@@ -199,6 +202,11 @@ Niri compositor and greeter at the system level.
 **Greeter:**
 - `services.greetd` with `tuigreet --time --remember --remember-session --cmd niri-session`
 
+**File manager:**
+- `programs.thunar` (the module, not a bare package -- wraps Thunar so plugins are discovered) with `thunar-archive-plugin` and `thunar-volman`
+- `programs.xfconf.enable = true` (persists Thunar preferences)
+- `services.tumbler.enable = true` (thumbnails for images, videos, PDFs)
+
 **Services:**
 - `services.gvfs.enable = true` (virtual filesystems: Trash, network shares)
 - `services.openssh.settings.X11Forwarding = false`
@@ -207,7 +215,7 @@ Niri compositor and greeter at the system level.
 - `GDK_BACKEND = "wayland,x11"`, `QT_QPA_PLATFORM = "wayland;xcb"`, `NIXOS_OZONE_WL = "1"` (Electron Wayland)
 
 **System packages:**
-- Wayland utilities: `wl-clipboard`, `cliphist`, `fuzzel`, `brightnessctl`, `grim`, `slurp`, `satty`, `thunar`, `xarchiver`
+- Wayland utilities: `wl-clipboard`, `cliphist`, `fuzzel`, `brightnessctl`, `grim`, `slurp`, `satty`, `xarchiver`
 - Icon theme: `adwaita-icon-theme`
 - Custom inline derivations: `tab-new-symbolic` SVG icon (for Ghostty libadwaita tab bar), `folder-development` SVG icon (for ~/Projects)
 
@@ -264,7 +272,7 @@ Stylix theming, Qt, and XDG portals. References `lib/theme.nix` for font names.
 
 ## modules/apps/ -- Applications
 
-User-facing applications. Imported via `modules/apps/default.nix` which pulls in: `terminals.nix`, `claude.nix`, `jasper.nix`, `mcp-system-health`.
+User-facing applications. Imported via `modules/apps/default.nix` which pulls in: `terminals.nix`, `claude.nix`, `jasper.nix`, `mcp-system-health`, `mcp-niri`, `claude-monitor`.
 
 **Direct installs** (in `default.nix`): `google-chrome`, `slack`, `discord`, `obsidian`
 
@@ -292,7 +300,7 @@ Claude Code CLI and Claude Desktop.
 
 **Claude Code CLI auto-installer:** systemd user service `claude-code-installer` that runs on first login if `~/.local/bin/claude` does not exist. Executes `curl -fsSL https://claude.ai/install.sh | bash`.
 
-**Claude Desktop:** Installed via home-manager using the `claude-for-linux` flake input. The app.asar from the flake is wrapped with the system's `electron_37` in an FHS environment (with bubblewrap, nodejs, glibc, openssl, coreutils, bash, git, curl). A custom XDG desktop entry is created with name "Claude", categories Development/Utility, and `x-scheme-handler/claude` MIME type.
+**Claude Desktop:** Installed via home-manager using the `claude-desktop-linux` flake input. The app.asar from the flake is wrapped with the system's `electron_37` in an FHS environment (with bubblewrap, nodejs, glibc, openssl, coreutils, bash, git, curl). A custom XDG desktop entry is created with name "Claude", categories Development/Utility, and `x-scheme-handler/claude` MIME type.
 
 ### modules/apps/jasper.nix
 
@@ -351,7 +359,7 @@ Git and delta configuration.
 - `rerere.enabled = true`
 - `fetch.prune = true`
 - `core.autocrlf = "input"`
-- `credential.helper = "!gh auth git-credential"` (GitHub CLI)
+- GitHub credential helper comes from `programs.gh.gitCredentialHelper` (gh CLI is configured in `home/shell/cli-tools.nix`, not here)
 - `color.ui = true`
 
 **Git LFS:** enabled
@@ -450,11 +458,10 @@ System fetch tool with custom ASCII art and Stylix-derived colors.
 
 Declarative Claude Code configuration via home-manager.
 
-- Generates `~/.claude/settings.json` from Nix (statusline, plugins, env, hooks)
-- Generates `~/.claude/.mcp.json` (MCP server registrations: nixos, system-health)
+- Generates `~/.claude/settings.json` from Nix (statusline, plugins, permissions, env)
+- Generates `~/.claude/.mcp.json` (MCP server registrations: nixos, system-health, niri)
 - **Statusline script:** reads Stylix palette for themed status bar showing directory, git info, model, context usage, and cost estimate
-- **Notification hook:** reads JSON from stdin, sends desktop notification via `notify-send`
-- **Plugins:** frontend-design, github, feature-dev, superpowers, pr-review-toolkit, agent-sdk-dev, plugin-dev, learning-output-style, and more
+- **Plugins (globally enabled):** github, learning-output-style, telegram -- others are installed per-project via the Discover tab
 - `force = true` on both files (Nix is authoritative over runtime edits)
 
 ### home/shell/default.nix
@@ -482,8 +489,10 @@ Fish shell configuration.
 **Interactive init:**
 - Disables greeting
 - Adds `~/.local/bin` to PATH (for Claude Code CLI)
-- `EDITOR` and `VISUAL` set to `code`
-- Runs `macchina` on first shell in terminal (tracked via `MACCHINA_SHOWN` env var)
+- Exports `GITHUB_PERSONAL_ACCESS_TOKEN` from `gh auth token` and `UNIFI_API_KEY` from `/run/secrets/unifi_api_key` (when present, for the UniFi MCP server)
+- Runs `macchina` plus the daily brief on first shell in terminal (tracked via `MACCHINA_SHOWN` env var)
+
+`EDITOR` and `VISUAL` are set to `code --wait` in `home/default.nix` (session variables, so `git commit`/`sops` block until the editor closes).
 
 ### home/shell/starship.nix
 
@@ -518,30 +527,20 @@ Modern CLI tool replacements.
 - **fzf:** Fish integration disabled (handled by `fzf.fish` plugin), uses `fd` for file/directory search, `bat` for file preview, `eza --tree` for directory preview
 - **atuin:** Fish integration enabled, sync disabled, compact style, fuzzy search, global filter, preview enabled, inline height 20
 - **yazi:** Fish integration enabled, hidden files off, natural sort, directories first
+- **gh:** GitHub CLI -- SSH git protocol, `gitCredentialHelper.enable = true` (sole home of `programs.gh`; `home/git.nix` defers to it)
 - **direnv:** enabled with `nix-direnv`
 
 ---
 
 ## hosts/ -- Per-Host Configuration
 
-### hosts/transporter/default.nix
-
-Dell Latitude 7280 (test system). Imports only `hardware-configuration.nix`. No overrides -- uses all defaults (disk device `/dev/sda`, etc.).
-
-### hosts/transporter/hardware-configuration.nix
-
-Generated by `nixos-generate-config --no-filesystems` (filesystems managed by disko).
-
-- initrd modules: `xhci_pci`, `ahci`, `usb_storage`, `sd_mod`, `rtsx_pci_sdmmc`
-- Kernel modules: `kvm-intel`
-- Intel microcode: enabled when redistributable firmware is on
-- Platform: `x86_64-linux`
+The retired `transporter` host (Dell Latitude 7280) has been removed from the flake.
 
 ### hosts/gti/default.nix
 
 Dell XPS 13 9370 (production). Imports `hardware-configuration.nix`.
 
-- Overrides disko device to `/dev/nvme0n1` (NVMe SSD)
+- Pins the disko disk device to `/dev/nvme0n1` (NVMe SSD) -- required, since `modules/common/disko.nix` deliberately sets no default
 
 ### hosts/gti/hardware-configuration.nix
 
@@ -568,7 +567,7 @@ flake.nix
 
 Notable dependency chains:
 - `modules/apps/jasper.nix` reads secrets from `modules/common/secrets.nix` (sops)
-- `modules/apps/claude.nix` uses `inputs.claude-for-linux` and `inputs.nixpkgs` (electron)
+- `modules/apps/claude.nix` uses `inputs.claude-desktop-linux` and `inputs.nixpkgs` (electron)
 - `home/niri.nix` imports niri-flake and noctalia home-manager modules, enables Stylix targets for GTK, Ghostty, VS Code, and Niri
 - `home/shell/fish.nix` relies on tools configured in `home/shell/cli-tools.nix` (eza, bat, batman, zoxide)
 - `lib/theme.nix` is imported as pure data by `modules/desktop/fonts.nix`, `modules/desktop/theme.nix`, `home/ghostty.nix`, and `home/niri.nix`
@@ -578,4 +577,4 @@ Notable dependency chains:
 
 ---
 
-*Last updated: 2026-02-16*
+*Last updated: 2026-06-11*

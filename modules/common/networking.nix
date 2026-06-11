@@ -11,6 +11,7 @@
     settings.Resolve = {
       DNSSEC = false; # Technitium handles upstream DNSSEC validation; local zones are unsigned
       DNSOverTLS = "opportunistic"; # Use DoT when server supports it, plain DNS otherwise
+      LLMNR = false; # Legacy name-resolution protocol — spoofable on untrusted LANs; mDNS covers local discovery
 
       # No global DNS= set — NetworkManager/DHCP provides the primary DNS server,
       # preserving internal DNS resolution (e.g. local services, split-horizon DNS).

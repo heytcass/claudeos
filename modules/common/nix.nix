@@ -1,4 +1,4 @@
-{ ... }:
+{ lib, ... }:
 
 {
   # Enable flakes and nix-command
@@ -55,6 +55,6 @@
   # Allow unfree packages (Chrome, VSCode, etc.)
   nixpkgs.config.allowUnfree = true;
 
-  # Set system state version
-  system.stateVersion = "24.11";
+  # Set system state version (mkDefault so a host installed later can pin its own)
+  system.stateVersion = lib.mkDefault "24.11";
 }

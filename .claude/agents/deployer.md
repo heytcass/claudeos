@@ -75,7 +75,7 @@ nixos-rebuild switch --flake .#<hostname> \
 
 ## Machine-Specific Behavior
 
-The SessionStart hook tells you which machine you're on. Check `$(hostname)` and the host's `hosts/<hostname>/default.nix` for machine-specific context. Always confirm with the user before deploying to any production machine.
+Run `hostname` to determine which machine you're on, and check the host's `hosts/<hostname>/default.nix` for machine-specific context. Always confirm with the user before deploying to any production machine.
 
 ## Rollback
 

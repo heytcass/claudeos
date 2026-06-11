@@ -13,7 +13,7 @@ in
   # Disko configuration for ClaudeOS btrfs layout
   #
   # Layout:
-  # - 512MB EFI boot partition (vfat)
+  # - 1GB EFI boot partition (vfat)
   # - Remainder as btrfs with subvolumes:
   #   - @ (root)
   #   - @home (user data)
@@ -31,12 +31,13 @@ in
     disk = {
       main = {
         type = "disk";
-        device = lib.mkDefault "/dev/sda";
+        # No default device — each host must pin its own disk (hosts/<name>/default.nix)
+        # so a new host fails evaluation instead of silently targeting the wrong drive.
         content = {
           type = "gpt";
           partitions = {
             ESP = {
-              size = "512M";
+              size = "1G";
               type = "EF00";
               content = {
                 type = "filesystem";
