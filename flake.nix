@@ -36,20 +36,6 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
-    niri = {
-      url = "github:sodiboo/niri-flake";
-      # DO NOT follow nixpkgs — niri-flake pins specific commits for its builds
-    };
-
-    noctalia = {
-      # Pinned pre-v5: Noctalia v5 renames programs.noctalia-shell → programs.noctalia,
-      # drops nixosModules for homeModules, and replaces the colors option + JSON
-      # settings with TOML + customPalettes. Migrate home/niri.nix against a live
-      # session before unpinning (tracked for the ClaudeOS reinstall).
-      url = "github:noctalia-dev/noctalia-shell/3b5e596ab36782679529b4ac8b9861f0e11ecfb2";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
-
     treefmt-nix = {
       url = "github:numtide/treefmt-nix";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -72,8 +58,6 @@
       claude-desktop-linux,
       stylix,
       jasper,
-      niri,
-      noctalia,
       treefmt-nix,
       ...
     }@inputs:
@@ -85,8 +69,6 @@
         sops-nix.nixosModules.sops
         disko.nixosModules.disko
         stylix.nixosModules.stylix
-        niri.nixosModules.niri
-        noctalia.nixosModules.default
         inputs.nix-index-database.nixosModules.nix-index
         # Trace every generation back to its commit (absent attr on dirty trees)
         { system.configurationRevision = self.shortRev or "dirty"; }
