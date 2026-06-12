@@ -1,42 +1,37 @@
 # ClaudeOS Status
 
-**Last Updated:** 2026-02-15
+**Last Updated:** 2026-06-11
 
 ## Current State
 
 ClaudeOS is a fully operational NixOS configuration for personal machines.
 
-### Deployed: transporter (Dell Latitude 7280)
+### Deployed: gti (Dell XPS 13 9370)
 
-Test machine, fully deployed and operational since 2026-01-27.
+Production machine — the only host in the flake. transporter (Dell Latitude 7280) was retired and removed from `flake.nix` and `hosts/`.
 
 **What works:**
-- COSMIC desktop on Wayland
+- Niri compositor + Noctalia shell on Wayland
 - Pipewire audio with Bluetooth
 - Ghostty terminal with Fish shell and Starship prompt
 - Modern CLI tools (eza, bat, zoxide, atuin, yazi, fzf, ripgrep, fd)
 - Chrome, Slack, Discord, VSCode
 - Claude Code CLI (via nix-ld)
-- Claude Desktop (via claude-for-linux)
+- Claude Desktop (via claude-desktop-linux)
 - Stylix theming with Claude brand colors
-- btrfs with zstd compression and subvolumes
+- btrfs with zstd compression and subvolumes (snapper timeline + number cleanup)
 - Automated garbage collection and store optimization
-- systemd-boot with 5 generations retained
-
-**Storage:** 238.5GB SSD, btrfs with ~30% compression savings
-
-### Deployed: gti (Dell XPS 13 9370)
-
-Production machine, deployed and operational.
+- Weekly auto-update service (git pull --rebase, flake update, test build, verified push)
+- systemd-boot with 5 generations retained and the boot-entry editor disabled
 
 ## Module Summary
 
 | Category | Modules | Purpose |
 |----------|---------|---------|
-| common/ | boot, nix, users, networking, locale, system, disko, snapshots | Foundation |
-| desktop/ | cosmic-system, audio, fonts, theme | COSMIC desktop |
-| apps/ | terminals, claude, jasper, mcp-system-health | Applications + AI |
-| home/ | shell (fish, cli-tools, starship), ghostty, git, vscode, cosmic, macchina, theme, claude-code | User config |
+| common/ | boot, disko, nix, users, networking, locale, system, secrets, snapshots, auto-update | Foundation |
+| desktop/ | niri-system, audio, fonts, theme | Niri + Noctalia desktop |
+| apps/ | terminals, claude, jasper, mcp-system-health, mcp-niri, claude-monitor | Applications + AI |
+| home/ | shell (fish, cli-tools, starship), ghostty, git, vscode, niri, macchina, claude-code, claudeos-help | User config |
 
 ## Future Enhancements
 
@@ -45,14 +40,28 @@ Production machine, deployed and operational.
 - [x] Automated btrfs snapshots before rebuilds (snapper with pre/post rebuild pairs)
 - [x] Declarative Claude Code configuration (settings.json + .mcp.json from Nix)
 - [x] System health MCP server for Claude Code diagnostics
-- [x] COSMIC keybindings for Claude Code (Super+C) and Claude Desktop (Ctrl+Alt+Space)
-- [x] Desktop notifications for Claude Code events
+- [x] Desktop keybindings for Claude Code (Mod+C) and Claude Desktop (Ctrl+Alt+Space)
 - [ ] NixOS impermanence for stateless system
 - [ ] Binary cache for faster builds
-- [ ] Atuin sync across machines (needs sops-nix for key)
+- [ ] Atuin sync (currently disabled; the `atuin_key` sops declaration was removed — re-declare in `modules/common/secrets.nix` when enabling)
+- [ ] Declare `unifi_api_key` secret for the UniFi MCP server (`.mcp.json` reads it from the environment)
 - [ ] TLP or auto-cpufreq for laptop power management
 
 ## Maintenance Log
+
+### 2026-06-11
+- Security/quality audit cleanup
+  - Removed retired transporter host from flake (gti is now the sole host)
+  - Disko: ESP grown to 1G; no default disk device (each host pins its own)
+  - Boot: configurationLimit 5, systemd-boot editor disabled
+  - Snapper: NUMBER_CLEANUP/NUMBER_LIMIT/EMPTY_PRE_POST_CLEANUP on root + home
+  - Auto-update: git pull --rebase before update, verified push with rebase retry
+  - Polkit: removed manage-unit-files from passwordless wheel rule
+  - Removed undeclared atuin_key sops declaration; .mcp.json UniFi key now read from environment
+  - Thunar via programs.thunar (+xfconf) with plugins; dropped services.xserver.xkb; LLMNR off; fstrim on
+  - EDITOR/VISUAL = code --wait; programs.gh consolidated into home/shell/cli-tools.nix
+  - imv colors from Stylix palette; swayidle explicit PATH + attrset events
+  - Documentation synchronized with the above
 
 ### 2026-02-15
 - Phase 4: Deep Claude Integration

@@ -12,7 +12,7 @@ User runs NixOS with Niri (tiling Wayland compositor) + Noctalia shell (bar, not
 
 ## NixOS Configuration
 
-This is a multi-device NixOS flake. Changes may need to apply to multiple hosts. Always check which hosts are affected and ensure consistency (e.g., Intel microcode was only conditionally set on one device).
+This flake supports multiple hosts, though `gti` is currently the only one defined. If more hosts are added, check which hosts a change affects and keep shared settings in `modules/common/` (e.g., Intel microcode was once conditionally set on only one device).
 
 ## CRITICAL: Ask Questions, Don't Assume
 
@@ -20,7 +20,7 @@ This is a multi-device NixOS flake. Changes may need to apply to multiple hosts.
 
 ## Hosts
 
-This is a multi-host flake. The SessionStart hook injects which machine you're on — always use `$(hostname)` in build/deploy commands. Available hosts are defined in `hosts/` and `flake.nix`.
+Always use `$(hostname)` in build/deploy commands rather than hardcoding a host name. Available hosts are defined in `hosts/` and `flake.nix` — currently just `gti` (Dell XPS 13 9370).
 
 **Stack:** NixOS unstable • Niri + Noctalia • Wayland • Pipewire • home-manager • sops-nix • Stylix
 
@@ -48,7 +48,7 @@ All work is done directly on NixOS machines:
 
 1. **Stage** new files with `git add` — Nix flakes only see tracked files
 2. **Edit** configuration in `~/.config/claudeos`
-3. **Validate** with `nix build .#nixosConfigurations.<hostname>.config.system.build.toplevel --dry-run` (both hosts)
+3. **Validate** with `nix build .#nixosConfigurations.<hostname>.config.system.build.toplevel --dry-run` (every host in the flake)
 4. **Check** with `nix flake check`
 5. **Format** with `nix fmt`
 6. **Apply** with `sudo nixos-rebuild switch --flake ~/.config/claudeos#$(hostname)`

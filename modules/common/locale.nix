@@ -28,9 +28,6 @@ in
     keyMap = "colemak";
   };
 
-  # X11/Wayland keyboard layout
-  services.xserver.xkb = {
-    layout = "us";
-    variant = "colemak";
-  };
+  # Niri reads its keyboard layout from home/niri.nix (input.keyboard.xkb);
+  # there is no X server, so services.xserver.xkb would be dead config here.
 }

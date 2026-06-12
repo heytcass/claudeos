@@ -13,8 +13,14 @@
   # before the NixOS activation script sets up /etc/kbd
   console.earlySetup = true;
 
-  # Keep last 10 generations for rollback headroom (GC handles cleanup independently)
-  boot.loader.systemd-boot.configurationLimit = 10;
+  # Keep last 5 generations for rollback headroom (GC handles cleanup independently).
+  # Each generation copies kernel+initrd (~60-90MB with plymouth) to the ESP,
+  # so 10 generations of distinct kernels can overflow even a 1G partition.
+  boot.loader.systemd-boot.configurationLimit = 5;
+
+  # Disable the boot-entry kernel cmdline editor — with an unencrypted disk it's
+  # a trivial init=/bin/sh root shell for anyone with physical access
+  boot.loader.systemd-boot.editor = false;
 
   # Plymouth boot splash (themed automatically by Stylix)
   boot.plymouth.enable = lib.mkDefault true;

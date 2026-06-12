@@ -51,11 +51,11 @@ Examples: boot, networking, users
 
 ### desktop/
 Namespace: `desktop` or `services`
-Examples: cosmic-system, audio, fonts
+Examples: niri-system, audio, fonts
 
 ### apps/
 Namespace: `programs` or `environment`
-Examples: terminals, browsers, communication
+Examples: terminals, claude, jasper
 
 ## Integration Steps
 

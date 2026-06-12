@@ -6,13 +6,13 @@ Quick installation guide for ClaudeOS using disko for automated disk partitionin
 
 ### Method 1: Automated with Disko (Recommended)
 
-**Best for:** New installations (gti, future systems)
+**Best for:** New installations (reinstalls, future systems)
 
 See full instructions below or in [docs/DISKO.md](docs/DISKO.md)
 
 ### Method 2: Manual Installation (Legacy)
 
-**For reference only** - Original transporter installation used manual partitioning.
+**For reference only** - The original (now retired) transporter installation used manual partitioning.
 
 See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for the manual process.
 
@@ -53,9 +53,11 @@ chmod +x install-with-disko.sh
 # Install (DESTRUCTIVE! Wipes target disk)
 sudo ./install-with-disko.sh <hostname> [device]
 
-# Examples:
-sudo ./install-with-disko.sh gti              # Install on /dev/sda
+# Example:
 sudo ./install-with-disko.sh gti /dev/nvme0n1 # Install on NVMe
+
+# Note: there is no default disk device — each host pins its own in
+# hosts/<hostname>/default.nix (gti uses /dev/nvme0n1)
 ```
 
 The script will:
@@ -87,8 +89,8 @@ The configuration repository is automatically installed at `~/.config/claudeos`.
 #### Disk Layout
 
 ```
-/dev/sda (or your chosen device)
-├── 512MB EFI Boot Partition (vfat)
+/dev/nvme0n1 (or the device pinned in hosts/<hostname>/default.nix)
+├── 1GB EFI Boot Partition (vfat)
 └── Remainder: btrfs with subvolumes
     ├── @ → /
     ├── @home → /home
@@ -105,9 +107,9 @@ The configuration repository is automatically installed at `~/.config/claudeos`.
 
 #### System Configuration
 
-Based on hostname (gti, transporter, etc.):
+Based on hostname (gti is currently the only host):
 - NixOS unstable
-- COSMIC desktop
+- Niri compositor + Noctalia shell
 - Wayland + Pipewire
 - Fish shell
 - Home Manager
@@ -197,18 +199,18 @@ lsblk
 
 **Partitioning fails:**
 ```bash
-# Wipe existing signatures
-sudo wipefs -a /dev/sda
+# Wipe existing signatures (use your target device)
+sudo wipefs -a /dev/nvme0n1
 # Try again
 ```
 
 ### Can't Boot
 
 1. Boot from USB again
-2. Mount and chroot:
+2. Mount and chroot (adjust partitions to your device):
 ```bash
-sudo mount /dev/sda2 /mnt -o subvol=@
-sudo mount /dev/sda1 /mnt/boot
+sudo mount /dev/nvme0n1p2 /mnt -o subvol=@
+sudo mount /dev/nvme0n1p1 /mnt/boot
 nixos-enter --root /mnt
 # Fix configuration if needed
 nixos-rebuild switch

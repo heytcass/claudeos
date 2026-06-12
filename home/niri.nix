@@ -349,13 +349,15 @@ in
         command = "systemctl suspend";
       }
     ];
-    events = [
-      {
-        event = "before-sleep";
-        command = "noctalia-shell ipc call lockScreen lock";
-      }
-    ];
+    events."before-sleep" = "noctalia-shell ipc call lockScreen lock";
   };
+
+  # The swayidle unit's default PATH contains only bash, so the bare command
+  # names above (noctalia-shell, niri, systemctl) resolve to nothing — every
+  # timeout fails with exit 127 and idle lock/DPMS/suspend silently never fire.
+  systemd.user.services.swayidle.Service.Environment = lib.mkForce [
+    "PATH=${lib.makeBinPath [ pkgs.bash ]}:/etc/profiles/per-user/${config.home.username}/bin:/run/current-system/sw/bin"
+  ];
 
   # Noctalia Shell — bar, notifications, OSD, wallpaper, lock screen, launcher
   programs.noctalia-shell = {

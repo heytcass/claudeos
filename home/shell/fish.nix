@@ -11,12 +11,6 @@
       cat = "bat --style=auto";
       man = "batman";
 
-      # Git shortcuts
-      gs = "git status";
-      gd = "git diff";
-      gl = "git log --oneline --graph --decorate";
-      gp = "git pull";
-
       # System shortcuts
       ".." = "cd ..";
       "..." = "cd ../..";
@@ -30,6 +24,10 @@
     # Fish abbreviations (expand as you type)
     shellAbbrs = {
       # Git abbreviations
+      gs = "git status";
+      gd = "git diff";
+      gl = "git log --oneline --graph --decorate";
+      gp = "git pull";
       gco = "git checkout";
       gci = "git commit";
       gca = "git commit --amend";
@@ -223,6 +221,12 @@
       # Export GitHub token for MCP server + Claude Code plugins (pulls from gh CLI keyring auth)
       if command -q gh
         set -gx GITHUB_PERSONAL_ACCESS_TOKEN (gh auth token 2>/dev/null)
+      end
+
+      # UniFi MCP server credential — .mcp.json expands ''${UNIFI_API_KEY} from the
+      # environment instead of hardcoding the key in a tracked file
+      if test -r /run/secrets/unifi_api_key
+        set -gx UNIFI_API_KEY (cat /run/secrets/unifi_api_key)
       end
 
       # Themed man pages via batman (bat-extras, uses Stylix terminal palette)
