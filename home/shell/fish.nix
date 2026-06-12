@@ -122,6 +122,21 @@
         claude -p "$argv" --model haiku 2>/dev/null
       '';
 
+      # Open today's morning-desk dashboard; --refresh rebuilds it first
+      today = ''
+        if contains -- --refresh $argv
+          echo "Rebuilding today's dashboard..."
+          systemctl --user start claudeos-morning-desk
+        end
+        set -l desk ~/Desk/today/index.html
+        if test -f $desk
+          google-chrome-stable --app="file://$desk" &>/dev/null &
+          disown
+        else
+          echo "No dashboard yet — run: today --refresh"
+        end
+      '';
+
       # Resume the last background agent session (self-heal, journal diary)
       # and authorize its proposed action. Session resume keeps full context —
       # the agent picks up exactly where it stopped.
