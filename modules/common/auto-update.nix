@@ -27,184 +27,169 @@
 let
   cfg = config.claude-os.autoUpdate;
 
-  updateScript = pkgs.writeShellScript "claudeos-auto-update" ''
-        export PATH="${
-          pkgs.lib.makeBinPath [
-            pkgs.coreutils
-            pkgs.git
-            pkgs.nix
-            pkgs.gnugrep
-            pkgs.gawk
-            pkgs.diffutils
-            pkgs.hostname
-            pkgs.libnotify
-          ]
-        }:/run/current-system/sw/bin:$PATH"
+  claudeLib = import ../../lib/claude-script.nix { inherit pkgs lib; };
 
-        CLAUDEOS_DIR="$HOME/.config/claudeos"
-        CLAUDE_BIN="$HOME/.local/bin/claude"
-        HOST=$(hostname) || exit 1
+  updateScript = claudeLib.mkClaudeScript {
+    name = "claudeos-auto-update";
+    runtimeInputs = [
+      pkgs.nix
+      pkgs.diffutils
+    ];
+    text = ''
+      HOST=$(hostname) || exit 1
 
-        cd "$CLAUDEOS_DIR" || exit 1
+      cd "$CLAUDEOS_DIR" || exit 1
 
-        # Stash uncommitted work
-        stashed=false
-        if [[ -n "$(git status --porcelain 2>/dev/null)" ]]; then
-          git stash push -m "auto-update: pre-update stash $(date -Iseconds)" && stashed=true
+      # Stash uncommitted work
+      stashed=false
+      if [[ -n "$(git status --porcelain 2>/dev/null)" ]]; then
+        git stash push -m "auto-update: pre-update stash $(date -Iseconds)" && stashed=true
+      fi
+
+      cleanup() {
+        if $stashed; then
+          git stash pop 2>/dev/null || true
         fi
+      }
 
-        cleanup() {
-          if $stashed; then
-            git stash pop 2>/dev/null || true
-          fi
-        }
+      # Sync with origin first so we never update/commit on stale history
+      if ! git pull --rebase 2>&1; then
+        claudeos_notify --urgency=critical \
+          "Update Skipped" "git pull --rebase failed — resolve repo state manually."
+        cleanup
+        exit 1
+      fi
 
-        # Sync with origin first so we never update/commit on stale history
-        if ! git pull --rebase 2>&1; then
-          notify-send --app-name=ClaudeOS --urgency=critical \
-            "Update Skipped" "git pull --rebase failed — resolve repo state manually."
-          cleanup
-          exit 1
-        fi
+      # Update flake inputs
+      if ! nix flake update 2>&1; then
+        claudeos_notify --urgency=critical \
+          "Update Failed" "nix flake update failed. Check network connectivity."
+        cleanup
+        exit 1
+      fi
 
-        # Update flake inputs
-        if ! nix flake update 2>&1; then
-          notify-send --app-name=ClaudeOS --urgency=critical \
-            "Update Failed" "nix flake update failed. Check network connectivity."
-          cleanup
-          exit 1
-        fi
+      # Test build
+      build_output=$(nix build ".#nixosConfigurations.$HOST.config.system.build.toplevel" 2>&1)
+      build_status=$?
 
-        # Test build
-        build_output=$(nix build ".#nixosConfigurations.$HOST.config.system.build.toplevel" 2>&1)
-        build_status=$?
-
-        if [[ $build_status -eq 0 ]]; then
-          # --- VM smoke-test gate -------------------------------------------
-          # "passed"   → commit, push, and (autoApply) switch
-          # "skipped"  → no usable /dev/kvm: commit and push, never switch
-          # "disabled" → vmTest = false: same degraded lane as "skipped"
-          # "failed"   → revert flake.lock, notify, exit 1 → self-heal agent
-          vm_gate="disabled"
-          vm_log=""
-          ${lib.optionalString cfg.vmTest ''
-            vm_gate="skipped"
-            if [[ -r /dev/kvm && -w /dev/kvm ]]; then
-              vm_log=$(mktemp -t claudeos-vm-smoke.XXXXXX)
-              if vm_build_output=$(nix build \
-                  ".#nixosConfigurations.$HOST.config.system.build.vm" \
-                  --out-link ./result-vm 2>&1); then
-                # Boot the next generation headless. The in-VM claudeos-vm-smoke
-                # service prints CLAUDEOS-SMOKE-PASS/-FAIL on the serial console
-                # (captured here) and powers the VM off.
-                timeout ${toString cfg.vmTestTimeout} \
-                  "./result-vm/bin/run-$HOST-vm" </dev/null >"$vm_log" 2>&1 || true
-                if grep -q "CLAUDEOS-SMOKE-PASS" "$vm_log"; then
-                  vm_gate="passed"
-                else
-                  vm_gate="failed"
-                fi
+      if [[ $build_status -eq 0 ]]; then
+        # --- VM smoke-test gate -------------------------------------------
+        # "passed"   → commit, push, and (autoApply) switch
+        # "skipped"  → no usable /dev/kvm: commit and push, never switch
+        # "disabled" → vmTest = false: same degraded lane as "skipped"
+        # "failed"   → revert flake.lock, notify, exit 1 → self-heal agent
+        vm_gate="disabled"
+        vm_log=""
+        ${lib.optionalString cfg.vmTest ''
+          vm_gate="skipped"
+          if [[ -r /dev/kvm && -w /dev/kvm ]]; then
+            vm_log=$(mktemp -t claudeos-vm-smoke.XXXXXX)
+            if vm_build_output=$(nix build \
+                ".#nixosConfigurations.$HOST.config.system.build.vm" \
+                --out-link ./result-vm 2>&1); then
+              # Boot the next generation headless. The in-VM claudeos-vm-smoke
+              # service prints CLAUDEOS-SMOKE-PASS/-FAIL on the serial console
+              # (captured here) and powers the VM off.
+              timeout ${toString cfg.vmTestTimeout} \
+                "./result-vm/bin/run-$HOST-vm" </dev/null >"$vm_log" 2>&1 || true
+              if grep -q "CLAUDEOS-SMOKE-PASS" "$vm_log"; then
+                vm_gate="passed"
               else
                 vm_gate="failed"
-                echo "VM build failed:" >"$vm_log"
-                echo "$vm_build_output" >>"$vm_log"
-              fi
-            fi
-          ''}
-
-          if [[ "$vm_gate" == "failed" ]]; then
-            fail_line=$(grep -m1 "CLAUDEOS-SMOKE-FAIL" "$vm_log" \
-              || echo "CLAUDEOS-SMOKE-FAIL: VM never reported (timeout, boot hang, or VM build failure)")
-            # Echo the serial log into our own journal — claude-heal@ reads the
-            # last 200 lines of this unit's journal, so this hands the excerpt
-            # to the self-heal agent.
-            echo "=== VM smoke-test gate failed — update blocked ==="
-            echo "$fail_line"
-            echo "--- last 120 lines of VM serial console ---"
-            tail -n 120 "$vm_log" || true
-            notify-send --app-name=ClaudeOS --urgency=critical \
-              "Update Blocked: VM Smoke Test" "$fail_line"
-            git checkout flake.lock
-            cleanup
-            rm -f ./result ./result-vm "$vm_log"
-            exit 1
-          fi
-          [[ -n "$vm_log" ]] && rm -f "$vm_log"
-          # ------------------------------------------------------------------
-
-          # Success — generate changelog
-          diff_output=$(nix store diff-closures /run/current-system ./result 2>&1 || true)
-
-          changelog=""
-          if [[ -x "$CLAUDE_BIN" ]]; then
-            changelog=$("$CLAUDE_BIN" -p "Summarize this NixOS package update diff. List notable version bumps and flag potentially breaking changes. 2-3 sentences max. No markdown.
-
-    $diff_output" --model haiku 2>/dev/null) || changelog=""
-          fi
-
-          [[ -z "$changelog" ]] && changelog="Flake inputs updated ($(date -I))"
-
-          # Name the generation: short slug from the changelog → boot-menu label
-          slug=""
-          if [[ -x "$CLAUDE_BIN" ]]; then
-            slug=$("$CLAUDE_BIN" -p "Turn this update summary into a slug of 2-4 lowercase words joined by hyphens, only [a-z0-9-], max 40 chars, no explanation:
-
-    $changelog" --model haiku 2>/dev/null) || slug=""
-            slug=$(echo "$slug" | tr -c 'a-zA-Z0-9:_.-' '-' | cut -c1-40)
-          fi
-          [[ -z "$slug" || "$slug" =~ ^-*$ ]] && slug="flake-update-$(date +%m%d)"
-          echo "$slug" > generation-label
-
-          # Commit and push (retry once after rebase in case origin moved mid-run)
-          git add flake.lock generation-label
-          git commit -m "chore: weekly flake update — $changelog"
-          if ! git push; then
-            git pull --rebase && git push || notify-send --app-name=ClaudeOS --urgency=critical \
-              "Push Failed" "flake.lock committed locally but not pushed — push manually."
-          fi
-
-          notify-send --app-name=ClaudeOS \
-            "Flake Updated" "$changelog"
-
-          ${lib.optionalString cfg.autoApply ''
-            if [[ "$vm_gate" == "passed" ]]; then
-              if sudo /run/current-system/sw/bin/nixos-rebuild switch --flake "$CLAUDEOS_DIR#$HOST" 2>&1; then
-                notify-send --app-name=ClaudeOS \
-                  "System Rebuilt" "VM smoke test green — auto-update applied."
-              else
-                notify-send --app-name=ClaudeOS --urgency=critical \
-                  "Rebuild Failed" "VM gate was green but the switch failed. Run 'rebuild' manually."
-                cleanup
-                rm -f ./result ./result-vm
-                exit 1
               fi
             else
-              # KVM unavailable or vmTest disabled: build-only lane, never switch
-              notify-send --app-name=ClaudeOS \
-                "Auto-Apply Skipped" "VM gate did not run (state: $vm_gate) — update built and pushed only. Apply with 'rebuild'."
+              vm_gate="failed"
+              echo "VM build failed:" >"$vm_log"
+              echo "$vm_build_output" >>"$vm_log"
             fi
-          ''}
-        else
-          # Build failed — diagnose and revert
-          diagnosis=""
-          if [[ -x "$CLAUDE_BIN" ]]; then
-            diagnosis=$("$CLAUDE_BIN" -p "This NixOS build failed after flake update. Diagnose the issue briefly and suggest a fix. No markdown.
-
-    $build_output" --model sonnet 2>/dev/null) || diagnosis=""
           fi
+        ''}
 
-          [[ -z "$diagnosis" ]] && diagnosis="Build failed after flake update. Run 'nix log' to see details."
-
-          notify-send --app-name=ClaudeOS --urgency=critical \
-            "Update Build Failed" "$diagnosis"
-
-          # Revert flake.lock
+        if [[ "$vm_gate" == "failed" ]]; then
+          fail_line=$(grep -m1 "CLAUDEOS-SMOKE-FAIL" "$vm_log" \
+            || echo "CLAUDEOS-SMOKE-FAIL: VM never reported (timeout, boot hang, or VM build failure)")
+          # Echo the serial log into our own journal — claude-heal@ reads the
+          # last 200 lines of this unit's journal, so this hands the excerpt
+          # to the self-heal agent.
+          echo "=== VM smoke-test gate failed — update blocked ==="
+          echo "$fail_line"
+          echo "--- last 120 lines of VM serial console ---"
+          tail -n 120 "$vm_log" || true
+          claudeos_notify --urgency=critical \
+            "Update Blocked: VM Smoke Test" "$fail_line"
           git checkout flake.lock
+          cleanup
+          rm -f ./result ./result-vm "$vm_log"
+          exit 1
+        fi
+        [[ -n "$vm_log" ]] && rm -f "$vm_log"
+        # ------------------------------------------------------------------
+
+        # Success — generate changelog
+        diff_output=$(nix store diff-closures /run/current-system ./result 2>&1 || true)
+
+        changelog=""
+        if [[ -x "$CLAUDE_BIN" ]]; then
+          changelog=$("$CLAUDE_BIN" -p "Summarize this NixOS package update diff. List notable version bumps and flag potentially breaking changes. 2-3 sentences max. No markdown.
+
+      $diff_output" --model haiku 2>/dev/null) || changelog=""
         fi
 
-        cleanup
-        rm -f ./result ./result-vm
-  '';
+        [[ -z "$changelog" ]] && changelog="Flake inputs updated ($(date -I))"
+
+        # Name the generation (shared slug logic → boot-menu label)
+        echo "$changelog" | claude-name-generation --fallback "flake-update-$(date +%m%d)" > /dev/null
+
+        # Commit and push (retry once after rebase in case origin moved mid-run)
+        git add flake.lock generation-label
+        git commit -m "chore: weekly flake update — $changelog"
+        if ! git push; then
+          git pull --rebase && git push || claudeos_notify --urgency=critical \
+            "Push Failed" "flake.lock committed locally but not pushed — push manually."
+        fi
+
+        claudeos_notify "Flake Updated" "$changelog"
+
+        ${lib.optionalString cfg.autoApply ''
+          if [[ "$vm_gate" == "passed" ]]; then
+            if sudo /run/current-system/sw/bin/nixos-rebuild switch --flake "$CLAUDEOS_DIR#$HOST" 2>&1; then
+              claudeos_notify \
+                "System Rebuilt" "VM smoke test green — auto-update applied."
+            else
+              claudeos_notify --urgency=critical \
+                "Rebuild Failed" "VM gate was green but the switch failed. Run 'rebuild' manually."
+              cleanup
+              rm -f ./result ./result-vm
+              exit 1
+            fi
+          else
+            # KVM unavailable or vmTest disabled: build-only lane, never switch
+            claudeos_notify \
+              "Auto-Apply Skipped" "VM gate did not run (state: $vm_gate) — update built and pushed only. Apply with 'rebuild'."
+          fi
+        ''}
+      else
+        # Build failed — diagnose and revert
+        diagnosis=""
+        if [[ -x "$CLAUDE_BIN" ]]; then
+          diagnosis=$("$CLAUDE_BIN" -p "This NixOS build failed after flake update. Diagnose the issue briefly and suggest a fix. No markdown.
+
+      $build_output" --model sonnet 2>/dev/null) || diagnosis=""
+        fi
+
+        [[ -z "$diagnosis" ]] && diagnosis="Build failed after flake update. Run 'nix log' to see details."
+
+        claudeos_notify --urgency=critical \
+          "Update Build Failed" "$diagnosis"
+
+        # Revert flake.lock
+        git checkout flake.lock
+      fi
+
+      cleanup
+      rm -f ./result ./result-vm
+    '';
+  };
 in
 {
   options.claude-os.autoUpdate = {
