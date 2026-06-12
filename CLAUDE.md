@@ -12,7 +12,7 @@ User runs NixOS with Niri (tiling Wayland compositor) + Noctalia shell (bar, not
 
 ## NixOS Configuration
 
-This flake supports multiple hosts, though `gti` is currently the only one defined. If more hosts are added, check which hosts a change affects and keep shared settings in `modules/common/` (e.g., Intel microcode was once conditionally set on only one device).
+This is a multi-host flake (`gti` primary, `transporter` testbed). Check which hosts a change affects and keep shared settings in `modules/common/` (e.g., Intel microcode was once conditionally set on only one device).
 
 ## CRITICAL: Ask Questions, Don't Assume
 
@@ -20,7 +20,7 @@ This flake supports multiple hosts, though `gti` is currently the only one defin
 
 ## Hosts
 
-Always use `$(hostname)` in build/deploy commands rather than hardcoding a host name. Available hosts are defined in `hosts/` and `flake.nix` — currently just `gti` (Dell XPS 13 9370).
+Always use `$(hostname)` in build/deploy commands rather than hardcoding a host name. Available hosts are defined in `hosts/` and `flake.nix`: `gti` (Dell XPS 13 9370, primary) and `transporter` (Dell Latitude 7280, testbed).
 
 **Stack:** NixOS unstable • Niri + Noctalia • Wayland • Pipewire • home-manager • sops-nix • Stylix
 
