@@ -74,7 +74,7 @@ After applying a new configuration:
 - [ ] Ghostty terminal launches
 - [ ] Fish shell with Starship prompt
 - [ ] CLI tools work (eza, bat, zoxide)
-- [ ] Chrome, Slack, Discord launch
+- [ ] Chrome launches; comms PWAs (Slack/Discord/Teams) installed via chrome://apps
 - [ ] Claude Code CLI works (`claude --version`)
 
 ## Post-Install Manual Steps
@@ -85,7 +85,7 @@ One-time setup after a fresh installation:
 
 1. **SSH keys:** Copy from another machine or generate new ones (git identity is declarative in `home/git.nix`)
 2. **Chrome:** Sign in and install extensions
-3. **Slack/Discord:** Sign in to workspaces
+3. **Comms PWAs:** Install Slack/Teams/Discord as Chrome PWAs and sign in to workspaces
 4. **VSCode:** Install extensions from the Marketplace (extensions are deliberately not declared — suggested baseline in `home/vscode.nix`)
 5. **Calendar (morning desk):** one-time `gcalcli init` with the Google OAuth client from sops
 

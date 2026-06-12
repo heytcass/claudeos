@@ -15,7 +15,7 @@ gti (Dell XPS 13 9370) is the primary machine — currently running Ubuntu pendi
 - Pipewire audio with Bluetooth
 - Ghostty terminal with Fish shell and Starship prompt
 - Modern CLI tools (eza, bat, zoxide, atuin, yazi, fzf, ripgrep, fd) + uutils coreutils at hiPrio on the user PATH
-- Chrome, Slack, Discord, Teams, Obsidian, VSCode (extensions Marketplace-managed)
+- Chrome, Obsidian, VSCode (extensions Marketplace-managed); Slack/Discord/Teams as auto-updating Chrome PWAs (ring 2, not packaged)
 - Claude Code CLI (via nix-ld) with seed-once settings/MCP config and repo-tracked hooks
 - Claude Desktop (via claude-desktop-linux)
 - Stylix theming with Claude brand colors
@@ -25,7 +25,7 @@ gti (Dell XPS 13 9370) is the primary machine — currently running Ubuntu pendi
 - Oxidized ring: sudo-rs, envfs, dbus-broker, scx_lavd (--autopower)
 - Self-maintaining layer: self-heal fix PRs on unit failure, nightly journal diary against docs/known-issues.md, morning desk dashboard, 15-min health monitor, 9 AM daily brief
 - Weekly auto-update service (git pull --rebase, flake update, test build, Claude changelog + generation slug, verified push)
-- systemd-boot with 5 generations retained and the boot-entry editor disabled
+- systemd-boot with 10 generations retained (Plymouth removed for initrd weight) and the boot-entry editor disabled
 
 ## Module Summary
 
@@ -34,7 +34,7 @@ gti (Dell XPS 13 9370) is the primary machine — currently running Ubuntu pendi
 | common/ | boot, disko, nix, users, networking, locale, system, secrets, snapshots, auto-update, generation-label, self-heal | Foundation |
 | desktop/ | gnome, audio, fonts, theme | GNOME desktop |
 | apps/ | terminals, claude, jasper, mcp-system-health, claude-monitor, morning-desk | Applications + AI |
-| home/ | shell (fish, cli-tools, starship), ghostty, git, vscode, gnome, macchina, claude-code, claudeos-help, zathura, imv | User config |
+| home/ | shell (fish, cli-tools, starship), ghostty, git, vscode, gnome, claude-code, claudeos-help, zathura | User config |
 
 ## Future Enhancements
 
@@ -45,14 +45,25 @@ gti (Dell XPS 13 9370) is the primary machine — currently running Ubuntu pendi
 - [x] System health MCP server for Claude Code diagnostics
 - [x] Desktop keybindings for Claude Code (Super+C) and the ask/screenshot scripts (Super+A / Super+Shift+A / Super+Ctrl+A)
 - [x] Laptop power management (power-profiles-daemon + scx_lavd --autopower)
+- [x] Point archive mimeApps at File Roller (was xarchiver.desktop)
 - [ ] NixOS impermanence for stateless system
 - [ ] Binary cache for faster builds
-- [ ] Atuin sync (currently disabled; the `atuin_key` sops declaration was removed — re-declare in `modules/common/secrets.nix` when enabling)
 - [ ] Declare `unifi_api_key` secret for the UniFi MCP server (`.mcp.json` reads it from the environment)
 - [ ] Compositor experiments (Hyprland, etc.) as specialisations
-- [ ] Point archive mimeApps at File Roller (still reference xarchiver.desktop)
+
+Atuin sync is no longer a pending enhancement — history is local-only by decision (the `atuin_key` sops entry stays undeclared).
 
 ## Maintenance Log
+
+### 2026-06-12 — tool rethink quick wins
+- imv removed (`home/imv.nix` deleted) — images open in Loupe (`org.gnome.Loupe`), GNOME's GTK4/Rust viewer; imv was an unmaintained Niri-era leftover that rendered undecorated on Mutter
+- macchina removed entirely (`home/macchina.nix` deleted), no fastfetch replacement — deliberate: the proactivity doctrine says no spec-sheet feed above the daily brief. First shell now shows only the brief (guard var renamed `CLAUDEOS_BRIEF_SHOWN`)
+- fail2ban removed — key-only sshd on a roaming laptop leaves nothing to protect; resident daemon with mutable ban state (anti-ephemerality) that can ban you behind shared NATs
+- Plymouth removed — its initrd weight (DRM drivers + firmware, ~60-90MB/generation on the ESP) cost half the rollback headroom; `boot.loader.systemd-boot.configurationLimit` raised back to 10; kernelParams now just `quiet`
+- nil → nixd — flake-aware Nix LSP; VSCode `nix.serverPath`/`nix.serverSettings` updated with an `options.nixos` expr evaluating the real flake
+- slack/discord/teams-for-linux packages removed — installed as Chrome PWAs instead (ring 2, auto-updating, zero closure weight); Chrome + Obsidian remain packaged
+- `GITHUB_PERSONAL_ACCESS_TOKEN` no longer exported in every fish shell — new `with-github-token <cmd>` wrapper (`home/shell/cli-tools.nix`) materializes it per-process from gh's keyring
+- atuin: local-only by decision — sync settings and the re-enable TODO comment deleted (atuin itself stays)
 
 ### 2026-06-12
 - Desktop pivot: Niri + Noctalia retired in favor of GNOME on Wayland
