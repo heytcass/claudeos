@@ -15,6 +15,7 @@
   claude-os.jasper.enable = lib.mkDefault true;
   claude-os.monitor.enable = lib.mkDefault true;
   claude-os.monitor.dailyBrief = lib.mkDefault true;
+  claude-os.monitor.journalDiary = lib.mkDefault true;
 
   # Applications (direct installs — no extra configuration needed)
   environment.systemPackages = with pkgs; [

@@ -122,6 +122,20 @@
         claude -p "$argv" --model haiku 2>/dev/null
       '';
 
+      # Resume the last background agent session (self-heal, journal diary)
+      # and authorize its proposed action. Session resume keeps full context —
+      # the agent picks up exactly where it stopped.
+      approve = ''
+        set -l sid_file ~/.local/state/claudeos/last-agent-session
+        if not test -r $sid_file
+          echo "No pending agent session."
+          return 1
+        end
+        pushd ~/.config/claudeos
+        claude --resume (cat $sid_file) -p "User approved via the 'approve' command. Execute the action you proposed, then summarize what you did." --allowedTools "Read,Grep,Glob,Edit,Bash"
+        popd
+      '';
+
       # Rebuild NixOS with snapper pre/post snapshots + Claude-named generation
       # + auto-commit. Uses nh (build graph via nom, closure diff on activation).
       rebuild = ''
