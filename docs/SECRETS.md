@@ -32,12 +32,9 @@ Two age public keys can decrypt `secrets/secrets.yaml`:
 - `jasper_google_routes_api_key`
 - `jasper_home_address`
 
-**Note:** `secrets/secrets.yaml` also contains an `atuin_key` entry, but it is intentionally **not declared** — atuin sync is disabled (`home/shell/cli-tools.nix`). Re-declare it in `modules/common/secrets.nix` when enabling sync.
-
 All other authentication is handled outside sops-nix:
-- **OAuth/OIDC:** Chrome, Slack, Discord, VSCode extensions
 - **SSH keys:** Stored in `~/.ssh/` with proper permissions (not managed declaratively)
-- **GitHub:** `gh` CLI keyring auth (fish exports `GITHUB_PERSONAL_ACCESS_TOKEN` from `gh auth token`)
+- **GitHub:** `gh` CLI keyring auth; the `with-github-token <cmd>` wrapper materializes the token per-process (no global export)
 - **User passwords:** Set during NixOS installation with `passwd`
 
 ## Editing Secrets

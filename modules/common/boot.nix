@@ -13,29 +13,22 @@
   # before the NixOS activation script sets up /etc/kbd
   console.earlySetup = true;
 
-  # Keep last 5 generations for rollback headroom (GC handles cleanup independently).
-  # Each generation copies kernel+initrd (~60-90MB with plymouth) to the ESP,
-  # so 10 generations of distinct kernels can overflow even a 1G partition.
-  boot.loader.systemd-boot.configurationLimit = 5;
+  # Keep last 10 generations for rollback headroom (GC handles cleanup
+  # independently). Without Plymouth the initrd is small enough that 10
+  # generations fit comfortably in the 1G ESP — and rollback depth is
+  # operational capacity for an agent-maintained OS.
+  boot.loader.systemd-boot.configurationLimit = 10;
 
   # Disable the boot-entry kernel cmdline editor — with an unencrypted disk it's
   # a trivial init=/bin/sh root shell for anyone with physical access
   boot.loader.systemd-boot.editor = false;
 
-  # Plymouth boot splash (themed automatically by Stylix)
-  boot.plymouth.enable = lib.mkDefault true;
-
-  # Use Claude logo for Plymouth boot screen
-  stylix.targets.plymouth = {
-    logo = ../../assets/claude-logo.png;
-    logoAnimated = false;
-  };
+  # No Plymouth: it pulled DRM drivers + firmware into every initrd
+  # (~60-90MB/generation on the ESP) — trading rollback depth for a splash
+  # screen on a machine that boots in seconds via systemd-initrd
 
   # Silent boot
-  boot.kernelParams = [
-    "quiet"
-    "splash"
-  ];
+  boot.kernelParams = [ "quiet" ];
 
   # Latest kernel for best hardware support
   boot.kernelPackages = lib.mkDefault pkgs.linuxPackages_latest;
