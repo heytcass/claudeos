@@ -134,3 +134,48 @@ to that.
 > happens on suspend/resume, and whether the morning brief + heal
 > notifications should migrate from notify-send to this channel. This is an
 > experiment — report findings in docs/, don't enable by default.
+
+## 8. Claude Desktop: native-feel overhaul (claude-desktop-linux-flake)
+
+> Work in the heytcass/claude-desktop-linux-flake repo (plus one small
+> claudeos PR). Read this prompt fully; the strategy is "curate, don't
+> maintain" — stop hand-maintaining patches and make the flake a thin Nix
+> layer over the most active community patch set.
+>
+> CONTEXT (verified 2026-06-12): the flake repacks the macOS DMG
+> (downloads.claude.ai/releases/darwin/universal/ — RELEASES.json there
+> lists the latest version, ideal for CI). It sits ~8 releases behind
+> (1.11847.5 vs 1.12603.1). It defaults to X11 (`GDK_BACKEND=x11`,
+> pkgs/claude-desktop.nix:295-304) because Wayland global shortcuts were
+> historically broken. PR #90 (dahikino, ~5500 lines) vendors
+> aaddrick/claude-desktop-debian's battle-tested patch set + Cowork daemon
+> support and is unreviewed. patchy-cnb stubs @ant/claude-native. Open
+> issues: #8 (claude:// via xdg-open), #36 (Wayland hotkey), #43 (OAuth /
+> claude-cli resolution), #86 (origin validation on newer versions).
+>
+> DO, in order:
+> 1. REVIEW AND LAND #90 (or rebase/cherry-pick it): adopting aaddrick's
+>    vendored patches outsources patch maintenance to the most active
+>    Linux-desktop project. Verify against latest version; fix-forward.
+> 2. AUTO-BUMP CI: weekly GitHub Action — read RELEASES.json, update
+>    version+hash, nix build, open a PR. Kills the 8-release lag class
+>    permanently (the "flake dance" that drove the owner off NixOS).
+> 3. NATIVE-FEEL WRAPPER (the Fable-era fixes — Electron/Chromium now
+>    supports these): flip the default to native Wayland with
+>    `--ozone-platform-hint=auto` and
+>    `--enable-features=UseOzonePlatform,WaylandWindowDecorations,GlobalShortcutsPortal`
+>    (the XDG GlobalShortcuts portal makes Ctrl+Alt+Space work natively on
+>    GNOME 48+ — verify the exact flag name against the packaged Electron),
+>    `GTK_USE_PORTAL=1` for native GNOME file dialogs, add `--class Claude`,
+>    keep an X11 fallback env var (invert today's default). Verify
+>    claude:// registration end-to-end (issue #8) — desktop file +
+>    update-desktop-database + `xdg-open "claude://test"`.
+> 4. CLAUDEOS SIDE (one small PR there): GNOME has no tray by default —
+>    add gnomeExtensions.appindicator (+ enable via dconf) so the tray
+>    patches actually have somewhere to live.
+> 5. HONESTY CHECK: after 1-4 the remaining macOS gap is in-app
+>    auto-update (correctly Nix's job — covered by CI) and whatever
+>    Cowork/computer-use needs real native bindings (patchy-cnb stubs;
+>    document, don't fake). Test matrix: launch, login OAuth round-trip,
+>    tray, hotkey, file picker, drag-drop, claude:// — on the transporter
+>    testbed.
