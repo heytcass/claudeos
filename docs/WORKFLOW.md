@@ -39,18 +39,29 @@ statix check
 deadnix -e
 ```
 
+Inside Claude Code, the repo-tracked hooks do part of this automatically: every `.nix` edit is nixfmt-formatted and parse-checked (`.claude/hooks/post-edit-check.sh`), and `git commit` with staged `.nix` changes is denied unless `nix flake check --no-build` passes (`.claude/hooks/pre-commit-gate.sh`).
+
 ### 3. Apply Changes
 
-```bash
-sudo nixos-rebuild switch --flake ~/.config/claudeos#$(hostname)
+Use the fish `rebuild` function (defined in `home/shell/fish.nix`) — this is the standard path:
+
+```fish
+rebuild              # full flow
+rebuild --no-commit  # skip the auto-commit step
 ```
 
-Tip: Add this fish alias:
-```fish
-alias rebuild='sudo nixos-rebuild switch --flake ~/.config/claudeos#(hostname)'
-```
+What it does:
+1. **Names the generation** — haiku summarizes the pending diff into a slug, written to the repo-root `generation-label` file. It becomes the boot-menu label via `system.nixos.tags` (`modules/common/generation-label.nix`), so `nixos-rebuild list-generations` reads like a changelog
+2. **Snapper pre snapshots** on root + home, described "pre: \<slug\>"
+3. **`nh os switch`** — live build graph via nom, automatic closure diff on activation
+4. **Snapper post snapshots** + rollback hint (`sudo snapper -c root undochange N..N+1`)
+5. **Auto-commit + push** with a Claude-generated conventional commit message
+
+For a non-persistent test switch: `rebuild-test` (= `nh os test`). The raw command still works too: `sudo nixos-rebuild switch --flake ~/.config/claudeos#$(hostname)` — it just skips the labels and snapshots.
 
 ### 4. Commit Changes
+
+`rebuild` auto-commits and pushes on success. For manual commits:
 
 ```bash
 git add <files>
@@ -71,7 +82,7 @@ On the other machine:
 ```bash
 cd ~/.config/claudeos
 git pull
-sudo nixos-rebuild switch --flake ~/.config/claudeos#$(hostname)
+rebuild
 ```
 
 ## Common Tasks
@@ -95,10 +106,12 @@ sudo nixos-rebuild switch --flake ~/.config/claudeos#$(hostname)
 4. Validate and apply:
    ```bash
    nix flake check
-   sudo nixos-rebuild switch --flake ~/.config/claudeos#$(hostname)
+   rebuild
    ```
 
 ### Update Dependencies
+
+The weekly auto-update timer (`claudeos-auto-update`, Sat 3 AM) handles this automatically: flake update, test build, Claude-reviewed changelog, haiku generation slug, commit + push. Manually:
 
 ```bash
 # Update all inputs
@@ -145,8 +158,8 @@ nix flake check
 
 ### Changes Not Applying
 
-- Did you rebuild? `sudo nixos-rebuild switch --flake .#<hostname>`
-- Check current generation: `nixos-rebuild list-generations`
+- Did you rebuild? Run `rebuild` (or `nh os switch`)
+- Check current generation: `nixos-rebuild list-generations` (generation labels come from `generation-label`)
 - Some changes (kernel, boot) need a reboot
 
 ## Best Practices

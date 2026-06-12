@@ -2,6 +2,8 @@
 
 This is a NixOS system configuration repo optimized for tight Claude integration throughout the OS. After any configuration changes, always run `nixos-rebuild build --flake .` (or equivalent) to verify the build succeeds before committing. Never commit untested NixOS changes.
 
+**Read `docs/PHILOSOPHY.md` before making design decisions.** It captures why ClaudeOS exists, the founding insight (the system is one git repo, so the OS can maintain itself via PRs), the two-ring rule, the proactivity doctrine, decided security trade-offs, and the cost doctrine. If a proposal changes one of its conclusions, update PHILOSOPHY.md in the same PR.
+
 ## Environment
 
 User runs NixOS with GNOME on Wayland (chosen 2026-06; compositor experiments like Hyprland may return later as specialisations). Fish shell with Starship prompt. Do not assume bash/PS1.
