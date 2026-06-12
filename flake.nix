@@ -54,6 +54,11 @@
       url = "github:numtide/treefmt-nix";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+
+    nix-index-database = {
+      url = "github:nix-community/nix-index-database";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
   outputs =
@@ -82,6 +87,9 @@
         stylix.nixosModules.stylix
         niri.nixosModules.niri
         noctalia.nixosModules.default
+        inputs.nix-index-database.nixosModules.nix-index
+        # Trace every generation back to its commit (absent attr on dirty trees)
+        { system.configurationRevision = self.shortRev or "dirty"; }
       ];
     in
     {
