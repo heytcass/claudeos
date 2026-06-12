@@ -77,19 +77,21 @@ Keep router doc current:
 
 ```
 modules/
-├── common/    # Foundation (boot, disko, nix, users, networking, locale, system, secrets, snapshots, auto-update)
-├── desktop/   # Desktop environment (niri-system, audio, fonts, theme)
-└── apps/      # Applications (terminals, claude, jasper, mcp-system-health, mcp-niri, claude-monitor)
+├── common/    # Foundation (boot, disko, nix, users, networking, locale, system, secrets, snapshots, auto-update, generation-label, self-heal)
+├── desktop/   # Desktop environment (gnome, audio, fonts, theme)
+└── apps/      # Applications (terminals, claude, jasper, mcp-system-health, claude-monitor, morning-desk)
 
 home/
 ├── shell/     # Shell config (fish, cli-tools, starship)
 ├── ghostty.nix
 ├── git.nix
 ├── vscode.nix
-├── niri.nix
+├── gnome.nix
 ├── macchina.nix
 ├── claude-code.nix
-└── claudeos-help.nix
+├── claudeos-help.nix
+├── zathura.nix
+└── imv.nix
 ```
 
 ## Quality Checks

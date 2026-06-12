@@ -8,10 +8,11 @@ ClaudeOS is a NixOS flake. The entry point (`flake.nix`) defines two hosts -- `g
 
 - **NixOS modules:** `modules/common/`, `modules/desktop/`, `modules/apps/`
 - **home-manager** (as a NixOS module, not standalone): imports `home/default.nix`
-- **Flake inputs:** home-manager, sops-nix, disko, stylix, niri, noctalia (loaded as NixOS modules)
+- **Flake inputs:** home-manager, sops-nix, disko, stylix, nix-index-database (loaded as NixOS modules)
 - **Per-host hardware module** from nixos-hardware
+- `system.configurationRevision` set from `self.shortRev` (absent on dirty trees) — every generation traces back to its commit
 
-The formatter is `nixfmt` (set in `flake.nix`).
+The formatter is `nixfmt` via treefmt-nix (set in `flake.nix`).
 
 ### Flake Inputs
 
@@ -23,10 +24,10 @@ The formatter is `nixfmt` (set in `flake.nix`).
 | sops-nix | Mic92 | Declarative secrets management |
 | disko | nix-community | Declarative disk partitioning |
 | stylix | danth | Unified theming (base16) |
-| claude-desktop-linux | heytcass | Claude Desktop Electron app |
+| claude-desktop-linux | heytcass | Claude Desktop Electron app (follows main nixpkgs) |
 | jasper | heytcass | Jasper AI companion daemon |
-| niri | sodiboo | Niri scrollable tiling compositor (flake) |
-| noctalia | noctalia-dev | Noctalia Shell (bar, notifications, OSD, wallpaper) |
+| treefmt-nix | numtide | Formatter wiring for `nix fmt` |
+| nix-index-database | nix-community | Prebuilt nix-index DB for comma (`, foo`) |
 
 ---
 
@@ -55,7 +56,7 @@ Key behavior:
 
 Utility function that generates a derivation to hide `.desktop` entries from the application launcher. Takes `{ pkgs, lib }` and returns a function accepting a list of app names. Each name gets a `.desktop` file with `NoDisplay=true`, wrapped in `lib.hiPrio` so it takes precedence over real entries.
 
-Used in both `modules/desktop/niri-system.nix` (system-level) and `home/default.nix` (user-level).
+Used in both `modules/desktop/gnome.nix` (system-level) and `home/default.nix` (user-level).
 
 ### lib/theme.nix
 
@@ -74,7 +75,7 @@ Contents:
 
 ## modules/common/ -- Foundation
 
-Core system configuration shared by all hosts. Imported via `modules/common/default.nix` which pulls in: `boot.nix`, `disko.nix`, `nix.nix`, `users.nix`, `networking.nix`, `locale.nix`, `system.nix`, `secrets.nix`, `snapshots.nix`, `auto-update.nix` (weekly `claudeos-auto-update` timer: `git pull --rebase`, `nix flake update`, test build, Claude-reviewed changelog, commit and verified `git push` with one rebase-and-retry).
+Core system configuration shared by all hosts. Imported via `modules/common/default.nix` which pulls in: `boot.nix`, `disko.nix`, `nix.nix`, `users.nix`, `networking.nix`, `locale.nix`, `system.nix`, `secrets.nix`, `snapshots.nix`, `auto-update.nix`, `generation-label.nix`, `self-heal.nix`. It also enables `claude-os.autoUpdate` and `claude-os.selfHeal` by default (`lib.mkDefault`).
 
 ### modules/common/boot.nix
 
@@ -107,24 +108,26 @@ Nix daemon and nixpkgs configuration.
 
 - **Experimental features:** `nix-command`, `flakes`
 - **XDG base directories:** enabled (`use-xdg-base-directories = true`)
-- **Store optimization:** `auto-optimise-store = true`
-- **Dirty warning:** suppressed (`warn-dirty = false`)
+- **Store optimization:** `auto-optimise-store = true`; `keep-outputs`/`keep-derivations` for faster rebuilds
+- **Dirty warning:** suppressed (`warn-dirty = false`); global flake registry disabled
 - **Trusted users:** `root`, `@wheel`
 - **Substituters:** `cache.nixos.org`, `nix-community.cachix.org` (with corresponding public keys)
-- **Garbage collection:** weekly, deletes older than 30 days
+- **nh:** `programs.nh` enabled with `flake = /home/tom/.config/claudeos` — modern rebuild front-end (live build graph via nom, automatic closure diff on switch) and declarative GC (`clean.extraArgs = "--keep 5 --keep-since 14d"`, replaces `nix.gc.automatic`)
+- **comma + nix-index-database:** `programs.nix-index-database.comma.enable = true` — `, foo` runs any nixpkgs program without installing it; `programs.command-not-found` disabled in its favor
+- **Low-disk GC triggers:** `min-free` 1 GiB / `max-free` 5 GiB
 - **Unfree packages:** allowed (`allowUnfree = true`)
-- **State version:** `"24.11"`
+- **State version:** `"24.11"` (`lib.mkDefault`)
 
 ### modules/common/users.nix
 
 User account and shell setup.
 
 - **User:** `tom` (normal user)
-- **Groups:** `wheel`, `networkmanager`, `video`, `audio`
+- **Groups:** `wheel`, `networkmanager`, `video`, `audio`, `dialout`
 - **Shell:** Fish (`pkgs.fish`)
 - **SSH keys:** one ed25519 key authorized (`tom@ubuntu-dev`)
 - **Fish:** enabled system-wide (`programs.fish.enable = true`)
-- **Sudo:** wheel group requires password by default (`lib.mkDefault true`)
+- **Sudo:** sudo-rs (memory-safe Rust sudo) replaces the original sudo — `security.sudo.enable = false`, `security.sudo-rs.enable = true`, same wheel semantics, wheel requires password by default (`lib.mkDefault true`)
 
 ### modules/common/networking.nix
 
@@ -143,28 +146,34 @@ Timezone, locale, and keyboard.
 - **Timezone:** `America/New_York` (via `lib.mkDefault`)
 - **Locale:** `en_US.UTF-8` for all `LC_*` categories
 - **Console:** font `Lat2-Terminus16`, keymap `colemak`
-- No `services.xserver.xkb` -- there is no X server; Niri reads its keyboard layout from `home/niri.nix` (`input.keyboard.xkb`)
+- No `services.xserver.xkb` -- GNOME reads its keyboard layout from dconf (`home/gnome.nix` input-sources)
 
 ### modules/common/system.nix
 
 System packages, hardware, and kernel tuning.
 
 **Packages:**
-- Basic: `vim`, `micro`, `wget`, `curl`, `gh`, `htop`, `tree`, `file`, `unzip`, `zip`, `pciutils`, `usbutils`, `libnotify`
+- Basic: `vim`, `micro`, `wget`, `curl`, `htop`, `tree`, `file`, `unzip`, `zip`, `pciutils`, `usbutils`
 - Network: `dig`, `traceroute`
-- Nix dev: `nixfmt`, `statix`, `deadnix`, `nil`
-- Scripts: `claude-quick` launcher script (opens Claude Code in Ghostty)
+- Nix dev: `nixfmt`, `statix`, `deadnix`, `nil`, `nvd` (closure diffs), `nix-output-monitor` (nom)
+- Scripts: `claude-quick` (Super+C), `claude-ask-desktop` (Super+A, zenity prompt), `claude-screenshot` (Super+Shift+A), `claude-screenshot-interactive` (Super+Ctrl+A) — bound via GNOME custom keybindings in `home/gnome.nix`
+- `supabase-cli` (Open Brain deployments)
 
 **System configuration:**
-- Creates `/bin/bash` symlink (activation script, for third-party scripts)
-- `hardware.enableRedistributableFirmware = true`
+- `services.envfs.enable = true` — FUSE filesystem on `/bin` and `/usr/bin` that resolves interpreters from the calling process's PATH; replaces the old hand-rolled `/bin/bash` activation symlink and fixes "works on Ubuntu, breaks on NixOS" third-party scripts
+- `hardware.enableRedistributableFirmware = true`; Intel VA-API video acceleration (`intel-media-driver`)
 - `services.fwupd.enable = true` (firmware updates)
-- `services.thermald.enable = true` (Intel thermal management, `lib.mkDefault`)
+- `services.thermald.enable = true` (Intel thermal management, `lib.mkDefault`); `services.power-profiles-daemon` and `services.upower` enabled
 - `zramSwap.enable = true` (compressed in-memory swap)
+- `services.scx` — `scx_lavd` BPF scheduler (sched_ext, Rust, Steam Deck lineage) with `--autopower`; kernel falls back to EEVDF instantly if it dies
+- `services.dbus.implementation = "broker"` — dbus-broker (Fedora/Arch default), faster under chatty desktop IPC
 - `systemd.oomd` enabled on root, user, and system slices
 - `boot.tmp.useTmpfs = true` (tmpfs for /tmp)
-- `boot.kernel.sysctl."kernel.sysrq" = 1` (magic SysRq keys)
+- Kernel security sysctls: SysRq on, kptr/dmesg restricted, BPF JIT hardened + unprivileged BPF disabled, rp_filter, no ICMP redirects
+- Polkit: wheel can manage systemd units without password (deliberately excludes manage-unit-files)
+- auditd with rules for time changes and user/group database modifications
 - `services.btrfs.autoScrub` enabled on `/`
+- `services.fstrim.enable = true` — weekly TRIM for non-btrfs filesystems (e.g. the vfat ESP); btrfs trims continuously via `discard=async`
 
 ### modules/common/secrets.nix
 
@@ -186,41 +195,55 @@ Snapper btrfs snapshot management.
 - **Home config:** SUBVOLUME `/home`, same retention, `ALLOW_USERS` includes the system user (no sudo needed)
 - **Number cleanup** (both configs): `NUMBER_CLEANUP = true`, `NUMBER_LIMIT = 10`, `NUMBER_MIN_AGE = 1800`, `EMPTY_PRE_POST_CLEANUP = true` -- prunes the pre/post pairs created by the `rebuild` fish function so they don't pin deleted data forever
 
+### modules/common/auto-update.nix
+
+Weekly unattended flake updates with Claude review (`claude-os.autoUpdate`, enabled by default; `autoApply` off by default).
+
+- **Timer:** `claudeos-auto-update`, Sat 03:00 (configurable `schedule`), persistent, 1h randomized delay
+- **Flow:** stash dirty work → `git pull --rebase` → `nix flake update` → test build → Claude (haiku) changelog from `nix store diff-closures` → haiku-generated generation slug written to `generation-label` → commit and verified push (one rebase-and-retry) → notification
+- **On build failure:** Claude (sonnet) diagnoses, `flake.lock` is reverted, user notified
+
+### modules/common/generation-label.nix
+
+Claude-named generations. Reads the repo-root `generation-label` file (a short slug written by the fish `rebuild` function and the auto-update service, usually authored by haiku from the pending diff) into `system.nixos.tags` -- so the systemd-boot menu and `nixos-rebuild list-generations` read like a changelog instead of "Generation 213". The charset is sanitized to `[a-zA-Z0-9:_.-]` because `system.nixos.label` rejects anything else at eval time.
+
+### modules/common/self-heal.nix
+
+The OS files its own fix PRs (`claude-os.selfHeal`, enabled by default).
+
+- **Mechanism:** systemd user template `claude-heal@.service` attached via `OnFailure=` to opted-in units (option `claude-os.selfHeal.units`; defaults: `claudeos-auto-update`, `claudeos-journal-diary`, `jasper-companion`)
+- **On failure:** a headless Claude agent (sonnet) receives the unit's journal + systemctl state, investigates the owning module, and -- only if the failure is config-rooted -- fixes it on a `heal/*` branch, validates with a dry-run build, and opens a PR via `gh pr create`. Transient failures get a `SKIP: <reason>` and no edits
+- **Safety:** never touches main (human merge is the approval gate), per-unit 6h cooldown, restricted allowed tools; never watches `claude-heal@` itself or `claudeos-health-check` (loop prevention)
+- **Follow-up:** the agent session id is saved so the fish `approve` function can resume it
+
 ---
 
 ## modules/desktop/ -- Desktop Environment
 
-Niri compositor + Noctalia Shell, audio, fonts, and theming. Imported via `modules/desktop/default.nix` which pulls in: `niri-system.nix`, `audio.nix`, `fonts.nix`, `theme.nix`.
+GNOME on Wayland, audio, fonts, and theming. Imported via `modules/desktop/default.nix` which pulls in: `gnome.nix`, `audio.nix`, `fonts.nix`, `theme.nix`.
 
-### modules/desktop/niri-system.nix
+### modules/desktop/gnome.nix
 
-Niri compositor and greeter at the system level.
+GNOME desktop at the system level. Chosen June 2026 over Niri: familiar, best app integration (portals, file pickers, drag-and-drop, Chrome extension native messaging all first-class). Compositor experiments (Hyprland, etc.) can return later as specialisations.
 
-**Compositor:**
-- `programs.niri.enable = true` (niri-flake handles package and session registration)
+**Display manager + desktop:**
+- `services.displayManager.gdm.enable = true` (GDM, Wayland by default)
+- `services.desktopManager.gnome.enable = true`
 
-**Greeter:**
-- `services.greetd` with `tuigreet --time --remember --remember-session --cmd niri-session`
-
-**File manager:**
-- `programs.thunar` (the module, not a bare package -- wraps Thunar so plugins are discovered) with `thunar-archive-plugin` and `thunar-volman`
-- `programs.xfconf.enable = true` (persists Thunar preferences)
-- `services.tumbler.enable = true` (thumbnails for images, videos, PDFs)
+**Trimmed default apps** (`environment.gnome.excludePackages`): `gnome-tour`, `epiphany` (browser → Chrome), `geary` (mail → web), `gnome-music`, `totem`
 
 **Services:**
-- `services.gvfs.enable = true` (virtual filesystems: Trash, network shares)
-- `services.openssh.settings.X11Forwarding = false`
+- `services.openssh.settings.X11Forwarding = false` (`lib.mkDefault`)
 
 **Session variables:**
-- `GDK_BACKEND = "wayland,x11"`, `QT_QPA_PLATFORM = "wayland;xcb"`, `NIXOS_OZONE_WL = "1"` (Electron Wayland)
+- `NIXOS_OZONE_WL = "1"` (Electron apps use native Wayland)
 
 **System packages:**
-- Wayland utilities: `wl-clipboard`, `cliphist`, `fuzzel`, `brightnessctl`, `grim`, `slurp`, `satty`, `xarchiver`
-- Icon theme: `adwaita-icon-theme`
-- Custom inline derivations: `tab-new-symbolic` SVG icon (for Ghostty libadwaita tab bar), `folder-development` SVG icon (for ~/Projects)
+- `gnome-tweaks`, `wl-clipboard`, `zenity` (dialog prompts for `claude-ask-desktop`), `gnome-screenshot` (CLI capture for the screenshot scripts)
+- Custom inline derivations: `tab-new-symbolic` SVG icon (for Ghostty's libadwaita tab bar, removed from adwaita-icon-theme in GNOME 46+), `folder-development` SVG icon (for ~/Projects)
 
 **Hidden desktop entries** (via `hideDesktopEntries`):
-`com.google.Chrome`, `vim`, `gvim`, `htop`, `micro`, `xterm`, `uxterm`, `nixos-manual`, `nm-applet`, `nm-connection-editor`, `org.freedesktop.Xwayland`, `xdg-desktop-portal-gtk`, `geoclue-where-am-i`
+`com.google.Chrome`, `vim`, `gvim`, `htop`, `micro`, `xterm`, `uxterm`, `nixos-manual`, `nm-applet`, `nm-connection-editor`, `org.freedesktop.Xwayland`
 
 ### modules/desktop/audio.nix
 
@@ -230,7 +253,7 @@ PipeWire audio and Bluetooth.
 - **rtkit:** enabled (real-time scheduling for audio)
 - **PipeWire:** enabled with `alsa.enable`, `pulse.enable`, `wireplumber.enable`
 - **Bluetooth:** enabled, `powerOnBoot = false`, experimental features on, `Source,Sink,Media,Socket` enabled
-- Audio managed through Noctalia Shell and `wpctl`; `pavucontrol`/`helvum` suggested via `nix shell` for advanced use
+- Audio managed through GNOME's own controls and `wpctl`; `pavucontrol`/`helvum` suggested via `nix shell` for advanced use
 
 ### modules/desktop/fonts.nix
 
@@ -256,25 +279,26 @@ Stylix theming, Qt, and XDG portals. References `lib/theme.nix` for font names.
 
 **Stylix:**
 - `enable = true`, `polarity = "dark"`
-- Custom base16 color scheme (Claude-inspired warm palette):
+- Custom base16 color scheme (values extracted from live claude.ai CSS tokens):
   - Backgrounds: `base00` = `1f1e1d`, `base01` = `262624`, `base02` = `30302e`
   - Dim/secondary text: `base03` = `9c9a92`, `base04` = `c2c0b6`
   - Primary foreground: `base05` = `faf9f5`, `base06` = `faf9f5`, `base07` = `ffffff`
-  - Accents: `base08` = `c6613f` (terracotta), `base09` = `d97757` (orange), `base0A` = `c9b87c` (sand), `base0B` = `8a9a6b` (olive), `base0C` = `6b9e8a` (sage), `base0D` = `2c84db` (blue), `base0E` = `a67a5b` (brown), `base0F` = `d97757` (terracotta)
-- Wallpaper: `assets/claude.png`, scaling mode `fill`
-- Fonts: serif = Noto Serif, sansSerif = Inter, monospace = JetBrains Mono, emoji = Noto Color Emoji (packages declared inline)
+  - Accents: `base08` = `c6613f` (dark terracotta, errors), `base09` = `e6956b` (peach), `base0A` = `c9b87c` (sand), `base0B` = `8a9a6b` (olive), `base0C` = `2c84db` (blue, secondary accent), `base0D` = `d97757` (terracotta, primary accent), `base0E` = `a67a5b` (brown), `base0F` = `bd5d3a` (deep terracotta)
+- Wallpaper: `assets/chicago.jpg`, scaling mode `fill`
+- Cursor: Adwaita, size 20 (all three properties set so Stylix manages `home.pointerCursor`)
+- Fonts: serif = Noto Serif, sansSerif = Inter, monospace = JetBrains Mono Nerd Font, emoji = Noto Color Emoji (packages declared inline)
 
 **Qt:** enabled, platform theme forced to `gtk2`, style forced to `adwaita-dark`.
 
-**XDG portals:** enabled with `xdg-desktop-portal-gtk` (niri-flake auto-adds `xdg-desktop-portal-gnome`), default set to `gtk`.
+**XDG portals:** provided and configured by GNOME itself (`xdg-desktop-portal-gnome` + gtk fallback) -- no manual wiring.
 
 ---
 
 ## modules/apps/ -- Applications
 
-User-facing applications. Imported via `modules/apps/default.nix` which pulls in: `terminals.nix`, `claude.nix`, `jasper.nix`, `mcp-system-health`, `mcp-niri`, `claude-monitor`.
+User-facing applications. Imported via `modules/apps/default.nix` which pulls in: `terminals.nix`, `claude.nix`, `jasper.nix`, `mcp-system-health`, `claude-monitor`, `morning-desk.nix`. Default-enables `claude-os.claude`, `claude-os.jasper`, `claude-os.monitor` (+ `dailyBrief` + `journalDiary`), and `claude-os.morningDesk`.
 
-**Direct installs** (in `default.nix`): `google-chrome`, `slack`, `discord`, `obsidian`
+**Direct installs** (in `default.nix`): `google-chrome`, `slack`, `discord`, `teams-for-linux`, `obsidian`
 
 ### modules/apps/terminals.nix
 
@@ -296,17 +320,15 @@ Claude Code CLI and Claude Desktop.
 
 **System packages:** `socat` (sandbox dependency)
 
-**Insecure packages:** permits `electron-37.10.3` (required by Claude Desktop)
-
 **Claude Code CLI auto-installer:** systemd user service `claude-code-installer` that runs on first login if `~/.local/bin/claude` does not exist. Executes `curl -fsSL https://claude.ai/install.sh | bash`.
 
-**Claude Desktop:** Installed via home-manager using the `claude-desktop-linux` flake input. The app.asar from the flake is wrapped with the system's `electron_37` in an FHS environment (with bubblewrap, nodejs, glibc, openssl, coreutils, bash, git, curl). A custom XDG desktop entry is created with name "Claude", categories Development/Utility, and `x-scheme-handler/claude` MIME type.
+**Claude Desktop:** Installed via home-manager using the `claude-desktop-linux` flake input (follows main nixpkgs again). The flake extracts the macOS DMG, patches the Electron app for Linux, and wraps with nixpkgs electron — no insecure electron version needed.
 
 ### modules/apps/jasper.nix
 
 Jasper AI companion daemon.
 
-**System packages:** `jasperPkgs.daemon` (from `inputs.jasper`). Noctalia bar plugin is a follow-up task.
+**System packages:** `jasperPkgs.daemon` (from `inputs.jasper`). A desktop surface (e.g. GNOME shell integration) is a follow-up task.
 
 **Systemd user service** (`jasper-companion`):
 - Starts after `graphical-session.target`
@@ -322,13 +344,32 @@ System health MCP server for Claude Code.
 - **Package:** `mcp-system-health` -- self-contained Python3 MCP stdio server (no external deps)
 - **Protocol:** JSON-RPC 2.0 with Content-Length framing (MCP standard)
 - **Tools exposed:** `disk_usage`, `failed_services`, `recent_errors`, `system_status`, `snapshot_list`, `network_status`, `nix_store_size`, `scrub_status`
-- Registered as `system-health` MCP server in `home/claude-code.nix`
+- Registered as `system-health` MCP server in `home/claude-code.nix` (seeded `.mcp.json`)
+
+### modules/apps/claude-monitor/
+
+Proactive monitoring with Claude-authored notifications (`claude-os.monitor`, all tiers enabled by default).
+
+- **Tier 1 -- health check:** pure-bash timer every 15 min (failed services, disk, memory, OOM kills, critical journal entries); $0 cost
+- **Tier 2 -- notification:** `OnFailure` handler sends the alert context to Claude (sonnet) for a human-readable notification with an "Open in Claude" action button; rate-limited to one Claude call per 30 min
+- **Tier 3 -- daily brief** (`claude-os.monitor.dailyBrief`): 9 AM briefing from system stats (uptime, failed units, disk, generations, flake age, repo state, diary findings), written to a cache file shown in the first terminal of the day
+- **Tier 4 -- journal diary** (`claude-os.monitor.journalDiary`): nightly 4 AM haiku triage of deduplicated error-level journal lines against the persistent ledger `docs/known-issues.md` (edits ride the next rebuild auto-commit). Known-benign noise is silenced; new actionable findings land in `diary-actionable.txt` and feed the morning brief and morning desk. Saves its agent session id for `approve`
+
+### modules/apps/morning-desk.nix
+
+Overnight-built HTML morning dashboard (`claude-os.morningDesk`, enabled by default).
+
+- **Build (05:30, configurable `schedule`):** collectors gather date, weather (wttr.in), calendar (gcalcli, if connected), overnight diary findings, failed units, disk, and repo state; Claude (sonnet) synthesizes ONE self-contained, Stylix-themed HTML5 page at `~/Desk/today/index.html` -- attention-first hierarchy (single most important thing on top, never a feed). Honest plain-HTML fallback if Claude is unavailable
+- **Show:** at first login of the day, auto-opens in `google-chrome-stable --app` mode (one-shot stamp per day; only opens a dashboard generated today)
+- **Archive:** previous day's dashboard copied to `~/Desk/archive/<date>.html`
+- **Calendar bootstrap (one-time, interactive):** `gcalcli init` with the Google OAuth client from sops (`jasper_google_client_id`/`secret`)
+- DE-agnostic by design: the artifact is a file; the opener is a URL
 
 ---
 
 ## home/ -- Home Manager Modules
 
-User-level configuration. Imported from `home/default.nix` which pulls in: `shell/`, `ghostty.nix`, `git.nix`, `vscode.nix`, `niri.nix`, `macchina.nix`, `claude-code.nix`.
+User-level configuration. Imported from `home/default.nix` which pulls in: `shell/`, `ghostty.nix`, `git.nix`, `vscode.nix`, `gnome.nix`, `macchina.nix`, `claude-code.nix`, `claudeos-help.nix`, `zathura.nix`, `imv.nix`.
 
 ### home/default.nix
 
@@ -338,6 +379,8 @@ Root home-manager module.
 - `home.username` and `home.homeDirectory` set from the `user` argument
 - **XDG user directories:** enabled with standard directories plus `PROJECTS = "/home/${user}/Projects"`
 - Creates `~/Projects/.directory` with `Icon=folder-development`
+- `EDITOR`/`VISUAL` = `code --wait` (session variables, so `git commit`/`sops` block until the editor closes)
+- **Default applications (mimeApps):** PDFs → zathura, images → imv, directories → Nautilus (GNOME Files); archive MIME types still point at `xarchiver.desktop` (carried over from the Niri era -- candidates for File Roller)
 - `programs.home-manager.enable = true`
 - **Hidden desktop entries** (user-level): `yazi`, `code-url-handler`, `kvantummanager`, `qt5ct`, `qt6ct`
 
@@ -387,9 +430,11 @@ Colors are managed by Stylix (not hardcoded).
 
 ### home/vscode.nix
 
-VS Code with declarative extensions and settings.
+VS Code with declarative settings and Marketplace-managed extensions.
 
-**Extensions:** `jnoortheen.nix-ide`, `mkhl.direnv`, `yzhang.markdown-all-in-one`, `davidanson.vscode-markdownlint`, `redhat.vscode-yaml`
+**Extensions:** deliberately NOT declared (two-ring design) -- Nix installs the VSCode binary, the Marketplace owns extensions, so in-app installs/updates don't fight home-manager. Suggested baseline: `anthropic.claude-code`, `jnoortheen.nix-ide`, `mkhl.direnv`, `yzhang.markdown-all-in-one`, `davidanson.vscode-markdownlint`, `redhat.vscode-yaml`
+
+**Activation scripts:** stale `.backup` files are cleaned before linking; `settings.json`/`keybindings.json` store symlinks are replaced with writable copies so VSCode can persist runtime changes
 
 **Editor settings:**
 - Font ligatures on, format on save, minimap off
@@ -408,40 +453,22 @@ VS Code with declarative extensions and settings.
 - Keybinding: `Ctrl+Shift+T` for new terminal
 - Theme/fonts managed by Stylix
 
-### home/niri.nix
+### home/gnome.nix
 
-Niri compositor settings, Noctalia Shell, Stylix targets, and GTK theming. References `lib/theme.nix` for icon name.
+GNOME user configuration via dconf. Ports the Claude keybindings that lived in the old Niri config; everything else (idle, lock, displays, clipboard) is GNOME's own machinery.
 
-**Imports:** `niri.homeModules.niri` (portal/keyring), `niri.homeModules.stylix` (auto-derives border colors), `noctalia.homeModules.default`
+**dconf settings:**
+- Input sources: Colemak everywhere (`xkb us+colemak`; console keymap lives in `modules/common/locale.nix`)
+- Interface: `color-scheme = "prefer-dark"`, battery percentage shown
+- Idle + lock policy: blank at 5 min (`idle-delay = 300`), lock immediately on blank (`lock-enabled`, `lock-delay = 0`)
 
-**Stylix targets:** `gtk`, `ghostty`, `vscode`, `fzf`, `bat`, `lazygit`, `niri` all enabled.
+**Custom keybindings** (media-keys custom0-3):
+- `Super+C` = `claude-quick` (Claude Code in Ghostty)
+- `Super+A` = `claude-ask-desktop` (zenity prompt → notification)
+- `Super+Shift+A` = `claude-screenshot` (gnome-screenshot → haiku analysis → notification)
+- `Super+Ctrl+A` = `claude-screenshot-interactive` (screenshot → sonnet analysis in a terminal)
 
-**GTK:**
-- Icon theme: Adwaita (`adwaita-icon-theme` package)
-- GTK3/GTK4: `gtk-application-prefer-dark-theme = 1`
-- Force-overwrites Stylix-managed `gtk-3.0/gtk.css` and `gtk-4.0/gtk.css`
-
-**dconf:** sets `org/gnome/desktop/interface` to `color-scheme = "prefer-dark"` and `icon-theme = "Adwaita"`
-
-**Niri settings** (`programs.niri.settings`):
-- Input: Colemak layout (`xkb.variant = "colemak"`)
-- Layout: 8px gaps, 2px border (Stylix-derived colors), preset widths 1/3 + 1/2 + 2/3, transparent background
-- Window rules: `claude-quick` opens floating, all windows get 12px corner radius
-- Layer rules: `noctalia-wallpaper` and `noctalia-overview` use `place-within-backdrop`
-- Debug: `honor-xdg-activation-with-invalid-serial` (for Noctalia notifications)
-- Spawn at startup: `noctalia-shell`, `wl-paste --watch cliphist store`
-
-**Keybindings** (via `config.lib.niri.actions`):
-- `Mod+Return` = Ghostty, `Mod+C` = claude-quick, `Ctrl+Alt+Space` = Claude Desktop
-- `Mod+D` = fuzzel, `Mod+Q` = close, `Mod+F` = fullscreen, `Mod+Space` = cycle widths
-- `Mod+Left/Right` = focus columns, `Mod+Up/Down` = focus workspaces
-- `Mod+Shift+Left/Right/Up/Down` = move windows/columns
-- `Mod+1..5` = workspace switch, `Mod+Shift+1..5` = move to workspace
-- `Mod+Tab` = overview, `Mod+L` = Noctalia lock screen, `Print` = screenshot
-- `Mod+Shift+C` = clipboard history (fuzzel + cliphist)
-- Media keys for volume/brightness via wpctl/brightnessctl
-
-**Noctalia Shell:** enabled with systemd service, default configuration (refine via built-in settings UI)
+The scripts themselves are defined in `modules/common/system.nix`.
 
 ### home/macchina.nix
 
@@ -456,13 +483,12 @@ System fetch tool with custom ASCII art and Stylix-derived colors.
 
 ### home/claude-code.nix
 
-Declarative Claude Code configuration via home-manager.
+Claude Code configuration, two-ring style: Nix SEEDS the config once, then the live files are mutable.
 
-- Generates `~/.claude/settings.json` from Nix (statusline, plugins, permissions, env)
-- Generates `~/.claude/.mcp.json` (MCP server registrations: nixos, system-health, niri)
-- **Statusline script:** reads Stylix palette for themed status bar showing directory, git info, model, context usage, and cost estimate
-- **Plugins (globally enabled):** github, learning-output-style, telegram -- others are installed per-project via the Discover tab
-- `force = true` on both files (Nix is authoritative over runtime edits)
+- **Seed-once activation:** `~/.claude/settings.json` and `~/.claude/.mcp.json` are copied from Nix-built seeds only if they don't exist -- Claude Code, `/config`, and MCP experimentation own the live files afterwards. To re-seed: delete the file and rebuild
+- **Seeded settings:** statusline, globally-enabled plugins (github, learning-output-style, telegram), permissions, env
+- **Seeded MCP servers:** `nixos` (mcp-nixos via `nix run`), `system-health` (`mcp-system-health` binary)
+- **Statusline:** installed as a stable `claude-statusline` command on PATH (so the seeded settings never point at a GC-able store path); reads the Stylix palette for a themed status bar showing directory, git info, model, context usage, and cost estimate
 
 ### home/shell/default.nix
 
@@ -474,13 +500,17 @@ Fish shell configuration.
 
 **Aliases:**
 - `cat` = `bat --style=auto`, `man` = `batman`
-- Git: `gs`, `gd`, `gl`, `gp`
 - Navigation: `..`, `...`
-- NixOS: `zc` (jump to config), `rebuild` (function with snapper pre/post snapshots), `rebuild-test`, `flake-check`
+- NixOS: `zc` (jump to config), `rebuild-test` (= `nh os test`), `flake-check`
 
-**Abbreviations:** `gco`, `gci`, `gca`, `gaa`, `gcm`, `nfmt`, `ndev`, `nbuild`, `nrun`, `sctl`, `jctl`
+**Abbreviations:** `gs`, `gd`, `gl`, `gp`, `gco`, `gci`, `gca`, `gaa`, `gcm`, `nfmt`, `ndev`, `nbuild`, `nrun`, `nshell`, `nrepl`, `nupdate`, `sctl`, `jctl`
 
-**Functions:** `mkcd`, `extract` (archive extractor), `gcam`, `findbig`
+**Functions:**
+- Utility: `mkcd`, `extract` (delegates to ouch), `gcam`, `findbig`, `starship_transient_prompt_func`
+- Claude-powered: `ask`, `fix`, `explain` (all haiku)
+- `rebuild`: haiku writes a generation slug from the pending diff into `generation-label` (becomes the boot-menu label via `system.nixos.tags`) → snapper pre snapshots on root + home named "pre: <slug>" → `nh os switch` → post snapshots → Claude-generated conventional commit + push (`--no-commit` to skip)
+- `approve`: resumes the last background agent session (self-heal, journal diary, morning desk save their session ids to `~/.local/state/claudeos/last-agent-session`) and authorizes its proposed action with full context
+- `today`: opens `~/Desk/today/index.html` in Chrome app mode; `today --refresh` rebuilds the dashboard first
 
 **Plugins:**
 - `fzf.fish` (v10.3, PatrickF1)
@@ -518,7 +548,7 @@ Starship prompt with Fish integration.
 
 Modern CLI tool replacements.
 
-**Packages (direct install):** `ripgrep`, `fd`, `jq`
+**Packages (direct install):** `ripgrep`, `fd`, `jq`, `btop`, `ouch`, `bun`, and `uutils-coreutils-noprefix` at `lib.hiPrio` -- the two-ring pattern applied to coreutils: system scripts keep GNU coreutils, the interactive user PATH gets the Rust uutils
 
 **Configured programs:**
 - **eza:** icons auto, git integration, group directories first, show header
@@ -527,7 +557,9 @@ Modern CLI tool replacements.
 - **fzf:** Fish integration disabled (handled by `fzf.fish` plugin), uses `fd` for file/directory search, `bat` for file preview, `eza --tree` for directory preview
 - **atuin:** Fish integration enabled, sync disabled, compact style, fuzzy search, global filter, preview enabled, inline height 20
 - **yazi:** Fish integration enabled, hidden files off, natural sort, directories first
+- **carapace:** multi-shell completion engine, Fish integration enabled
 - **gh:** GitHub CLI -- SSH git protocol, `gitCredentialHelper.enable = true` (sole home of `programs.gh`; `home/git.nix` defers to it)
+- **lazygit:** TUI git client
 - **direnv:** enabled with `nix-direnv`
 
 ---
@@ -559,22 +591,23 @@ Generated by `nixos-generate-config`.
 flake.nix
   +-- lib/mkSystem.nix          (builds each host)
   |     +-- modules/common/     (foundation for all hosts)
-  |     +-- modules/desktop/    (Niri, Noctalia, audio, fonts, Stylix)
-  |     +-- modules/apps/       (applications, Claude, Jasper)
+  |     +-- modules/desktop/    (GNOME, audio, fonts, Stylix)
+  |     +-- modules/apps/       (applications, Claude, Jasper, monitor, morning desk)
   |     +-- home/               (home-manager user config)
   +-- hosts/<hostname>/         (per-host hardware + overrides)
 ```
 
 Notable dependency chains:
 - `modules/apps/jasper.nix` reads secrets from `modules/common/secrets.nix` (sops)
-- `modules/apps/claude.nix` uses `inputs.claude-desktop-linux` and `inputs.nixpkgs` (electron)
-- `home/niri.nix` imports niri-flake and noctalia home-manager modules, enables Stylix targets for GTK, Ghostty, VS Code, and Niri
-- `home/shell/fish.nix` relies on tools configured in `home/shell/cli-tools.nix` (eza, bat, batman, zoxide)
-- `lib/theme.nix` is imported as pure data by `modules/desktop/fonts.nix`, `modules/desktop/theme.nix`, `home/ghostty.nix`, and `home/niri.nix`
-- `home/claude-code.nix` generates Claude Code settings referencing store-path scripts (statusline, notify)
-- `modules/apps/mcp-system-health/` registered in `home/claude-code.nix` MCP config
-- `modules/common/snapshots.nix` enables snapper used by `home/shell/fish.nix` rebuild function
+- `modules/apps/claude.nix` uses `inputs.claude-desktop-linux`
+- `home/gnome.nix` binds the Claude desktop scripts defined in `modules/common/system.nix`
+- `home/shell/fish.nix` relies on tools configured in `home/shell/cli-tools.nix` (eza, bat, batman, zoxide) and on `nh` (`modules/common/nix.nix`), snapper (`modules/common/snapshots.nix`), and `generation-label` (`modules/common/generation-label.nix`) in the `rebuild` function
+- `lib/theme.nix` is imported as pure data by `modules/desktop/fonts.nix`, `modules/desktop/theme.nix`, and `home/ghostty.nix`
+- `home/claude-code.nix` seeds Claude Code settings; the statusline ships as the stable `claude-statusline` command
+- `modules/apps/mcp-system-health/` registered in the seeded `.mcp.json` (`home/claude-code.nix`)
+- `modules/common/self-heal.nix` and `modules/apps/claude-monitor/` save agent session ids consumed by the fish `approve` function
+- `modules/apps/claude-monitor/` (Tier 4) writes `diary-actionable.txt`, consumed by both the daily brief and `modules/apps/morning-desk.nix`
 
 ---
 
-*Last updated: 2026-06-11*
+*Last updated: 2026-06-12*

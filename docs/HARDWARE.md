@@ -108,8 +108,8 @@ nix store optimise
 # Check store size
 du -sh /nix/store
 
-# Garbage collect old generations
-nix-collect-garbage --delete-older-than 30d
+# Garbage collect old generations (declarative GC via programs.nh.clean: keep 5 / 14d)
+nh clean all --keep 5 --keep-since 14d
 ```
 
 ### Intel Thermal Management
@@ -134,8 +134,11 @@ nix-collect-garbage --delete-older-than 30d
 - NetworkManager-wait-online disabled (faster boot, less power)
 - WiFi power management handled by NetworkManager
 
+**CPU/scheduler:**
+- power-profiles-daemon for dynamic power profiles (modules/common/system.nix)
+- scx_lavd BPF scheduler with `--autopower` — flips performance/powersave with AC state
+
 **Future Enhancements:**
-- TLP or auto-cpufreq for advanced power management
 - Battery threshold configuration (Dell specific)
 - Display brightness auto-adjustment
 
@@ -181,15 +184,15 @@ fwupdmgr get-history
 ### System Updates
 
 **NixOS Updates:**
+
+The weekly auto-update timer (Sat 3 AM) updates flake inputs, test-builds, and pushes a Claude-reviewed changelog. Manually:
+
 ```bash
 # Update flake inputs
 cd ~/.config/claudeos
 nix flake update
 
-# Rebuild with updated packages
-sudo nixos-rebuild switch --flake .#$(hostname)
-
-# Or use alias
+# Rebuild with updated packages (fish function: labels + snapshots + nh os switch)
 rebuild
 ```
 
@@ -285,4 +288,4 @@ When adding new machines to ClaudeOS:
 
 ---
 
-*Last updated: 2026-06-11*
+*Last updated: 2026-06-12*

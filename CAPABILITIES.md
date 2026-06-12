@@ -1,6 +1,6 @@
 # ClaudeOS Capabilities
 
-ClaudeOS is a Claude-native NixOS system where Claude is integrated at every layer: desktop keybindings, shell commands, MCP servers, Claude Code agents/skills, and background monitoring. This document is the single reference for what's available and when to use it.
+ClaudeOS is a Claude-native NixOS system where Claude is integrated at every layer: desktop keybindings, shell commands, MCP servers, Claude Code agents/skills/hooks, and background monitoring with self-healing. This document is the single reference for what's available and when to use it.
 
 Run `claudeos` in a terminal to see the user-facing quick reference.
 
@@ -29,25 +29,7 @@ Direct access to system diagnostics — 8 tools covering disk, services, journal
 
 **When to use:** Investigating build failures, system issues, disk space, or any diagnostic question. **Proactive:** If the user mentions a build error or system issue, check `failed_services` and `recent_errors` before guessing at the cause.
 
-### niri (`mcp-niri`)
-
-Control the Niri Wayland compositor — manage windows, workspaces, and take screenshots.
-
-| Tool | Purpose |
-|------|---------|
-| `list_windows` | All open windows with IDs, titles, app IDs |
-| `list_workspaces` | All workspaces with indices and active status |
-| `focused_window` | Details about the currently focused window |
-| `focused_output` | Details about the currently focused monitor |
-| `focus_window` | Focus a specific window by ID |
-| `close_window` | Close the currently focused window |
-| `move_to_workspace` | Move focused column to a target workspace |
-| `set_column_width` | Set column width (absolute or relative) |
-| `focus_workspace` | Switch to a workspace by number |
-| `toggle_fullscreen` | Toggle fullscreen on focused window |
-| `screenshot_screen` | Take a screenshot of the entire screen |
-
-**When to use:** User wants to manage windows, check what's open, organize workspaces, or needs a screenshot for context.
+Note: MCP config is seed-once (`home/claude-code.nix`) — Nix seeds `~/.claude/.mcp.json` on first activation, then the live file is mutable and owned by Claude Code. The old `niri` MCP server was retired with the move to GNOME.
 
 ## Agents
 
@@ -68,17 +50,26 @@ Specialized subagents available via the Task tool. Each has restricted tool acce
 | `/deploy` | Full pipeline: stage → validate → build → apply. Dispatches validator and builder agents. |
 | `/add-module <category>/<name>` | Scaffold a new module at `modules/<category>/<name>.nix`, wire into imports, validate build. |
 
+## Hooks
+
+Repo-tracked Claude Code hooks (`.claude/settings.json` + `.claude/hooks/`) — these run automatically in every Claude Code session in this repo:
+
+| Hook | Trigger | What it does |
+|------|---------|-------------|
+| `session-start.sh` | SessionStart | Injects OS awareness: hostname, booted generation, any failed system/user units |
+| `post-edit-check.sh` | PostToolUse (Edit\|Write) | Auto-formats touched `.nix` files with nixfmt and runs `nix-instantiate --parse`; parse errors are fed straight back into the agent's context |
+| `pre-commit-gate.sh` | PreToolUse (Bash) | Denies `git commit` when staged `.nix` changes fail `nix flake check --no-build` — "never commit untested NixOS changes", enforced |
+
 ## Desktop Integration
 
-These scripts run outside Claude Code — they're keybindings in the Niri compositor that invoke Claude via the CLI. Claude Code cannot invoke them directly, but understanding them helps explain user context.
+These scripts run outside Claude Code — they're GNOME custom keybindings (`home/gnome.nix`) that invoke Claude via the CLI. Claude Code cannot invoke them directly, but understanding them helps explain user context.
 
 | Keybinding | Script | What it does |
 |------------|--------|-------------|
-| `Mod+C` | `claude-quick` | Opens Claude Code in a floating Ghostty terminal |
-| `Mod+A` | `claude-ask-desktop` | Fuzzel popup prompt → Claude answer → desktop notification |
-| `Mod+Shift+A` | `claude-screenshot` | Screenshot → Claude analysis (Haiku) → notification |
-| `Mod+Ctrl+A` | `claude-screenshot-interactive` | Screenshot → Claude analysis (Sonnet) → terminal for follow-up |
-| `Ctrl+Alt+Space` | `claude-desktop` | Opens Claude Desktop (Electron app with file/image support) |
+| `Super+C` | `claude-quick` | Opens Claude Code in a Ghostty terminal |
+| `Super+A` | `claude-ask-desktop` | Zenity popup prompt → Claude answer → desktop notification |
+| `Super+Shift+A` | `claude-screenshot` | gnome-screenshot capture → Claude analysis (Haiku) → notification |
+| `Super+Ctrl+A` | `claude-screenshot-interactive` | Screenshot → Claude analysis (Sonnet) → terminal for follow-up |
 
 ## Shell Commands
 
@@ -89,7 +80,9 @@ Fish shell functions available in any terminal. Defined in `home/shell/fish.nix`
 | `ask "..."` | Send a question to Claude (Haiku), get answer inline |
 | `fix` | Sends last failed command to Claude, suggests corrected version with confirmation |
 | `explain` | Explain last command, or pipe output to understand it |
-| `rebuild` | Btrfs snapshots → `nixos-rebuild switch` → Claude-generated commit → push |
+| `rebuild` | Haiku names the generation (`generation-label`) → snapper pre snapshots → `nh os switch` → post snapshots → Claude-generated commit → push |
+| `approve` | Resume the last background agent session (self-heal, journal diary) and authorize its proposed action |
+| `today` | Open the morning desk dashboard in Chrome app mode (`today --refresh` rebuilds it first) |
 | `claudeos` | Show the capability quick reference |
 
 ## Background Services
@@ -97,8 +90,12 @@ Fish shell functions available in any terminal. Defined in `home/shell/fish.nix`
 | Service | Schedule | What it does |
 |---------|----------|-------------|
 | **Health monitor** | Every 15 min | Checks for failed services, high disk usage, low memory, OOM kills, critical journal entries. Sends alert context to Claude (Sonnet) for a human-readable notification if issues found. Rate-limited to one Claude call per 30 min. |
-| **Daily brief** | 9 AM daily | Gathers system stats (uptime, disk, generations, flake age, git status), sends to Claude (Sonnet) for a concise briefing. Displayed in first terminal of the day alongside macchina system fetch. |
-| **Jasper** | Always running | AI companion daemon (systemd user service, `modules/apps/jasper.nix`). Has its own Anthropic API key, Google integrations for weather/calendar/routes. Surfaces in the Noctalia bar via the `jasper-insights` plugin widget (`home/niri.nix`). |
+| **Journal diary** | 4 AM nightly | Haiku triages 24h of error-level journal entries against the `docs/known-issues.md` ledger. Known/benign noise is silenced; new actionable findings feed the morning brief and dashboard. |
+| **Morning desk** | 05:30 daily | Agent builds `~/Desk/today/index.html` — a self-contained, Stylix-themed HTML dashboard (calendar via gcalcli, weather, diary findings, system/repo state, attention-first hierarchy). Auto-opens in Chrome app mode at first login; archives to `~/Desk/archive/`. One-time calendar bootstrap: `gcalcli init` with the Google OAuth client in sops. |
+| **Daily brief** | 9 AM daily | Gathers system stats (uptime, disk, generations, flake age, git status, diary findings), sends to Claude (Sonnet) for a concise briefing. Displayed in first terminal of the day alongside macchina system fetch. |
+| **Self-heal** | On unit failure | `claude-heal@.service` OnFailure template (`modules/common/self-heal.nix`). When a watched unit fails, a headless agent reads its journal, and if the failure is config-rooted, fixes it on a `heal/*` branch, validates with a dry-run build, and opens a PR. Never touches main; per-unit 6h cooldown. `approve` resumes the session. |
+| **Auto-update** | Sat 3 AM weekly | `nix flake update` → test build → Claude-reviewed changelog → haiku-named generation slug → commit and push. Reverts flake.lock on build failure. |
+| **Jasper** | Always running | AI companion daemon (systemd user service, `modules/apps/jasper.nix`). Has its own Anthropic API key, Google integrations for weather/calendar/routes. |
 
 ## Proactive Behaviors
 
@@ -106,7 +103,7 @@ Guidelines for when Claude should suggest or use capabilities without being aske
 
 - **Build errors:** Check `system-health` → `failed_services` and `recent_errors` before guessing at causes
 - **Disk space concerns:** Use `system-health` → `disk_usage` and `nix_store_size` to give concrete numbers
-- **Window management:** If user mentions wanting to arrange windows or check what's open, use `niri` MCP
 - **After config changes:** Suggest `/deploy` or remind about the validate → build → apply workflow
 - **Module creation:** If user wants to add a new service/app, suggest `/add-module` to scaffold correctly
 - **NixOS option lookup:** Use `nixos` MCP to verify options exist before adding them to config
+- **Recurring journal noise:** If an error is benign, record it in `docs/known-issues.md` so the journal diary stops resurfacing it

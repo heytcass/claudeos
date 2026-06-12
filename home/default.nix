@@ -75,18 +75,18 @@ in
       "image/tiff" = "imv.desktop";
       "image/bmp" = "imv.desktop";
 
-      # Archives — override zathura-cb which claims zip/tar/7z/rar for comic book formats
-      "application/zip" = "xarchiver.desktop";
-      "application/gzip" = "xarchiver.desktop";
-      "application/x-tar" = "xarchiver.desktop";
-      "application/x-compressed-tar" = "xarchiver.desktop";
-      "application/x-bzip-compressed-tar" = "xarchiver.desktop";
-      "application/x-bzip2-compressed-tar" = "xarchiver.desktop";
-      "application/x-xz-compressed-tar" = "xarchiver.desktop";
-      "application/x-zstd-compressed-tar" = "xarchiver.desktop";
-      "application/x-7z-compressed" = "xarchiver.desktop";
-      "application/vnd.rar" = "xarchiver.desktop";
-      "application/x-lzip-compressed-tar" = "xarchiver.desktop";
+      # Archives — File Roller (GNOME); overrides zathura-cb which claims zip/tar/7z/rar for comic book formats
+      "application/zip" = "org.gnome.FileRoller.desktop";
+      "application/gzip" = "org.gnome.FileRoller.desktop";
+      "application/x-tar" = "org.gnome.FileRoller.desktop";
+      "application/x-compressed-tar" = "org.gnome.FileRoller.desktop";
+      "application/x-bzip-compressed-tar" = "org.gnome.FileRoller.desktop";
+      "application/x-bzip2-compressed-tar" = "org.gnome.FileRoller.desktop";
+      "application/x-xz-compressed-tar" = "org.gnome.FileRoller.desktop";
+      "application/x-zstd-compressed-tar" = "org.gnome.FileRoller.desktop";
+      "application/x-7z-compressed" = "org.gnome.FileRoller.desktop";
+      "application/vnd.rar" = "org.gnome.FileRoller.desktop";
+      "application/x-lzip-compressed-tar" = "org.gnome.FileRoller.desktop";
 
       # Directories — open in Nautilus (GNOME Files)
       "inode/directory" = "org.gnome.Nautilus.desktop";

@@ -34,6 +34,14 @@ git status
 
 ### 2. Apply Configuration
 
+Preferred (fish function — generation label, snapper pre/post snapshots, `nh os switch`, auto-commit):
+
+```bash
+fish -c rebuild
+```
+
+Raw fallback (skips labels and snapshots):
+
 ```bash
 sudo nixos-rebuild switch --flake ~/.config/claudeos#$(hostname)
 ```
