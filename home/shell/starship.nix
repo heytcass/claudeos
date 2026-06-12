@@ -142,7 +142,7 @@
       # Invisible on a healthy system — its absence is the feature.
       custom.degraded = {
         when = ''test "$( (systemctl --failed --no-legend --plain; systemctl --user --failed --no-legend --plain) 2>/dev/null | wc -l)" -gt 0'';
-        command = ''(systemctl --failed --no-legend --plain; systemctl --user --failed --no-legend --plain) 2>/dev/null | wc -l'';
+        command = "(systemctl --failed --no-legend --plain; systemctl --user --failed --no-legend --plain) 2>/dev/null | wc -l";
         format = "[● $output failed](red) ";
         description = "systemd failed units";
       };

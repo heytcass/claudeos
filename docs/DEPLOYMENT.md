@@ -18,7 +18,10 @@ After editing configuration in `~/.config/claudeos`:
 # Validate
 nix flake check
 
-# Apply
+# Apply (fish function: generation label + snapper snapshots + nh os switch + auto-commit)
+rebuild
+
+# Or the raw command (skips labels/snapshots):
 sudo nixos-rebuild switch --flake ~/.config/claudeos#$(hostname)
 ```
 
@@ -64,8 +67,9 @@ sudo nixos-rebuild switch --rollback
 After applying a new configuration:
 
 - [ ] System boots / services running
-- [ ] Niri session loads with Noctalia bar
+- [ ] GDM greets and the GNOME session loads
 - [ ] Wayland session active (`echo $XDG_SESSION_TYPE`)
+- [ ] Claude keybindings work (Super+C, Super+A)
 - [ ] Audio works
 - [ ] Ghostty terminal launches
 - [ ] Fish shell with Starship prompt
@@ -79,22 +83,24 @@ One-time setup after a fresh installation:
 
 **Note:** Claude Code CLI installs automatically on first login via systemd user service. Verify with `claude --version` after logging in.
 
-1. **Git identity:** `git config --global user.name "Name"` and `git config --global user.email "email"`
-2. **SSH keys:** Copy from another machine or generate new ones
-3. **Chrome:** Sign in and install extensions
-4. **Slack/Discord:** Sign in to workspaces
-5. **VSCode:** Install Claude extension from marketplace
+1. **SSH keys:** Copy from another machine or generate new ones (git identity is declarative in `home/git.nix`)
+2. **Chrome:** Sign in and install extensions
+3. **Slack/Discord:** Sign in to workspaces
+4. **VSCode:** Install extensions from the Marketplace (extensions are deliberately not declared — suggested baseline in `home/vscode.nix`)
+5. **Calendar (morning desk):** one-time `gcalcli init` with the Google OAuth client from sops
 
 ## Disk Space Management
+
+GC is declarative via `programs.nh.clean` (keep 5 generations / 14 days). Manually:
 
 ```bash
 # Check disk space
 df -h
 
-# Clean old generations (keep last 30 days)
-sudo nix-collect-garbage --delete-older-than 30d
+# Clean now with nh
+nh clean all --keep 5 --keep-since 14d
 
-# Optimize nix store
+# Optimize nix store (auto-optimise is also on)
 nix store optimise
 ```
 
@@ -111,9 +117,9 @@ nix store optimise
 
 ## Testing Strategy
 
-gti is the only host, so there is no staging machine — test before switching:
+transporter is the testbed; gti is production — test there first when possible:
 
-- Build first: `nix build .#nixosConfigurations.gti.config.system.build.toplevel` (or `rebuild-test` for a non-persistent switch)
-- The `rebuild` fish function takes snapper pre/post snapshots automatically
+- Build first: `nix build .#nixosConfigurations.<host>.config.system.build.toplevel` (or `rebuild-test` = `nh os test` for a non-persistent switch)
+- The `rebuild` fish function takes named snapper pre/post snapshots automatically
 - Keep working generation — don't garbage-collect until verified
-- Document issues in TROUBLESHOOTING.md
+- Document issues in TROUBLESHOOTING.md (recurring journal noise goes in docs/known-issues.md)
