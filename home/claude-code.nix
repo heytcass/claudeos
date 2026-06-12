@@ -1,10 +1,16 @@
-# home/claude-code.nix — Declarative Claude Code configuration via home-manager.
-# Generates ~/.claude/settings.json and ~/.claude/.mcp.json from Nix expressions.
-{ pkgs, ... }:
+# home/claude-code.nix — Claude Code configuration, two-ring style.
+# Nix SEEDS ~/.claude/settings.json and ~/.claude/.mcp.json on first activation
+# but never overwrites them afterwards — Claude Code, /config, and MCP
+# experimentation own the live files. To re-seed from Nix: delete the file and
+# rebuild. (Force-managing these meant every MCP/plugin experiment required a
+# nix edit + rebuild, which is exactly the friction this avoids.)
+{ pkgs, lib, ... }:
 
 let
-  # Statusline script — reads Stylix palette for themed Claude Code status bar
-  statuslineScript = pkgs.writeShellScript "claude-statusline" ''
+  # Statusline script — reads Stylix palette for themed Claude Code status bar.
+  # Installed as a stable command on PATH so the seeded settings.json never
+  # points at a store path that could be garbage-collected.
+  statuslineScript = pkgs.writeShellScriptBin "claude-statusline" ''
     PALETTE="$HOME/.config/stylix/palette.json"
 
     color() {
@@ -85,7 +91,7 @@ let
   claudeSettings = {
     statusLine = {
       type = "command";
-      command = "bash ${statuslineScript}";
+      command = "claude-statusline";
     };
     enabledPlugins = {
       "github@claude-plugins-official" = true;
@@ -133,17 +139,24 @@ let
       };
     };
   };
+
+  settingsSeed = pkgs.writeText "claude-settings-seed.json" (builtins.toJSON claudeSettings);
+  mcpSeed = pkgs.writeText "claude-mcp-seed.json" (builtins.toJSON mcpConfig);
 in
 {
-  # Generate ~/.claude/settings.json
-  home.file.".claude/settings.json" = {
-    text = builtins.toJSON claudeSettings;
-    force = true;
-  };
+  home.packages = [ statuslineScript ];
 
-  # Generate ~/.claude/.mcp.json
-  home.file.".claude/.mcp.json" = {
-    text = builtins.toJSON mcpConfig;
-    force = true;
-  };
+  # Seed ~/.claude/settings.json and ~/.claude/.mcp.json only if they don't
+  # exist — the live files are mutable and owned by Claude Code from then on.
+  home.activation.seedClaudeConfig = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
+    mkdir -p "$HOME/.claude"
+    if [ ! -e "$HOME/.claude/settings.json" ]; then
+      $DRY_RUN_CMD cp ${settingsSeed} "$HOME/.claude/settings.json"
+      $DRY_RUN_CMD chmod u+w "$HOME/.claude/settings.json"
+    fi
+    if [ ! -e "$HOME/.claude/.mcp.json" ]; then
+      $DRY_RUN_CMD cp ${mcpSeed} "$HOME/.claude/.mcp.json"
+      $DRY_RUN_CMD chmod u+w "$HOME/.claude/.mcp.json"
+    fi
+  '';
 }
