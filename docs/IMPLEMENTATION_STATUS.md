@@ -31,7 +31,7 @@ gti (Dell XPS 13 9370) is the primary machine — currently running Ubuntu pendi
 
 | Category | Modules | Purpose |
 |----------|---------|---------|
-| common/ | boot, disko, nix, users, networking, locale, system, secrets, snapshots, auto-update, generation-label, self-heal | Foundation |
+| common/ | boot, disko, nix, users, networking, locale, system, secrets, snapshots, auto-update, generation-label, self-heal, claude-helpers | Foundation |
 | desktop/ | gnome, audio, fonts, theme | GNOME desktop |
 | apps/ | terminals, claude, jasper, mcp-system-health, claude-monitor, morning-desk | Applications + AI |
 | home/ | shell (fish, cli-tools, starship), ghostty, git, vscode, gnome, claude-code, claudeos-help, zathura | User config |

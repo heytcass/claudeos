@@ -45,22 +45,22 @@ in
       size = 20;
     };
 
-    # Font configuration — names from lib/theme.nix, packages declared here
+    # Font configuration — names and packages both from lib/theme.nix
     fonts = {
       serif = {
-        package = pkgs.noto-fonts;
+        package = themeLib.fonts.serif.package pkgs;
         name = themeLib.fonts.serif.name;
       };
       sansSerif = {
-        package = pkgs.inter;
+        package = themeLib.fonts.sansSerif.package pkgs;
         name = themeLib.fonts.sansSerif.name;
       };
       monospace = {
-        package = pkgs.nerd-fonts.jetbrains-mono;
+        package = themeLib.fonts.monospace.package pkgs;
         name = themeLib.fonts.monospace.nerdName;
       };
       emoji = {
-        package = pkgs.noto-fonts-color-emoji;
+        package = themeLib.fonts.emoji.package pkgs;
         name = themeLib.fonts.emoji.name;
       };
     };

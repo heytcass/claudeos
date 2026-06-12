@@ -165,20 +165,14 @@
                   end
                 end
 
-                # Name this generation: haiku writes a short slug from the pending
-                # diff; falls back to a timestamp. The slug becomes the boot-menu
-                # label (system.nixos.tags) and the snapper snapshot description.
-                set -l slug "rebuild-"(date +%m%d-%H%M)
-                set -l pending_diff (git -C ~/.config/claudeos diff 2>/dev/null; git -C ~/.config/claudeos diff --cached 2>/dev/null)
-                if test -n "$pending_diff"; and command -q claude
-                  set -l ai_slug (claude -p "Summarize this NixOS config diff as a slug of 2-4 lowercase words joined by hyphens, only [a-z0-9-], max 40 chars, no explanation:
-        $pending_diff" --model haiku 2>/dev/null | string trim)
-                  set ai_slug (string replace -ra '[^a-zA-Z0-9:_.-]' '-' -- $ai_slug | string sub -l 40)
-                  if test -n "$ai_slug"
-                    set slug $ai_slug
-                  end
-                end
-                echo $slug > ~/.config/claudeos/generation-label
+                # Name this generation: claude-name-generation (claude-helpers.nix)
+                # turns the pending diff into a haiku-written slug, falling back to
+                # a timestamp. The slug becomes the boot-menu label
+                # (system.nixos.tags) and the snapper snapshot description.
+                set -l slug (begin
+                  git -C ~/.config/claudeos diff 2>/dev/null
+                  git -C ~/.config/claudeos diff --cached 2>/dev/null
+                end | claude-name-generation --fallback "rebuild-"(date +%m%d-%H%M))
                 git -C ~/.config/claudeos add generation-label
                 echo "Generation label: $slug"
 
@@ -207,24 +201,9 @@
                   end
 
                   # Auto-commit config changes with Claude-generated message
+                  # (claude-commit in claude-helpers.nix)
                   if not $no_commit
-                    set -l dirty (git -C ~/.config/claudeos status --porcelain 2>/dev/null)
-                    if test -n "$dirty"
-                      set -l diff_output (git -C ~/.config/claudeos diff 2>/dev/null; git -C ~/.config/claudeos diff --cached 2>/dev/null)
-                      if test -z "$diff_output"
-                        set diff_output "$dirty"
-                      end
-                      set -l msg (claude -p "Generate a concise git commit message for this NixOS config change.
-        Use conventional commits (feat:/fix:/chore:). One line, under 72 chars.
-        Just the message, nothing else.
-        $diff_output" --model haiku 2>/dev/null)
-                      if test -n "$msg"
-                        git -C ~/.config/claudeos add -A
-                        and git -C ~/.config/claudeos commit -m "$msg"
-                        and git -C ~/.config/claudeos push
-                        and echo "Auto-committed: $msg"
-                      end
-                    end
+                    claude-commit
                   end
                 else
                   echo "Rebuild failed (exit $rebuild_status). Pre-snapshots: root#$pre_root, home#$pre_home"

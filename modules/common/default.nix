@@ -14,6 +14,7 @@
     ./auto-update.nix
     ./generation-label.nix
     ./self-heal.nix
+    ./claude-helpers.nix
   ];
 
   # Weekly auto-update, fully autonomous: the VM smoke-test gate boots each

@@ -1,8 +1,9 @@
 # modules/common/generation-label.nix — Claude-named generations.
 #
 # The repo-root `generation-label` file holds a short slug describing the
-# pending change (written by the fish `rebuild` function and the auto-update
-# service, usually authored by haiku from the diff). It lands in
+# pending change (written by the shared `claude-name-generation` command —
+# claude-helpers.nix — invoked from the fish `rebuild` function and the
+# auto-update service, usually authored by haiku from the diff). It lands in
 # system.nixos.tags, so the systemd-boot menu and
 # `nixos-rebuild list-generations` read like a changelog instead of
 # "Generation 213". Charset is enforced here because system.nixos.label

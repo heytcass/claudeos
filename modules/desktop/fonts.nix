@@ -38,23 +38,19 @@ in
       antialias = true;
     };
 
-    # Font packages
-    packages = with pkgs; [
-      # Primary UI font — matches Claude AI interface
-      inter
+    # Font packages — the themed fonts come from lib/theme.nix (one
+    # name→package pairing), plus extra fallback/coverage fonts
+    packages =
+      map (font: font.package pkgs) (builtins.attrValues themeLib.fonts)
+      ++ (with pkgs; [
+        # System fonts for fallbacks and Unicode coverage
+        noto-fonts-cjk-sans
+        liberation_ttf
+        dejavu_fonts
 
-      # System fonts for fallbacks and Unicode coverage
-      noto-fonts
-      noto-fonts-cjk-sans
-      noto-fonts-color-emoji
-      liberation_ttf
-      dejavu_fonts
-
-      # Programming fonts with ligatures and Nerd Font icons
-      nerd-fonts.jetbrains-mono
-      nerd-fonts.fira-code
-      nerd-fonts.symbols-only
-    ];
+        # Secondary programming font with ligatures
+        nerd-fonts.fira-code
+      ]);
 
     # Enable support for additional font formats
     enableDefaultPackages = true;
