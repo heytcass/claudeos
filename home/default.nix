@@ -1,4 +1,5 @@
 {
+  config,
   pkgs,
   lib,
   user,
@@ -28,20 +29,13 @@ in
   home.username = user;
   home.homeDirectory = "/home/${user}";
 
-  # XDG user directories
+  # XDG user directories — the standard eight use the module defaults
+  # ($HOME/Desktop etc.); only the non-standard PROJECTS dir is ours
   xdg.userDirs = {
     enable = true;
     createDirectories = true;
-    desktop = "/home/${user}/Desktop";
-    documents = "/home/${user}/Documents";
-    download = "/home/${user}/Downloads";
-    music = "/home/${user}/Music";
-    pictures = "/home/${user}/Pictures";
-    publicShare = "/home/${user}/Public";
-    templates = "/home/${user}/Templates";
-    videos = "/home/${user}/Videos";
     extraConfig = {
-      PROJECTS = "/home/${user}/Projects";
+      PROJECTS = "${config.home.homeDirectory}/Projects";
     };
   };
 

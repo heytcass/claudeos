@@ -2,6 +2,24 @@
 # Provides: timeline snapshots (hourly safety net) + pre/post rebuild pairs.
 { user, pkgs, ... }:
 
+let
+  # Shared snapper policy: hourly timeline safety net, plus pruning for the
+  # pre/post pairs created by the `rebuild` fish function — without
+  # NUMBER_CLEANUP snapper keeps those forever, pinning deleted data
+  commonConfig = {
+    TIMELINE_CREATE = true;
+    TIMELINE_CLEANUP = true;
+    TIMELINE_LIMIT_HOURLY = 10;
+    TIMELINE_LIMIT_DAILY = 7;
+    TIMELINE_LIMIT_WEEKLY = 2;
+    TIMELINE_LIMIT_MONTHLY = 0;
+    TIMELINE_LIMIT_YEARLY = 0;
+    NUMBER_CLEANUP = true;
+    NUMBER_LIMIT = 10;
+    NUMBER_MIN_AGE = 1800;
+    EMPTY_PRE_POST_CLEANUP = true;
+  };
+in
 {
   # Create .snapshots btrfs subvolumes if they don't exist.
   # The NixOS snapper module creates config files but not the subvolumes themselves.
@@ -19,37 +37,13 @@
     persistentTimer = true;
 
     configs = {
-      root = {
+      root = commonConfig // {
         SUBVOLUME = "/";
-        TIMELINE_CREATE = true;
-        TIMELINE_CLEANUP = true;
-        TIMELINE_LIMIT_HOURLY = 10;
-        TIMELINE_LIMIT_DAILY = 7;
-        TIMELINE_LIMIT_WEEKLY = 2;
-        TIMELINE_LIMIT_MONTHLY = 0;
-        TIMELINE_LIMIT_YEARLY = 0;
-        # Prune the pre/post pairs created by the `rebuild` fish abbreviation —
-        # without NUMBER_CLEANUP snapper keeps them forever, pinning deleted data
-        NUMBER_CLEANUP = true;
-        NUMBER_LIMIT = 10;
-        NUMBER_MIN_AGE = 1800;
-        EMPTY_PRE_POST_CLEANUP = true;
       };
 
-      home = {
+      home = commonConfig // {
         SUBVOLUME = "/home";
         ALLOW_USERS = [ user ];
-        TIMELINE_CREATE = true;
-        TIMELINE_CLEANUP = true;
-        TIMELINE_LIMIT_HOURLY = 10;
-        TIMELINE_LIMIT_DAILY = 7;
-        TIMELINE_LIMIT_WEEKLY = 2;
-        TIMELINE_LIMIT_MONTHLY = 0;
-        TIMELINE_LIMIT_YEARLY = 0;
-        NUMBER_CLEANUP = true;
-        NUMBER_LIMIT = 10;
-        NUMBER_MIN_AGE = 1800;
-        EMPTY_PRE_POST_CLEANUP = true;
       };
     };
   };
