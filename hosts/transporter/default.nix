@@ -19,4 +19,11 @@
 
   # Disko disk device for this machine (SATA SSD)
   disko.devices.disk.main.device = "/dev/sda";
+
+  # TESTBED TRIAL (tool-rethink 2026-06-12): iwd as NetworkManager's wifi
+  # backend — faster scans, better roaming, WPA3, while NM keeps the GNOME
+  # integration. Graduates to modules/common/networking.nix if the trial
+  # holds. Note: wifi passphrases are entered fresh (no wpa_supplicant
+  # profile migration — fresh install anyway).
+  networking.networkmanager.wifi.backend = "iwd";
 }
