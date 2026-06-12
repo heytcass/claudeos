@@ -14,7 +14,7 @@ The ClaudeOS theme system uses Stylix's powerful base16 theming to create a cons
 
 ## Architecture
 
-The theme system is split across two modules following NixOS best practices:
+The theme system is split across two layers following NixOS best practices:
 
 ### 1. `modules/desktop/theme.nix` (NixOS System-Level)
 
@@ -23,27 +23,27 @@ The theme system is split across two modules following NixOS best practices:
 **Responsibilities:**
 - Defines the base16 color palette
 - Enables Stylix for system-level theming
+- Sets the wallpaper (`assets/chicago.jpg`, fill scaling)
 - Configures cursor theme (Adwaita, size 20)
-- Configures font families (Inter, JetBrains Mono, Noto Serif, Noto Color Emoji)
+- Configures font families (Inter, JetBrains Mono Nerd Font, Noto Serif, Noto Color Emoji)
 - Sets polarity (dark mode)
 - Configures Qt theming (adwaita-dark via gtk2 platform)
-- Sets up XDG portal (xdg-desktop-portal-gtk)
 
-**Why system-level:** Color schemes and Stylix foundation need to be available at boot and for system services.
+XDG portals are provided and configured by GNOME itself (xdg-desktop-portal-gnome + gtk fallback) — no manual wiring.
 
-### 2. `home/niri.nix` (Home Manager)
+**Why system-level:** Color schemes and Stylix foundation need to be available at boot and for system services. Because home-manager runs as a NixOS module, Stylix's home-manager targets (Ghostty, VS Code, fzf, bat, lazygit, GTK, ...) follow automatically from the system-level config — there is no separate per-target enable file anymore.
 
-**Purpose:** User-level Stylix targets, GTK configuration, and Niri/Noctalia desktop integration
+### 2. `home/gnome.nix` (Home Manager)
+
+**Purpose:** GNOME user preferences via dconf
 
 **Responsibilities:**
-- Enables Stylix targets for specific applications (Ghostty, VS Code, Firefox, fzf, bat, lazygit, niri, fuzzel)
-- Configures GTK icon theme (Adwaita) and dark mode preferences
-- Maps Stylix base16 colors to Noctalia Material Design color tokens
-- Manages dconf settings for GTK application dark mode compatibility
-- Configures Niri compositor layout, keybindings, and window rules
-- Configures Noctalia Shell (bar, notifications, OSD, wallpaper, lock screen, launcher)
+- Sets `color-scheme = "prefer-dark"` so GNOME and libadwaita apps follow the dark polarity
+- Input sources (Colemak), idle/lock policy, Claude keybindings
 
-**Why Home Manager:** Application-specific theming and compositor configuration belong in the user session, not system-wide.
+GNOME's own shell handles wallpaper rendering, lock screen, and notifications — the old Noctalia Material-token mapping is gone.
+
+Several consumers read the generated Stylix palette at runtime instead of being themed at build time: `claude-statusline` and the `claudeos` help command read `~/.config/stylix/palette.json`, `home/macchina.nix` and `home/imv.nix` read `config.stylix.base16Scheme`/`config.lib.stylix.colors`, and the morning-desk agent receives the palette JSON in its prompt.
 
 ## Color Scheme
 
@@ -83,22 +83,7 @@ base16Scheme = {
 
 **Variant:** Adwaita (standard icon theme for GTK/libadwaita)
 
-Adwaita provides symbolic icons that integrate well with GTK applications and the modern libadwaita design language. Niri and Noctalia use their own rendering, but GTK applications respect this theme setting via the `gtk.iconTheme` configuration in `home/niri.nix`.
-
-### Implementation Details
-
-**System level (theme.nix):**
-```nix
-# Icon theme package is implicitly available via Stylix
-```
-
-**Home Manager (niri.nix):**
-```nix
-gtk.iconTheme = {
-  name = "Adwaita";
-  package = pkgs.adwaita-icon-theme;
-};
-```
+Adwaita is GNOME's native icon theme, so no extra configuration is needed — GNOME ships and uses it by default. `lib/theme.nix` keeps the icon name (`icons.name = "Adwaita"`) centralized as data. `modules/desktop/gnome.nix` adds two custom hicolor SVGs that the stock theme lacks: `tab-new-symbolic` (for Ghostty's libadwaita tab bar, removed from adwaita-icon-theme in GNOME 46+) and `folder-development` (for ~/Projects).
 
 ## Cursor Theme
 
@@ -106,7 +91,7 @@ gtk.iconTheme = {
 **Name:** `Adwaita`
 **Size:** `20`
 
-Stylix manages the cursor theme via `stylix.cursor` in `modules/desktop/theme.nix`. Setting all three properties (package, name, size) causes Stylix to configure `home.pointerCursor`, which sets `XCURSOR_SIZE` and `XCURSOR_THEME` environment variables. These are picked up by Niri and all Wayland/X11 applications.
+Stylix manages the cursor theme via `stylix.cursor` in `modules/desktop/theme.nix`. Setting all three properties (package, name, size) causes Stylix to configure `home.pointerCursor`, which sets `XCURSOR_SIZE` and `XCURSOR_THEME` environment variables. These are picked up by GNOME and all Wayland/X11 applications.
 
 ### Implementation Details
 
@@ -119,7 +104,7 @@ stylix.cursor = {
 };
 ```
 
-This single declaration drives cursor theming across the entire desktop -- Niri, GTK apps, Qt apps, and Electron apps all inherit the cursor settings.
+This single declaration drives cursor theming across the entire desktop -- GNOME, GTK apps, Qt apps, and Electron apps all inherit the cursor settings.
 
 ## Configuration Layers
 
@@ -134,15 +119,12 @@ The theme system builds up in three distinct layers:
 - Font configuration (Inter, JetBrains Mono, Noto Serif, Noto Color Emoji)
 
 ### Layer 2: Icon Theme
-- Adwaita package installation
-- GTK icon theme configuration
+- Adwaita (GNOME default) plus custom hicolor SVG additions
 - Symbolic icon support for modern applications
 
-### Layer 3: Niri/Noctalia Desktop Integration
-- Niri compositor border colors derived from Stylix
-- Noctalia Shell Material Design color tokens mapped from base16 palette
-- GTK dark mode preference enforcement via gtk3/gtk4 extraConfig
-- dconf settings for GTK application compatibility
+### Layer 3: GNOME Desktop Integration
+- `color-scheme = "prefer-dark"` in dconf (`home/gnome.nix`) so GNOME Shell and libadwaita apps follow the dark polarity
+- Runtime palette consumers: `claude-statusline`, `claudeos`, macchina, imv, morning-desk dashboard
 
 ## Testing
 
@@ -152,22 +134,18 @@ The theme system builds up in three distinct layers:
 - [ ] GTK apps display terracotta accent colors
 - [ ] Ghostty terminal uses base16 color scheme
 - [ ] VS Code shows themed interface
-- [ ] Firefox themed (toolbars, menus)
 - [ ] Check syntax highlighting in terminal and editors
 
 **Desktop settings:**
-- [ ] Dark mode active system-wide
-- [ ] Niri border colors match Stylix palette
-- [ ] Noctalia bar colors match Stylix palette
-- [ ] GTK applications integrate well with Niri
+- [ ] Dark mode active system-wide (GNOME Shell + libadwaita apps)
+- [ ] Wallpaper set from `assets/chicago.jpg`
 - [ ] Icon consistency across applications
 - [ ] Cursor theme (Adwaita) consistent across apps
 
 **Integration:**
-- [ ] Smooth color transitions in applications
 - [ ] Terminal and GUI apps feel cohesive
-- [ ] No visual conflicts between Stylix CSS and Noctalia templates
-- [ ] Fuzzel launcher colors derived from Stylix
+- [ ] `claude-statusline` and `claudeos` output use palette colors
+- [ ] Morning desk dashboard matches the base16 palette
 
 ## Customization
 
@@ -183,21 +161,11 @@ stylix.base16Scheme = {
 };
 ```
 
-Rebuild and log out/in to apply changes. Noctalia colors in `home/niri.nix` are derived from `config.lib.stylix.colors.withHashtag` so they update automatically.
+Rebuild and log out/in to apply changes. Anything that reads `config.lib.stylix.colors` or the generated palette JSON updates automatically.
 
 ### Changing Icon Theme
 
-Edit `modules/desktop/theme.nix` (if using Stylix icons) and `home/niri.nix`:
-
-```nix
-# In niri.nix
-gtk.iconTheme = {
-  name = "Your-Theme-Name";
-  package = pkgs.your-icon-theme;
-};
-```
-
-Also update `lib/theme.nix` to keep the icon name centralized:
+GNOME uses Adwaita by default. To switch, set the icon theme via dconf (`org/gnome/desktop/interface` `icon-theme`) in `home/gnome.nix` and install the theme package. Also update `lib/theme.nix` to keep the icon name centralized:
 
 ```nix
 icons = {
@@ -205,20 +173,9 @@ icons = {
 };
 ```
 
-### Adding Stylix Targets
+### Adjusting Stylix Targets
 
-Edit `home/niri.nix`:
-
-```nix
-stylix.targets = {
-  # Enable theming for additional applications
-  alacritty.enable = true;
-  kitty.enable = true;
-  # See Stylix documentation for full list
-};
-```
-
-Available targets: `bat`, `firefox`, `fish`, `fzf`, `gnome-terminal`, `gtk`, `helix`, `hyprland`, `kitty`, `tmux`, `vim`, `vscode`, `waybar`, `zsh`, and many more.
+With home-manager running as a NixOS module, Stylix auto-enables its supported targets. To disable one (e.g. if it fights an app's own theming), set `stylix.targets.<name>.enable = false` in a home-manager module. See the Stylix documentation for the full target list.
 
 ## Troubleshooting
 
@@ -227,13 +184,11 @@ Available targets: `bat`, `firefox`, `fish`, `fzf`, `gnome-terminal`, `gtk`, `he
 **Symptom:** Some GTK applications ignore Stylix theming
 
 **Solution:**
-1. Verify Stylix targets are enabled in `home/niri.nix`
-2. Check that the app is supported by Stylix
-3. Verify dark mode is set in dconf (this is configured in `home/niri.nix`):
+1. Check that the app is supported by Stylix (libadwaita apps follow the GNOME dark preference, not base16 CSS)
+2. Verify dark mode is set in dconf (configured in `home/gnome.nix`):
 ```nix
 dconf.settings."org/gnome/desktop/interface".color-scheme = "prefer-dark";
 ```
-4. Check that `xdg.configFile` force-overwrite is active for GTK CSS files
 
 ### Icons Not Appearing Correctly
 
@@ -275,19 +230,21 @@ sudo nixos-rebuild switch --switch-generation 123
 git checkout main
 
 # Rebuild from main
-sudo nixos-rebuild switch --flake ~/.config/claudeos#$(hostname)
+rebuild
 ```
 
 ## Import Structure
 
 ### NixOS Configuration
 
-In the system builder (`lib/mkSystem.nix`), `modules/desktop/theme.nix` is imported as part of the common module set:
+`modules/desktop/theme.nix` is imported via `modules/desktop/default.nix`, which every host receives through `lib/mkSystem.nix`:
 
 ```nix
 imports = [
-  ../../modules/desktop/theme.nix
-  # other modules
+  ./gnome.nix
+  ./audio.nix
+  ./fonts.nix
+  ./theme.nix
 ];
 ```
 
@@ -297,7 +254,7 @@ In `home/default.nix`:
 
 ```nix
 imports = [
-  ./niri.nix      # Stylix targets, GTK config, Niri + Noctalia
+  ./gnome.nix     # dconf: dark mode, input, keybindings
   ./ghostty.nix
   ./vscode.nix
   # other modules
@@ -307,19 +264,15 @@ imports = [
 ## Dependencies
 
 **System packages required:**
-- `pkgs.adwaita-icon-theme` - Icon and cursor theme package
+- `pkgs.adwaita-icon-theme` - Cursor theme package
 - `pkgs.inter` - Sans-serif font
-- `pkgs.jetbrains-mono` - Monospace font
+- `pkgs.nerd-fonts.jetbrains-mono` - Monospace font
 - `pkgs.noto-fonts` - Serif font
 - `pkgs.noto-fonts-color-emoji` - Emoji font
 
 **NixOS modules:**
-- Stylix (configured at system level)
-- Home Manager (for user-level theming)
-
-**Flake inputs:**
-- `niri-flake` - Auto-imports niri + stylix home modules
-- `noctalia` - Shell, bar, notifications, OSD, wallpaper
+- Stylix (configured at system level; home-manager targets follow automatically)
+- Home Manager (runs as a NixOS module)
 
 ## References
 
@@ -327,8 +280,6 @@ imports = [
 - [Adwaita Icon Theme](https://gitlab.gnome.org/GNOME/adwaita-icon-theme) - Icon theme repository
 - [libadwaita CSS Variables](https://gnome.pages.gitlab.gnome.org/libadwaita/doc/1.2/css-variables.html) - CSS customization reference
 - [Base16 Styling Guidelines](https://github.com/chriskempson/base16/blob/main/styling.md) - Color scheme standards
-- [Niri Compositor](https://github.com/YaLTeR/niri) - Scrollable tiling Wayland compositor
-- [Noctalia Shell](https://github.com/nicholasgasior/noctalia) - Desktop shell (bar, notifications, OSD, wallpaper)
 
 ## See Also
 

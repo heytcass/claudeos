@@ -17,7 +17,7 @@ Scaffold a new module following project conventions, wire it in, and validate.
 
 Categories map to directories:
 - `common/` — system foundations (boot, networking, users)
-- `desktop/` — Niri/Noctalia, audio, fonts, theme
+- `desktop/` — GNOME, audio, fonts, theme
 - `apps/` — applications and services
 - `home/` — home-manager modules (shell, git, etc.)
 

@@ -51,7 +51,7 @@ Examples: boot, networking, users
 
 ### desktop/
 Namespace: `desktop` or `services`
-Examples: niri-system, audio, fonts
+Examples: gnome, audio, fonts
 
 ### apps/
 Namespace: `programs` or `environment`

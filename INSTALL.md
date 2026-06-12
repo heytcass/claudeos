@@ -107,10 +107,10 @@ The configuration repository is automatically installed at `~/.config/claudeos`.
 
 #### System Configuration
 
-Based on hostname (gti is currently the only host):
+Based on hostname (`gti` or `transporter`):
 - NixOS unstable
-- Niri compositor + Noctalia shell
-- Wayland + Pipewire
+- GNOME on Wayland (GDM)
+- Pipewire audio
 - Fish shell
 - Home Manager
 - Claude Code CLI + Claude Desktop
@@ -136,11 +136,11 @@ cd ~/.config/claudeos
 # Pull latest changes from your development machine:
 git pull
 
-# Update system
-sudo nixos-rebuild switch --flake .#$(hostname)
-
-# Or use the convenience alias:
+# Update system (fish function: generation label + snapshots + nh os switch)
 rebuild
+
+# Or the raw command:
+sudo nixos-rebuild switch --flake .#$(hostname)
 ```
 
 ### Customize
@@ -236,22 +236,23 @@ For manual installation, customization, or troubleshooting:
 ## Useful Commands
 
 ```bash
-# Rebuild system
-rebuild  # Alias for: sudo nixos-rebuild switch --flake ~/.config/claudeos#$(hostname)
+# Rebuild system (fish function: haiku generation label, snapper pre/post snapshots,
+# nh os switch, Claude-generated auto-commit)
+rebuild
 
-# List generations
+# List generations (labels read like a changelog)
 sudo nixos-rebuild list-generations
 
 # Rollback to previous generation
 sudo nixos-rebuild switch --rollback
 
-# Update packages
+# Update packages (the weekly auto-update timer also does this)
 cd ~/.config/claudeos
 nix flake update
 rebuild
 
-# Garbage collect old generations
-nix-collect-garbage --delete-older-than 30d
+# Garbage collection is declarative (programs.nh.clean: keep 5 / 14d); manually:
+nh clean all --keep 5 --keep-since 14d
 ```
 
 ## Getting Help

@@ -27,20 +27,20 @@
 
 ### Rebuild Fails
 
-**Symptom:** `nixos-rebuild switch` fails
+**Symptom:** `rebuild` (nh os switch) or `nixos-rebuild switch` fails
 
 **Solutions:**
-1. Check error message carefully
+1. Check error message carefully (nom shows the failing derivation in the build graph)
 2. Verify git repo is up to date: `git status`, `git pull`
 3. Check disk space: `df -h`
-4. Try rollback: `sudo nixos-rebuild switch --rollback`
+4. Try rollback: `sudo nixos-rebuild switch --rollback`, or restore files from the named snapper pre-snapshot (`sudo snapper -c root undochange N..N+1`)
 5. Check logs: `journalctl -xe`
 
 ### Changes Not Applying
 
 **Solutions:**
-1. Did you rebuild? `sudo nixos-rebuild switch --flake ~/.config/claudeos#$(hostname)`
-2. Check generation changed: `nixos-rebuild list-generations`
+1. Did you rebuild? Run `rebuild` (or `sudo nixos-rebuild switch --flake ~/.config/claudeos#$(hostname)`)
+2. Check generation changed: `nixos-rebuild list-generations` (generations carry haiku-named labels from `generation-label`)
 3. Some changes need a reboot (kernel, boot loader)
 4. Flakes only see staged/committed files — run `git add` first
 
@@ -84,9 +84,9 @@ PATH is configured in `home/shell/fish.nix` via `fish_add_path ~/.local/bin`.
 
 ### Unwanted Launcher Icons
 
-**Symptom:** CLI tools appear in application launcher
+**Symptom:** CLI tools appear in the GNOME app grid
 
-**Fix:** Hide via Home Manager in `home/default.nix` using `NoDisplay=true` desktop entries, or at system level via `services.xserver.excludePackages`.
+**Fix:** Hide via `hideDesktopEntries` (`NoDisplay=true` desktop entries) — user-level list in `home/default.nix`, system-level list in `modules/desktop/gnome.nix`. Unwanted stock GNOME apps go in `environment.gnome.excludePackages`.
 
 ### Fish Plugin Hash Mismatch
 
@@ -103,6 +103,12 @@ PATH is configured in `home/shell/fish.nix` via `fish_add_path ~/.local/bin`.
 2. Check logs: `journalctl -u <service>`
 3. Verify service is enabled in configuration
 4. Try starting manually: `systemctl start <service>`
+
+Note: failed user units watched by self-heal (`modules/common/self-heal.nix`) trigger a Claude agent that investigates and may already have opened a fix PR on a `heal/*` branch — check notifications and `gh pr list`. Run `approve` to resume the agent session.
+
+### Recurring Journal Errors
+
+The nightly journal diary (4 AM) triages error-level journal entries against the ledger `docs/known-issues.md`. If a benign error keeps surfacing, add it to the ledger's Benign section — the diary silences known signatures and only reports new actionable ones.
 
 ### Audio Issues
 
@@ -140,8 +146,9 @@ sudo nixos-rebuild switch --rollback
 ## Known Limitations
 
 1. **Atuin sync disabled** — shell history not synced across machines
-2. **VSCode Claude extension** — must install manually (VSCode limitation)
+2. **VSCode extensions** — Marketplace-managed by design (two-ring); install the Claude extension and others in-app
 3. **Chrome extensions** — must install manually (browser limitation)
+4. **Morning desk calendar** — requires a one-time interactive `gcalcli init` (OAuth client in sops)
 
 ## Getting Help
 
