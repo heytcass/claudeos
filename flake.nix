@@ -21,9 +21,13 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
+    # Pinned pre-2026-03 nixpkgs for claude-desktop only: the flake still uses the
+    # removed pkgs.nodePackages set (fix: nodePackages.asar → asar upstream, planned
+    # alongside the Claude desktop app spike — then restore follows = "nixpkgs").
+    nixpkgs-claude-desktop.url = "github:nixos/nixpkgs/b40629efe5d6ec48dd1efba650c797ddbd39ace0";
     claude-desktop-linux = {
       url = "github:heytcass/claude-desktop-linux-flake";
-      inputs.nixpkgs.follows = "nixpkgs";
+      inputs.nixpkgs.follows = "nixpkgs-claude-desktop";
     };
 
     stylix = {
@@ -42,7 +46,11 @@
     };
 
     noctalia = {
-      url = "github:noctalia-dev/noctalia-shell";
+      # Pinned pre-v5: Noctalia v5 renames programs.noctalia-shell → programs.noctalia,
+      # drops nixosModules for homeModules, and replaces the colors option + JSON
+      # settings with TOML + customPalettes. Migrate home/niri.nix against a live
+      # session before unpinning (tracked for the ClaudeOS reinstall).
+      url = "github:noctalia-dev/noctalia-shell/3b5e596ab36782679529b4ac8b9861f0e11ecfb2";
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
@@ -66,6 +74,7 @@
       niri,
       noctalia,
       treefmt-nix,
+      ...
     }@inputs:
     let
       lib = import ./lib { inherit (nixpkgs) lib; };
