@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ClaudeOS · Transporter Bring-Up</title>
+<style>
+  :root{
+    --bg0:#1f1e1d; --bg1:#262624; --bg2:#30302e;
+    --tx3:#9c9a92; --tx4:#c2c0b6; --tx5:#faf9f5;
+    --acc:#c6613f; --green:#7d9a68; --blue:#2c84db; --yellow:#d4a27f;
+  }
+  *{box-sizing:border-box}
+  body{background:var(--bg0);color:var(--tx5);font-family:system-ui,sans-serif;
+       margin:0;padding:2.5rem 1.5rem;line-height:1.55}
+  main{max-width:880px;margin:0 auto}
+  h1{font-size:2rem;margin:.2rem 0 0}
+  h1 span{color:var(--acc)}
+  .sub{color:var(--tx3);margin:0 0 2rem}
+  section{background:var(--bg1);border:1px solid var(--bg2);border-radius:12px;
+          padding:1.4rem 1.6rem;margin:1.2rem 0}
+  h2{font-size:1.15rem;margin:0 0 .8rem;color:var(--tx5)}
+  h2 .ph{display:inline-block;background:var(--bg2);color:var(--acc);border-radius:6px;
+         padding:.05rem .55rem;font-size:.85rem;margin-right:.6rem;vertical-align:2px}
+  p{margin:.5rem 0;color:var(--tx4)}
+  code,pre{font-family:ui-monospace,'JetBrainsMono Nerd Font',monospace}
+  code{background:var(--bg2);padding:.1rem .35rem;border-radius:5px;font-size:.9em;color:var(--tx5)}
+  pre{background:var(--bg0);border:1px solid var(--bg2);border-radius:8px;
+      padding:.9rem 1rem;overflow-x:auto;font-size:.85rem;color:var(--tx5)}
+  pre b{color:var(--green);font-weight:normal}
+  .warn{border-left:4px solid var(--acc);background:var(--bg2);border-radius:0 8px 8px 0;
+        padding:.7rem 1rem;margin:.8rem 0;color:var(--tx5)}
+  .note{border-left:4px solid var(--blue);background:var(--bg2);border-radius:0 8px 8px 0;
+        padding:.7rem 1rem;margin:.8rem 0;color:var(--tx4)}
+  ul.check{list-style:none;padding:0;margin:.4rem 0}
+  ul.check li{display:flex;gap:.6rem;align-items:flex-start;padding:.32rem 0;color:var(--tx4)}
+  ul.check input{accent-color:var(--acc);width:1.05rem;height:1.05rem;margin-top:.2rem;flex:none}
+  ul.check li.done{color:var(--tx3);text-decoration:line-through}
+  .why{color:var(--tx3);font-size:.88em}
+  footer{color:var(--tx3);font-size:.85rem;margin-top:2rem;text-align:center}
+  a{color:var(--blue)}
+</style>
+</head>
+<body>
+<main>
+  <h1>ClaudeOS <span>·</span> Transporter Bring-Up</h1>
+  <p class="sub">Dell Latitude 7280 · testbed install · checkboxes persist in this browser</p>
+
+  <section>
+    <h2><span class="ph">0</span>Before you leave your desk</h2>
+    <ul class="check">
+      <li><input type="checkbox"><div>Flash a <b>NixOS minimal ISO</b> (24.11+ / unstable) to a USB stick.</div></li>
+      <li><input type="checkbox"><div>Locate your <b>personal age key</b> (the <code>&amp;user</code> recipient in <code>.sops.yaml</code>) — usually <code>~/.config/sops/age/keys.txt</code> on an old install or in your backups. <span class="why">Without it you cannot re-encrypt secrets for the new host (Phase 3).</span></div></li>
+      <li><input type="checkbox"><div>Have the <b>rotated UniFi API key</b> handy — it gets added to sops in the same step.</div></li>
+      <li><input type="checkbox"><div>Confirm <code>main</code> is green: <code>nix flake check</code> passes both hosts.</div></li>
+    </ul>
+  </section>
+
+  <section>
+    <h2><span class="ph">1</span>Install (destructive — wipes /dev/sda)</h2>
+    <p>Boot the USB stick on the Latitude (F12 boot menu), then:</p>
+<pre><b># network (ethernet just works; wifi:)</b>
+sudo systemctl start wpa_supplicant
+wpa_cli   # &gt; add_network / set_network 0 ssid "..." psk "..." / enable_network 0
+
+<b># get the config</b>
+sudo -i
+nix-shell -p git
+git clone https://github.com/heytcass/claudeos /mnt-config && cd /mnt-config
+
+<b># partition + format + mount via disko (1G ESP + btrfs subvolumes)</b>
+nix run github:nix-community/disko/latest -- \
+  --mode destroy,format,mount --flake .#transporter
+
+<b># install</b>
+nixos-install --flake .#transporter
+<b># set the user password before rebooting</b>
+nixos-enter --root /mnt -c 'passwd tom'
+reboot</pre>
+    <div class="warn">⚠ <code>disko</code> erases <b>/dev/sda</b> (pinned in <code>hosts/transporter/default.nix</code>). Unplug any USB storage first so nothing else enumerates as sda.</div>
+    <ul class="check">
+      <li><input type="checkbox"><div>disko ran clean (1G ESP, <code>@ @home @nix @log</code> subvolumes)</div></li>
+      <li><input type="checkbox"><div><code>nixos-install</code> finished; password set; rebooted into <b>GDM</b></div></li>
+    </ul>
+  </section>
+
+  <section>
+    <h2><span class="ph">2</span>First login</h2>
+    <ul class="check">
+      <li><input type="checkbox"><div>Log into GNOME, connect wifi. Keyboard is <b>colemak</b> (dconf) — TTYs too.</div></li>
+      <li><input type="checkbox"><div>Clone the repo to its home: <code>git clone https://github.com/heytcass/claudeos ~/.config/claudeos</code> <span class="why">(fish helpers, auto-update, and agents all expect this path)</span></div></li>
+      <li><input type="checkbox"><div>Claude Code self-installs at login (<code>claude-code-installer</code> service). Then: <code>claude login</code> — subscription auth.</div></li>
+      <li><input type="checkbox"><div><code>gh auth login</code> (SSH protocol). <span class="why">Needed by auto-update pushes and self-heal PRs.</span></div></li>
+      <li><input type="checkbox"><div>Sanity: <code>claudeos</code> (help), <code>, cowsay moo</code> (comma), prompt shows <code>❄ oxidized-ring-baseline</code> after first rebuild.</div></li>
+    </ul>
+  </section>
+
+  <section>
+    <h2><span class="ph">3</span>Secrets — give this host eyes</h2>
+<pre><b># on transporter: derive its age identity</b>
+nix shell nixpkgs#ssh-to-age -c sh -c \
+  'ssh-to-age &lt; /etc/ssh/ssh_host_ed25519_key.pub'
+
+<b># on a machine holding your personal age key:</b>
+#  1. add the output to .sops.yaml as &amp;transporter_host (key group too)
+#  2. add the rotated UniFi key while you're in there:
+sops secrets/secrets.yaml        # add: unifi_api_key: &lt;rotated key&gt;
+sops updatekeys secrets/secrets.yaml
+git commit -am "feat: transporter age recipient + unifi key" && git push
+
+<b># back on transporter</b>
+cd ~/.config/claudeos && git pull && rebuild</pre>
+    <ul class="check">
+      <li><input type="checkbox"><div><code>ls /run/secrets/</code> shows the jasper_* secrets after rebuild</div></li>
+      <li><input type="checkbox"><div>Declare <code>unifi_api_key</code> in <code>modules/common/secrets.nix</code> so fish exports it for the UniFi MCP server</div></li>
+    </ul>
+  </section>
+
+  <section>
+    <h2><span class="ph">4</span>Wake the organism</h2>
+    <ul class="check">
+      <li><input type="checkbox"><div><b>Timers alive:</b> <code>systemctl --user list-timers</code> → health-check, daily-brief, journal-diary, morning-desk, auto-update</div></li>
+      <li><input type="checkbox"><div><b>Calendar:</b> <code>gcalcli init</code> (OAuth client id/secret now in <code>/run/secrets/</code>) — one browser round-trip</div></li>
+      <li><input type="checkbox"><div><b>Morning Desk:</b> <code>today --refresh</code> → themed dashboard opens in Chrome app mode</div></li>
+      <li><input type="checkbox"><div><b>Constitution:</b> stage a deliberately broken <code>.nix</code> edit in a Claude session and watch the commit get denied</div></li>
+      <li><input type="checkbox"><div><b>Self-heal:</b> break a watched unit on purpose (e.g. point <code>claudeos-journal-diary</code>'s ExecStart at a bad path on a branch, <code>rebuild-test</code>, <code>systemctl --user start</code> it) → expect a <code>heal/*</code> PR + notification. Revert after.</div></li>
+      <li><input type="checkbox"><div><b>Headless auth check:</b> <code>systemctl --user start claudeos-daily-brief</code> works without a terminal. <span class="why">If OAuth is flaky from units, wire the API-key lane (sops) — budget already approved, set a $20 console cap.</span></div></li>
+    </ul>
+  </section>
+
+  <section>
+    <h2><span class="ph">5</span>The March dealbreakers — the actual point of this machine</h2>
+    <p>Each of these drove the move to Ubuntu. Test deliberately; record verdicts in <code>docs/known-issues.md</code> or a testbed report.</p>
+    <ul class="check">
+      <li><input type="checkbox"><div><b>File pickers + drag-and-drop</b> — Chrome upload dialogs, dragging files into Slack/Gmail, Nautilus → app drags. <span class="why">GNOME portals should make this boring now.</span></div></li>
+      <li><input type="checkbox"><div><b>Claude in Chrome</b> — install the extension, run <code>claude --chrome</code>, confirm native-messaging connects reliably across restarts. <span class="why">envfs should fix the FHS script assumptions that broke this.</span></div></li>
+      <li><input type="checkbox"><div><b>VSCode + Claude extension</b> — install from Marketplace (extensions are mutable now), confirm it survives VSCode updates and rebuilds.</div></li>
+      <li><input type="checkbox"><div><b>Claude desktop app</b> — <code>nix run github:heytcass/claude-desktop-linux-flake</code> — launches, tray works, survives an update cycle.</div></li>
+      <li><input type="checkbox"><div><b>MCP experimentation friction</b> — add a random MCP server to <code>~/.claude/.mcp.json</code> by hand; no rebuild should be needed (seed-once is working).</div></li>
+    </ul>
+    <div class="note">All five pass → gti gets reinstalled with confidence. Any fail → it becomes a scoped fix on the testbed, which is exactly what the testbed is for.</div>
+  </section>
+
+  <section>
+    <h2><span class="ph">6</span>Runtime shakedown (new tech from the oxidized ring)</h2>
+    <ul class="check">
+      <li><input type="checkbox"><div><code>scx_lavd</code>: <code>systemctl status scx</code>; compositor stays smooth under <code>nix build</code> load; battery sane (<code>--autopower</code>)</div></li>
+      <li><input type="checkbox"><div><code>dbus-broker</code>: notifications + portals behave; <code>systemctl status dbus-broker</code></div></li>
+      <li><input type="checkbox"><div><code>sudo-rs</code>: <code>sudo -v</code> works; prompt padlock 🔓 appears while cached</div></li>
+      <li><input type="checkbox"><div><code>envfs</code>: <code>/bin/bash</code> and <code>/usr/bin/env python3</code> resolve from a normal shell</div></li>
+      <li><input type="checkbox"><div>Generation label visible in boot menu + prompt; <code>snapper list</code> shows named pre/post pairs after a <code>rebuild</code></div></li>
+    </ul>
+  </section>
+
+  <footer>ClaudeOS · docs/TRANSPORTER_BRINGUP.html · see docs/PHILOSOPHY.md for why any of this exists</footer>
+</main>
+<script>
+  // persist checkboxes per-browser
+  document.querySelectorAll('ul.check input').forEach((box,i)=>{
+    const k='claudeos-bringup-'+i;
+    box.checked=localStorage.getItem(k)==='1';
+    box.parentElement.classList.toggle('done',box.checked);
+    box.addEventListener('change',()=>{
+      localStorage.setItem(k,box.checked?'1':'0');
+      box.parentElement.classList.toggle('done',box.checked);
+    });
+  });
+</script>
+</body>
+</html>
