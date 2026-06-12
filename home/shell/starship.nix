@@ -8,6 +8,11 @@
 # when systemd has failed units, and Claude's ✳ when a Claude Code session is
 # the one driving the shell. The fish transient prompt collapses all of it
 # to ❯ in scrollback.
+let
+  # Counts failed system+user units — shared by custom.degraded's `when`
+  # (starship runs it to decide visibility) and `command` (the displayed count)
+  failedUnitsCmd = "(systemctl --failed --no-legend --plain; systemctl --user --failed --no-legend --plain) 2>/dev/null | wc -l";
+in
 {
   programs.starship = {
     enable = true;
@@ -141,8 +146,8 @@
       # Red pip + count when systemd (system or user) has failed units.
       # Invisible on a healthy system — its absence is the feature.
       custom.degraded = {
-        when = ''test "$( (systemctl --failed --no-legend --plain; systemctl --user --failed --no-legend --plain) 2>/dev/null | wc -l)" -gt 0'';
-        command = "(systemctl --failed --no-legend --plain; systemctl --user --failed --no-legend --plain) 2>/dev/null | wc -l";
+        when = ''test "$( ${failedUnitsCmd})" -gt 0'';
+        command = failedUnitsCmd;
         format = "[● $output failed](red) ";
         description = "systemd failed units";
       };

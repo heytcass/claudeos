@@ -5,6 +5,35 @@
 
 let
   inherit (lib.hm.gvariant) mkTuple mkUint32;
+
+  # Claude keybindings (ported from Niri: Mod+C / Mod+A / Mod+Shift+A /
+  # Mod+Ctrl+A). The dconf path list and per-binding entries below are
+  # generated from this list — add a binding here, done.
+  # NOTE: home/claudeos-help.nix hand-lists these for the user; keep it in sync.
+  claudeKeybindings = [
+    {
+      name = "Claude quick terminal";
+      binding = "<Super>c";
+      command = "claude-quick";
+    }
+    {
+      name = "Ask Claude";
+      binding = "<Super>a";
+      command = "claude-ask-desktop";
+    }
+    {
+      name = "Claude screenshot analysis";
+      binding = "<Super><Shift>a";
+      command = "claude-screenshot";
+    }
+    {
+      name = "Claude screenshot analysis (interactive)";
+      binding = "<Super><Ctrl>a";
+      command = "claude-screenshot-interactive";
+    }
+  ];
+
+  keybindingPath = i: "org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom${toString i}";
 in
 {
   dconf.settings = {
@@ -32,34 +61,9 @@ in
       lock-delay = mkUint32 0;
     };
 
-    # Claude keybindings (ported from Niri: Mod+C / Mod+A / Mod+Shift+A / Mod+Ctrl+A)
     "org/gnome/settings-daemon/plugins/media-keys" = {
-      custom-keybindings = [
-        "/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom0/"
-        "/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom1/"
-        "/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom2/"
-        "/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom3/"
-      ];
+      custom-keybindings = lib.imap0 (i: _: "/${keybindingPath i}/") claudeKeybindings;
     };
-    "org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom0" = {
-      name = "Claude quick terminal";
-      binding = "<Super>c";
-      command = "claude-quick";
-    };
-    "org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom1" = {
-      name = "Ask Claude";
-      binding = "<Super>a";
-      command = "claude-ask-desktop";
-    };
-    "org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom2" = {
-      name = "Claude screenshot analysis";
-      binding = "<Super><Shift>a";
-      command = "claude-screenshot";
-    };
-    "org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom3" = {
-      name = "Claude screenshot analysis (interactive)";
-      binding = "<Super><Ctrl>a";
-      command = "claude-screenshot-interactive";
-    };
-  };
+  }
+  // lib.listToAttrs (lib.imap0 (i: binding: lib.nameValuePair (keybindingPath i) binding) claudeKeybindings);
 }

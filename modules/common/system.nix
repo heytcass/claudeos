@@ -1,5 +1,11 @@
 { lib, pkgs, ... }:
 
+let
+  claudeLib = import ../../lib/claude-script.nix { inherit pkgs lib; };
+
+  # Shared by both screenshot commands ($SCREENSHOT expands at runtime)
+  screenshotPrompt = "Read the screenshot at $SCREENSHOT and describe what you see. Focus on any errors, issues, or things that need attention. Be brief and actionable.";
+in
 {
   # Essential system packages available to all users
   environment.systemPackages = with pkgs; [
@@ -28,46 +34,54 @@
     '')
 
     # Screenshot → Claude analysis (notification, bound to Super+Shift+A)
-    (pkgs.writeShellScriptBin "claude-screenshot" ''
-      SCREENSHOT="/tmp/claudeos-screenshot-$$.png"
-      ${pkgs.gnome-screenshot}/bin/gnome-screenshot -f "$SCREENSHOT"
-      CLAUDE_BIN="$HOME/.local/bin/claude"
-      if [[ -x "$CLAUDE_BIN" ]]; then
-        response=$("$CLAUDE_BIN" -p "Read the screenshot at $SCREENSHOT and describe what you see. Focus on any errors, issues, or things that need attention. Be brief and actionable." --allowedTools "Read" --model haiku 2>/dev/null)
-        if [[ -n "$response" ]]; then
-          ${pkgs.libnotify}/bin/notify-send --app-name=ClaudeOS "Screen Analysis" "$response"
-        else
-          ${pkgs.libnotify}/bin/notify-send --app-name=ClaudeOS "Screen Analysis" "Claude couldn't analyze the screenshot."
+    (claudeLib.mkClaudeScriptBin {
+      name = "claude-screenshot";
+      runtimeInputs = [ pkgs.gnome-screenshot ];
+      text = ''
+        SCREENSHOT="/tmp/claudeos-screenshot-$$.png"
+        gnome-screenshot -f "$SCREENSHOT"
+        if [[ -x "$CLAUDE_BIN" ]]; then
+          response=$("$CLAUDE_BIN" -p "${screenshotPrompt}" --allowedTools "Read" --model haiku 2>/dev/null)
+          if [[ -n "$response" ]]; then
+            claudeos_notify "Screen Analysis" "$response"
+          else
+            claudeos_notify "Screen Analysis" "Claude couldn't analyze the screenshot."
+          fi
         fi
-      fi
-      rm -f "$SCREENSHOT"
-    '')
+        rm -f "$SCREENSHOT"
+      '';
+    })
 
     # Screenshot → Claude analysis (interactive terminal, bound to Super+Ctrl+A)
-    (pkgs.writeShellScriptBin "claude-screenshot-interactive" ''
-      SCREENSHOT="/tmp/claudeos-screenshot-$$.png"
-      ${pkgs.gnome-screenshot}/bin/gnome-screenshot -f "$SCREENSHOT"
-      ghostty --class=claude-quick -e bash -c "
-        claude -p \"Read the screenshot at $SCREENSHOT and tell me what you see. Focus on any errors, issues, or things that need attention. Be brief and actionable.\" --allowedTools \"Read\" --model sonnet
-        echo
-        echo \"Press Enter to close...\"
-        read
-        rm -f \"$SCREENSHOT\"
-      "
-    '')
+    (claudeLib.mkClaudeScriptBin {
+      name = "claude-screenshot-interactive";
+      runtimeInputs = [
+        pkgs.gnome-screenshot
+        pkgs.ghostty
+      ];
+      text = ''
+        SCREENSHOT="/tmp/claudeos-screenshot-$$.png"
+        gnome-screenshot -f "$SCREENSHOT"
+        claude_interactive "${screenshotPrompt}" "Read" --model sonnet
+        rm -f "$SCREENSHOT"
+      '';
+    })
 
     # Claude-powered desktop search (bound to Super+A)
-    (pkgs.writeShellScriptBin "claude-ask-desktop" ''
-      query=$(${pkgs.zenity}/bin/zenity --entry --title "Ask Claude" --text "Ask Claude ❯" 2>/dev/null)
-      [[ -z "$query" ]] && exit 0
-      CLAUDE_BIN="$HOME/.local/bin/claude"
-      if [[ -x "$CLAUDE_BIN" ]]; then
-        response=$("$CLAUDE_BIN" -p "$query" --model haiku 2>/dev/null)
-        if [[ -n "$response" ]]; then
-          ${pkgs.libnotify}/bin/notify-send --app-name=ClaudeOS "Claude" "$response"
+    (claudeLib.mkClaudeScriptBin {
+      name = "claude-ask-desktop";
+      runtimeInputs = [ pkgs.zenity ];
+      text = ''
+        query=$(zenity --entry --title "Ask Claude" --text "Ask Claude ❯" 2>/dev/null)
+        [[ -z "$query" ]] && exit 0
+        if [[ -x "$CLAUDE_BIN" ]]; then
+          response=$("$CLAUDE_BIN" -p "$query" --model haiku 2>/dev/null)
+          if [[ -n "$response" ]]; then
+            claudeos_notify "Claude" "$response"
+          fi
         fi
-      fi
-    '')
+      '';
+    })
 
     # Supabase CLI for Open Brain deployments
     supabase-cli

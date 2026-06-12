@@ -22,107 +22,94 @@
 let
   cfg = config.claude-os.morningDesk;
 
-  buildScript = pkgs.writeShellScript "claudeos-morning-desk" ''
-        export PATH="${
-          pkgs.lib.makeBinPath [
-            pkgs.coreutils
-            pkgs.systemd
-            pkgs.curl
-            pkgs.jq
-            pkgs.git
-            pkgs.gawk
-            pkgs.gnugrep
-            pkgs.hostname
-            pkgs.gcalcli
-          ]
-        }:$HOME/.local/bin:/run/current-system/sw/bin:$PATH"
+  claudeLib = import ../../lib/claude-script.nix { inherit pkgs lib; };
 
-        CLAUDE_BIN="$HOME/.local/bin/claude"
-        CLAUDEOS_DIR="$HOME/.config/claudeos"
-        DESK_DIR="$HOME/Desk/today"
-        ARCHIVE_DIR="$HOME/Desk/archive"
-        CACHE_DIR="''${XDG_CACHE_HOME:-$HOME/.cache}/claudeos-monitor"
-        STATE_DIR="''${XDG_STATE_HOME:-$HOME/.local/state}/claudeos"
-        mkdir -p "$DESK_DIR" "$ARCHIVE_DIR" "$STATE_DIR"
+  # Stylix palette for the no-Claude fallback page (the themed page proper is
+  # built by Claude from palette.json at runtime)
+  colors = config.lib.stylix.colors.withHashtag;
 
-        # Archive a previous day's dashboard before overwriting
-        if [[ -f "$DESK_DIR/index.html" ]]; then
-          prev_day=$(date -r "$DESK_DIR/index.html" +%F 2>/dev/null)
-          [[ "$prev_day" != "$(date +%F)" && -n "$prev_day" ]] \
-            && cp "$DESK_DIR/index.html" "$ARCHIVE_DIR/$prev_day.html" 2>/dev/null
-        fi
+  buildScript = claudeLib.mkClaudeScript {
+    name = "claudeos-morning-desk";
+    runtimeInputs = [
+      pkgs.curl
+      pkgs.gcalcli
+    ];
+    text = ''
+      DESK_DIR="$HOME/Desk/today"
+      ARCHIVE_DIR="$HOME/Desk/archive"
+      CACHE_DIR="''${XDG_CACHE_HOME:-$HOME/.cache}/claudeos-monitor"
+      mkdir -p "$DESK_DIR" "$ARCHIVE_DIR"
 
-        # ---- Collectors (each degrades gracefully) ----
-        today=$(date "+%A, %B %-d, %Y")
+      # Archive a previous day's dashboard before overwriting
+      if [[ -f "$DESK_DIR/index.html" ]]; then
+        prev_day=$(date -r "$DESK_DIR/index.html" +%F 2>/dev/null)
+        [[ "$prev_day" != "$(date +%F)" && -n "$prev_day" ]] \
+          && cp "$DESK_DIR/index.html" "$ARCHIVE_DIR/$prev_day.html" 2>/dev/null
+      fi
 
-        weather=$(timeout 15 curl -fsSL "wttr.in/?format=j1" 2>/dev/null \
-          | jq -c '{now: .current_condition[0] | {tempF: .temp_F, feelsF: .FeelsLikeF, desc: .weatherDesc[0].value}, today: .weather[0] | {maxF: .maxtempF, minF: .mintempF, hourly: [.hourly[] | {time, tempF, chanceofrain, desc: .weatherDesc[0].value}]}}' 2>/dev/null)
-        [[ -z "$weather" ]] && weather="unavailable"
+      # ---- Collectors (each degrades gracefully) ----
+      today=$(date "+%A, %B %-d, %Y")
 
-        calendar="not connected — run: gcalcli init (OAuth client in sops as jasper_google_client_id/secret)"
-        if command -v gcalcli >/dev/null && [[ -d "$HOME/.local/share/gcalcli" || -f "$HOME/.gcalcli_oauth" ]]; then
-          calendar=$(timeout 60 gcalcli --nocolor agenda "$(date +%F)" "$(date -d tomorrow +%F)" 2>/dev/null || echo "fetch failed")
-        fi
+      weather=$(timeout 15 curl -fsSL "wttr.in/?format=j1" 2>/dev/null \
+        | jq -c '{now: .current_condition[0] | {tempF: .temp_F, feelsF: .FeelsLikeF, desc: .weatherDesc[0].value}, today: .weather[0] | {maxF: .maxtempF, minF: .mintempF, hourly: [.hourly[] | {time, tempF, chanceofrain, desc: .weatherDesc[0].value}]}}' 2>/dev/null)
+      [[ -z "$weather" ]] && weather="unavailable"
 
-        diary=""
-        [[ -s "$CACHE_DIR/diary-actionable.txt" ]] && diary=$(cat "$CACHE_DIR/diary-actionable.txt")
+      calendar="not connected — run: gcalcli init (OAuth client in sops as jasper_google_client_id/secret)"
+      if command -v gcalcli >/dev/null && [[ -d "$HOME/.local/share/gcalcli" || -f "$HOME/.gcalcli_oauth" ]]; then
+        calendar=$(timeout 60 gcalcli --nocolor agenda "$(date +%F)" "$(date -d tomorrow +%F)" 2>/dev/null || echo "fetch failed")
+      fi
 
-        failed_units=$( (systemctl --failed --no-legend --plain; systemctl --user --failed --no-legend --plain) 2>/dev/null | awk '{print $1}' | paste -sd', ' -)
-        disk_pct=$(df / 2>/dev/null | awk 'NR==2 {gsub(/%/,"",$5); print $5}')
+      diary=""
+      [[ -s "$CACHE_DIR/diary-actionable.txt" ]] && diary=$(cat "$CACHE_DIR/diary-actionable.txt")
 
-        repo=""
-        if [[ -d "$CLAUDEOS_DIR/.git" ]]; then
-          dirty=$(git -C "$CLAUDEOS_DIR" status --porcelain 2>/dev/null | wc -l)
-          branch=$(git -C "$CLAUDEOS_DIR" branch --show-current 2>/dev/null)
-          repo="branch $branch, $dirty uncommitted changes"
-        fi
+      failed_units=$(claudeos_failed_units)
+      disk_pct=$(claudeos_disk_pct)
+      repo=$(claudeos_repo_summary)
 
-        palette=$(cat "$HOME/.config/stylix/palette.json" 2>/dev/null || echo "{}")
+      palette=$(cat "$HOME/.config/stylix/palette.json" 2>/dev/null || echo "{}")
 
-        snapshot="DATE: $today on $(hostname)
-    WEATHER (json or unavailable): $weather
-    CALENDAR (today + tomorrow): $calendar
-    OVERNIGHT JOURNAL TRIAGE: ''${diary:-nothing actionable}
-    SYSTEM: failed units: ''${failed_units:-none}; root disk ''${disk_pct:-?}% used
-    CONFIG REPO: ''${repo:-unknown}"
+      snapshot="DATE: $today on $(hostname)
+      WEATHER (json or unavailable): $weather
+      CALENDAR (today + tomorrow): $calendar
+      OVERNIGHT JOURNAL TRIAGE: ''${diary:-nothing actionable}
+      SYSTEM: failed units: ''${failed_units:-none}; root disk ''${disk_pct:-?}% used
+      CONFIG REPO: ''${repo:-unknown}"
 
-        # ---- The brain: one page, attention-first ----
-        html=""
-        if [[ -x "$CLAUDE_BIN" ]]; then
-          prompt="You are ClaudeOS. Build today's morning dashboard as ONE complete self-contained HTML5 file (inline CSS, no external resources, no frameworks; minimal inline JS only if it earns its place).
+      # ---- The brain: one page, attention-first ----
+      html=""
+      if [[ -x "$CLAUDE_BIN" ]]; then
+        prompt="You are ClaudeOS. Build today's morning dashboard as ONE complete self-contained HTML5 file (inline CSS, no external resources, no frameworks; minimal inline JS only if it earns its place).
 
-    Design doctrine:
-    - Information hierarchy is the product: the single most important thing about today goes on top, large and unmissable (a conflict, a deadline, the first meeting, a deliberate 'clear morning — protect it'). Never a feed.
-    - Then: today's timeline (calendar items with times), weather woven in only where it affects plans.
-    - Then: smaller — anything actionable from the overnight journal triage.
-    - Footer, smallest: system state (only if something is wrong) and config repo state.
-    - Don't restate raw data; synthesize. Don't invent events. If the calendar isn't connected, show a small setup hint card, not an error.
-    - Theme it with this base16 palette (JSON: key → hex without #). Dark background (base00/base01), readable text (base05), one accent used sparingly (base0D): $palette
-    - Typography: system-ui stack, generous whitespace, readable at a glance from arm's length. Title the page 'Today'.
+      Design doctrine:
+      - Information hierarchy is the product: the single most important thing about today goes on top, large and unmissable (a conflict, a deadline, the first meeting, a deliberate 'clear morning — protect it'). Never a feed.
+      - Then: today's timeline (calendar items with times), weather woven in only where it affects plans.
+      - Then: smaller — anything actionable from the overnight journal triage.
+      - Footer, smallest: system state (only if something is wrong) and config repo state.
+      - Don't restate raw data; synthesize. Don't invent events. If the calendar isn't connected, show a small setup hint card, not an error.
+      - Theme it with this base16 palette (JSON: key → hex without #). Dark background (base00/base01), readable text (base05), one accent used sparingly (base0D): $palette
+      - Typography: system-ui stack, generous whitespace, readable at a glance from arm's length. Title the page 'Today'.
 
-    Output ONLY the raw HTML document, starting with <!DOCTYPE html>. No markdown fences, no commentary.
+      Output ONLY the raw HTML document, starting with <!DOCTYPE html>. No markdown fences, no commentary.
 
-    CONTEXT SNAPSHOT:
-    $snapshot"
+      CONTEXT SNAPSHOT:
+      $snapshot"
 
-          result=$("$CLAUDE_BIN" -p "$prompt" --model sonnet --output-format json 2>/dev/null) || result=""
-          html=$(echo "$result" | jq -r '.result // empty' 2>/dev/null | sed -e 's/^```html$//' -e 's/^```$//')
-          session=$(echo "$result" | jq -r '.session_id // empty' 2>/dev/null)
-          [[ -n "$session" ]] && echo "$session" > "$STATE_DIR/last-agent-session"
-        fi
+        html=$(claude_headless sonnet "$prompt" | sed -e 's/^```html$//' -e 's/^```$//')
+      fi
 
-        if [[ "$html" == *"<html"* ]]; then
-          echo "$html" > "$DESK_DIR/index.html"
-        else
-          # Fallback: plain but honest
-          {
-            echo "<!DOCTYPE html><html><head><meta charset=\"utf-8\"><title>Today</title></head>"
-            echo "<body style=\"background:#1f1e1d;color:#faf9f5;font-family:system-ui;padding:2rem\">"
-            echo "<h1>$today</h1><pre style=\"white-space:pre-wrap\">$snapshot</pre>"
-            echo "<p style=\"color:#9c9a92\">Claude was unavailable — raw snapshot shown.</p></body></html>"
-          } > "$DESK_DIR/index.html"
-        fi
-  '';
+      if [[ "$html" == *"<html"* ]]; then
+        echo "$html" > "$DESK_DIR/index.html"
+      else
+        # Fallback: plain but honest
+        {
+          echo "<!DOCTYPE html><html><head><meta charset=\"utf-8\"><title>Today</title></head>"
+          echo "<body style=\"background:${colors.base00};color:${colors.base05};font-family:system-ui;padding:2rem\">"
+          echo "<h1>$today</h1><pre style=\"white-space:pre-wrap\">$snapshot</pre>"
+          echo "<p style=\"color:${colors.base03}\">Claude was unavailable — raw snapshot shown.</p></body></html>"
+        } > "$DESK_DIR/index.html"
+      fi
+    '';
+  };
 
   showScript = pkgs.writeShellScript "claudeos-morning-desk-show" ''
     export PATH="${

@@ -1,6 +1,13 @@
 # home/claudeos-help.nix — ClaudeOS capability discovery command.
 # Defines the `claudeos` Fish function: a workflow-oriented guide to all
 # Claude integrations, themed with the Stylix base16 palette.
+#
+# DRIFT WARNING: the content below hand-mirrors definitions elsewhere.
+# When those change, update this screen too:
+#   desktop keybindings → home/gnome.nix (claudeKeybindings)
+#   terminal commands   → home/shell/fish.nix (functions)
+#   Claude Code skills/MCP → home/claude-code.nix, .claude/
+#   background services → modules/apps/claude-monitor, modules/apps/jasper.nix
 { ... }:
 
 {

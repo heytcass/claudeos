@@ -73,38 +73,32 @@
         # Trace every generation back to its commit (absent attr on dirty trees)
         { system.configurationRevision = self.shortRev or "dirty"; }
       ];
+
+      # Per-host deltas: name → nixos-hardware module. Everything else is
+      # shared; hosts/<name>/ holds the rest. A host added here is also
+      # registered in `checks` automatically.
+      hosts = {
+        # Testbed for the ClaudeOS return — see hosts/transporter/default.nix
+        transporter = nixos-hardware.nixosModules.dell-latitude-7280;
+        gti = nixos-hardware.nixosModules.dell-xps-13-9370;
+      };
     in
     {
-      nixosConfigurations = {
-        # Testbed for the ClaudeOS return — see hosts/transporter/default.nix
-        transporter = lib.mkSystem {
-          hostname = "transporter";
+      nixosConfigurations = builtins.mapAttrs (
+        hostname: hardwareModule:
+        lib.mkSystem {
+          inherit hostname specialArgs;
           system = "x86_64-linux";
           user = "tom";
-          hardwareModules = commonHardwareModules ++ [
-            nixos-hardware.nixosModules.dell-latitude-7280
-          ];
-          modules = [ ./hosts/transporter ];
-          inherit specialArgs;
-        };
-
-        gti = lib.mkSystem {
-          hostname = "gti";
-          system = "x86_64-linux";
-          user = "tom";
-          hardwareModules = commonHardwareModules ++ [
-            nixos-hardware.nixosModules.dell-xps-13-9370
-          ];
-          modules = [ ./hosts/gti ];
-          inherit specialArgs;
-        };
-      };
+          hardwareModules = commonHardwareModules ++ [ hardwareModule ];
+          modules = [ ./hosts/${hostname} ];
+        }
+      ) hosts;
 
       # Validate host configurations with `nix flake check`
-      checks.x86_64-linux = {
-        transporter = self.nixosConfigurations.transporter.config.system.build.toplevel;
-        gti = self.nixosConfigurations.gti.config.system.build.toplevel;
-      };
+      checks.x86_64-linux = builtins.mapAttrs (
+        _: host: host.config.system.build.toplevel
+      ) self.nixosConfigurations;
 
       # Formatter for `nix fmt` (treefmt-nix handles directory traversal)
       formatter.x86_64-linux =
