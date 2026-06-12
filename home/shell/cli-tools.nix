@@ -1,4 +1,4 @@
-{ pkgs, ... }:
+{ pkgs, lib, ... }:
 
 {
   # Modern CLI tools
@@ -9,6 +9,10 @@
     btop # System monitor
     ouch # Universal archive extractor/compressor
     bun # JavaScript runtime (used by Claude Code Telegram plugin)
+
+    # Rust coreutils on the interactive PATH (two-ring applied to coreutils:
+    # system scripts keep GNU coreutils, the user shell gets uutils via hiPrio)
+    (lib.hiPrio uutils-coreutils-noprefix)
   ];
 
   # eza - Modern ls replacement
