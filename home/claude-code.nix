@@ -133,10 +133,6 @@ let
         command = "mcp-system-health";
         args = [ ];
       };
-      niri = {
-        command = "mcp-niri";
-        args = [ ];
-      };
     };
   };
 
