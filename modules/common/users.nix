@@ -16,6 +16,7 @@
       "video" # video devices
       "audio" # audio devices
       "dialout" # serial devices
+      "kvm" # auto-update VM smoke-test gate boots QEMU from a user unit
     ];
 
     # Fish as default shell

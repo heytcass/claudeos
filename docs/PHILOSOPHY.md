@@ -99,7 +99,18 @@ keeps half-finished things from dying. Hence:
    the bottom rung: propose (a PR, a draft, a file) and let the human act.
    Graduation to just-do-it happens per-lane, with track record. Artifacts
    must be reversible — a branch, a draft, a discardable file; never a sent
-   email, never a push to main.
+   email, never a push to main. *First graduated lane (2026-06): the weekly
+   flake update now applies itself (`autoApply = true`). It bought the rung
+   with a mechanical gate rather than trust alone — the freshly built
+   generation must boot green in a throwaway QEMU VM (multi-user reached,
+   zero failed units, GDM up) before commit, push, or switch; a red run
+   reverts flake.lock and hands the VM journal to the self-heal agent. The
+   general rule this sets: a lane may also graduate by adding a machine
+   check that catches the failure class a human review was catching —
+   exploit the system-is-a-repo property (the entire next OS state is a
+   derivation you can boot before betting the laptop on it). And the result
+   stays reversible the NixOS way: the previous generation is one reboot
+   away.*
 5. **The computer's unique knowledge is attention and activity** — what's
    focused, what's half-done, whether you're even there. Web services know
    your calendar; only the OS knows your *state*. Future capabilities should
