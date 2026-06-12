@@ -28,6 +28,6 @@ in
     keyMap = "colemak";
   };
 
-  # Niri reads its keyboard layout from home/niri.nix (input.keyboard.xkb);
-  # there is no X server, so services.xserver.xkb would be dead config here.
+  # GNOME reads its keyboard layout from dconf (home/gnome.nix input-sources);
+  # services.xserver.xkb is not needed for the Wayland session.
 }

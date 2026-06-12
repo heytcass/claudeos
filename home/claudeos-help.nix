@@ -34,13 +34,13 @@
     echo "any window, no terminal needed"
     set_color normal
 
-    set_color $key; printf "    %-22s " "Mod+C"
+    set_color $key; printf "    %-22s " "Super+C"
     set_color $desc; echo "Claude Code — coding, config, multi-step tasks"
-    set_color $key; printf "    %-22s " "Mod+A"
+    set_color $key; printf "    %-22s " "Super+A"
     set_color $desc; echo "Quick question — popup prompt, answer as notification"
-    set_color $key; printf "    %-22s " "Mod+Shift+A"
+    set_color $key; printf "    %-22s " "Super+Shift+A"
     set_color $desc; echo "Screenshot analysis — Claude reads your screen, notifies you"
-    set_color $key; printf "    %-22s " "Mod+Ctrl+A"
+    set_color $key; printf "    %-22s " "Super+Ctrl+A"
     set_color $desc; echo "Screenshot analysis — opens terminal for follow-up"
     set_color $key; printf "    %-22s " "Ctrl+Alt+Space"
     set_color $desc; echo "Claude Desktop — full chat UI with file/image support"
@@ -53,7 +53,7 @@
     set_color normal
 
     set_color $key; printf "    %-22s " 'ask "..."'
-    set_color $desc; echo "Quick answer right in your terminal (like Mod+A but inline)"
+    set_color $desc; echo "Quick answer right in your terminal (like Super+A but inline)"
     set_color $key; printf "    %-22s " "fix"
     set_color $desc; echo "Last command failed? Suggests the corrected version"
     set_color $key; printf "    %-22s " "explain"
@@ -80,8 +80,6 @@
     set_color $desc; echo "Search NixOS options and packages"
     set_color $key; printf "    %-22s " "MCP: system-health"
     set_color $desc; echo "Check disk, services, journal, memory, snapshots"
-    set_color $key; printf "    %-22s " "MCP: niri"
-    set_color $desc; echo "Control windows, workspaces, screenshots"
     set_color normal
     echo ""
 

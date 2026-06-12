@@ -15,7 +15,7 @@ in
     ./ghostty.nix
     ./git.nix
     ./vscode.nix
-    ./niri.nix
+    ./gnome.nix
     ./macchina.nix
     ./claude-code.nix
     ./claudeos-help.nix
@@ -88,8 +88,8 @@ in
       "application/vnd.rar" = "xarchiver.desktop";
       "application/x-lzip-compressed-tar" = "xarchiver.desktop";
 
-      # Directories — open in Thunar
-      "inode/directory" = "thunar.desktop";
+      # Directories — open in Nautilus (GNOME Files)
+      "inode/directory" = "org.gnome.Nautilus.desktop";
     };
   };
 
