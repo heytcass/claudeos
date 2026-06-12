@@ -41,12 +41,22 @@
     ];
   };
 
-  # Automatic garbage collection
-  nix.gc = {
-    automatic = true;
-    dates = "weekly";
-    options = "--delete-older-than 30d";
+  # nh: modern nixos-rebuild front-end — live build graph (nom), automatic
+  # closure diff on every switch, and declarative GC (replaces nix.gc.automatic)
+  programs.nh = {
+    enable = true;
+    flake = "/home/tom/.config/claudeos";
+    clean = {
+      enable = true;
+      extraArgs = "--keep 5 --keep-since 14d";
+    };
   };
+
+  # comma + prebuilt nix-index database: `, foo` runs any program from nixpkgs
+  # without installing it — trace-free experimentation. The database refreshes
+  # with the weekly flake update. Replaces the sqlite command-not-found handler.
+  programs.nix-index-database.comma.enable = true;
+  programs.command-not-found.enable = false;
 
   # Trigger GC early if disk space is low (bytes)
   nix.settings.min-free = 1073741824; # 1 GiB — start GC when free space drops below this

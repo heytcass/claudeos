@@ -30,6 +30,11 @@
   # Enable fish system-wide
   programs.fish.enable = true;
 
-  # Enable sudo without password for wheel group (optional - remove for production)
-  security.sudo.wheelNeedsPassword = lib.mkDefault true;
+  # sudo-rs: memory-safe Rust sudo (what Ubuntu ships by default now).
+  # Same wheel semantics; the original sudo is disabled in its favor.
+  security.sudo.enable = false;
+  security.sudo-rs = {
+    enable = true;
+    wheelNeedsPassword = lib.mkDefault true;
+  };
 }

@@ -12,6 +12,7 @@
     ./secrets.nix
     ./snapshots.nix
     ./auto-update.nix
+    ./generation-label.nix
   ];
 
   # Enable weekly auto-update by default (build-only, no auto-apply)

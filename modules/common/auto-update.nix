@@ -77,8 +77,19 @@ let
 
           [[ -z "$changelog" ]] && changelog="Flake inputs updated ($(date -I))"
 
+          # Name the generation: short slug from the changelog → boot-menu label
+          slug=""
+          if [[ -x "$CLAUDE_BIN" ]]; then
+            slug=$("$CLAUDE_BIN" -p "Turn this update summary into a slug of 2-4 lowercase words joined by hyphens, only [a-z0-9-], max 40 chars, no explanation:
+
+    $changelog" --model haiku 2>/dev/null) || slug=""
+            slug=$(echo "$slug" | tr -c 'a-zA-Z0-9:_.-' '-' | cut -c1-40)
+          fi
+          [[ -z "$slug" || "$slug" =~ ^-*$ ]] && slug="flake-update-$(date +%m%d)"
+          echo "$slug" > generation-label
+
           # Commit and push (retry once after rebase in case origin moved mid-run)
-          git add flake.lock
+          git add flake.lock generation-label
           git commit -m "chore: weekly flake update — $changelog"
           if ! git push; then
             git pull --rebase && git push || notify-send --app-name=ClaudeOS --urgency=critical \

@@ -17,7 +17,7 @@
 
       # NixOS specific
       zc = "z ~/.config/claudeos";
-      rebuild-test = "sudo nixos-rebuild test --flake ~/.config/claudeos#(hostname)";
+      rebuild-test = "nh os test"; # flake path comes from NH_FLAKE (programs.nh.flake)
       flake-check = "nix flake check --flake ~/.config/claudeos";
     };
 
@@ -122,7 +122,8 @@
         claude -p "$argv" --model haiku 2>/dev/null
       '';
 
-      # Rebuild NixOS with snapper pre/post snapshots + auto-commit
+      # Rebuild NixOS with snapper pre/post snapshots + Claude-named generation
+      # + auto-commit. Uses nh (build graph via nom, closure diff on activation).
       rebuild = ''
                 # Parse --no-commit flag
                 set -l no_commit false
@@ -135,23 +136,40 @@
                   end
                 end
 
-                set -l pre_root (sudo snapper -c root create --type pre --cleanup-algorithm number --print-number --description "pre-rebuild" 2>/dev/null)
-                set -l pre_home (snapper -c home create --type pre --cleanup-algorithm number --print-number --description "pre-rebuild" 2>/dev/null)
+                # Name this generation: haiku writes a short slug from the pending
+                # diff; falls back to a timestamp. The slug becomes the boot-menu
+                # label (system.nixos.tags) and the snapper snapshot description.
+                set -l slug "rebuild-"(date +%m%d-%H%M)
+                set -l pending_diff (git -C ~/.config/claudeos diff 2>/dev/null; git -C ~/.config/claudeos diff --cached 2>/dev/null)
+                if test -n "$pending_diff"; and command -q claude
+                  set -l ai_slug (claude -p "Summarize this NixOS config diff as a slug of 2-4 lowercase words joined by hyphens, only [a-z0-9-], max 40 chars, no explanation:
+        $pending_diff" --model haiku 2>/dev/null | string trim)
+                  set ai_slug (string replace -ra '[^a-zA-Z0-9:_.-]' '-' -- $ai_slug | string sub -l 40)
+                  if test -n "$ai_slug"
+                    set slug $ai_slug
+                  end
+                end
+                echo $slug > ~/.config/claudeos/generation-label
+                git -C ~/.config/claudeos add generation-label
+                echo "Generation label: $slug"
+
+                set -l pre_root (sudo snapper -c root create --type pre --cleanup-algorithm number --print-number --description "pre: $slug" 2>/dev/null)
+                set -l pre_home (snapper -c home create --type pre --cleanup-algorithm number --print-number --description "pre: $slug" 2>/dev/null)
                 if test -n "$pre_root" -a -n "$pre_home"
                   echo "Snapshots: root#$pre_root, home#$pre_home"
                 else
                   echo "Warning: snapper pre-snapshots failed (root#$pre_root, home#$pre_home)"
                 end
 
-                sudo nixos-rebuild switch --flake ~/.config/claudeos#(hostname) $pass_args
+                nh os switch -- $pass_args
                 set -l rebuild_status $status
 
                 if test $rebuild_status -eq 0
                   if test -n "$pre_root"
-                    sudo snapper -c root create --type post --pre-number $pre_root --cleanup-algorithm number --description "post-rebuild"
+                    sudo snapper -c root create --type post --pre-number $pre_root --cleanup-algorithm number --description "post: $slug"
                   end
                   if test -n "$pre_home"
-                    snapper -c home create --type post --pre-number $pre_home --cleanup-algorithm number --description "post-rebuild"
+                    snapper -c home create --type post --pre-number $pre_home --cleanup-algorithm number --description "post: $slug"
                   end
                   if test -n "$pre_root"
                     echo "Rebuild complete. Rollback: sudo snapper -c root undochange $pre_root..(math $pre_root + 1)"

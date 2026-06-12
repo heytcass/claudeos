@@ -77,13 +77,15 @@
     statix
     deadnix
     nil # Nix LSP
+    nvd # Closure diff between generations (standalone; nh diffs automatically)
+    nix-output-monitor # Live build-graph visualization (nom)
   ];
 
-  # Many third-party scripts assume /bin/bash exists (e.g. Claude Code plugin hooks)
-  system.activationScripts.binbash = ''
-    mkdir -p /bin
-    ln -sfn ${pkgs.bash}/bin/bash /bin/bash
-  '';
+  # envfs: FUSE filesystem on /bin and /usr/bin that resolves any interpreter
+  # from the calling process's PATH (with sh/env static fallbacks). Replaces the
+  # old hand-rolled /bin/bash activation symlink and fixes the whole class of
+  # "works on Ubuntu, breaks on NixOS" third-party scripts (Claude plugin hooks).
+  services.envfs.enable = true;
 
   # Enable redistributable firmware (includes CPU microcode)
   hardware.enableRedistributableFirmware = true;
@@ -111,6 +113,19 @@
 
   # Zram swap for compressed in-memory swap
   zramSwap.enable = true;
+
+  # sched_ext: scx_lavd BPF scheduler (Rust, Steam Deck lineage) — tuned for
+  # interactive latency on battery devices; --autopower flips performance/
+  # powersave with AC state. Kernel falls back to EEVDF instantly if it dies.
+  services.scx = {
+    enable = true;
+    scheduler = "scx_lavd";
+    extraArgs = [ "--autopower" ];
+  };
+
+  # dbus-broker: the Fedora/Arch default bus implementation — faster under the
+  # chatty desktop IPC of Niri + Noctalia/quickshell
+  services.dbus.implementation = "broker";
 
   # systemd-oomd: proactive OOM handling using PSI (Pressure Stall Information)
   # Kills memory-hogging processes before the kernel OOM killer freezes the system
