@@ -72,15 +72,15 @@
       "inputs": {
         "flake-utils": "flake-utils",
         "nixpkgs": [
-          "nixpkgs-claude-desktop"
+          "nixpkgs"
         ]
       },
       "locked": {
-        "lastModified": 1781064532,
-        "narHash": "sha256-Gc7Z3Wtdz5+x2GHiqlutFBqW/M+QvVjwIOf86acUPPk=",
+        "lastModified": 1781227299,
+        "narHash": "sha256-UmEO+e3L7C2sl0rc6fVX1/m4ROGplVSpMoyOqZHqXfg=",
         "owner": "heytcass",
         "repo": "claude-desktop-linux-flake",
-        "rev": "054a917055aed1b2358f8f53ee44cb547141d888",
+        "rev": "926d69be1296585ffecb70dc6f834999343ed05d",
         "type": "github"
       },
       "original": {
@@ -347,22 +347,6 @@
         "type": "github"
       }
     },
-    "nixpkgs-claude-desktop": {
-      "locked": {
-        "lastModified": 1773821835,
-        "narHash": "sha256-TJ3lSQtW0E2JrznGVm8hOQGVpXjJyXY2guAxku2O9A4=",
-        "owner": "nixos",
-        "repo": "nixpkgs",
-        "rev": "b40629efe5d6ec48dd1efba650c797ddbd39ace0",
-        "type": "github"
-      },
-      "original": {
-        "owner": "nixos",
-        "repo": "nixpkgs",
-        "rev": "b40629efe5d6ec48dd1efba650c797ddbd39ace0",
-        "type": "github"
-      }
-    },
     "nixpkgs-stable": {
       "locked": {
         "lastModified": 1780952837,
@@ -519,7 +503,6 @@
         "niri": "niri",
         "nixos-hardware": "nixos-hardware",
         "nixpkgs": "nixpkgs_4",
-        "nixpkgs-claude-desktop": "nixpkgs-claude-desktop",
         "noctalia": "noctalia",
         "sops-nix": "sops-nix",
         "stylix": "stylix",

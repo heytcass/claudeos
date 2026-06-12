@@ -21,13 +21,9 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
-    # Pinned pre-2026-03 nixpkgs for claude-desktop only: the flake still uses the
-    # removed pkgs.nodePackages set (fix: nodePackages.asar → asar upstream, planned
-    # alongside the Claude desktop app spike — then restore follows = "nixpkgs").
-    nixpkgs-claude-desktop.url = "github:nixos/nixpkgs/b40629efe5d6ec48dd1efba650c797ddbd39ace0";
     claude-desktop-linux = {
       url = "github:heytcass/claude-desktop-linux-flake";
-      inputs.nixpkgs.follows = "nixpkgs-claude-desktop";
+      inputs.nixpkgs.follows = "nixpkgs";
     };
 
     stylix = {
