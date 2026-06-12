@@ -2,6 +2,12 @@
 
 # Claude Code-inspired prompt — colors use ANSI names (orange, red, cyan, etc.)
 # which map to the Stylix-themed terminal palette. Warm, minimal, clean.
+#
+# The right side is ClaudeOS reporting in: the *named* generation you're booted
+# into (see modules/common/generation-label.nix), a red pip that only exists
+# when systemd has failed units, and Claude's ✳ when a Claude Code session is
+# the one driving the shell. The fish transient prompt collapses all of it
+# to ❯ in scrollback.
 {
   programs.starship = {
     enable = true;
@@ -15,10 +21,22 @@
         "$directory"
         "$git_branch"
         "$git_status"
+        "$git_metrics"
         "$nix_shell"
-        "$cmd_duration"
+        "$jobs"
         "$line_break"
         "$character"
+      ];
+
+      # System state lives on the right, out of the typing path
+      right_format = lib.concatStrings [
+        "$status"
+        "$cmd_duration"
+        "\${custom.claude}"
+        "\${custom.degraded}"
+        "$sudo"
+        "$battery"
+        "\${custom.generation}"
       ];
 
       # Terracotta prompt character — the Claude signature
@@ -58,6 +76,12 @@
         deleted = "✘\${count}";
       };
 
+      # Line-level diff size — the working tree narrates itself
+      git_metrics = {
+        disabled = false;
+        format = "([+$added](green)[-$deleted](red) )";
+      };
+
       # Nix shell in sage
       nix_shell = {
         symbol = " ";
@@ -67,26 +91,71 @@
         pure_msg = "pure";
       };
 
+      # Background jobs — easy to forget, cheap to show
+      jobs = {
+        symbol = "✦";
+        format = "[$symbol$number]($style) ";
+        style = "cyan";
+      };
+
+      # Non-zero exit code, terse, before duration
+      status = {
+        disabled = false;
+        format = "[$status]($style) ";
+        style = "red";
+      };
+
       # Command duration — dim, stays out of the way
       cmd_duration = {
         min_time = 2000;
-        format = "took [$duration]($style) ";
+        format = "[$duration]($style) ";
         style = "bright-black";
       };
 
-      # Username — warm sand, only when relevant
-      username = {
-        show_always = false;
-        format = "[$user]($style) ";
-        style_user = "yellow";
-        style_root = "bold red";
+      # Padlock when sudo credentials are cached — you are holding root
+      sudo = {
+        disabled = false;
+        symbol = "🔓";
+        format = "[$symbol]($style) ";
+        style = "yellow";
       };
 
-      # Hostname — only over SSH
-      hostname = {
-        ssh_only = true;
-        format = "[@$hostname]($style) ";
-        style = "yellow";
+      # Battery only when it actually matters
+      battery = {
+        format = "[$symbol$percentage]($style) ";
+        display = [
+          {
+            threshold = 20;
+            style = "red";
+          }
+        ];
+      };
+
+      # ✳ — a Claude Code session is driving this shell
+      custom.claude = {
+        when = ''test -n "$CLAUDECODE"'';
+        format = "[✳](orange) ";
+        description = "Claude is at the keyboard";
+      };
+
+      # Red pip + count when systemd (system or user) has failed units.
+      # Invisible on a healthy system — its absence is the feature.
+      custom.degraded = {
+        when = ''test "$( (systemctl --failed --no-legend --plain; systemctl --user --failed --no-legend --plain) 2>/dev/null | wc -l)" -gt 0'';
+        command = ''(systemctl --failed --no-legend --plain; systemctl --user --failed --no-legend --plain) 2>/dev/null | wc -l'';
+        format = "[● $output failed](red) ";
+        description = "systemd failed units";
+      };
+
+      # The booted generation's name (boot menu, snapshots, and prompt all
+      # share one Claude-written slug). Only shows when a label exists.
+      custom.generation = {
+        when = ''grep -q "^[a-z]" /run/current-system/nixos-version 2>/dev/null'';
+        command = ''sed "s/-[0-9].*//" /run/current-system/nixos-version'';
+        symbol = "❄ ";
+        format = "[$symbol$output]($style)";
+        style = "bright-black";
+        description = "named NixOS generation";
       };
 
       # Keep prompt fast — disable language modules
