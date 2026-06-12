@@ -23,7 +23,7 @@ NixOS configuration optimized for Claude Code workflow.
 - home-manager integration for user config
 - Hardware-optimized with nixos-hardware profiles
 - Stylix theming with Claude-inspired color scheme
-- Validation tools (nixfmt, statix, deadnix, nil)
+- Validation tools (nixfmt, statix, deadnix, nixd)
 - Documentation optimized for Claude agents and subagents
 - Modern CLI tools (eza, bat, zoxide, atuin, yazi, fzf) with uutils coreutils on the user PATH
 - nh-driven rebuilds (`nh os switch` with nom build graph, nvd closure diffs, declarative GC)

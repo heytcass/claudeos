@@ -44,6 +44,4 @@
     mode = "0400";
   };
 
-  # atuin_key intentionally not declared — atuin sync is disabled
-  # (home/shell/cli-tools.nix); re-declare here when enabling sync
 }

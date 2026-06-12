@@ -265,10 +265,9 @@
       # Add ~/.local/bin to PATH for Claude Code CLI
       fish_add_path ~/.local/bin
 
-      # Export GitHub token for MCP server + Claude Code plugins (pulls from gh CLI keyring auth)
-      if command -q gh
-        set -gx GITHUB_PERSONAL_ACCESS_TOKEN (gh auth token 2>/dev/null)
-      end
+      # GitHub token is NOT exported globally — use the `with-github-token`
+      # wrapper (cli-tools.nix) to materialize it only in the consuming
+      # process. gh's keyring stays the single source of truth.
 
       # UniFi MCP server credential — .mcp.json expands ''${UNIFI_API_KEY} from the
       # environment instead of hardcoding the key in a tracked file
@@ -278,14 +277,13 @@
 
       # Themed man pages via batman (bat-extras, uses Stylix terminal palette)
 
-      # System fetch + daily brief on first shell in terminal
-      if not set -q MACCHINA_SHOWN
-        set -gx MACCHINA_SHOWN 1
-        macchina
-        # ClaudeOS daily brief
+      # Daily brief on first shell (the one thing — no spec-sheet fetch above
+      # it; macchina was dropped per the proactivity doctrine, and the full
+      # dashboard lives in `today`)
+      if not set -q CLAUDEOS_BRIEF_SHOWN
+        set -gx CLAUDEOS_BRIEF_SHOWN 1
         set -l brief_file "$HOME/.cache/claudeos-monitor/daily-brief.txt"
         if test -s "$brief_file"
-          echo ""
           cat "$brief_file"
         end
       end
