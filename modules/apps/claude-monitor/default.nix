@@ -3,6 +3,9 @@
 # Tier 1: Health check timer (every 15 min, pure bash, $0 cost)
 # Tier 2: Claude notification service (OnFailure handler, rate-limited)
 # Tier 3: Daily morning briefing (9 AM, opt-in)
+# Tier 4: Journald diary — nightly haiku triage of error-level journal entries
+#         against a persistent ledger (docs/known-issues.md in the repo);
+#         actionable findings surface in the morning brief
 {
   lib,
   config,
@@ -193,6 +196,12 @@ let
         Config branch: $branch
         Config repo: $git_info"
 
+        # Overnight journal-diary findings (Tier 4) feed the brief
+        if [[ -s "$CACHE_DIR/diary-actionable.txt" ]]; then
+          stats="$stats
+        Journal diary (overnight triage): $(cat "$CACHE_DIR/diary-actionable.txt")"
+        fi
+
         # Save stats for the "Details" action
         echo "$stats" > "$STATS_FILE"
 
@@ -236,11 +245,65 @@ let
           --app-name=ClaudeOS --icon=dialog-information \
           "Good Morning" "Daily briefing ready — check your terminal."
   '';
+
+  # Tier 4: Journald diary — error triage with persistent memory.
+  # Unlike a grep cron job, the agent maintains its own ledger across runs
+  # (docs/known-issues.md, committed via the normal rebuild auto-commit flow),
+  # so known-benign noise is silenced and only NEW signatures surface.
+  journalDiaryScript = pkgs.writeShellScript "claudeos-journal-diary" ''
+        export PATH="${
+          pkgs.lib.makeBinPath [
+            pkgs.coreutils
+            pkgs.systemd
+            pkgs.gnugrep
+            pkgs.gawk
+            pkgs.jq
+            pkgs.git
+          ]
+        }:$HOME/.local/bin:/run/current-system/sw/bin:$PATH"
+
+        CLAUDEOS_DIR="$HOME/.config/claudeos"
+        CLAUDE_BIN="$HOME/.local/bin/claude"
+        CACHE_DIR="''${XDG_CACHE_HOME:-$HOME/.cache}/claudeos-monitor"
+        STATE_DIR="''${XDG_STATE_HOME:-$HOME/.local/state}/claudeos"
+        mkdir -p "$CACHE_DIR" "$STATE_DIR"
+
+        errors=$(journalctl -p err..alert --since "-24 hours" --no-pager --output=cat 2>/dev/null \
+          | sort | uniq -c | sort -rn | head -50)
+        if [[ -z "$errors" ]]; then
+          rm -f "$CACHE_DIR/diary-actionable.txt"
+          exit 0
+        fi
+        [[ -x "$CLAUDE_BIN" ]] || exit 0
+        cd "$CLAUDEOS_DIR" || exit 1
+
+        prompt="You are the ClaudeOS journal diary. Below are deduplicated error-level journal lines from the last 24h (count, then message). Your ledger of known issues is docs/known-issues.md in this repo.
+
+    1. Read the ledger. For each error signature below, decide: already in the ledger (skip), new-benign (append to the ledger under Benign with today's date and one-line verdict), or new-actionable (append under Actionable with date, verdict, and the next step).
+    2. Edit ONLY docs/known-issues.md. Do not run git commands — your edits ride the next rebuild auto-commit.
+    3. Final output: ONLY the new ACTIONABLE findings, one line each (max 3 lines, plain text). If there are none, output exactly: OK
+
+    $errors"
+
+        result=$("$CLAUDE_BIN" -p "$prompt" --model haiku --output-format json \
+          --allowedTools 'Read,Edit,Grep,Glob,Bash(journalctl*)' 2>/dev/null) || result=""
+
+        text=$(echo "$result" | jq -r '.result // empty' 2>/dev/null)
+        session=$(echo "$result" | jq -r '.session_id // empty' 2>/dev/null)
+        [[ -n "$session" ]] && echo "$session" > "$STATE_DIR/last-agent-session"
+
+        if [[ -n "$text" && "$text" != "OK" ]]; then
+          echo "$text" > "$CACHE_DIR/diary-actionable.txt"
+        else
+          rm -f "$CACHE_DIR/diary-actionable.txt"
+        fi
+  '';
 in
 {
   options.claude-os.monitor = {
     enable = lib.mkEnableOption "ClaudeOS proactive health monitoring with Claude-authored notifications";
     dailyBrief = lib.mkEnableOption "daily morning system briefing from ClaudeOS";
+    journalDiary = lib.mkEnableOption "nightly Claude triage of journal errors against the known-issues ledger";
   };
 
   config = lib.mkIf config.claude-os.monitor.enable (
@@ -301,6 +364,30 @@ in
           wantedBy = [ "timers.target" ];
           timerConfig = {
             OnCalendar = "*-*-* 09:00:00";
+            Persistent = true;
+          };
+        };
+      })
+
+      # ========================================================================
+      # Tier 4: Journald diary (nightly, before the morning brief)
+      # ========================================================================
+      (lib.mkIf config.claude-os.monitor.journalDiary {
+        systemd.user.services.claudeos-journal-diary = {
+          description = "ClaudeOS nightly journal error triage";
+          serviceConfig = {
+            Type = "oneshot";
+            ExecStart = toString journalDiaryScript;
+            TimeoutStartSec = "15min";
+            SyslogIdentifier = "claudeos-diary";
+          };
+        };
+
+        systemd.user.timers.claudeos-journal-diary = {
+          description = "ClaudeOS journal diary at 4 AM";
+          wantedBy = [ "timers.target" ];
+          timerConfig = {
+            OnCalendar = "*-*-* 04:00:00";
             Persistent = true;
           };
         };
