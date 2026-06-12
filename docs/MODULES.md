@@ -75,7 +75,7 @@ Contents:
 
 ## modules/common/ -- Foundation
 
-Core system configuration shared by all hosts. Imported via `modules/common/default.nix` which pulls in: `boot.nix`, `disko.nix`, `nix.nix`, `users.nix`, `networking.nix`, `locale.nix`, `system.nix`, `secrets.nix`, `snapshots.nix`, `auto-update.nix`, `generation-label.nix`, `self-heal.nix`. It also enables `claude-os.autoUpdate` and `claude-os.selfHeal` by default (`lib.mkDefault`).
+Core system configuration shared by all hosts. Imported via `modules/common/default.nix` which pulls in: `boot.nix`, `disko.nix`, `nix.nix`, `users.nix`, `networking.nix`, `locale.nix`, `system.nix`, `secrets.nix`, `snapshots.nix`, `auto-update.nix`, `generation-label.nix`, `self-heal.nix`. It also enables `claude-os.autoUpdate` (including `autoApply` — gated on a green VM smoke test) and `claude-os.selfHeal` by default (`lib.mkDefault`).
 
 ### modules/common/boot.nix
 
@@ -123,7 +123,7 @@ Nix daemon and nixpkgs configuration.
 User account and shell setup.
 
 - **User:** `tom` (normal user)
-- **Groups:** `wheel`, `networkmanager`, `video`, `audio`, `dialout`
+- **Groups:** `wheel`, `networkmanager`, `video`, `audio`, `dialout`, `kvm` (auto-update's VM smoke-test gate boots QEMU from a user unit)
 - **Shell:** Fish (`pkgs.fish`)
 - **SSH keys:** one ed25519 key authorized (`tom@ubuntu-dev`)
 - **Fish:** enabled system-wide (`programs.fish.enable = true`)
@@ -198,10 +198,14 @@ Snapper btrfs snapshot management.
 
 ### modules/common/auto-update.nix
 
-Weekly unattended flake updates with Claude review (`claude-os.autoUpdate`, enabled by default; `autoApply` off by default).
+Weekly unattended flake updates with Claude review (`claude-os.autoUpdate`, enabled by default; `autoApply` on by default since 2026-06 — made safe by the VM smoke-test gate).
 
 - **Timer:** `claudeos-auto-update`, Sat 03:00 (configurable `schedule`), persistent, 1h randomized delay
-- **Flow:** stash dirty work → `git pull --rebase` → `nix flake update` → test build → Claude (haiku) changelog from `nix store diff-closures` → haiku-generated generation slug written to `generation-label` → commit and verified push (one rebase-and-retry) → notification
+- **Flow:** stash dirty work → `git pull --rebase` → `nix flake update` → test build → **VM smoke-test gate** → Claude (haiku) changelog from `nix store diff-closures` → haiku-generated generation slug written to `generation-label` → commit and verified push (one rebase-and-retry) → `nixos-rebuild switch` (autoApply, green gate only) → notification
+- **VM smoke-test gate** (`vmTest`, on by default; `vmTestTimeout`, 300 s): builds `config.system.build.vm` and boots the fresh generation headless in a throwaway QEMU VM (KVM, 4 GiB, 2 cores, no GPU/graphics, `diskImage = null` so nothing is written). An in-VM service (`claudeos-vm-smoke`, Type=exec so `is-system-running --wait` doesn't deadlock on its own startup job) asserts multi-user.target active, `systemctl --failed` empty, and `gdm.service` active, prints `CLAUDEOS-SMOKE-PASS`/`-FAIL` plus per-failed-unit journal excerpts on the serial console, and powers off; the host script greps the captured console
+- **vmVariant strips hardware-specific config:** disko fileSystems (`disko.enableConfig`), snapper configs + subvolume activation script, btrfs autoScrub, scx, thermald, fwupd, Plymouth — all via `lib.mkVMOverride`. sops secrets can't decrypt in the VM (host SSH key never leaves the host) but install via an activation script, which logs and continues rather than failing a unit
+- **Gate outcomes:** green → commit, push, switch; **no usable `/dev/kvm`** (or `vmTest = false`) → gate skipped, degrades to build-only (commit + push, never switch); red → `flake.lock` reverted, notification with the failing unit list, VM journal excerpt echoed into the unit's own journal, exit 1 → `OnFailure=claude-heal@claudeos-auto-update` hands it to the self-heal agent
+- **autoApply plumbing:** scoped passwordless `sudo /run/current-system/sw/bin/nixos-rebuild` for wheel (`security.sudo-rs.extraRules`, only when `autoApply`); the user is in the `kvm` group (users.nix) so the timer-driven user unit can reach `/dev/kvm`
 - **On build failure:** Claude (sonnet) diagnoses, `flake.lock` is reverted, user notified
 
 ### modules/common/generation-label.nix
