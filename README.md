@@ -14,8 +14,7 @@ NixOS configuration optimized for Claude Code workflow.
 
 ## Machines
 
-- **transporter** - Dell Latitude 7280 (test machine) - Deployed
-- **gti** - Dell XPS 13 9370 (production) - Ready for deployment
+- **gti** - Dell XPS 13 9370 (production) - Deployed
 
 ## Features
 
@@ -32,7 +31,7 @@ NixOS configuration optimized for Claude Code workflow.
 ## Stack
 
 - **OS:** NixOS unstable
-- **Desktop:** COSMIC + Wayland
+- **Desktop:** Niri (tiling compositor) + Noctalia shell + Wayland
 - **Audio:** PipeWire with ALSA and PulseAudio compatibility
 - **Shell:** Fish + Starship prompt + modern CLI tools
 - **Terminal:** Ghostty
@@ -59,7 +58,7 @@ NixOS configuration optimized for Claude Code workflow.
 
 ## Current Status
 
-Transporter (test machine) is fully deployed and operational. Gti (production) is configured and ready for deployment.
+Gti (Dell XPS 13 9370) is fully deployed and operational. It is the only host defined in the flake — transporter (Dell Latitude 7280) has been retired.
 
 **Future Enhancements:**
 - NixOS impermanence for stateless system

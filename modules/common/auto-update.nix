@@ -28,7 +28,7 @@ let
 
         CLAUDEOS_DIR="$HOME/.config/claudeos"
         CLAUDE_BIN="$HOME/.local/bin/claude"
-        HOST=$(hostname 2>/dev/null || echo gti)
+        HOST=$(hostname) || exit 1
 
         cd "$CLAUDEOS_DIR" || exit 1
 
@@ -43,6 +43,14 @@ let
             git stash pop 2>/dev/null || true
           fi
         }
+
+        # Sync with origin first so we never update/commit on stale history
+        if ! git pull --rebase 2>&1; then
+          notify-send --app-name=ClaudeOS --urgency=critical \
+            "Update Skipped" "git pull --rebase failed — resolve repo state manually."
+          cleanup
+          exit 1
+        fi
 
         # Update flake inputs
         if ! nix flake update 2>&1; then
@@ -69,10 +77,13 @@ let
 
           [[ -z "$changelog" ]] && changelog="Flake inputs updated ($(date -I))"
 
-          # Commit and push
+          # Commit and push (retry once after rebase in case origin moved mid-run)
           git add flake.lock
           git commit -m "chore: weekly flake update — $changelog"
-          git push
+          if ! git push; then
+            git pull --rebase && git push || notify-send --app-name=ClaudeOS --urgency=critical \
+              "Push Failed" "flake.lock committed locally but not pushed — push manually."
+          fi
 
           notify-send --app-name=ClaudeOS \
             "Flake Updated" "$changelog"

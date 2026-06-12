@@ -62,32 +62,34 @@ Keep router doc current:
 
 ## File Locations
 
-- **MODULES.md** - Module documentation
-- **IMPLEMENTATION_STATUS.md** - Current state and maintenance log
+- **docs/MODULES.md** - Module documentation
+- **docs/IMPLEMENTATION_STATUS.md** - Current state and maintenance log
 - **CLAUDE.md** - Router/index
-- **HARDWARE.md** - Hardware-specific docs
-- **SECRETS.md** - Secrets management
-- **TROUBLESHOOTING.md** - Known issues
-- **WORKFLOW.md** - Development workflow
-- **DEPLOYMENT.md** - Deployment procedures
-- **THEME.md** - Theme system
-- **DISKO.md** - Disk partitioning
+- **docs/HARDWARE.md** - Hardware-specific docs
+- **docs/SECRETS.md** - Secrets management
+- **docs/TROUBLESHOOTING.md** - Known issues
+- **docs/WORKFLOW.md** - Development workflow
+- **docs/DEPLOYMENT.md** - Deployment procedures
+- **docs/THEME.md** - Theme system
+- **docs/DISKO.md** - Disk partitioning
 
 ## Module Categories
 
 ```
 modules/
-├── common/    # Foundation (boot, nix, users, networking, locale, system, disko)
-├── desktop/   # Desktop environment (cosmic-system, audio, fonts, theme)
-└── apps/      # Applications (terminals, browsers, communication, claude)
+├── common/    # Foundation (boot, disko, nix, users, networking, locale, system, secrets, snapshots, auto-update)
+├── desktop/   # Desktop environment (niri-system, audio, fonts, theme)
+└── apps/      # Applications (terminals, claude, jasper, mcp-system-health, mcp-niri, claude-monitor)
 
 home/
 ├── shell/     # Shell config (fish, cli-tools, starship)
 ├── ghostty.nix
 ├── git.nix
 ├── vscode.nix
-├── cosmic.nix
-└── theme.nix
+├── niri.nix
+├── macchina.nix
+├── claude-code.nix
+└── claudeos-help.nix
 ```
 
 ## Quality Checks

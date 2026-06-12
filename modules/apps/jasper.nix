@@ -21,7 +21,7 @@ in
     # User systemd service — auto-starts after graphical session
     # Note: D-Bus activation service intentionally removed — it races with the
     # systemd service and spawns instances without SOPS env vars. The systemd
-    # service claims the bus name, and the COSMIC applet connects via polling.
+    # service claims the bus name; desktop clients connect via polling.
     systemd.user.services.jasper-companion = {
       description = "Jasper AI Companion Daemon";
       after = [ "graphical-session.target" ];

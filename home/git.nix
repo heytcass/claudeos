@@ -61,8 +61,8 @@
         autocrlf = "input";
       };
 
-      # GitHub CLI credential helper
-      credential.helper = "!gh auth git-credential";
+      # GitHub credential helper comes from programs.gh.gitCredentialHelper
+      # (home/shell/cli-tools.nix) — don't duplicate it here
 
       # SSH-based commit signing (simpler than GPG, uses existing SSH key)
       gpg.format = "ssh";
@@ -75,11 +75,7 @@
     lfs.enable = true;
   };
 
-  # GitHub CLI
-  programs.gh = {
-    enable = true;
-    settings.git_protocol = "ssh";
-  };
+  # GitHub CLI is configured in home/shell/cli-tools.nix (programs.gh)
 
   # Delta - Better git diffs (separate program)
   # Colors are managed by Stylix - see modules/desktop/theme.nix

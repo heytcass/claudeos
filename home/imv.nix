@@ -1,5 +1,9 @@
-{ pkgs, ... }:
+{ config, ... }:
 
+let
+  # Stylix base16 palette — imv wants bare rrggbb values (no leading #)
+  c = config.lib.stylix.colors;
+in
 {
   programs.imv = {
     enable = true;
@@ -7,7 +11,7 @@
     settings = {
       options = {
         # Background color — use a dark neutral to match theme
-        background = "1f1e1d"; # base00
+        background = c.base00;
 
         # Start in fullscreen for tiling WM (window fills tile anyway)
         fullscreen = false;
@@ -17,8 +21,8 @@
         overlay_font = "JetBrainsMono Nerd Font:11";
         overlay_text = "$imv_current_file [$imv_current_index/$imv_file_count] $(imv_width)x$(imv_height) $imv_scale";
         overlay_position_bottom = true;
-        overlay_background_color = "262624"; # base01
-        overlay_text_color = "faf9f5"; # base05
+        overlay_background_color = c.base01;
+        overlay_text_color = c.base05;
 
         # Scaling
         scaling_mode = "shrink"; # Don't upscale small images

@@ -98,7 +98,7 @@ let
         "mcp__plugin_telegram_telegram__reply"
         "mcp__plugin_telegram_telegram__react"
         "mcp__plugin_telegram_telegram__edit_message"
-        "mcp__claude_ai_Google_Calendar__gcal_list_events"
+        "mcp__claude_ai_Google_Calendar__list_events"
         "mcp__claude_ai_open-brain__search_thoughts"
         "mcp__claude_ai_open-brain__list_thoughts"
         "mcp__claude_ai_open-brain__thought_stats"

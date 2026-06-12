@@ -44,9 +44,6 @@ in
     grim # Screenshot capture
     slurp # Region selection
     satty # Screenshot annotation
-    thunar # File manager
-    thunar-archive-plugin # Right-click archive handling
-    thunar-volman # Removable media management
     xarchiver # Lightweight GTK archive manager
 
     # Icon themes
@@ -127,6 +124,19 @@ in
       "geoclue-where-am-i"
     ])
   ];
+
+  # Thunar file manager — the module (not bare packages) wraps Thunar so its
+  # plugins (archive handling, removable media) are actually discovered
+  programs.thunar = {
+    enable = true;
+    plugins = with pkgs.xfce; [
+      thunar-archive-plugin
+      thunar-volman
+    ];
+  };
+
+  # xfconf persists Thunar preferences between sessions
+  programs.xfconf.enable = true;
 
   # Enable GVfs for virtual filesystems (Trash, network shares, etc.)
   services.gvfs.enable = true;

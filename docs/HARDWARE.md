@@ -11,89 +11,46 @@ Complete documentation for ClaudeOS hardware configurations, issues, and optimiz
 
 ## Machines
 
-### transporter - Dell Latitude 7280
-
-**Hardware Profile:** `nixos-hardware.nixosModules.dell-latitude-7280`
-
-**Specs:**
-- CPU: Intel (with kvm-intel support)
-- Storage: 238.5GB SSD (btrfs)
-- Kernel Modules: xhci_pci, ahci, usb_storage, sd_mod, rtsx_pci_sdmmc
-- Network: IPv6 capable
-
-**Filesystem Configuration:**
-- **Format:** btrfs with zstd compression
-- **Label:** nixos
-- **UUID:** 3c51bbee-4eb6-427e-aafb-3a40051aba87
-- **Mount Options:** noatime,compress=zstd:3,ssd,discard=async,space_cache=v2
-- **Subvolumes:**
-  - `@` - root (subvolid=256, mounted at /)
-  - `@home` - home directories (subvolid=257, mounted at /home)
-  - `@nix` - nix store (subvolid=258, mounted at /nix)
-  - `@log` - logs (subvolid=259, mounted at /var/log)
-- **Boot:** 511MB vfat partition on /dev/sda1
-
-**Status:** ✅ Deployed and operational
-
-**Installation Date:** 2026-01-27
-
-**Known Issues:**
-- **Resolved:** Home directory ownership (fixed post-install with `sudo chown -R tom:users /home/tom`)
-
-**Working Features:**
-- systemd-boot bootloader
-- Fish shell
-- US Colemak keyboard layout
-- NetworkManager
-- SSH access
-- Git, vim, htop
-- Nix flakes
-- COSMIC desktop
-- Ghostty terminal
-
 ### gti - Dell XPS 13 9370
 
 **Hardware Profile:** `nixos-hardware.nixosModules.dell-xps-13-9370`
 
-**Status:** Ready for deployment
+**Status:** ✅ Deployed and operational (the only host in the flake)
 
-**Planned Configuration:**
-- Will use same btrfs subvolume layout as transporter
-- Same module configuration as transporter
-- Dell XPS-specific optimizations from nixos-hardware
-
-**Specs:** (To be documented after deployment)
-- CPU: Intel (model TBD)
-- RAM: TBD
-- Storage: TBD (SSD)
-- Display: 13" (resolution TBD)
+**Specs:**
+- CPU: Intel (with kvm-intel support)
+- Storage: NVMe SSD (`/dev/nvme0n1`, pinned in `hosts/gti/default.nix`)
+- Kernel Modules: xhci_pci, nvme, usb_storage, sd_mod, rtsx_pci_sdmmc
+- Display: 13"
 - Network: WiFi + optional USB-C ethernet
 
-**Known Issues:** (To be discovered during deployment)
+**Filesystem Configuration** (managed by disko, see [DISKO.md](./DISKO.md)):
+- **Format:** btrfs with zstd compression
+- **Mount Options:** noatime,compress=zstd:3,ssd,discard=async,space_cache=v2
+- **Subvolumes:**
+  - `@` - root (mounted at /)
+  - `@home` - home directories (mounted at /home)
+  - `@nix` - nix store (mounted at /nix)
+  - `@log` - logs (mounted at /var/log)
+- **Boot:** 1GB vfat ESP on /dev/nvme0n1p1
+
+### transporter - Dell Latitude 7280 (RETIRED)
+
+**Status:** ⛔ Retired — removed from `flake.nix` and `hosts/`. Kept here for historical reference only.
+
+Was the original test machine (installed 2026-01-27, manual partitioning, 238.5GB SATA SSD). Its known issue — home directory ownership after install — is documented under [Common Issues](#common-issues).
 
 ## Hardware-Specific Notes
 
-### Dell Latitude 7280
+### Dell XPS 13 9370
 
 **Btrfs Benefits on This Hardware:**
 - SSD optimizations automatically detected (ssd,discard=async)
-- zstd compression saves ~30% disk space on 238.5GB drive
-- Instant snapshots available (not yet configured)
+- zstd compression saves ~30% disk space
+- Snapper snapshots configured (timeline + pre/post rebuild pairs)
 - Subvolumes allow flexible backup/restore strategies
 
-**Performance Notes:**
-- SSD detected and optimized automatically
-- Compression level 3 (zstd:3) provides good balance of speed/compression
-
-**Recommended Tweaks:**
-- Consider btrfs snapshots before/after system rebuilds
-- May want to adjust swappiness for SSD longevity
-
-### Dell XPS 13 9370
-
-_To be documented after deployment_
-
-**Expected Optimizations:**
+**nixos-hardware Optimizations:**
 - Intel graphics acceleration
 - WiFi power management
 - Touchpad configuration
@@ -110,7 +67,7 @@ _To be documented after deployment_
 - **Symptom:** Permission errors in home directory after installation
 - **Cause:** NixOS installation creates home directory with root ownership
 - **Fix:** `sudo chown -R tom:users /home/tom`
-- **Status:** Fixed on transporter, documented for gti
+- **Status:** Documented for future installs (originally hit on the retired transporter)
 
 ---
 
@@ -243,13 +200,11 @@ rebuild
 ### What nixos-hardware Provides
 
 The `nixos-hardware` profiles provide hardware-specific optimizations:
-- **Dell Latitude 7280:** Intel graphics, power management, thermal tuning
 - **Dell XPS 13 9370:** HiDPI, Thunderbolt, WiFi, touchpad, graphics
 
 **Profile Location in Flake:**
 ```nix
 # In flake.nix
-inputs.nixos-hardware.nixosModules.dell-latitude-7280
 inputs.nixos-hardware.nixosModules.dell-xps-13-9370
 ```
 
@@ -259,7 +214,7 @@ inputs.nixos-hardware.nixosModules.dell-xps-13-9370
 # Check what the hardware profile configures
 nix repl
 :lf .
-:p nixosConfigurations.transporter.config.hardware
+:p nixosConfigurations.gti.config.hardware
 ```
 
 ---
@@ -330,4 +285,4 @@ When adding new machines to ClaudeOS:
 
 ---
 
-*Last updated: 2026-02-02*
+*Last updated: 2026-06-11*
