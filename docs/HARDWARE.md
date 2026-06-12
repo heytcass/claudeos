@@ -15,7 +15,7 @@ Complete documentation for ClaudeOS hardware configurations, issues, and optimiz
 
 **Hardware Profile:** `nixos-hardware.nixosModules.dell-xps-13-9370`
 
-**Status:** ✅ Deployed and operational (the only host in the flake)
+**Status:** ⏸️ Primary machine — currently running Ubuntu pending the ClaudeOS reinstall
 
 **Specs:**
 - CPU: Intel (with kvm-intel support)
@@ -34,9 +34,9 @@ Complete documentation for ClaudeOS hardware configurations, issues, and optimiz
   - `@log` - logs (mounted at /var/log)
 - **Boot:** 1GB vfat ESP on /dev/nvme0n1p1
 
-### transporter - Dell Latitude 7280 (RETIRED)
+### transporter - Dell Latitude 7280 (TESTBED)
 
-**Status:** ⛔ Retired — removed from `flake.nix` and `hosts/`. Kept here for historical reference only.
+**Status:** 🧪 Testbed for the ClaudeOS return — proves Claude desktop/Chrome/VSCode integration before gti is reinstalled. First-install checklist in `hosts/transporter/default.nix` (sops age key must be added post-install).
 
 Was the original test machine (installed 2026-01-27, manual partitioning, 238.5GB SATA SSD). Its known issue — home directory ownership after install — is documented under [Common Issues](#common-issues).
 

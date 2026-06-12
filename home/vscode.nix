@@ -1,4 +1,4 @@
-{ pkgs, lib, ... }:
+{ lib, ... }:
 
 # VSCode chosen over Zed (Feb 2026) for Claude ecosystem compatibility:
 # - Official Anthropic extension with checkpointing, diagnostics, Agent Skills
@@ -10,22 +10,13 @@
 
     # Use default profile with current Home Manager options
     profiles.default = {
-      # Extensions
-      extensions = with pkgs.vscode-extensions; [
-        # Nix development
-        jnoortheen.nix-ide
-        mkhl.direnv
-        # nix-env-selector removed — direnv handles Nix environments
-
-        # Markdown
-        yzhang.markdown-all-in-one
-        davidanson.vscode-markdownlint
-
-        # YAML
-        redhat.vscode-yaml
-
-        # Note: Claude extension must be installed manually from VSCode marketplace
-      ];
+      # Extensions are deliberately NOT declared (two-ring design): Nix installs
+      # the VSCode binary, the Marketplace owns extensions. Declaring them here
+      # makes home-manager fight every in-app install/update — exactly the
+      # friction that matters when experimenting with the Claude extension, MCP
+      # servers, and fast-moving tooling. Suggested baseline to install via the
+      # Marketplace: anthropic.claude-code, jnoortheen.nix-ide, mkhl.direnv,
+      # yzhang.markdown-all-in-one, davidanson.vscode-markdownlint, redhat.vscode-yaml
 
       # User settings
       # Theme, fonts, and colors are managed by Stylix (home/theme.nix)

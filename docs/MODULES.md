@@ -4,7 +4,7 @@ Complete reference for all ClaudeOS NixOS configuration modules, generated from 
 
 ## Architecture Overview
 
-ClaudeOS is a NixOS flake. The entry point (`flake.nix`) currently defines a single host -- `gti` -- built via `lib/mkSystem.nix`. Every host automatically receives:
+ClaudeOS is a NixOS flake. The entry point (`flake.nix`) defines two hosts -- `gti` (primary) and `transporter` (testbed) -- built via `lib/mkSystem.nix`. Every host automatically receives:
 
 - **NixOS modules:** `modules/common/`, `modules/desktop/`, `modules/apps/`
 - **home-manager** (as a NixOS module, not standalone): imports `home/default.nix`
@@ -534,7 +534,7 @@ Modern CLI tool replacements.
 
 ## hosts/ -- Per-Host Configuration
 
-The retired `transporter` host (Dell Latitude 7280) has been removed from the flake.
+The `transporter` host (Dell Latitude 7280) serves as the testbed for the ClaudeOS return.
 
 ### hosts/gti/default.nix
 
