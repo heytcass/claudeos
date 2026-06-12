@@ -42,13 +42,19 @@
         # Terminal
         "terminal.integrated.defaultProfile.linux" = "fish";
 
-        # Nix
+        # Nix — nixd evaluates the real flake, so completion/hover covers
+        # actual NixOS and home-manager options, not just syntax
         "nix.enableLanguageServer" = true;
-        "nix.serverPath" = "nil";
+        "nix.serverPath" = "nixd";
         "nix.serverSettings" = {
-          "nil" = {
+          "nixd" = {
             "formatting" = {
               "command" = [ "nixfmt" ];
+            };
+            "options" = {
+              "nixos" = {
+                "expr" = "(builtins.getFlake \"/home/tom/.config/claudeos\").nixosConfigurations.gti.options";
+              };
             };
           };
         };

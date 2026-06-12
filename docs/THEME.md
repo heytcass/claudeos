@@ -43,7 +43,7 @@ XDG portals are provided and configured by GNOME itself (xdg-desktop-portal-gnom
 
 GNOME's own shell handles wallpaper rendering, lock screen, and notifications — the old Noctalia Material-token mapping is gone.
 
-Several consumers read the generated Stylix palette at runtime instead of being themed at build time: `claude-statusline` and the `claudeos` help command read `~/.config/stylix/palette.json`, `home/macchina.nix` and `home/imv.nix` read `config.stylix.base16Scheme`/`config.lib.stylix.colors`, and the morning-desk agent receives the palette JSON in its prompt.
+Several consumers read the generated Stylix palette at runtime instead of being themed at build time: `claude-statusline` and the `claudeos` help command read `~/.config/stylix/palette.json`, and the morning-desk agent receives the palette JSON in its prompt.
 
 ## Color Scheme
 
@@ -124,7 +124,7 @@ The theme system builds up in three distinct layers:
 
 ### Layer 3: GNOME Desktop Integration
 - `color-scheme = "prefer-dark"` in dconf (`home/gnome.nix`) so GNOME Shell and libadwaita apps follow the dark polarity
-- Runtime palette consumers: `claude-statusline`, `claudeos`, macchina, imv, morning-desk dashboard
+- Runtime palette consumers: `claude-statusline`, `claudeos`, morning-desk dashboard
 
 ## Testing
 

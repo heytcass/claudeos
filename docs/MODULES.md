@@ -82,10 +82,10 @@ Core system configuration shared by all hosts. Imported via `modules/common/defa
 Boot loader and kernel configuration.
 
 - **Bootloader:** systemd-boot (UEFI), `canTouchEfiVariables = true`
-- **Generations:** limited to 5 (`configurationLimit = 5`)
+- **Generations:** limited to 10 (`configurationLimit = 10`) -- rollback headroom for an agent-maintained OS
 - **Boot-entry editor:** disabled (`systemd-boot.editor = false`) -- prevents `init=/bin/sh` root shell via physical access
-- **Plymouth:** enabled by default (`lib.mkDefault true`) with Claude logo (`assets/claude-logo.png`), animated spinning
-- **Silent boot:** kernel params `quiet` and `splash`
+- **No Plymouth:** removed -- it pulled DRM drivers + firmware into every initrd (~60-90MB/generation on the ESP), trading rollback depth for a splash screen on a machine that boots in seconds via systemd-initrd
+- **Silent boot:** kernel param `quiet`
 - **Kernel:** latest (`linuxPackages_latest`, via `lib.mkDefault`)
 
 ### modules/common/disko.nix
@@ -137,6 +137,7 @@ Network, DNS, firewall, and SSH.
 - **systemd-resolved:** enabled with `DNSSEC = false` (upstream validation handled by local DNS server), `DNSOverTLS = "opportunistic"`, `LLMNR = false` (spoofable legacy protocol), fallback DNS `1.1.1.1` and `9.9.9.9`
 - **Boot optimization:** `NetworkManager-wait-online` disabled
 - **Firewall:** enabled, no ports opened by default
+- **No fail2ban:** removed -- key-only sshd with a modern-crypto allowlist leaves nothing for it to protect on a roaming laptop; it was a resident daemon with mutable ban state (anti-ephemerality) that can ban *you* behind shared NATs
 - **SSH server:** enabled, `PasswordAuthentication = false`, `PermitRootLogin = "no"`
 
 ### modules/common/locale.nix
@@ -155,7 +156,7 @@ System packages, hardware, and kernel tuning.
 **Packages:**
 - Basic: `vim`, `micro`, `wget`, `curl`, `htop`, `tree`, `file`, `unzip`, `zip`, `pciutils`, `usbutils`
 - Network: `dig`, `traceroute`
-- Nix dev: `nixfmt`, `statix`, `deadnix`, `nil`, `nvd` (closure diffs), `nix-output-monitor` (nom)
+- Nix dev: `nixfmt`, `statix`, `deadnix`, `nixd` (flake-aware Nix LSP; replaced unmaintained `nil`), `nvd` (closure diffs), `nix-output-monitor` (nom)
 - Scripts: `claude-quick` (Super+C), `claude-ask-desktop` (Super+A, zenity prompt), `claude-screenshot` (Super+Shift+A), `claude-screenshot-interactive` (Super+Ctrl+A) — bound via GNOME custom keybindings in `home/gnome.nix`
 - `supabase-cli` (Open Brain deployments)
 
@@ -182,7 +183,7 @@ Declarative secrets via sops-nix.
 - **Sops file:** `secrets/secrets.yaml`
 - **Decryption:** the host's SSH ed25519 key converted to age (sops-nix default `sshKeyPaths`) -- available during early boot, no user-home key file needed
 - **Managed secrets** (all owner `tom`, mode `0400`): `jasper_anthropic_api_key`, `jasper_google_client_id`, `jasper_google_client_secret`, `jasper_google_weather_api_key`, `jasper_google_routes_api_key`, `jasper_home_address`
-- `atuin_key` exists in `secrets.yaml` but is intentionally **not declared** -- atuin sync is disabled (`home/shell/cli-tools.nix`)
+- `atuin_key` exists in `secrets.yaml` but is intentionally **not declared** -- atuin is local-only by decision (`home/shell/cli-tools.nix`)
 
 See `docs/SECRETS.md` for editing/rotation workflow.
 
@@ -298,7 +299,9 @@ Stylix theming, Qt, and XDG portals. References `lib/theme.nix` for font names.
 
 User-facing applications. Imported via `modules/apps/default.nix` which pulls in: `terminals.nix`, `claude.nix`, `jasper.nix`, `mcp-system-health`, `claude-monitor`, `morning-desk.nix`. Default-enables `claude-os.claude`, `claude-os.jasper`, `claude-os.monitor` (+ `dailyBrief` + `journalDiary`), and `claude-os.morningDesk`.
 
-**Direct installs** (in `default.nix`): `google-chrome`, `slack`, `discord`, `teams-for-linux`, `obsidian`
+**Direct installs** (in `default.nix`): `google-chrome`, `obsidian`
+
+Communication apps (Slack, Discord, Teams) are deliberately NOT packaged -- they're fast-moving Electron wrappers around web apps (ring 2). They're installed as Chrome PWAs instead (`chrome://apps`), so they auto-update and add zero closure weight.
 
 ### modules/apps/terminals.nix
 
@@ -369,7 +372,7 @@ Overnight-built HTML morning dashboard (`claude-os.morningDesk`, enabled by defa
 
 ## home/ -- Home Manager Modules
 
-User-level configuration. Imported from `home/default.nix` which pulls in: `shell/`, `ghostty.nix`, `git.nix`, `vscode.nix`, `gnome.nix`, `macchina.nix`, `claude-code.nix`, `claudeos-help.nix`, `zathura.nix`, `imv.nix`.
+User-level configuration. Imported from `home/default.nix` which pulls in: `shell/`, `ghostty.nix`, `git.nix`, `vscode.nix`, `gnome.nix`, `claude-code.nix`, `claudeos-help.nix`, `zathura.nix`.
 
 ### home/default.nix
 
@@ -380,7 +383,7 @@ Root home-manager module.
 - **XDG user directories:** enabled with standard directories plus `PROJECTS = "/home/${user}/Projects"`
 - Creates `~/Projects/.directory` with `Icon=folder-development`
 - `EDITOR`/`VISUAL` = `code --wait` (session variables, so `git commit`/`sops` block until the editor closes)
-- **Default applications (mimeApps):** PDFs → zathura, images → imv, directories → Nautilus (GNOME Files); archive MIME types still point at `xarchiver.desktop` (carried over from the Niri era -- candidates for File Roller)
+- **Default applications (mimeApps):** PDFs → zathura, images → Loupe (`org.gnome.Loupe`, GNOME's GTK4/Rust viewer -- replaced imv, an unmaintained Niri-era leftover that rendered undecorated on Mutter), archives → File Roller, directories → Nautilus (GNOME Files)
 - `programs.home-manager.enable = true`
 - **Hidden desktop entries** (user-level): `yazi`, `code-url-handler`, `kvantummanager`, `qt5ct`, `qt6ct`
 
@@ -442,7 +445,7 @@ VS Code with declarative settings and Marketplace-managed extensions.
 - Whitespace rendering on selection
 - Auto-save on focus change, trim trailing whitespace, insert final newline
 
-**Nix integration:** nil language server with `nixfmt` as formatter
+**Nix integration:** nixd language server (`nix.serverPath = "nixd"`) with `nixfmt` as formatter; `nix.serverSettings.nixd.options.nixos.expr` evaluates the real flake (`nixosConfigurations.gti.options`), so completion/hover covers actual NixOS and home-manager options, not just syntax
 
 **Other:**
 - Default terminal profile: Fish
@@ -469,17 +472,6 @@ GNOME user configuration via dconf. Ports the Claude keybindings that lived in t
 - `Super+Ctrl+A` = `claude-screenshot-interactive` (screenshot → sonnet analysis in a terminal)
 
 The scripts themselves are defined in `modules/common/system.nix`.
-
-### home/macchina.nix
-
-System fetch tool with custom ASCII art and Stylix-derived colors.
-
-- Installs `macchina` package
-- Theme name: `claudeos`
-- Displayed fields: Host, Distribution, DesktopEnvironment, Shell, Uptime, Memory, Packages
-- Key color: `base09` (orange), separator color: `base03` (dim), ASCII art color: `base08` (terracotta)
-- Custom ASCII art in `~/.config/macchina/ascii/clawd.txt` (Claude asterisk glyph)
-- Rounded box border, bars with `"●"` glyph, palette hidden
 
 ### home/claude-code.nix
 
@@ -519,8 +511,8 @@ Fish shell configuration.
 **Interactive init:**
 - Disables greeting
 - Adds `~/.local/bin` to PATH (for Claude Code CLI)
-- Exports `GITHUB_PERSONAL_ACCESS_TOKEN` from `gh auth token` and `UNIFI_API_KEY` from `/run/secrets/unifi_api_key` (when present, for the UniFi MCP server)
-- Runs `macchina` plus the daily brief on first shell in terminal (tracked via `MACCHINA_SHOWN` env var)
+- Exports `UNIFI_API_KEY` from `/run/secrets/unifi_api_key` (when present, for the UniFi MCP server). The GitHub token is deliberately NOT exported globally -- use the `with-github-token` wrapper (`home/shell/cli-tools.nix`) to materialize it per-process
+- Shows the daily brief on first shell in a terminal (tracked via `CLAUDEOS_BRIEF_SHOWN` env var) -- deliberately the only first-shell output; the macchina system fetch was dropped per the proactivity doctrine (no spec-sheet feed above the brief)
 
 `EDITOR` and `VISUAL` are set to `code --wait` in `home/default.nix` (session variables, so `git commit`/`sops` block until the editor closes).
 
@@ -550,12 +542,14 @@ Modern CLI tool replacements.
 
 **Packages (direct install):** `ripgrep`, `fd`, `jq`, `btop`, `ouch`, `bun`, and `uutils-coreutils-noprefix` at `lib.hiPrio` -- the two-ring pattern applied to coreutils: system scripts keep GNU coreutils, the interactive user PATH gets the Rust uutils
 
+**`with-github-token` wrapper:** inline `writeShellScriptBin` that runs `GITHUB_PERSONAL_ACCESS_TOKEN="$(gh auth token)" exec "$@"` -- materializes the GitHub token only in the consuming process instead of exporting it into every shell; gh's keyring stays the single source of truth. Usage: `with-github-token <command...>`
+
 **Configured programs:**
 - **eza:** icons auto, git integration, group directories first, show header
 - **zoxide:** Fish integration enabled
 - **bat:** style `numbers,changes,header`, pager `less -FR`, extras: `batdiff`, `batman`, `batgrep`, `batwatch`
 - **fzf:** Fish integration disabled (handled by `fzf.fish` plugin), uses `fd` for file/directory search, `bat` for file preview, `eza --tree` for directory preview
-- **atuin:** Fish integration enabled, sync disabled, compact style, fuzzy search, global filter, preview enabled, inline height 20
+- **atuin:** Fish integration enabled, local-only by decision (`auto_sync = false`, sync deliberately not used), compact style, fuzzy search, global filter, preview enabled, inline height 20
 - **yazi:** Fish integration enabled, hidden files off, natural sort, directories first
 - **carapace:** multi-shell completion engine, Fish integration enabled
 - **gh:** GitHub CLI -- SSH git protocol, `gitCredentialHelper.enable = true` (sole home of `programs.gh`; `home/git.nix` defers to it)

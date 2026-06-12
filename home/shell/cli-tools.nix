@@ -13,6 +13,13 @@
     # Rust coreutils on the interactive PATH (two-ring applied to coreutils:
     # system scripts keep GNU coreutils, the user shell gets uutils via hiPrio)
     (lib.hiPrio uutils-coreutils-noprefix)
+
+    # Materialize the GitHub token only where it's needed, instead of
+    # exporting it into every process from every shell. gh's keyring is the
+    # single source of truth. Usage: with-github-token <command...>
+    (pkgs.writeShellScriptBin "with-github-token" ''
+      GITHUB_PERSONAL_ACCESS_TOKEN="$(gh auth token)" exec "$@"
+    '')
   ];
 
   # eza - Modern ls replacement
@@ -75,17 +82,13 @@
     ];
   };
 
-  # atuin - Shell history
+  # atuin - Shell history (local only — sync deliberately not used)
   programs.atuin = {
     enable = true;
     enableFishIntegration = true;
 
     settings = {
-      # Sync disabled — to enable: add a real atuin_key to secrets/secrets.yaml,
-      # re-declare sops.secrets.atuin_key in modules/common/secrets.nix,
-      # and set key_path = config.sops.secrets.atuin_key.path
       auto_sync = false;
-      sync_address = "";
 
       # UI preferences
       style = "compact";

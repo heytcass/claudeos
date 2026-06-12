@@ -19,11 +19,14 @@
   claude-os.morningDesk.enable = lib.mkDefault true;
 
   # Applications (direct installs — no extra configuration needed)
+  # Communication apps (Slack, Discord, Teams) are deliberately NOT packaged:
+  # they're fast-moving Electron wrappers around web apps — ring 2. Install
+  # them as Chrome PWAs (chrome://apps) so they auto-update and add zero
+  # closure weight. (Discord-in-nixpkgs famously refuses to launch until the
+  # package catches its forced updates — the exact treadmill the two-ring
+  # rule exists to avoid.)
   environment.systemPackages = with pkgs; [
-    google-chrome # Browser
-    slack # Communication
-    discord # Communication
-    teams-for-linux # Communication (Microsoft Teams)
+    google-chrome # Browser (also hosts the comms PWAs)
     obsidian # Knowledge management (install Terminal + Web Clipper community plugins)
   ];
 }

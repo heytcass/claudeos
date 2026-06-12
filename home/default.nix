@@ -16,11 +16,9 @@ in
     ./git.nix
     ./vscode.nix
     ./gnome.nix
-    ./macchina.nix
     ./claude-code.nix
     ./claudeos-help.nix
     ./zathura.nix
-    ./imv.nix
   ];
 
   # This is required for home-manager
@@ -63,17 +61,19 @@ in
   };
 
   # Default applications for file types
+  # Images — Loupe (GNOME GTK4/Rust viewer; imv was an unmaintained Niri-era
+  # leftover that rendered undecorated on Mutter)
   xdg.mimeApps = {
     enable = true;
     defaultApplications = {
       "application/pdf" = "org.pwmt.zathura.desktop";
-      "image/png" = "imv.desktop";
-      "image/jpeg" = "imv.desktop";
-      "image/gif" = "imv.desktop";
-      "image/webp" = "imv.desktop";
-      "image/svg+xml" = "imv.desktop";
-      "image/tiff" = "imv.desktop";
-      "image/bmp" = "imv.desktop";
+      "image/png" = "org.gnome.Loupe.desktop";
+      "image/jpeg" = "org.gnome.Loupe.desktop";
+      "image/gif" = "org.gnome.Loupe.desktop";
+      "image/webp" = "org.gnome.Loupe.desktop";
+      "image/svg+xml" = "org.gnome.Loupe.desktop";
+      "image/tiff" = "org.gnome.Loupe.desktop";
+      "image/bmp" = "org.gnome.Loupe.desktop";
 
       # Archives — File Roller (GNOME); overrides zathura-cb which claims zip/tar/7z/rar for comic book formats
       "application/zip" = "org.gnome.FileRoller.desktop";
