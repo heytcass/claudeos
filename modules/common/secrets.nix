@@ -37,6 +37,13 @@
     mode = "0400";
   };
 
+  # UniFi MCP server credential — fish exports UNIFI_API_KEY from this path;
+  # .mcp.json expands it from the environment (never hardcoded in git again)
+  sops.secrets.unifi_api_key = {
+    owner = user;
+    mode = "0400";
+  };
+
   # atuin_key intentionally not declared — atuin sync is disabled
   # (home/shell/cli-tools.nix); re-declare here when enabling sync
 }
