@@ -58,7 +58,7 @@ NixOS configuration optimized for Claude Code workflow.
 
 ## Current Status
 
-Gti (Dell XPS 13 9370) is fully deployed and operational. It is the only host defined in the flake — transporter (Dell Latitude 7280) has been retired.
+Gti (Dell XPS 13 9370) is the primary machine (currently running Ubuntu pending the ClaudeOS reinstall). Transporter (Dell Latitude 7280) is defined as a testbed host to prove the integration story before gti is reinstalled.
 
 **Future Enhancements:**
 - NixOS impermanence for stateless system

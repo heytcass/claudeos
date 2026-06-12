@@ -8,7 +8,7 @@ ClaudeOS is a fully operational NixOS configuration for personal machines.
 
 ### Deployed: gti (Dell XPS 13 9370)
 
-Production machine — the only host in the flake. transporter (Dell Latitude 7280) was retired and removed from `flake.nix` and `hosts/`.
+Primary machine (currently running Ubuntu pending the ClaudeOS reinstall). transporter (Dell Latitude 7280) was re-added as a testbed host for the return.
 
 **What works:**
 - Niri compositor + Noctalia shell on Wayland
@@ -51,7 +51,7 @@ Production machine — the only host in the flake. transporter (Dell Latitude 72
 
 ### 2026-06-11
 - Security/quality audit cleanup
-  - Removed retired transporter host from flake (gti is now the sole host)
+  - Briefly removed transporter from the flake, then re-added it as a testbed host with a pinned disk device
   - Disko: ESP grown to 1G; no default disk device (each host pins its own)
   - Boot: configurationLimit 5, systemd-boot editor disabled
   - Snapper: NUMBER_CLEANUP/NUMBER_LIMIT/EMPTY_PRE_POST_CLEANUP on root + home
