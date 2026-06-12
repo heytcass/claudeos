@@ -1,10 +1,16 @@
+# sops recipients. The user key is THE recovery root — its private half lives
+# in ~/.config/sops/age/keys.txt AND the password manager (key regenerated
+# 2026-06-12 after the original was lost in the Ubuntu wipe; old ciphertext
+# was unrecoverable and recreated from scratch).
+#
+# Host keys are added at install time (see docs/TRANSPORTER_BRINGUP.html
+# phase 3): derive with `ssh-to-age < /etc/ssh/ssh_host_ed25519_key.pub`,
+# append below AND to the key group, then `sops updatekeys secrets/secrets.yaml`.
 keys:
-  - &user age1a7znzdjx0fm4rx9jcd63r5tdaajpxthwgqplx87xyfrmal2pge2qcln96z
-  - &gti_host age1ahseuak8pg0x4g9g2j3tg4jcuv2kc5kh0p0m65mxxfaewfy7pg0qnsn6vf
+  - &user age1e5akqhur8pwcntv2v256dga60kglccj5ah73m7y4fv3u90esuegqu0wvwx
 
 creation_rules:
   - path_regex: secrets/.*\.yaml$
     key_groups:
       - age:
           - *user
-          - *gti_host
