@@ -32,7 +32,7 @@ in
 
       # GTK/libadwaita integration
       gtk-titlebar = true;
-      # Tab bar uses Adwaita symbolic icons (adwaita-icon-theme in modules/desktop/niri-system.nix)
+      # Tab bar uses Adwaita symbolic icons (adwaita-icon-theme + hicolor shim in modules/desktop/gnome.nix)
       # Default behavior: show tab bar when multiple tabs are open
 
       # Performance and platform integration

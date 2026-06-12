@@ -73,13 +73,6 @@ in
     style = lib.mkForce "adwaita-dark";
   };
 
-  # XDG portal for better desktop integration
-  # niri-flake auto-adds xdg-desktop-portal-gnome; we keep GTK as fallback
-  xdg.portal = {
-    enable = true;
-    extraPortals = with pkgs; [
-      xdg-desktop-portal-gtk
-    ];
-    config.common.default = "gtk";
-  };
+  # XDG portals are provided and configured by GNOME itself
+  # (xdg-desktop-portal-gnome + gtk fallback) — no manual wiring needed
 }

@@ -6,7 +6,6 @@
     ./claude.nix
     ./jasper.nix
     ./mcp-system-health
-    ./mcp-niri
     ./claude-monitor
   ];
 

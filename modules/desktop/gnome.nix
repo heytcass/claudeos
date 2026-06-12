@@ -1,55 +1,38 @@
+# modules/desktop/gnome.nix — GNOME on Wayland.
+# Chosen 2026-06 over Niri: familiar, best app integration (portals, file
+# pickers, drag-and-drop, Chrome extension native messaging all first-class).
+# Compositor experiments (Hyprland, etc.) can return later as specialisations.
 { lib, pkgs, ... }:
 
 let
   hideDesktopEntries = import ../../lib/hideDesktopEntries.nix { inherit pkgs lib; };
 in
 {
-  # Enable Niri compositor (niri-flake handles the package and session registration)
-  programs.niri.enable = true;
+  # GDM + GNOME (Wayland by default)
+  services.displayManager.gdm.enable = true;
+  services.desktopManager.gnome.enable = true;
 
-  # Disable niri-flake's bundled KDE polkit agent — it crashes on every boot before
-  # the Wayland session is ready (boot race), then self-heals via Restart=on-failure.
-  # Noctalia's native polkit-agent plugin handles auth prompts instead (runs inside
-  # Quickshell, so no race condition possible).
-  systemd.user.services.niri-flake-polkit.enable = lib.mkForce false;
-
-  # greetd + tuigreet — minimal TUI greeter
-  services.greetd = {
-    enable = true;
-    settings = {
-      default_session = {
-        command = "${pkgs.tuigreet}/bin/tuigreet --time --remember --remember-session --cmd niri-session";
-        user = "greeter";
-      };
-    };
-  };
+  # Trim the default GNOME app set — we have our own picks for these roles
+  environment.gnome.excludePackages = with pkgs; [
+    gnome-tour
+    epiphany # browser → Chrome
+    geary # mail → web
+    gnome-music # music → web/Spotify
+    totem # video player
+  ];
 
   # Disable X11 forwarding over SSH for security
   services.openssh.settings.X11Forwarding = lib.mkDefault false;
 
-  # Wayland session environment variables
   environment.sessionVariables = {
-    GDK_BACKEND = "wayland,x11"; # GTK: prefer Wayland, fall back to X11
-    QT_QPA_PLATFORM = "wayland;xcb"; # Qt: prefer Wayland, fall back to XCB
     NIXOS_OZONE_WL = "1"; # Electron apps use native Wayland
   };
 
-  # Core packages for the Niri desktop
   environment.systemPackages = with pkgs; [
-    # Wayland utilities
+    gnome-tweaks
     wl-clipboard # Clipboard access (wl-copy / wl-paste)
-    cliphist # Clipboard history manager
-    fuzzel # Application launcher
-    brightnessctl # Backlight control
-    grim # Screenshot capture
-    slurp # Region selection
-    satty # Screenshot annotation
-    xarchiver # Lightweight GTK archive manager
-
-    # Icon themes
-    # adwaita-icon-theme provides the base symbolic icons that GTK4/libadwaita
-    # apps expect — not bundled by Niri or Noctalia
-    adwaita-icon-theme
+    zenity # Dialog prompts (claude-ask-desktop)
+    gnome-screenshot # CLI capture (claude-screenshot scripts)
 
     # Provide tab-new-symbolic for Ghostty's libadwaita tab bar.
     # This icon was removed from adwaita-icon-theme in GNOME 46+ and no
@@ -65,7 +48,7 @@ in
       SVG
     '')
 
-    # folder-development icon for ~/Projects (matches COSMIC icon style)
+    # folder-development icon for ~/Projects
     (pkgs.runCommand "hicolor-folder-development" { } ''
       mkdir -p $out/share/icons/hicolor/scalable/places
       cat > $out/share/icons/hicolor/scalable/places/folder-development.svg <<'SVG'
@@ -107,7 +90,7 @@ in
       SVG
     '')
 
-    # Hide unwanted .desktop entries from launcher
+    # Hide unwanted .desktop entries from the launcher
     (hideDesktopEntries [
       "com.google.Chrome"
       "vim"
@@ -120,27 +103,6 @@ in
       "nm-applet"
       "nm-connection-editor"
       "org.freedesktop.Xwayland"
-      "xdg-desktop-portal-gtk"
-      "geoclue-where-am-i"
     ])
   ];
-
-  # Thunar file manager — the module (not bare packages) wraps Thunar so its
-  # plugins (archive handling, removable media) are actually discovered
-  programs.thunar = {
-    enable = true;
-    plugins = with pkgs.xfce; [
-      thunar-archive-plugin
-      thunar-volman
-    ];
-  };
-
-  # xfconf persists Thunar preferences between sessions
-  programs.xfconf.enable = true;
-
-  # Enable GVfs for virtual filesystems (Trash, network shares, etc.)
-  services.gvfs.enable = true;
-
-  # Tumbler — thumbnail service for Thunar (images, videos, PDFs)
-  services.tumbler.enable = true;
 }
