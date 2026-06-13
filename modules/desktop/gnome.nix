@@ -30,6 +30,12 @@ in
 
   environment.systemPackages = with pkgs; [
     gnome-tweaks
+
+    # AppIndicator/StatusNotifier host. GNOME ships no system tray, so apps
+    # that expose a tray icon (e.g. Claude Desktop) have nowhere to render
+    # without this. Enabled per-user via dconf in home/gnome.nix.
+    gnomeExtensions.appindicator
+
     wl-clipboard # Clipboard access (wl-copy / wl-paste)
     zenity # Dialog prompts (claude-ask-desktop)
     gnome-screenshot # CLI capture (claude-screenshot scripts)

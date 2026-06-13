@@ -52,6 +52,14 @@ in
       show-battery-percentage = true;
     };
 
+    # Enable the AppIndicator/StatusNotifier extension so tray icons have a
+    # host (GNOME has no system tray by default). The extension package is
+    # installed system-side in modules/desktop/gnome.nix.
+    "org/gnome/shell" = {
+      disable-user-extensions = false;
+      enabled-extensions = [ "appindicatorsupport@rgcjonas.gmail.com" ];
+    };
+
     # Idle + lock: blank at 5 min, lock immediately on blank
     "org/gnome/desktop/session" = {
       idle-delay = mkUint32 300;
