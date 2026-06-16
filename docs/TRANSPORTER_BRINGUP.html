@@ -65,6 +65,8 @@ wpa_cli   # &gt; add_network / set_network 0 ssid "..." psk "..." / enable_netwo
 
 <b># get the config (repo is PRIVATE — authenticate first)</b>
 sudo -i
+<b># the installer doesn't enable flakes by default — turn them on for this session</b>
+export NIX_CONFIG="experimental-features = nix-command flakes"
 nix-shell -p gh git
 gh auth login   <b># GitHub.com → HTTPS → "Login with a web browser"</b>
                 <b># prints a short code (e.g. AB12-CD34); enter it at github.com/login/device on your phone</b>
