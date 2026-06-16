@@ -63,10 +63,12 @@
 sudo systemctl start wpa_supplicant
 wpa_cli   # &gt; add_network / set_network 0 ssid "..." psk "..." / enable_network 0
 
-<b># get the config</b>
+<b># get the config (repo is PRIVATE — authenticate first)</b>
 sudo -i
-nix-shell -p git
-git clone https://github.com/heytcass/claudeos /mnt-config && cd /mnt-config
+nix-shell -p gh git
+gh auth login   <b># GitHub.com → HTTPS → "Login with a web browser"</b>
+                <b># prints a short code (e.g. AB12-CD34); enter it at github.com/login/device on your phone</b>
+gh repo clone heytcass/claudeos /mnt-config && cd /mnt-config
 
 <b># partition + format + mount via disko (1G ESP + btrfs subvolumes)</b>
 nix run github:nix-community/disko/latest -- \
@@ -88,9 +90,9 @@ reboot</pre>
     <h2><span class="ph">2</span>First login</h2>
     <ul class="check">
       <li><input type="checkbox"><div>Log into GNOME, connect wifi. Keyboard is <b>colemak</b> (dconf) — TTYs too.</div></li>
-      <li><input type="checkbox"><div>Clone the repo to its home: <code>git clone https://github.com/heytcass/claudeos ~/.config/claudeos</code> <span class="why">(fish helpers, auto-update, and agents all expect this path)</span></div></li>
+      <li><input type="checkbox"><div><b>Authenticate first</b> (repo is private): <code>gh auth login</code> → GitHub.com → <b>HTTPS</b> → "Login with a web browser" (short code at github.com/login/device — no token typing). <span class="why">This also installs git's credential helper, so auto-update pushes and self-heal PRs work over HTTPS.</span></div></li>
+      <li><input type="checkbox"><div>Clone the repo to its home: <code>gh repo clone heytcass/claudeos ~/.config/claudeos</code> <span class="why">(fish helpers, auto-update, and agents all expect this path)</span></div></li>
       <li><input type="checkbox"><div>Claude Code self-installs at login (<code>claude-code-installer</code> service). Then: <code>claude login</code> — subscription auth.</div></li>
-      <li><input type="checkbox"><div><code>gh auth login</code> (SSH protocol). <span class="why">Needed by auto-update pushes and self-heal PRs.</span></div></li>
       <li><input type="checkbox"><div>Sanity: <code>claudeos</code> (help), <code>, cowsay moo</code> (comma), prompt shows <code>❄ oxidized-ring-baseline</code> after first rebuild.</div></li>
     </ul>
   </section>
