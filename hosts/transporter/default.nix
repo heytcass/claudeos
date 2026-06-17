@@ -27,10 +27,23 @@
   # Overrides the mkDefault in boot.nix.
   boot.kernelPackages = pkgs.linuxPackages;
 
-  # Drop the shared "quiet" param on this host while we're bringing it up, so a
-  # failed boot shows its last kernel line on-screen (the persistent journal
-  # can't capture a pre-userspace lock). Restore once boot is proven.
-  boot.kernelParams = lib.mkForce [ ];
+  # The LTS kernel cleared the early lock, but the 7280 then HARD-LOCKS (Caps
+  # Lock dead) at the display handoff. i915 Panel Self-Refresh / display power
+  # states are the classic Kaby Lake culprit there — disable them. Also drop
+  # the shared "quiet" param during bring-up so a failed boot shows its last
+  # kernel line (journald can't capture a hard lock). Restore quiet + re-test
+  # PSR once boot is proven.
+  boot.kernelParams = lib.mkForce [
+    "i915.enable_psr=0"
+    "i915.enable_dc=0"
+    "i915.enable_fbc=0"
+  ];
+
+  # scx_lavd (BPF scheduler, modules/common/system.nix) can wedge the CPU hard
+  # — indistinguishable from the i915 lock above (dead Caps Lock) — when its
+  # service starts late in boot. Disable it on this host during bring-up to
+  # remove the variable; re-enable once the desktop is confirmed stable.
+  services.scx.enable = lib.mkForce false;
 
   # TESTBED TRIAL (tool-rethink 2026-06-12): iwd as NetworkManager's wifi
   # backend — faster scans, better roaming, WPA3, while NM keeps the GNOME
