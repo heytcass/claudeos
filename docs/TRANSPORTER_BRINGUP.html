@@ -73,8 +73,8 @@ gh auth login   <b># GitHub.com → HTTPS → "Login with a web browser"</b>
 gh repo clone heytcass/claudeos /mnt-config && cd /mnt-config
 
 <b># partition + format + mount via disko (1G ESP + btrfs subvolumes)</b>
-nix run github:nix-community/disko/latest -- \
-  --mode destroy,format,mount --flake .#transporter
+<b># keep this on ONE line — exactly one `--`, then `--mode` (no space)</b>
+nix run github:nix-community/disko/latest -- --mode destroy,format,mount --flake .#transporter
 
 <b># install</b>
 nixos-install --flake .#transporter
