@@ -45,6 +45,15 @@
   # remove the variable; re-enable once the desktop is confirmed stable.
   services.scx.enable = lib.mkForce false;
 
+  # BRING-UP ONLY: boot.nix sets systemd-boot.editor = false, which blocks
+  # editing the kernel cmdline at the boot menu — forcing a full USB rescue
+  # cycle for every kernel-param experiment. Re-enable the editor here so we
+  # can test params (nomodeset, individual i915 flags) live by pressing `e` at
+  # the systemd-boot menu. SECURITY NOTE: this lets anyone at the keyboard pass
+  # arbitrary kernel params (e.g. init=/bin/sh) — acceptable on a testbed mid
+  # bring-up; REVERT (drop this line) once the machine boots reliably.
+  boot.loader.systemd-boot.editor = lib.mkForce true;
+
   # TESTBED TRIAL (tool-rethink 2026-06-12): iwd as NetworkManager's wifi
   # backend — faster scans, better roaming, WPA3, while NM keeps the GNOME
   # integration. Graduates to modules/common/networking.nix if the trial
