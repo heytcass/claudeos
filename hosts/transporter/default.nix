@@ -28,6 +28,12 @@
   # The previous pin *claimed* conservatism but 6.18 is barely older than 7.0.
   # Pin the genuinely battle-tested 6.12 LTS (supported upstream to Dec 2026,
   # still ≥6.12 so sched_ext/scx_lavd support holds when re-enabled).
+  #
+  # TEMPORARY (decided 2026-07-01): 6.12 is the diagnostic baseline, not the
+  # destination. Once boot is proven, step back up — 6.18, then latest — with
+  # the late-KMS change below still in place, and drop this pin as soon as a
+  # modern kernel boots. If even 6.12 locks, the problem is not a kernel
+  # regression (look at BIOS/firmware instead).
   boot.kernelPackages = pkgs.linuxPackages_6_12;
 
   # The nixos-hardware dell-latitude-7280 profile loads i915 in the STAGE-1
