@@ -13,7 +13,7 @@ in
   options.claude-os.jasper.enable = lib.mkEnableOption "Jasper AI companion daemon";
 
   config = lib.mkIf config.claude-os.jasper.enable {
-    # Install daemon system-wide (Noctalia bar plugin is a follow-up task)
+    # Install daemon system-wide (desktop indicator/widget is a follow-up task)
     environment.systemPackages = [
       jasperPkgs.daemon
     ];

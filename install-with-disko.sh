@@ -163,14 +163,10 @@ umount -R /mnt 2>/dev/null || true
 # Step 2: Run disko to partition and format
 info "Step 2: Partitioning and formatting with disko..."
 
-# Try to use nixpkgs disko if available (faster), fallback to GitHub
-if nix-env -qa 2>/dev/null | grep -q "^disko-"; then
-    info "Using disko from nixpkgs..."
-    DISKO_CMD="nix run nixpkgs#disko"
-else
-    info "Downloading disko from GitHub..."
-    DISKO_CMD="nix run github:nix-community/disko"
-fi
+# Run the disko pinned in this repo's flake.lock — the exact version the
+# config was validated against (--inputs-from resolves "disko" from the lock)
+info "Running disko pinned by flake.lock..."
+DISKO_CMD="nix run --inputs-from . disko"
 
 $DISKO_CMD -- \
     --mode disko \
