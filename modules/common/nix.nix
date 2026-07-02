@@ -11,9 +11,6 @@
     # Store Nix config under XDG directories instead of ~/.nix-*
     use-xdg-base-directories = true;
 
-    # Optimize store automatically
-    auto-optimise-store = true;
-
     # Suppress "Git tree is dirty" warning during builds
     warn-dirty = false;
 
@@ -40,6 +37,17 @@
       "nix-community.cachix.org-1:mB9FSh9qf2dCimDSUo8Zy7bkq5CX+/rkCWyvRCYg3Fs="
     ];
   };
+
+  # Deduplicate the store on a schedule instead of inline during every build
+  # (auto-optimise-store hard-links per-build and causes lock contention)
+  nix.optimise = {
+    automatic = true;
+    dates = [ "weekly" ];
+  };
+
+  # Fully flakes-based system — disable the vestigial channel subsystem
+  # (and its implicit root-channel NIX_PATH state)
+  nix.channel.enable = false;
 
   # nh: modern nixos-rebuild front-end — live build graph (nom), automatic
   # closure diff on every switch, and declarative GC (replaces nix.gc.automatic)
