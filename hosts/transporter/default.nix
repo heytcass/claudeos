@@ -20,23 +20,45 @@
   # Disko disk device for this machine (SATA SSD)
   disko.devices.disk.main.device = "/dev/sda";
 
-  # The latest mainline kernel (modules/common/boot.nix default) HARD-LOCKS
-  # this Latitude 7280 ~3 lines into early boot (Caps Lock dead = CPU freeze,
-  # before userspace — classic latest-kernel regression on Kaby Lake). Pin the
-  # stable LTS kernel; it's still ≥6.12, so scx_lavd's sched_ext support holds.
-  # Overrides the mkDefault in boot.nix.
-  boot.kernelPackages = pkgs.linuxPackages;
+  # Kernel history on this Latitude 7280 (Kaby Lake, 2017):
+  #   - linuxPackages_latest (7.0.x): HARD-LOCKS ~3 lines into early boot.
+  #   - linuxPackages "LTS" (= 6.18.x in the current pin!): clears the early
+  #     lock but HARD-LOCKS at the i915 display handoff, even with PSR/DC/FBC
+  #     disabled.
+  # The previous pin *claimed* conservatism but 6.18 is barely older than 7.0.
+  # Pin the genuinely battle-tested 6.12 LTS (supported upstream to Dec 2026,
+  # still ≥6.12 so sched_ext/scx_lavd support holds when re-enabled).
+  #
+  # TEMPORARY (decided 2026-07-01): 6.12 is the diagnostic baseline, not the
+  # destination. Once boot is proven, step back up — 6.18, then latest — with
+  # the late-KMS change below still in place, and drop this pin as soon as a
+  # modern kernel boots. If even 6.12 locks, the problem is not a kernel
+  # regression (look at BIOS/firmware instead).
+  boot.kernelPackages = pkgs.linuxPackages_6_12;
 
-  # The LTS kernel cleared the early lock, but the 7280 then HARD-LOCKS (Caps
-  # Lock dead) at the display handoff. i915 Panel Self-Refresh / display power
-  # states are the classic Kaby Lake culprit there — disable them. Also drop
-  # the shared "quiet" param during bring-up so a failed boot shows its last
-  # kernel line (journald can't capture a hard lock). Restore quiet + re-test
-  # PSR once boot is proven.
+  # The nixos-hardware dell-latitude-7280 profile loads i915 in the STAGE-1
+  # INITRD (early KMS) — so the display-handoff lock happens before root is
+  # mounted and before journald exists, which is why no failed boot has left
+  # evidence. Defer i915 to stage 2: the handoff then happens with the journal
+  # on disk (a lock there leaves a log), and everything before it stays visible
+  # on the EFI framebuffer. Boot cost is a later modeset flicker — irrelevant
+  # during bring-up. Re-enable once boot is proven.
+  hardware.intelgpu.loadInInitrd = false;
+
+  # i915 Panel Self-Refresh / display power states / framebuffer compression
+  # are the classic Kaby Lake hang culprits — keep them off until boot is
+  # proven, then re-test one at a time. "quiet" (shared boot.nix param) stays
+  # dropped during bring-up so a failed boot shows its last kernel line.
+  # sysrq_always_enabled makes Magic SysRq work from earliest boot (the
+  # kernel.sysrq sysctl only applies in stage 2): if the machine "locks",
+  # Alt+PrtSc+B rebooting it proves the kernel is alive and the panel merely
+  # went dark (display bug), while no reaction confirms a true CPU hard lock.
+  # Restore quiet + drop sysrq_always_enabled once boot is proven.
   boot.kernelParams = lib.mkForce [
     "i915.enable_psr=0"
     "i915.enable_dc=0"
     "i915.enable_fbc=0"
+    "sysrq_always_enabled=1"
   ];
 
   # scx_lavd (BPF scheduler, modules/common/system.nix) can wedge the CPU hard
