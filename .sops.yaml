@@ -8,9 +8,13 @@
 # append below AND to the key group, then `sops updatekeys secrets/secrets.yaml`.
 keys:
   - &user age1e5akqhur8pwcntv2v256dga60kglccj5ah73m7y4fv3u90esuegqu0wvwx
+  # transporter host key — derived from its ssh_host_ed25519_key after the
+  # 2026-07-05 fresh install (fresh install ⇒ new host keys ⇒ new age key)
+  - &transporter_host age14pjus99w6dkk5rlsz4jtme7jjhgf7ypd896p29dlch0ue8t3pqdq9vu4lk
 
 creation_rules:
   - path_regex: secrets/.*\.yaml$
     key_groups:
       - age:
           - *user
+          - *transporter_host
