@@ -25,6 +25,8 @@
     # SSH public keys for passwordless login
     openssh.authorizedKeys.keys = [
       "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFqJcKOf70muwJzsxYzNf988D7uJty0rtS7cCquQWBsl tom@ubuntu-dev"
+      # gti (Ubuntu era) — used to drive transporter installs/admin remotely
+      "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIGUt1Q2bElRhISBmkOz3iR4wkW4I7yFFTd3x0qLQTBhb gti-claudeos-install"
     ];
   };
 

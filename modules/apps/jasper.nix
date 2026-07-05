@@ -24,9 +24,19 @@ in
     # service claims the bus name; desktop clients connect via polling.
     systemd.user.services.jasper-companion = {
       description = "Jasper AI Companion Daemon";
+      # DEPENDENCY DIRECTION MATTERS (learned 2026-07-05, transporter reinstall):
+      # the old `wants = graphical-session.target` + `wantedBy = default.target`
+      # made jasper START in every user manager (including GDM's throwaway
+      # gdm-greeter users) and PULL graphical-session.target active before
+      # gnome-session-init ran — which then aborted with "A graphical session
+      # is already running!", killing the greeter in a loop until GDM gave up
+      # (black screen, system alive). A user unit must never activate
+      # graphical-session.target; it should be pulled in BY it, and only for
+      # the real desktop user.
       after = [ "graphical-session.target" ];
-      wants = [ "graphical-session.target" ];
-      wantedBy = [ "default.target" ];
+      partOf = [ "graphical-session.target" ];
+      wantedBy = [ "graphical-session.target" ];
+      unitConfig.ConditionUser = "tom";
 
       serviceConfig = {
         Type = "simple";
