@@ -50,16 +50,10 @@
   # `hardware.intelgpu.loadInInitrd = false;` and investigate i915-in-initrd
   # on 7.0.x specifically.
 
-  # Walk-up step 4 (2026-07-05): i915 PSR/DC/FBC restored to driver defaults —
-  # they were disabled as suspected Kaby Lake hang culprits, but the "hangs"
-  # turned out to be the jasper greeter bug, so the power savings return.
-  # sysrq stays (and "quiet" stays dropped) until the last cleanup reboot:
-  # if PSR/DC/FBC do misbehave on this panel, we want the console evidence
-  # and the SysRq escape hatch one more time. Final state: drop this whole
-  # mkForce (shared boot.nix "quiet" returns) once A+B prove stable.
-  boot.kernelParams = lib.mkForce [
-    "sysrq_always_enabled=1"
-  ];
+  # Walk-up complete (2026-07-05): kernel params back to the shared defaults
+  # ("quiet" from boot.nix). PSR/DC/FBC run driver defaults, scx_lavd is on,
+  # early KMS is on, latest kernel — every bring-up carve-out retested clean
+  # after the real culprit (jasper's greeter-killing user unit) was fixed.
 
   # Walk-up step 5 (2026-07-05): scx_lavd re-enabled (shared setting from
   # modules/common/system.nix applies again). It was disabled as a possible
@@ -67,14 +61,9 @@
   # wedges with a dead Caps Lock from here on, scx is the first suspect —
   # re-add `services.scx.enable = lib.mkForce false;` to isolate.
 
-  # BRING-UP ONLY: boot.nix sets systemd-boot.editor = false, which blocks
-  # editing the kernel cmdline at the boot menu — forcing a full USB rescue
-  # cycle for every kernel-param experiment. Re-enable the editor here so we
-  # can test params (nomodeset, individual i915 flags) live by pressing `e` at
-  # the systemd-boot menu. SECURITY NOTE: this lets anyone at the keyboard pass
-  # arbitrary kernel params (e.g. init=/bin/sh) — acceptable on a testbed mid
-  # bring-up; REVERT (drop this line) once the machine boots reliably.
-  boot.loader.systemd-boot.editor = lib.mkForce true;
+  # Boot-menu editor back to the shared locked-down default (boot.nix sets
+  # editor = false) — the bring-up escape hatch is no longer needed now that
+  # the machine boots reliably and is administrable over SSH.
 
   # TESTBED: passwordless sudo for wheel so kernel walk-up rebuilds/reboots
   # can be driven over SSH from gti without a human at the keyboard
