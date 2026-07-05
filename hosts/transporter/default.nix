@@ -50,19 +50,14 @@
   # `hardware.intelgpu.loadInInitrd = false;` and investigate i915-in-initrd
   # on 7.0.x specifically.
 
-  # i915 Panel Self-Refresh / display power states / framebuffer compression
-  # are the classic Kaby Lake hang culprits — keep them off until boot is
-  # proven, then re-test one at a time. "quiet" (shared boot.nix param) stays
-  # dropped during bring-up so a failed boot shows its last kernel line.
-  # sysrq_always_enabled makes Magic SysRq work from earliest boot (the
-  # kernel.sysrq sysctl only applies in stage 2): if the machine "locks",
-  # Alt+PrtSc+B rebooting it proves the kernel is alive and the panel merely
-  # went dark (display bug), while no reaction confirms a true CPU hard lock.
-  # Restore quiet + drop sysrq_always_enabled once boot is proven.
+  # Walk-up step 4 (2026-07-05): i915 PSR/DC/FBC restored to driver defaults —
+  # they were disabled as suspected Kaby Lake hang culprits, but the "hangs"
+  # turned out to be the jasper greeter bug, so the power savings return.
+  # sysrq stays (and "quiet" stays dropped) until the last cleanup reboot:
+  # if PSR/DC/FBC do misbehave on this panel, we want the console evidence
+  # and the SysRq escape hatch one more time. Final state: drop this whole
+  # mkForce (shared boot.nix "quiet" returns) once A+B prove stable.
   boot.kernelParams = lib.mkForce [
-    "i915.enable_psr=0"
-    "i915.enable_dc=0"
-    "i915.enable_fbc=0"
     "sysrq_always_enabled=1"
   ];
 
