@@ -61,11 +61,11 @@
     "sysrq_always_enabled=1"
   ];
 
-  # scx_lavd (BPF scheduler, modules/common/system.nix) can wedge the CPU hard
-  # — indistinguishable from the i915 lock above (dead Caps Lock) — when its
-  # service starts late in boot. Disable it on this host during bring-up to
-  # remove the variable; re-enable once the desktop is confirmed stable.
-  services.scx.enable = lib.mkForce false;
+  # Walk-up step 5 (2026-07-05): scx_lavd re-enabled (shared setting from
+  # modules/common/system.nix applies again). It was disabled as a possible
+  # hard-lock culprit; the locks were the jasper greeter bug. If the desktop
+  # wedges with a dead Caps Lock from here on, scx is the first suspect —
+  # re-add `services.scx.enable = lib.mkForce false;` to isolate.
 
   # BRING-UP ONLY: boot.nix sets systemd-boot.editor = false, which blocks
   # editing the kernel cmdline at the boot menu — forcing a full USB rescue
