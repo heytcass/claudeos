@@ -40,14 +40,15 @@
   # boot on 2026-06-16. If that reproduces, re-pin pkgs.linuxPackages (6.18)
   # and investigate 7.0-vs-Kaby-Lake specifically (BIOS 1.36.0 is current).
 
-  # The nixos-hardware dell-latitude-7280 profile loads i915 in the STAGE-1
-  # INITRD (early KMS) — so the display-handoff lock happens before root is
-  # mounted and before journald exists, which is why no failed boot has left
-  # evidence. Defer i915 to stage 2: the handoff then happens with the journal
-  # on disk (a lock there leaves a log), and everything before it stays visible
-  # on the EFI framebuffer. Boot cost is a later modeset flicker — irrelevant
-  # during bring-up. Re-enable once boot is proven.
-  hardware.intelgpu.loadInInitrd = false;
+  # Early KMS (i915 in stage-1 initrd, from the nixos-hardware
+  # dell-latitude-7280 profile) re-enabled 2026-07-05 — walk-up step 3.
+  # It was deferred to stage 2 during bring-up so a display-handoff failure
+  # would land in the on-disk journal; that forensic window is what proved
+  # the "locks" were the jasper greeter bug, not i915. This reboot is the
+  # true retrial of the 2026-06-16 "7.0 locks 3 lines in" report (which
+  # happened WITH early KMS): if it reproduces, restore
+  # `hardware.intelgpu.loadInInitrd = false;` and investigate i915-in-initrd
+  # on 7.0.x specifically.
 
   # i915 Panel Self-Refresh / display power states / framebuffer compression
   # are the classic Kaby Lake hang culprits — keep them off until boot is
