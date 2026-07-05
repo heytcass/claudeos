@@ -20,21 +20,23 @@
   # Disko disk device for this machine (SATA SSD)
   disko.devices.disk.main.device = "/dev/sda";
 
-  # Kernel history on this Latitude 7280 (Kaby Lake, 2017):
-  #   - linuxPackages_latest (7.0.x): HARD-LOCKS ~3 lines into early boot.
-  #   - linuxPackages "LTS" (= 6.18.x in the current pin!): clears the early
-  #     lock but HARD-LOCKS at the i915 display handoff, even with PSR/DC/FBC
-  #     disabled.
-  # The previous pin *claimed* conservatism but 6.18 is barely older than 7.0.
-  # Pin the genuinely battle-tested 6.12 LTS (supported upstream to Dec 2026,
-  # still ≥6.12 so sched_ext/scx_lavd support holds when re-enabled).
+  # Kernel history on this Latitude 7280 (Kaby Lake, 2017) — REWRITTEN
+  # 2026-07-05 after the fresh install: the "hard locks at the display
+  # handoff" (6.18, and initially 6.12) were NEVER the kernel. They were
+  # jasper's user unit pulling graphical-session.target active in GDM's
+  # greeter sessions, killing the greeter in a loop — black screen, stuck
+  # VT, dead-looking keyboard, while journald kept logging underneath
+  # (fixed in modules/apps/jasper.nix). 6.12 + that fix boots to a working
+  # desktop (proven 2026-07-05, BIOS 1.36.0).
   #
-  # TEMPORARY (decided 2026-07-01): 6.12 is the diagnostic baseline, not the
-  # destination. Once boot is proven, step back up — 6.18, then latest — with
-  # the late-KMS change below still in place, and drop this pin as soon as a
-  # modern kernel boots. If even 6.12 locks, the problem is not a kernel
-  # regression (look at BIOS/firmware instead).
-  boot.kernelPackages = pkgs.linuxPackages_6_12;
+  # Still unexplained: linuxPackages_latest (7.0.x) locking ~3 lines into
+  # EARLY boot (pre-userspace, 2026-06-16) — that predates any greeter and
+  # deserves a retrial now that late failures can't be misattributed.
+  #
+  # WALK-UP IN PROGRESS: 6.12 (proven) → 6.18 (this pin, testing) → drop
+  # the pin entirely (latest). If 6.18 boots, the only remaining question
+  # is whether the 7.0 early-boot lock reproduces.
+  boot.kernelPackages = pkgs.linuxPackages;
 
   # The nixos-hardware dell-latitude-7280 profile loads i915 in the STAGE-1
   # INITRD (early KMS) — so the display-handoff lock happens before root is
@@ -75,6 +77,12 @@
   # arbitrary kernel params (e.g. init=/bin/sh) — acceptable on a testbed mid
   # bring-up; REVERT (drop this line) once the machine boots reliably.
   boot.loader.systemd-boot.editor = lib.mkForce true;
+
+  # TESTBED: passwordless sudo for wheel so kernel walk-up rebuilds/reboots
+  # can be driven over SSH from gti without a human at the keyboard
+  # (per the decided autonomy-over-hardening trade-off in PHILOSOPHY.md).
+  # Revisit when transporter graduates from bring-up.
+  security.sudo-rs.wheelNeedsPassword = false;
 
   # TESTBED TRIAL (tool-rethink 2026-06-12): iwd as NetworkManager's wifi
   # backend — faster scans, better roaming, WPA3, while NM keeps the GNOME
