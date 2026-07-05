@@ -33,10 +33,12 @@
   # EARLY boot (pre-userspace, 2026-06-16) — that predates any greeter and
   # deserves a retrial now that late failures can't be misattributed.
   #
-  # WALK-UP IN PROGRESS: 6.12 (proven) → 6.18 (this pin, testing) → drop
-  # the pin entirely (latest). If 6.18 boots, the only remaining question
-  # is whether the 7.0 early-boot lock reproduces.
-  boot.kernelPackages = pkgs.linuxPackages;
+  # WALK-UP: 6.12 proven 2026-07-05, 6.18.34 proven same day (clean boot,
+  # no failed units — the "6.18 display-handoff lock" was the jasper bug).
+  # Pin now dropped → linuxPackages_latest (boot.nix default), retrying the
+  # one genuinely unexplained failure: 7.0.x locking ~3 lines into early
+  # boot on 2026-06-16. If that reproduces, re-pin pkgs.linuxPackages (6.18)
+  # and investigate 7.0-vs-Kaby-Lake specifically (BIOS 1.36.0 is current).
 
   # The nixos-hardware dell-latitude-7280 profile loads i915 in the STAGE-1
   # INITRD (early KMS) — so the display-handoff lock happens before root is

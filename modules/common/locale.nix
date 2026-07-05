@@ -28,6 +28,15 @@ in
     keyMap = "colemak";
   };
 
-  # GNOME reads its keyboard layout from dconf (home/gnome.nix input-sources);
-  # services.xserver.xkb is not needed for the Wayland session.
+  # Tom's GNOME session reads its layout from dconf (home/gnome.nix
+  # input-sources) — but the GDM GREETER cannot see user dconf and falls back
+  # to the system xkb default, which showed up as QWERTY at the login screen
+  # on transporter's fresh install (2026-07-05). Set the system default to
+  # Colemak so GDM matches the session. (accountsservice papers over this
+  # after the first login on long-lived installs, which is why it went
+  # unnoticed before.)
+  services.xserver.xkb = {
+    layout = "us";
+    variant = "colemak";
+  };
 }
