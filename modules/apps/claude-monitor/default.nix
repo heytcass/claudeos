@@ -243,8 +243,10 @@ in
 
         systemd.user.services.claudeos-notify = {
           description = "ClaudeOS Claude-authored notification handler";
+          # Ordering only — `wants` here would ACTIVATE graphical-session.target
+          # in whatever user manager starts this unit (the jasper.nix bug that
+          # broke GDM greeters on 2026-07-05). Never pull that target in.
           after = [ "graphical-session.target" ];
-          wants = [ "graphical-session.target" ];
           serviceConfig = {
             Type = "oneshot";
             ExecStart = toString notifyScript;
