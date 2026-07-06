@@ -73,6 +73,13 @@ in
     style = lib.mkForce "adwaita-dark";
   };
 
+  # Stylix's home-manager qt target detects GNOME and sets the deprecated
+  # platformTheme "gnome", which Stylix itself flags as unsupported — Qt
+  # theming is handled entirely by the system-level qt block above
+  home-manager.sharedModules = [
+    { stylix.targets.qt.enable = false; }
+  ];
+
   # XDG portals are provided and configured by GNOME itself
   # (xdg-desktop-portal-gnome + gtk fallback) — no manual wiring needed
 }

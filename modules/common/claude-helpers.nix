@@ -56,8 +56,13 @@ in
         Use conventional commits (feat:/fix:/chore:). One line, under 72 chars.
         Just the message, nothing else.
 
-        $diff_output" --model haiku 2>/dev/null)
+        $diff_output" --model haiku 2>/dev/null) || msg=""
         [[ -z "$msg" ]] && exit 0
+        # Only a one-line conventional-commit shape may become a commit
+        # message — CLI error text ("Not logged in · Please run /login")
+        # otherwise gets committed verbatim
+        [[ "$msg" == *$'\n'* ]] && exit 0
+        [[ "$msg" =~ ^[a-z]+(\(.+\))?!?:\ .+$ ]] || exit 0
 
         git -C "$dir" add -A \
           && git -C "$dir" commit -m "$msg" \

@@ -34,6 +34,9 @@ in
   xdg.userDirs = {
     enable = true;
     createDirectories = true;
+    # Don't export XDG_*_DIR as session variables (the 26.05 default) —
+    # everything reads ~/.config/user-dirs.dirs directly
+    setSessionVariables = false;
     extraConfig = {
       PROJECTS = "${config.home.homeDirectory}/Projects";
     };
