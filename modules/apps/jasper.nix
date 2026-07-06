@@ -7,7 +7,7 @@
 }:
 
 let
-  jasperPkgs = inputs.jasper.packages.${pkgs.system};
+  jasperPkgs = inputs.jasper.packages.${pkgs.stdenv.hostPlatform.system};
 in
 {
   options.claude-os.jasper.enable = lib.mkEnableOption "Jasper AI companion daemon";

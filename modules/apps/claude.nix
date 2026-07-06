@@ -111,7 +111,7 @@
 
     home-manager.users.${user} = {
       home.packages = [
-        inputs.claude-desktop-linux.packages.${pkgs.system}.claude-desktop
+        inputs.claude-desktop-linux.packages.${pkgs.stdenv.hostPlatform.system}.claude-desktop
       ];
     };
 
