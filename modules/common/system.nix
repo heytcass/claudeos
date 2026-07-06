@@ -181,6 +181,20 @@ in
           return polkit.Result.YES;
         }
       });
+
+      // fwupd-refresh.service runs as DynamicUser "fwupd-refresh" and cannot
+      // answer interactive polkit auth, so its LVFS metadata refresh dies with
+      // "Failed to obtain auth" (found 2026-07-05 on transporter; it also
+      // trips the 15-min health check, which can each cost a claude -p call).
+      // Allow fwupd actions for exactly that service user.
+      polkit.addRule(function(action, subject) {
+        if (
+          action.id.indexOf("org.freedesktop.fwupd.") === 0 &&
+          subject.user === "fwupd-refresh"
+        ) {
+          return polkit.Result.YES;
+        }
+      });
     '';
   };
 
