@@ -187,8 +187,10 @@ in
       // "Failed to obtain auth" (found 2026-07-05 on transporter; it also
       // trips the 15-min health check, which can each cost a claude -p call).
       // Allow fwupd actions for exactly that service user.
-      // Upstream: https://github.com/NixOS/nixpkgs/issues/530906 — delete
-      // this rule once the nixpkgs fwupd module ships its own fix.
+      // Upstream: https://github.com/NixOS/nixpkgs/issues/530906 — FIXED on
+      // master by d9bf382cad (2026-06-04, nixos/fwupd polkit rule); our
+      // 2026-06-06 channel pin predates it. DELETE this rule at the next
+      // nixpkgs flake bump — the module then ships the scoped equivalent.
       polkit.addRule(function(action, subject) {
         if (
           action.id.indexOf("org.freedesktop.fwupd.") === 0 &&
