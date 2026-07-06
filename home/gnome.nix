@@ -33,7 +33,8 @@ let
     }
   ];
 
-  keybindingPath = i: "org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom${toString i}";
+  keybindingPath =
+    i: "org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom${toString i}";
 in
 {
   dconf.settings = {
@@ -73,5 +74,7 @@ in
       custom-keybindings = lib.imap0 (i: _: "/${keybindingPath i}/") claudeKeybindings;
     };
   }
-  // lib.listToAttrs (lib.imap0 (i: binding: lib.nameValuePair (keybindingPath i) binding) claudeKeybindings);
+  // lib.listToAttrs (
+    lib.imap0 (i: binding: lib.nameValuePair (keybindingPath i) binding) claudeKeybindings
+  );
 }
