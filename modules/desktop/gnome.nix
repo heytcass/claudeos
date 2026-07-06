@@ -19,7 +19,15 @@ in
     geary # mail → web
     gnome-music # music → web/Spotify
     totem # video player
+    gnome-console # terminal → Ghostty (home/ghostty.nix)
   ];
+
+  # Nautilus "Open in Terminal" context menu → Ghostty (replaces the
+  # built-in "Open in Console" entry that died with gnome-console above)
+  programs.nautilus-open-any-terminal = {
+    enable = true;
+    terminal = "ghostty";
+  };
 
   # Disable X11 forwarding over SSH for security
   services.openssh.settings.X11Forwarding = lib.mkDefault false;
