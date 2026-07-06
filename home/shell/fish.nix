@@ -154,60 +154,60 @@
       # Rebuild NixOS with snapper pre/post snapshots + Claude-named generation
       # + auto-commit. Uses nh (build graph via nom, closure diff on activation).
       rebuild = ''
-                # Parse --no-commit flag
-                set -l no_commit false
-                set -l pass_args
-                for arg in $argv
-                  if test "$arg" = "--no-commit"
-                    set no_commit true
-                  else
-                    set -a pass_args $arg
-                  end
-                end
+        # Parse --no-commit flag
+        set -l no_commit false
+        set -l pass_args
+        for arg in $argv
+          if test "$arg" = "--no-commit"
+            set no_commit true
+          else
+            set -a pass_args $arg
+          end
+        end
 
-                # Name this generation: claude-name-generation (claude-helpers.nix)
-                # turns the pending diff into a haiku-written slug, falling back to
-                # a timestamp. The slug becomes the boot-menu label
-                # (system.nixos.tags) and the snapper snapshot description.
-                set -l slug (begin
-                  git -C ~/.config/claudeos diff 2>/dev/null
-                  git -C ~/.config/claudeos diff --cached 2>/dev/null
-                end | claude-name-generation --fallback "rebuild-"(date +%m%d-%H%M))
-                git -C ~/.config/claudeos add generation-label
-                echo "Generation label: $slug"
+        # Name this generation: claude-name-generation (claude-helpers.nix)
+        # turns the pending diff into a haiku-written slug, falling back to
+        # a timestamp. The slug becomes the boot-menu label
+        # (system.nixos.tags) and the snapper snapshot description.
+        set -l slug (begin
+          git -C ~/.config/claudeos diff 2>/dev/null
+          git -C ~/.config/claudeos diff --cached 2>/dev/null
+        end | claude-name-generation --fallback "rebuild-"(date +%m%d-%H%M))
+        git -C ~/.config/claudeos add generation-label
+        echo "Generation label: $slug"
 
-                set -l pre_root (sudo snapper -c root create --type pre --cleanup-algorithm number --print-number --description "pre: $slug" 2>/dev/null)
-                set -l pre_home (snapper -c home create --type pre --cleanup-algorithm number --print-number --description "pre: $slug" 2>/dev/null)
-                if test -n "$pre_root" -a -n "$pre_home"
-                  echo "Snapshots: root#$pre_root, home#$pre_home"
-                else
-                  echo "Warning: snapper pre-snapshots failed (root#$pre_root, home#$pre_home)"
-                end
+        set -l pre_root (sudo snapper -c root create --type pre --cleanup-algorithm number --print-number --description "pre: $slug" 2>/dev/null)
+        set -l pre_home (snapper -c home create --type pre --cleanup-algorithm number --print-number --description "pre: $slug" 2>/dev/null)
+        if test -n "$pre_root" -a -n "$pre_home"
+          echo "Snapshots: root#$pre_root, home#$pre_home"
+        else
+          echo "Warning: snapper pre-snapshots failed (root#$pre_root, home#$pre_home)"
+        end
 
-                nh os switch -- $pass_args
-                set -l rebuild_status $status
+        nh os switch -- $pass_args
+        set -l rebuild_status $status
 
-                if test $rebuild_status -eq 0
-                  if test -n "$pre_root"
-                    sudo snapper -c root create --type post --pre-number $pre_root --cleanup-algorithm number --description "post: $slug"
-                  end
-                  if test -n "$pre_home"
-                    snapper -c home create --type post --pre-number $pre_home --cleanup-algorithm number --description "post: $slug"
-                  end
-                  if test -n "$pre_root"
-                    echo "Rebuild complete. Rollback: sudo snapper -c root undochange $pre_root..(math $pre_root + 1)"
-                  else
-                    echo "Rebuild complete. (No snapshots for rollback)"
-                  end
+        if test $rebuild_status -eq 0
+          if test -n "$pre_root"
+            sudo snapper -c root create --type post --pre-number $pre_root --cleanup-algorithm number --description "post: $slug"
+          end
+          if test -n "$pre_home"
+            snapper -c home create --type post --pre-number $pre_home --cleanup-algorithm number --description "post: $slug"
+          end
+          if test -n "$pre_root"
+            echo "Rebuild complete. Rollback: sudo snapper -c root undochange $pre_root..(math $pre_root + 1)"
+          else
+            echo "Rebuild complete. (No snapshots for rollback)"
+          end
 
-                  # Auto-commit config changes with Claude-generated message
-                  # (claude-commit in claude-helpers.nix)
-                  if not $no_commit
-                    claude-commit
-                  end
-                else
-                  echo "Rebuild failed (exit $rebuild_status). Pre-snapshots: root#$pre_root, home#$pre_home"
-                end
+          # Auto-commit config changes with Claude-generated message
+          # (claude-commit in claude-helpers.nix)
+          if not $no_commit
+            claude-commit
+          end
+        else
+          echo "Rebuild failed (exit $rebuild_status). Pre-snapshots: root#$pre_root, home#$pre_home"
+        end
       '';
     };
 
