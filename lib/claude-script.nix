@@ -36,7 +36,7 @@ let
     CLAUDEOS_DIR="$HOME/.config/claudeos"
     STATE_DIR="''${XDG_STATE_HOME:-$HOME/.local/state}/claudeos"
     # Diagnostic tool set for interactive "open in Claude" handoffs
-    CLAUDEOS_DIAG_TOOLS='Bash,Read,Grep,Glob,mcp__system-health*'
+    CLAUDEOS_DIAG_TOOLS='Bash,Read,Grep,Glob,mcp__system-health__*'
 
     claudeos_notify() { notify-send --app-name=ClaudeOS "$@"; }
 
