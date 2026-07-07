@@ -25,9 +25,76 @@ let
     "-st-accent-fg-color" = config.lib.stylix.colors.withHashtag.base07;
   };
 
-  shellAccentSedArgs = lib.concatStringsSep " " (
-    lib.mapAttrsToList (token: color: "-e 's/${token}/${color}/g'") shellAccentSubstitutions
-  );
+  sedArgsFor =
+    subs: lib.concatStringsSep " " (lib.mapAttrsToList (from: to: "-e 's/${from}/${to}/gI'") subs);
+
+  shellAccentSedArgs = sedArgsFor shellAccentSubstitutions;
+
+  # Nautilus folder icons: Adwaita hardcodes a blue ramp in its places icons
+  # (no accent-color integration at all). Overlaying adwaita-icon-theme would
+  # rebuild half of GNOME, so instead ship a tiny "ClaudeOS" icon theme that
+  # inherits Adwaita and overrides only the places icons, recolored onto the
+  # terracotta ramp.
+  folderIconSubstitutions = with config.lib.stylix.colors.withHashtag; {
+    "#62a0ea" = base0D; # folder body
+    "#438de6" = base0F; # folder shading / back flap
+    "#c0d5ea" = base09; # gloss highlights (three near-identical pale tints)
+    "#afd4ff" = base09;
+    "#a4caee" = base09;
+  };
+
+  claudeosIconTheme =
+    pkgs.runCommand "claudeos-icon-theme"
+      {
+        nativeBuildInputs = with pkgs; [
+          imagemagick
+          gtk3 # gtk-update-icon-cache
+        ];
+      }
+      ''
+        adwaita=${pkgs.adwaita-icon-theme}/share/icons/Adwaita
+        theme=$out/share/icons/ClaudeOS
+        mkdir -p "$theme/scalable/places" "$theme/16x16/places"
+
+        for svg in "$adwaita"/scalable/places/*.svg; do
+          sed ${sedArgsFor folderIconSubstitutions} "$svg" > "$theme/scalable/places/''${svg##*/}"
+        done
+
+        # The 16x16 PNGs of the folder family are pure blue-on-alpha, so a
+        # global hue rotation is fringe-free (-modulate calibrated so #62a0ea
+        # lands on base0D terracotta — recalibrate if the palette changes).
+        # network-* and user-trash contain other colors; omit them and let
+        # icon-theme inheritance fall back to stock Adwaita.
+        for png in "$adwaita"/16x16/places/folder*.png \
+                   "$adwaita"/16x16/places/user-bookmarks.png \
+                   "$adwaita"/16x16/places/user-desktop.png \
+                   "$adwaita"/16x16/places/user-home.png; do
+          magick "$png" -modulate 95,90,188 "$theme/16x16/places/''${png##*/}"
+        done
+
+        cat > "$theme/index.theme" <<EOF
+        [Icon Theme]
+        Name=ClaudeOS
+        Comment=Adwaita with Stylix terracotta folders
+        Inherits=Adwaita,hicolor
+
+        Directories=16x16/places,scalable/places
+
+        [16x16/places]
+        Context=Places
+        Size=16
+        Type=Fixed
+
+        [scalable/places]
+        Context=Places
+        Size=128
+        MinSize=8
+        MaxSize=512
+        Type=Scalable
+        EOF
+
+        gtk-update-icon-cache "$theme"
+      '';
 
   # Stylix's home-manager gnome target ALSO themes the shell: it installs the
   # User Themes extension and loads its own compiled CSS as a user theme,
@@ -77,6 +144,14 @@ in
     image = ../../assets/chicago.jpg;
     imageScalingMode = "fill";
 
+    # Terracotta folder icons (see claudeosIconTheme above)
+    icons = {
+      enable = true;
+      package = claudeosIconTheme;
+      dark = "ClaudeOS";
+      light = "ClaudeOS";
+    };
+
     # Dark mode theme
     polarity = "dark";
 
@@ -125,6 +200,13 @@ in
     # Themes extension (see shellUserThemeCss above).
     {
       xdg.dataFile."themes/Stylix/gnome-shell/gnome-shell.css".source = lib.mkForce shellUserThemeCss;
+    }
+
+    # Stylix's hm icons target only sets gtk.iconTheme (settings.ini), but
+    # GNOME apps read the icon theme from gsettings via the settings portal —
+    # set the dconf key so Nautilus actually picks the theme up.
+    {
+      dconf.settings."org/gnome/desktop/interface".icon-theme = "ClaudeOS";
     }
   ];
 
