@@ -22,13 +22,6 @@ in
     gnome-console # terminal → Ghostty (home/ghostty.nix)
   ];
 
-  # Nautilus "Open in Terminal" context menu → Ghostty (replaces the
-  # built-in "Open in Console" entry that died with gnome-console above)
-  programs.nautilus-open-any-terminal = {
-    enable = true;
-    terminal = "ghostty";
-  };
-
   # Disable X11 forwarding over SSH for security
   services.openssh.settings.X11Forwarding = lib.mkDefault false;
 
@@ -38,6 +31,12 @@ in
 
   environment.systemPackages = with pkgs; [
     gnome-tweaks
+
+    # Python extension loader for Nautilus. Ghostty bundles its own
+    # "Open in Ghostty" context-menu extension (share/nautilus-python/
+    # extensions/ghostty.py); this loader is all Nautilus needs to run it.
+    # Replaces the built-in "Open in Console" that died with gnome-console.
+    nautilus-python
 
     # AppIndicator/StatusNotifier host. GNOME ships no system tray, so apps
     # that expose a tray icon (e.g. Claude Desktop) have nowhere to render
