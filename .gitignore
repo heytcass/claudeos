@@ -19,6 +19,10 @@ secrets/*.age
 !secrets/.sops.yaml
 !secrets/secrets.yaml
 
+# Machine-local Claude Code settings (session-scratch allowlist; accretes
+# one-off commands and machine paths — durable rules live in settings.json)
+.claude/settings.local.json
+
 # Temporary files
 *.tmp
 *.bak
