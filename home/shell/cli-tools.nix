@@ -108,7 +108,8 @@
     shellWrapperName = "y"; # New default in 26.05 (was "yy")
 
     settings = {
-      manager = {
+      # yazi 25.x renamed the [manager] section to [mgr]
+      mgr = {
         show_hidden = false;
         sort_by = "natural";
         sort_dir_first = true;

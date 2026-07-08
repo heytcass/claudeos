@@ -183,19 +183,11 @@ in
     };
   };
 
-  # Qt applications should use GTK theme for consistency
-  qt = {
-    enable = true;
-    platformTheme = lib.mkForce "gtk2";
-    style = lib.mkForce "adwaita-dark";
-  };
+  # Qt theming is per-user via home-manager (home/gnome.nix, adwaita platform
+  # theme, with Stylix's unsupported-on-GNOME Qt target disabled there) — the
+  # NixOS-level qt module only offers legacy platform plugins (gtk2/qt5ct/...).
 
-  # Stylix's home-manager qt target detects GNOME and sets the deprecated
-  # platformTheme "gnome", which Stylix itself flags as unsupported — Qt
-  # theming is handled entirely by the system-level qt block above
   home-manager.sharedModules = [
-    { stylix.targets.qt.enable = false; }
-
     # Override the shell CSS Stylix's gnome target installs for the User
     # Themes extension (see shellUserThemeCss above).
     {

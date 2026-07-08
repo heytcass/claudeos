@@ -33,6 +33,6 @@
     };
   };
 
-  # Audio is managed through Noctalia Shell and wpctl
+  # Audio is managed through GNOME Settings/quick-settings and wpctl
   # For advanced needs: install pavucontrol or helvum per-project via nix shell
 }

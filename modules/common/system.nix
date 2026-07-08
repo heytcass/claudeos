@@ -122,7 +122,7 @@ in
   services.power-profiles-daemon.enable = lib.mkDefault true;
 
   # UPower: D-Bus service for battery/power source reporting
-  # Required for Noctalia's Battery widget (and any other desktop battery indicators)
+  # Required for GNOME's battery indicator (and any other desktop battery indicators)
   services.upower.enable = true;
 
   # Zram swap for compressed in-memory swap
@@ -137,8 +137,8 @@ in
     extraArgs = [ "--autopower" ];
   };
 
-  # dbus-broker: the Fedora/Arch default bus implementation — faster under the
-  # chatty desktop IPC of Niri + Noctalia/quickshell
+  # dbus-broker: the Fedora/Arch default bus implementation — faster under
+  # chatty desktop IPC (GNOME Shell, portals, gsd daemons)
   services.dbus.implementation = "broker";
 
   # systemd-oomd: proactive OOM handling using PSI (Pressure Stall Information)
