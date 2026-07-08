@@ -131,8 +131,10 @@ let
 
         [[ -z "$changelog" ]] && changelog="Flake inputs updated ($(date -I))"
 
-        # Name the generation (shared slug logic → boot-menu label)
-        echo "$changelog" | claude-name-generation --fallback "flake-update-$(date +%m%d)" > /dev/null
+        # Name the generation (shared slug logic → boot-menu label).
+        # --local: the changelog IS already a haiku summary — deriving the
+        # slug from it locally avoids a second model call per run
+        echo "$changelog" | claude-name-generation --local --fallback "flake-update-$(date +%m%d)" > /dev/null
 
         # Commit and push (retry once after rebase in case origin moved mid-run)
         git add flake.lock generation-label

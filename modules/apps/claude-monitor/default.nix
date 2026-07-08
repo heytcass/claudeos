@@ -46,7 +46,9 @@ let
 
       $context"
 
-        notification=$(claude_text sonnet "$prompt")
+        # haiku: a 2-3 sentence notification on a 15-min timer path is the
+        # cost doctrine's textbook high-frequency lane
+        notification=$(claude_text haiku "$prompt")
 
         if [[ -n "$notification" ]]; then
           touch "$COOLDOWN_FILE"
@@ -134,7 +136,10 @@ let
 
       $stats"
 
-      brief=$(claude_text sonnet "$prompt")
+      # haiku: 2-4 sentences from pre-collected stats, every single day —
+      # high-frequency lane per the cost doctrine (the morning DESK keeps
+      # sonnet: it synthesizes a full dashboard)
+      brief=$(claude_text haiku "$prompt")
 
       if [[ -n "$brief" ]]; then
         echo "$brief" > "$BRIEF_FILE"

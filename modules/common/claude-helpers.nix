@@ -21,17 +21,35 @@ in
     (claudeLib.mkClaudeScriptBin {
       name = "claude-name-generation";
       text = ''
-        # Usage: claude-name-generation [--fallback SLUG] < diff-or-summary
+        # Usage: claude-name-generation [--local] [--fallback SLUG] < input
         # Writes the slug to $CLAUDEOS_DIR/generation-label and prints it.
+        #   default: haiku summarizes a DIFF into a slug (fish rebuild path)
+        #   --local: derive the slug from input that is ALREADY a summary
+        #            (auto-update's changelog) — no second model call for
+        #            text a model just wrote (cost doctrine)
         fallback="rebuild-$(date +%m%d-%H%M)"
-        [[ "$1" == "--fallback" && -n "$2" ]] && fallback="$2"
+        local_mode=false
+        while [[ $# -gt 0 ]]; do
+          case "$1" in
+            --local) local_mode=true; shift ;;
+            --fallback) fallback="$2"; shift 2 ;;
+            *) shift ;;
+          esac
+        done
 
         input=$(cat)
         slug=""
         if [[ -n "$input" ]]; then
-          slug=$(claude_text haiku "Summarize this NixOS change as a slug of 2-4 lowercase words joined by hyphens, only [a-z0-9-], max 40 chars, no explanation:
+          if $local_mode; then
+            # First four >2-char words of the summary, hyphen-joined
+            slug=$(echo "$input" | tr '[:upper:]' '[:lower:]' \
+              | tr -c 'a-z0-9' ' ' | tr -s ' ' '\n' \
+              | awk 'length($0) > 2' | head -4 | paste -sd- -)
+          else
+            slug=$(claude_text haiku "Summarize this NixOS change as a slug of 2-4 lowercase words joined by hyphens, only [a-z0-9-], max 40 chars, no explanation:
 
         $input")
+          fi
           # system.nixos.label only accepts [a-zA-Z0-9:_.-] (generation-label.nix)
           slug=$(echo "$slug" | tr -c 'a-zA-Z0-9:_.-' '-' | cut -c1-40 | sed 's/-*$//')
         fi

@@ -359,8 +359,8 @@ System health MCP server for Claude Code.
 Proactive monitoring with Claude-authored notifications (`claude-os.monitor`, all tiers enabled by default).
 
 - **Tier 1 -- health check:** pure-bash timer every 15 min (failed services, disk, memory, OOM kills, critical journal entries); $0 cost
-- **Tier 2 -- notification:** `OnFailure` handler sends the alert context to Claude (sonnet) for a human-readable notification with an "Open in Claude" action button; rate-limited to one Claude call per 30 min
-- **Tier 3 -- daily brief** (`claude-os.monitor.dailyBrief`): 9 AM briefing from system stats (uptime, failed units, disk, generations, flake age, repo state, diary findings), written to a cache file shown in the first terminal of the day
+- **Tier 2 -- notification:** `OnFailure` handler sends the alert context to Claude (haiku — high-frequency lane per the cost doctrine) for a human-readable notification with an "Open in Claude" action button; rate-limited to one Claude call per 30 min
+- **Tier 3 -- daily brief** (`claude-os.monitor.dailyBrief`): 9 AM briefing (haiku) from system stats (uptime, failed units, disk, generations, flake age, repo state, diary findings), written to a cache file shown in the first terminal of the day
 - **Tier 4 -- journal diary** (`claude-os.monitor.journalDiary`): nightly 4 AM haiku triage of deduplicated error-level journal lines against the persistent ledger `docs/known-issues.md` (edits ride the next rebuild auto-commit). Known-benign noise is silenced; new actionable findings land in `diary-actionable.txt` and feed the morning brief and morning desk. Saves its agent session id for `approve`
 
 ### modules/apps/morning-desk.nix
