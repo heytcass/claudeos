@@ -2,10 +2,11 @@
 # Exits non-zero if issues found, writing context to alert file
 # Triggered every 15 min by systemd timer; OnFailure starts the Claude notifier
 
-CACHE_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/claudeos-monitor"
-CONTEXT_FILE="$CACHE_DIR/alert-context.txt"
+# MONITOR_CACHE_DIR comes from the claude-script.nix preamble (this file is
+# readFile'd into a mkClaudeScript body)
+CONTEXT_FILE="$MONITOR_CACHE_DIR/alert-context.txt"
 
-mkdir -p "$CACHE_DIR"
+mkdir -p "$MONITOR_CACHE_DIR"
 > "$CONTEXT_FILE"
 issues=0
 

@@ -125,12 +125,9 @@ let
         # Success — generate changelog
         diff_output=$(nix store diff-closures /run/current-system ./result 2>&1 || true)
 
-        changelog=""
-        if [[ -x "$CLAUDE_BIN" ]]; then
-          changelog=$("$CLAUDE_BIN" -p "Summarize this NixOS package update diff. List notable version bumps and flag potentially breaking changes. 2-3 sentences max. No markdown.
+        changelog=$(claude_text haiku "Summarize this NixOS package update diff. List notable version bumps and flag potentially breaking changes. 2-3 sentences max. No markdown.
 
-      $diff_output" --model haiku 2>/dev/null) || changelog=""
-        fi
+      $diff_output")
 
         [[ -z "$changelog" ]] && changelog="Flake inputs updated ($(date -I))"
 
@@ -175,12 +172,9 @@ let
         ''}
       else
         # Build failed — diagnose and revert
-        diagnosis=""
-        if [[ -x "$CLAUDE_BIN" ]]; then
-          diagnosis=$("$CLAUDE_BIN" -p "This NixOS build failed after flake update. Diagnose the issue briefly and suggest a fix. No markdown.
+        diagnosis=$(claude_text sonnet "This NixOS build failed after flake update. Diagnose the issue briefly and suggest a fix. No markdown.
 
-      $build_output" --model sonnet 2>/dev/null) || diagnosis=""
-        fi
+      $build_output")
 
         [[ -z "$diagnosis" ]] && diagnosis="Build failed after flake update. Run 'nix log' to see details."
 

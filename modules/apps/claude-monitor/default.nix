@@ -27,9 +27,8 @@ let
     name = "claudeos-notify";
     runtimeInputs = [ pkgs.ghostty ];
     text = ''
-      CACHE_DIR="''${XDG_CACHE_HOME:-$HOME/.cache}/claudeos-monitor"
-      CONTEXT_FILE="$CACHE_DIR/alert-context.txt"
-      COOLDOWN_FILE="$CACHE_DIR/last-claude-call"
+      CONTEXT_FILE="$MONITOR_CACHE_DIR/alert-context.txt"
+      COOLDOWN_FILE="$MONITOR_CACHE_DIR/last-claude-call"
       COOLDOWN=1800  # 30 minutes
 
       # Nothing to report
@@ -39,19 +38,15 @@ let
 
       # --- Rate limit check ---
       use_claude=true
-      if [[ -f "$COOLDOWN_FILE" ]]; then
-        last=$(stat -c %Y "$COOLDOWN_FILE" 2>/dev/null || echo 0)
-        now=$(date +%s)
-        (( now - last < COOLDOWN )) && use_claude=false
-      fi
+      claudeos_cooldown_ok "$COOLDOWN_FILE" "$COOLDOWN" || use_claude=false
 
       # --- Try Claude-authored notification ---
-      if $use_claude && [[ -x "$CLAUDE_BIN" ]]; then
+      if $use_claude; then
         prompt="You are ClaudeOS, the AI monitoring this NixOS system. Analyze these system alerts and respond with ONLY the notification body text (2-3 sentences max). Be specific and actionable — include the exact command the user should run to fix it if applicable. No markdown, no emoji, no titles, no tool use — just output plain text and nothing else.
 
       $context"
 
-        notification=$("$CLAUDE_BIN" -p "$prompt" --model sonnet 2>/dev/null) || notification=""
+        notification=$(claude_text sonnet "$prompt")
 
         if [[ -n "$notification" ]]; then
           touch "$COOLDOWN_FILE"
@@ -94,10 +89,9 @@ let
     name = "claudeos-daily-brief";
     runtimeInputs = [ pkgs.ghostty ];
     text = ''
-      CACHE_DIR="''${XDG_CACHE_HOME:-$HOME/.cache}/claudeos-monitor"
-      BRIEF_FILE="$CACHE_DIR/daily-brief.txt"
-      STATS_FILE="$CACHE_DIR/daily-stats.txt"
-      mkdir -p "$CACHE_DIR"
+      BRIEF_FILE="$DAILY_BRIEF_FILE"
+      STATS_FILE="$MONITOR_CACHE_DIR/daily-stats.txt"
+      mkdir -p "$MONITOR_CACHE_DIR"
 
       now=$(date +%s)
 
@@ -128,38 +122,36 @@ let
       Config repo: $(claudeos_repo_summary)"
 
       # Overnight journal-diary findings (Tier 4) feed the brief
-      if [[ -s "$CACHE_DIR/diary-actionable.txt" ]]; then
+      if [[ -s "$DIARY_ACTIONABLE_FILE" ]]; then
         stats="$stats
-      Journal diary (overnight triage): $(cat "$CACHE_DIR/diary-actionable.txt")"
+      Journal diary (overnight triage): $(cat "$DIARY_ACTIONABLE_FILE")"
       fi
 
       # Save stats for the "Details" action
       echo "$stats" > "$STATS_FILE"
 
-      if [[ -x "$CLAUDE_BIN" ]]; then
-        prompt="You are ClaudeOS, the AI that manages this NixOS system. Write a concise daily briefing (2-4 sentences) for the terminal MOTD. Focus on what needs attention or action — failed services, stale config, uncommitted work, disk pressure. If everything looks healthy, say so briefly. No markdown, no emoji, plain text only.
+      prompt="You are ClaudeOS, the AI that manages this NixOS system. Write a concise daily briefing (2-4 sentences) for the terminal MOTD. Focus on what needs attention or action — failed services, stale config, uncommitted work, disk pressure. If everything looks healthy, say so briefly. No markdown, no emoji, plain text only.
 
       $stats"
 
-        brief=$("$CLAUDE_BIN" -p "$prompt" --model sonnet 2>/dev/null) || brief=""
+      brief=$(claude_text sonnet "$prompt")
 
-        if [[ -n "$brief" ]]; then
-          echo "$brief" > "$BRIEF_FILE"
+      if [[ -n "$brief" ]]; then
+        echo "$brief" > "$BRIEF_FILE"
 
-          # Send notification with action button
-          action=$(claudeos_notify --icon=claude \
-            -A "details=Details" -A "dismiss=Dismiss" \
-            "Good Morning" "$brief")
+        # Send notification with action button
+        action=$(claudeos_notify --icon=claude \
+          -A "details=Details" -A "dismiss=Dismiss" \
+          "Good Morning" "$brief")
 
-          if [[ "$action" == "details" ]]; then
-            claude_interactive "Good morning. Here are the current system stats for this NixOS machine:
+        if [[ "$action" == "details" ]]; then
+          claude_interactive "Good morning. Here are the current system stats for this NixOS machine:
 
       $stats
 
       Review the system state and let me know if anything needs attention. Check journalctl, systemctl, and other system tools for more details on any issues." "$CLAUDEOS_DIAG_TOOLS"
-          fi
-          exit 0
         fi
+        exit 0
       fi
 
       # Fallback: raw stats if Claude unavailable
@@ -176,8 +168,7 @@ let
   journalDiaryScript = claudeLib.mkClaudeScript {
     name = "claudeos-journal-diary";
     text = ''
-      CACHE_DIR="''${XDG_CACHE_HOME:-$HOME/.cache}/claudeos-monitor"
-      mkdir -p "$CACHE_DIR"
+      mkdir -p "$MONITOR_CACHE_DIR"
 
       # grep -v: the session-bus dbus-broker's "Ignoring duplicate name" spam
       # can't be filtered at journald ingest (LogFilterPatterns is enforced
@@ -186,7 +177,7 @@ let
         | grep -v "Ignoring duplicate name" \
         | sort | uniq -c | sort -rn | head -50)
       if [[ -z "$errors" ]]; then
-        rm -f "$CACHE_DIR/diary-actionable.txt"
+        rm -f "$DIARY_ACTIONABLE_FILE"
         exit 0
       fi
       [[ -x "$CLAUDE_BIN" ]] || exit 0
@@ -203,9 +194,9 @@ let
       text=$(claude_headless haiku "$prompt" --allowedTools 'Read,Edit,Grep,Glob,Bash(journalctl*)')
 
       if [[ -n "$text" && "$text" != "OK" ]]; then
-        echo "$text" > "$CACHE_DIR/diary-actionable.txt"
+        echo "$text" > "$DIARY_ACTIONABLE_FILE"
       else
-        rm -f "$CACHE_DIR/diary-actionable.txt"
+        rm -f "$DIARY_ACTIONABLE_FILE"
       fi
     '';
   };

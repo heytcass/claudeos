@@ -40,13 +40,11 @@ in
       text = ''
         SCREENSHOT="/tmp/claudeos-screenshot-$$.png"
         gnome-screenshot -f "$SCREENSHOT"
-        if [[ -x "$CLAUDE_BIN" ]]; then
-          response=$("$CLAUDE_BIN" -p "${screenshotPrompt}" --allowedTools "Read" --model haiku 2>/dev/null)
-          if [[ -n "$response" ]]; then
-            claudeos_notify "Screen Analysis" "$response"
-          else
-            claudeos_notify "Screen Analysis" "Claude couldn't analyze the screenshot."
-          fi
+        response=$(claude_text haiku "${screenshotPrompt}" --allowedTools "Read")
+        if [[ -n "$response" ]]; then
+          claudeos_notify "Screen Analysis" "$response"
+        else
+          claudeos_notify "Screen Analysis" "Claude couldn't analyze the screenshot."
         fi
         rm -f "$SCREENSHOT"
       '';
@@ -74,12 +72,9 @@ in
       text = ''
         query=$(zenity --entry --title "Ask Claude" --text "Ask Claude ❯" 2>/dev/null)
         [[ -z "$query" ]] && exit 0
-        if [[ -x "$CLAUDE_BIN" ]]; then
-          response=$("$CLAUDE_BIN" -p "$query" --model haiku 2>/dev/null)
-          if [[ -n "$response" ]]; then
-            claudeos_notify "Claude" "$response"
-          fi
-        fi
+        response=$(claude_text haiku "$query")
+        [[ -n "$response" ]] && claudeos_notify "Claude" "$response"
+        exit 0
       '';
     })
 

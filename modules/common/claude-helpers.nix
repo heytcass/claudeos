@@ -6,6 +6,11 @@
 #   function and the auto-update service.
 # claude-commit: haiku writes a conventional-commit message for the dirty
 #   tree, then commits and pushes. Used by the fish `rebuild` function.
+# claudeos-validate: THE canonical repo validation — flake check + per-host
+#   dry-run builds enumerated from the flake itself. CI (validate.yml), the
+#   deploy/add-module skills, and the validator/builder agents all defer to
+#   this instead of re-spelling the loop (the old hand-rolled `ls hosts/`
+#   variants broke as soon as a non-host file landed in hosts/).
 { pkgs, lib, ... }:
 
 let
@@ -23,10 +28,10 @@ in
 
         input=$(cat)
         slug=""
-        if [[ -n "$input" && -x "$CLAUDE_BIN" ]]; then
-          slug=$("$CLAUDE_BIN" -p "Summarize this NixOS change as a slug of 2-4 lowercase words joined by hyphens, only [a-z0-9-], max 40 chars, no explanation:
+        if [[ -n "$input" ]]; then
+          slug=$(claude_text haiku "Summarize this NixOS change as a slug of 2-4 lowercase words joined by hyphens, only [a-z0-9-], max 40 chars, no explanation:
 
-        $input" --model haiku 2>/dev/null) || slug=""
+        $input")
           # system.nixos.label only accepts [a-zA-Z0-9:_.-] (generation-label.nix)
           slug=$(echo "$slug" | tr -c 'a-zA-Z0-9:_.-' '-' | cut -c1-40 | sed 's/-*$//')
         fi
@@ -51,12 +56,11 @@ in
         diff_output=$(git -C "$dir" diff 2>/dev/null; git -C "$dir" diff --cached 2>/dev/null)
         [[ -z "$diff_output" ]] && diff_output="$dirty"
 
-        [[ -x "$CLAUDE_BIN" ]] || exit 0
-        msg=$("$CLAUDE_BIN" -p "Generate a concise git commit message for this NixOS config change.
+        msg=$(claude_text haiku "Generate a concise git commit message for this NixOS config change.
         Use conventional commits (feat:/fix:/chore:). One line, under 72 chars.
         Just the message, nothing else.
 
-        $diff_output" --model haiku 2>/dev/null) || msg=""
+        $diff_output")
         [[ -z "$msg" ]] && exit 0
         # Only a one-line conventional-commit shape may become a commit
         # message — CLI error text ("Not logged in · Please run /login")
@@ -68,6 +72,34 @@ in
           && git -C "$dir" commit -m "$msg" \
           && git -C "$dir" push \
           && echo "Auto-committed: $msg"
+      '';
+    })
+
+    (claudeLib.mkClaudeScriptBin {
+      name = "claudeos-validate";
+      runtimeInputs = [ pkgs.nix ];
+      text = ''
+        # Usage: claudeos-validate — validate the claudeos repo: stage
+        # untracked files (flakes only see tracked ones), nix flake check,
+        # then a --dry-run eval of every host the flake actually defines.
+        cd "$CLAUDEOS_DIR" || exit 1
+
+        untracked=$(git ls-files --others --exclude-standard)
+        if [[ -n "$untracked" ]]; then
+          # shellcheck disable=SC2086
+          git add -N $untracked
+          echo "claudeos-validate: staged (intent-only) untracked: $untracked"
+        fi
+
+        echo "── nix flake check"
+        nix flake check --no-build || exit 1
+
+        for host in $(nix flake show --json 2>/dev/null | jq -r '.nixosConfigurations | keys[]'); do
+          echo "── dry-run build: $host"
+          nix build ".#nixosConfigurations.$host.config.system.build.toplevel" --dry-run || exit 1
+        done
+
+        echo "claudeos-validate: all hosts eval clean"
       '';
     })
   ];

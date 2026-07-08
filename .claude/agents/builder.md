@@ -24,16 +24,18 @@ cd ~/.config/claudeos
 nix build .#nixosConfigurations.$(hostname).config.system.build.toplevel
 ```
 
-### Build All Machines
+### Validate All Machines (eval-level)
 
-Build for every host in the `hosts/` directory:
+`claudeos-validate` dry-run-builds every host the flake defines (never
+enumerate `hosts/` by hand — that breaks the moment a non-host file lands
+there):
 
 ```bash
-cd ~/.config/claudeos
-for host in $(ls hosts/); do
-  nix build .#nixosConfigurations.$host.config.system.build.toplevel
-done
+claudeos-validate
 ```
+
+For a full (not dry-run) build of every host, substitute the same
+`nix flake show --json | jq` host list it uses.
 
 ## What This Tests
 
