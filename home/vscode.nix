@@ -1,4 +1,9 @@
-{ lib, ... }:
+{
+  lib,
+  config,
+  osConfig,
+  ...
+}:
 
 # VSCode chosen over Zed (Feb 2026) for Claude ecosystem compatibility:
 # - Official Anthropic extension with checkpointing, diagnostics, Agent Skills
@@ -53,7 +58,8 @@
             };
             "options" = {
               "nixos" = {
-                "expr" = "(builtins.getFlake \"/home/tom/.config/claudeos\").nixosConfigurations.gti.options";
+                "expr" =
+                  "(builtins.getFlake \"${config.home.homeDirectory}/.config/claudeos\").nixosConfigurations.${osConfig.networking.hostName}.options";
               };
             };
           };

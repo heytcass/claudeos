@@ -1,4 +1,4 @@
-{ lib, ... }:
+{ lib, user, ... }:
 
 {
   # Enable flakes and nix-command
@@ -53,7 +53,7 @@
   # closure diff on every switch, and declarative GC (replaces nix.gc.automatic)
   programs.nh = {
     enable = true;
-    flake = "/home/tom/.config/claudeos";
+    flake = "/home/${user}/.config/claudeos";
     clean = {
       enable = true;
       extraArgs = "--keep 5 --keep-since 14d";
