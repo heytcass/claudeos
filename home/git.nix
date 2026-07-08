@@ -1,6 +1,13 @@
-{ ... }:
+{ config, ... }:
 
 {
+  # Public signing keys this machine trusts for signature verification —
+  # one line per enrolled machine (principal, then key)
+  xdg.configFile."git/allowed-signers".text = ''
+    # transporter (enrolled 2026-07-07)
+    heytcass@gmail.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIC2ymFZpbiPjS7gcbJIf3DmHK1KLbCjqGVXRuKP3joXo
+  '';
+
   programs.git = {
     enable = true;
 
@@ -56,10 +63,18 @@
       # Show diff in commit message editor
       commit.verbose = true;
 
-      # Core settings
+      # Core settings + status/diff performance — this repo is walked
+      # constantly (starship, statusline, agent loops), so let git cache
+      # instead of re-scanning
       core = {
         autocrlf = "input";
+        fsmonitor = true;
+        untrackedCache = true;
       };
+      fetch.writeCommitGraph = true;
+
+      # Highlight moved lines distinctly from add/delete in diffs
+      diff.colorMoved = "default";
 
       # GitHub credential helper comes from programs.gh.gitCredentialHelper
       # (home/shell/cli-tools.nix) — don't duplicate it here
@@ -69,6 +84,10 @@
       user.signingkey = "~/.ssh/id_ed25519.pub";
       commit.gpgSign = true;
       tag.gpgSign = true;
+      # Without an allowed-signers file, git log --show-signature can't
+      # verify even our own commits locally (per-machine keys; append each
+      # machine's pubkey as it's enrolled)
+      gpg.ssh.allowedSignersFile = "${config.home.homeDirectory}/.config/git/allowed-signers";
     };
 
     # Git LFS (Large File Storage)

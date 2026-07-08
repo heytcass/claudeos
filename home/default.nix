@@ -55,7 +55,12 @@ in
   home.sessionVariables = {
     EDITOR = "code --wait";
     VISUAL = "code --wait";
+    BROWSER = "google-chrome-stable";
   };
+
+  # Claude Code CLI installs to ~/.local/bin — on the PATH for every session
+  # context (login shells, systemd user units), not just interactive fish
+  home.sessionPath = [ "$HOME/.local/bin" ];
 
   # Default applications for file types
   # Images — Loupe (GNOME GTK4/Rust viewer; imv was an unmaintained Niri-era
@@ -63,6 +68,13 @@ in
   xdg.mimeApps = {
     enable = true;
     defaultApplications = {
+      # Web — without these, xdg-open falls back to GNOME's mutable per-user
+      # association, which drifts and starts empty on a fresh install
+      "text/html" = "google-chrome.desktop";
+      "x-scheme-handler/http" = "google-chrome.desktop";
+      "x-scheme-handler/https" = "google-chrome.desktop";
+      "x-scheme-handler/mailto" = "google-chrome.desktop";
+
       "application/pdf" = "org.pwmt.zathura.desktop";
       "image/png" = "org.gnome.Loupe.desktop";
       "image/jpeg" = "org.gnome.Loupe.desktop";

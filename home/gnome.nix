@@ -54,6 +54,20 @@ in
     };
   };
 
+  # Shell extensions, declaratively (this module owns the enabled-extensions
+  # dconf key — don't also set it by hand below):
+  # - appindicator: tray icon host (GNOME ships no system tray; Claude
+  #   Desktop and friends need somewhere to render)
+  # - caffeine: one-click idle-lock inhibit — long agent runs must not get
+  #   locked mid-flight (the 5-min idle lock below is aggressive on purpose)
+  programs.gnome-shell = {
+    enable = true;
+    extensions = [
+      { package = pkgs.gnomeExtensions.appindicator; }
+      { package = pkgs.gnomeExtensions.caffeine; }
+    ];
+  };
+
   dconf.settings = {
     # Colemak everywhere (console keymap lives in modules/common/locale.nix)
     "org/gnome/desktop/input-sources" = {
@@ -68,14 +82,41 @@ in
     "org/gnome/desktop/interface" = {
       color-scheme = "prefer-dark";
       show-battery-percentage = true;
+      clock-show-weekday = true;
     };
 
-    # Enable the AppIndicator/StatusNotifier extension so tray icons have a
-    # host (GNOME has no system tray by default). The extension package is
-    # installed system-side in modules/desktop/gnome.nix.
-    "org/gnome/shell" = {
-      disable-user-extensions = false;
-      enabled-extensions = [ "appindicatorsupport@rgcjonas.gmail.com" ];
+    # Touchpad: GNOME ships tap-to-click OFF — a daily papercut on laptops
+    "org/gnome/desktop/peripherals/touchpad" = {
+      tap-to-click = true;
+      two-finger-scrolling-enabled = true;
+    };
+
+    # Faster key repeat for a terminal-heavy workflow (defaults: 500/30)
+    "org/gnome/desktop/peripherals/keyboard" = {
+      delay = mkUint32 250;
+      repeat-interval = mkUint32 25;
+    };
+
+    # Fractional scaling (125%/150% in Settings) — matters on gti's HiDPI
+    # 13" panel; harmless on transporter's 1080p
+    "org/gnome/mutter" = {
+      experimental-features = [ "scale-monitor-framebuffer" ];
+    };
+
+    # Night light: warm the screen on the local sun schedule
+    "org/gnome/settings-daemon/plugins/color" = {
+      night-light-enabled = true;
+      night-light-schedule-automatic = true;
+    };
+
+    # Power: on AC stay awake — overnight automation (auto-update, diary,
+    # morning desk) needs the plugged-in machine running while nobody's
+    # logged in. On battery, suspend after 20 min idle.
+    "org/gnome/settings-daemon/plugins/power" = {
+      sleep-inactive-ac-type = "nothing";
+      sleep-inactive-battery-type = "suspend";
+      sleep-inactive-battery-timeout = 1200;
+      power-button-action = "suspend";
     };
 
     # Idle + lock: blank at 5 min, lock immediately on blank

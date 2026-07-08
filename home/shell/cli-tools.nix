@@ -6,8 +6,11 @@
     ripgrep # Fast grep alternative
     fd # Fast find alternative
     jq # JSON processor
+    yq-go # jq for YAML (sops secrets, GitHub workflows)
     btop # System monitor
     ouch # Universal archive extractor/compressor
+    dust # du replacement (replaces the hand-rolled findbig function)
+    sd # Simpler sed for find-and-replace
     bun # JavaScript runtime (used by Claude Code Telegram plugin)
 
     # Rust coreutils on the interactive PATH (two-ring applied to coreutils:

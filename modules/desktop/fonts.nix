@@ -17,6 +17,7 @@ in
         ];
         serif = [
           themeLib.fonts.serif.name
+          "Noto Serif CJK SC"
           "DejaVu Serif"
         ];
         monospace = [
@@ -45,6 +46,7 @@ in
       ++ (with pkgs; [
         # System fonts for fallbacks and Unicode coverage
         noto-fonts-cjk-sans
+        noto-fonts-cjk-serif # CJK in serif contexts rendered as tofu without it
         liberation_ttf
         dejavu_fonts
 
