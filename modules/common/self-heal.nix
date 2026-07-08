@@ -19,6 +19,17 @@
 let
   cfg = config.claude-os.selfHeal;
 
+  # The default watched units only exist behind their feature flags. Attaching
+  # OnFailure= to a disabled one would synthesize a phantom user service
+  # containing nothing but the handler — filter those out. Units this map
+  # doesn't know about are watched unconditionally (the user declared them).
+  unitEnabled = {
+    "claudeos-auto-update" = config.claude-os.autoUpdate.enable;
+    "claudeos-journal-diary" = config.claude-os.monitor.enable && config.claude-os.monitor.journalDiary;
+    "jasper-companion" = config.claude-os.jasper.enable;
+  };
+  watchedUnits = lib.filter (u: unitEnabled.${u} or true) cfg.units;
+
   claudeLib = import ../../lib/claude-script.nix { inherit pkgs lib; };
 
   healScript = claudeLib.mkClaudeScript {
@@ -113,7 +124,7 @@ in
           };
         };
       }
-      (lib.genAttrs cfg.units (_: {
+      (lib.genAttrs watchedUnits (_: {
         unitConfig.OnFailure = [ "claude-heal@%n.service" ];
       }))
     ];

@@ -31,10 +31,13 @@
   # Use nftables backend (modern, faster, cleaner rule syntax than iptables)
   networking.nftables.enable = true;
 
-  # Enable firewall
+  # Enable firewall. SSH is opened HERE, explicitly — openssh.openFirewall
+  # would otherwise open port 22 silently, making the empty list below a lie.
+  # 22 is deliberately reachable on every network (roaming laptops drive each
+  # other over SSH; exposure is bounded by key-only auth + modern crypto).
   networking.firewall = {
     enable = true;
-    allowedTCPPorts = [ ]; # Add ports as needed
+    allowedTCPPorts = [ 22 ];
     allowedUDPPorts = [ ];
   };
 
@@ -45,6 +48,8 @@
   # Enable SSH server
   services.openssh = {
     enable = true;
+    # The firewall rule is declared explicitly above, not implied here
+    openFirewall = false;
     settings = {
       PasswordAuthentication = false; # Disabled - using SSH keys
       PermitRootLogin = "no";

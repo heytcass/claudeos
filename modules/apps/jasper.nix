@@ -3,6 +3,7 @@
   pkgs,
   inputs,
   config,
+  user,
   ...
 }:
 
@@ -36,7 +37,7 @@ in
       after = [ "graphical-session.target" ];
       partOf = [ "graphical-session.target" ];
       wantedBy = [ "graphical-session.target" ];
-      unitConfig.ConditionUser = "tom";
+      unitConfig.ConditionUser = user;
 
       serviceConfig = {
         Type = "simple";
