@@ -6,7 +6,7 @@
 # The VM gate is what makes autoApply safe: the freshly built generation is
 # booted headless in a throwaway QEMU VM (config.system.build.vm with a
 # vmVariant that strips hardware-specific config) and must reach
-# multi-user.target with zero failed units and gdm.service active before the
+# multi-user.target with zero failed units and display-manager.service active before the
 # update may be committed, pushed, or applied. No usable /dev/kvm → the gate
 # is skipped and the run degrades to the old build-only behavior (commit and
 # push, never switch).
@@ -211,7 +211,7 @@ in
       default = true;
       description = ''
         Gate updates on booting the freshly built generation in a throwaway
-        QEMU VM (multi-user.target reached, no failed units, gdm active).
+        QEMU VM (multi-user.target reached, no failed units, display manager active).
         Requires /dev/kvm; skipped gracefully when it is absent.
       '';
     };
@@ -290,12 +290,15 @@ in
           # Wait for the startup transaction to settle ("running"/"degraded")
           status=$(systemctl is-system-running --wait || true)
           multiuser=$(systemctl is-active multi-user.target || true)
-          gdm=$(systemctl is-active gdm.service || true)
+          # NixOS's gdm module disables the literal gdm.service unit (the gdm
+          # package ships its own conflicting unit file — nixpkgs#108672) and
+          # runs the greeter under display-manager.service instead.
+          displaymgr=$(systemctl is-active display-manager.service || true)
           failed=$(systemctl --failed --no-legend --plain | awk '{print $1}' | xargs || true)
-          if [ "$multiuser" = "active" ] && [ "$gdm" = "active" ] && [ -z "$failed" ]; then
+          if [ "$multiuser" = "active" ] && [ "$displaymgr" = "active" ] && [ -z "$failed" ]; then
             echo "CLAUDEOS-SMOKE-PASS status=$status"
           else
-            echo "CLAUDEOS-SMOKE-FAIL status=$status multi-user=$multiuser gdm=$gdm failed=''${failed:-none}"
+            echo "CLAUDEOS-SMOKE-FAIL status=$status multi-user=$multiuser display-manager=$displaymgr failed=''${failed:-none}"
             for u in $failed; do
               echo "--- journal: $u ---"
               journalctl -u "$u" -n 30 --no-pager || true
