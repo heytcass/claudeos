@@ -40,6 +40,38 @@ let
 
     claudeos_notify() { notify-send --app-name=ClaudeOS "$@"; }
 
+    # Headless GitHub credential: with lingering, agent scripts can run with
+    # no graphical session, where gh's keyring-backed token is locked. Export
+    # the sops automation token as GH_TOKEN when it exists (gh and its git
+    # credential helper both honor it); inside a session the keyring still
+    # works without it. Safe no-op while the secret is a placeholder/absent.
+    claudeos_export_gh_token() {
+      local tok
+      if [[ -r /run/secrets/github_automation_token ]]; then
+        tok=$(</run/secrets/github_automation_token)
+        [[ -n "$tok" && "$tok" != PLACEHOLDER* ]] && export GH_TOKEN="$tok"
+      fi
+      return 0
+    }
+
+    # Days since the last SUCCESSFUL auto-update (breadcrumb written by
+    # claudeos-auto-update), falling back to flake.lock's last commit date.
+    # Prints an integer, or "unknown".
+    claudeos_update_age_days() {
+      local epoch=0
+      if [[ -f "$STATE_DIR/last-update" ]]; then
+        epoch=$(date -d "$(<"$STATE_DIR/last-update")" +%s 2>/dev/null || echo 0)
+      fi
+      if [[ "$epoch" -eq 0 && -d "$CLAUDEOS_DIR/.git" ]]; then
+        epoch=$(git -C "$CLAUDEOS_DIR" log -1 --format=%ct -- flake.lock 2>/dev/null || echo 0)
+      fi
+      if [[ "$epoch" -gt 0 ]]; then
+        echo $(( ($(date +%s) - epoch) / 86400 ))
+      else
+        echo "unknown"
+      fi
+    }
+
     # claude_headless MODEL PROMPT [extra claude args...] — headless agent
     # call. Records the session id so the fish `approve` function can resume
     # it, then prints the result text (empty on failure).

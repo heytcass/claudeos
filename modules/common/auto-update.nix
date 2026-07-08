@@ -40,23 +40,21 @@ let
 
       cd "$CLAUDEOS_DIR" || exit 1
 
-      # Stash uncommitted work
-      stashed=false
-      if [[ -n "$(git status --porcelain 2>/dev/null)" ]]; then
-        git stash push -m "auto-update: pre-update stash $(date -Iseconds)" && stashed=true
-      fi
+      # Durable run breadcrumbs — a dead updater must be visible days later
+      # (morning brief + health check read these), not just in a vanished
+      # notification. last-update is only stamped on a fully successful run.
+      mkdir -p "$STATE_DIR"
+      date -Iseconds > "$STATE_DIR/last-update-attempt"
 
-      cleanup() {
-        if $stashed; then
-          git stash pop 2>/dev/null || true
-        fi
-      }
+      claudeos_export_gh_token
 
-      # Sync with origin first so we never update/commit on stale history
-      if ! git pull --rebase 2>&1; then
+      # Sync with origin first so we never update/commit on stale history.
+      # --autostash (not a manual stash) keeps uncommitted work — e.g. the
+      # journal diary's pending docs/known-issues.md edits — riding the
+      # rebase; a conflict aborts the pull with the work restored intact.
+      if ! git pull --rebase --autostash 2>&1; then
         claudeos_notify --urgency=critical \
           "Update Skipped" "git pull --rebase failed — resolve repo state manually."
-        cleanup
         exit 1
       fi
 
@@ -64,7 +62,6 @@ let
       if ! nix flake update 2>&1; then
         claudeos_notify --urgency=critical \
           "Update Failed" "nix flake update failed. Check network connectivity."
-        cleanup
         exit 1
       fi
 
@@ -118,7 +115,7 @@ let
           claudeos_notify --urgency=critical \
             "Update Blocked: VM Smoke Test" "$fail_line"
           git checkout flake.lock
-          cleanup
+          date -Iseconds > "$STATE_DIR/last-update-revert"
           rm -f ./result ./result-vm "$vm_log"
           exit 1
         fi
@@ -143,11 +140,15 @@ let
         # Commit and push (retry once after rebase in case origin moved mid-run)
         git add flake.lock generation-label
         git commit -m "chore: weekly flake update — $changelog"
-        if ! git push; then
+        if ! gh auth token >/dev/null 2>&1; then
+          claudeos_notify --urgency=critical \
+            "Push Skipped" "flake.lock committed locally — no GitHub credential in this context (keyring locked, no sops automation token). Push manually."
+        elif ! git push; then
           git pull --rebase && git push || claudeos_notify --urgency=critical \
             "Push Failed" "flake.lock committed locally but not pushed — push manually."
         fi
 
+        date -Iseconds > "$STATE_DIR/last-update"
         claudeos_notify "Flake Updated" "$changelog"
 
         ${lib.optionalString cfg.autoApply ''
@@ -158,7 +159,6 @@ let
             else
               claudeos_notify --urgency=critical \
                 "Rebuild Failed" "VM gate was green but the switch failed. Run 'rebuild' manually."
-              cleanup
               rm -f ./result ./result-vm
               exit 1
             fi
@@ -184,9 +184,9 @@ let
 
         # Revert flake.lock
         git checkout flake.lock
+        date -Iseconds > "$STATE_DIR/last-update-revert"
       fi
 
-      cleanup
       rm -f ./result ./result-vm
     '';
   };

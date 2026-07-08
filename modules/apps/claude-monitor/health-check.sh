@@ -59,6 +59,17 @@ if [[ -n "$oom" ]]; then
   issues=1
 fi
 
+# --- Stale auto-updates (> 14 days without a successful flake update) ---
+# The updater's failure modes are silent (asleep at the timer, reverted lock,
+# missing credential) — this is the durable backstop that surfaces them.
+update_age=$(claudeos_update_age_days)
+if [[ "$update_age" =~ ^[0-9]+$ ]] && (( update_age > 14 )); then
+  printf '=== Stale System Updates ===\n' >> "$CONTEXT_FILE"
+  printf 'Last successful flake update was %s days ago (weekly timer: claudeos-auto-update).\n' "$update_age" >> "$CONTEXT_FILE"
+  printf 'Check: journalctl --user -u claudeos-auto-update -n 50\n\n' >> "$CONTEXT_FILE"
+  issues=1
+fi
+
 # --- Critical journal entries in last 15 min ---
 # Exclude systemd-coredump: transient boot crashes are handled by Restart=on-failure
 # and real service failures are caught by the "failed services" check above.

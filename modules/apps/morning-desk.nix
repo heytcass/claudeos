@@ -65,6 +65,7 @@ let
       failed_units=$(claudeos_failed_units)
       disk_pct=$(claudeos_disk_pct)
       repo=$(claudeos_repo_summary)
+      update_age=$(claudeos_update_age_days)
 
       palette=$(cat "$HOME/.config/stylix/palette.json" 2>/dev/null || echo "{}")
 
@@ -72,7 +73,7 @@ let
       WEATHER (json or unavailable): $weather
       CALENDAR (today + tomorrow): $calendar
       OVERNIGHT JOURNAL TRIAGE: ''${diary:-nothing actionable}
-      SYSTEM: failed units: ''${failed_units:-none}; root disk ''${disk_pct:-?}% used
+      SYSTEM: failed units: ''${failed_units:-none}; root disk ''${disk_pct:-?}% used; last successful flake update ''${update_age:-unknown} days ago
       CONFIG REPO: ''${repo:-unknown}"
 
       # ---- The brain: one page, attention-first ----
@@ -123,8 +124,14 @@ let
     STAMP="$STAMP_DIR/shown-$(date +%F)"
     [[ -e "$STAMP" ]] && exit 0
     DESK="$HOME/Desk/today/index.html"
+    # Wait (up to 10 min) for TODAY'S dashboard: at first login the
+    # Persistent=true catch-up build may still be running — opening
+    # yesterday's file now would show a stale page and stamp the day done.
+    for _ in $(seq 120); do
+      [[ -f "$DESK" && "$(date -r "$DESK" +%F)" == "$(date +%F)" ]] && break
+      sleep 5
+    done
     [[ -f "$DESK" ]] || exit 0
-    # Only auto-open a dashboard generated today
     [[ "$(date -r "$DESK" +%F)" == "$(date +%F)" ]] || exit 0
     sleep 8 # let the session settle before claiming the screen
     touch "$STAMP"
@@ -165,7 +172,12 @@ in
     systemd.user.services.claudeos-morning-desk-show = {
       description = "Open today's dashboard at first login";
       wantedBy = [ "graphical-session.target" ];
-      after = [ "graphical-session.target" ];
+      # Order after the build when both jobs are queued together (login-time
+      # Persistent catch-up); the in-script wait covers the async case.
+      after = [
+        "graphical-session.target"
+        "claudeos-morning-desk.service"
+      ];
       serviceConfig = {
         Type = "oneshot";
         ExecStart = toString showScript;
