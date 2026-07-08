@@ -35,6 +35,13 @@ let
     CLAUDE_BIN="$HOME/.local/bin/claude"
     CLAUDEOS_DIR="$HOME/.config/claudeos"
     STATE_DIR="''${XDG_STATE_HOME:-$HOME/.local/state}/claudeos"
+    # Monitor cache contract: the journal diary WRITES diary-actionable.txt,
+    # the morning desk and daily brief READ it; the daily brief WRITES
+    # daily-brief.txt, fish's first-shell MOTD reads it (fish can't source
+    # this preamble — home/shell/fish.nix restates that one path).
+    MONITOR_CACHE_DIR="''${XDG_CACHE_HOME:-$HOME/.cache}/claudeos-monitor"
+    DIARY_ACTIONABLE_FILE="$MONITOR_CACHE_DIR/diary-actionable.txt"
+    DAILY_BRIEF_FILE="$MONITOR_CACHE_DIR/daily-brief.txt"
     # Diagnostic tool set for interactive "open in Claude" handoffs
     CLAUDEOS_DIAG_TOOLS='Bash,Read,Grep,Glob,mcp__system-health__*'
 
@@ -70,6 +77,26 @@ let
       else
         echo "unknown"
       fi
+    }
+
+    # claude_text MODEL PROMPT [extra claude args...] — guarded one-shot
+    # plain-text call, the most common shape. Prints the result; prints
+    # nothing (rc 0) when the CLI is missing or the call fails, so callers
+    # can just test for empty output.
+    claude_text() {
+      local model="$1" prompt="$2"
+      shift 2
+      [[ -x "$CLAUDE_BIN" ]] || return 0
+      "$CLAUDE_BIN" -p "$prompt" --model "$model" "$@" 2>/dev/null || true
+    }
+
+    # claudeos_cooldown_ok FILE SECONDS — rate-limit gate: succeeds when at
+    # least SECONDS have passed since FILE was last touched (or it doesn't
+    # exist). Check-only — the caller stamps FILE when it actually acts.
+    claudeos_cooldown_ok() {
+      local last
+      last=$(stat -c %Y "$1" 2>/dev/null || echo 0)
+      (( $(date +%s) - last >= $2 ))
     }
 
     # claude_headless MODEL PROMPT [extra claude args...] — headless agent

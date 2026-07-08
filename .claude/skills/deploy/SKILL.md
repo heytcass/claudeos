@@ -17,25 +17,20 @@ Full deployment pipeline: validate → build → apply.
 
 If no host specified, default to `$(hostname)` (current machine). If deploying to a different host, confirm with user. List available hosts from `hosts/` directory.
 
-### 2. Stage New Files
+### 2. Validate (stages untracked files itself)
 
-Nix flakes only see tracked files:
+`claudeos-validate` is the canonical validation — it stages untracked
+files (flakes only see tracked ones), runs `nix flake check`, and
+dry-run-builds every host the flake defines:
+
 ```bash
-git -C ~/.config/claudeos add -N $(git -C ~/.config/claudeos ls-files --others --exclude-standard)
-```
-
-### 3. Validate
-
-Dispatch the **validator** subagent, or run directly:
-```bash
-cd ~/.config/claudeos
-nix flake check
+claudeos-validate
 nix fmt -- --check .
 ```
 
 **Stop on failure.** Fix before continuing.
 
-### 4. Build
+### 3. Build
 
 ```bash
 nix build .#nixosConfigurations.<host>.config.system.build.toplevel
@@ -43,7 +38,7 @@ nix build .#nixosConfigurations.<host>.config.system.build.toplevel
 
 **Stop on failure.** Do not proceed to apply.
 
-### 5. Apply
+### 4. Apply
 
 ```bash
 sudo nixos-rebuild switch --flake ~/.config/claudeos#<host>
@@ -51,7 +46,7 @@ sudo nixos-rebuild switch --flake ~/.config/claudeos#<host>
 
 If deploying to a host other than `$(hostname)`, confirm with user first.
 
-### 6. Verify
+### 5. Verify
 
 Report the new generation number:
 ```bash

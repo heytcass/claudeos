@@ -6,32 +6,11 @@
 let
   inherit (lib.hm.gvariant) mkTuple mkUint32;
 
-  # Claude keybindings (ported from Niri: Mod+C / Mod+A / Mod+Shift+A /
-  # Mod+Ctrl+A). The dconf path list and per-binding entries below are
-  # generated from this list — add a binding here, done.
-  # NOTE: home/claudeos-help.nix hand-lists these for the user; keep it in sync.
-  claudeKeybindings = [
-    {
-      name = "Claude quick terminal";
-      binding = "<Super>c";
-      command = "claude-quick";
-    }
-    {
-      name = "Ask Claude";
-      binding = "<Super>a";
-      command = "claude-ask-desktop";
-    }
-    {
-      name = "Claude screenshot analysis";
-      binding = "<Super><Shift>a";
-      command = "claude-screenshot";
-    }
-    {
-      name = "Claude screenshot analysis (interactive)";
-      binding = "<Super><Ctrl>a";
-      command = "claude-screenshot-interactive";
-    }
-  ];
+  # Claude keybindings come from the shared source of truth — the help
+  # screen (home/claudeos-help.nix) is generated from the same list, so the
+  # two can no longer drift. The dconf path list and per-binding entries
+  # below are generated from it: add a binding in lib/keybindings.nix, done.
+  claudeKeybindings = import ../lib/keybindings.nix;
 
   keybindingPath =
     i: "org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom${toString i}";
@@ -133,6 +112,12 @@ in
     };
   }
   // lib.listToAttrs (
-    lib.imap0 (i: binding: lib.nameValuePair (keybindingPath i) binding) claudeKeybindings
+    lib.imap0 (
+      i: b:
+      lib.nameValuePair (keybindingPath i) {
+        # Only the dconf-schema keys — display/help are for the help screen
+        inherit (b) name binding command;
+      }
+    ) claudeKeybindings
   );
 }

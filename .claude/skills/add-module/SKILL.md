@@ -64,14 +64,11 @@ For home-manager modules, add to `home/default.nix`.
 
 ### 4. Validate
 
+`claudeos-validate` stages untracked files, runs `nix flake check`, and
+dry-run-builds every host the flake defines:
+
 ```bash
-cd ~/.config/claudeos
-git add -N modules/<category>/<name>.nix
-nix flake check
-# Build all hosts
-for host in $(ls hosts/); do
-  nix build .#nixosConfigurations.$host.config.system.build.toplevel --dry-run
-done
+claudeos-validate
 ```
 
 ### 5. Report

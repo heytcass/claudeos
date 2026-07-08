@@ -16,14 +16,18 @@ tools: [Bash, Read, Grep]
 
 ## Validation Steps
 
-### 1. Flake Check
+### 1. Canonical validation (flake check + every host)
+
+`claudeos-validate` (modules/common/claude-helpers.nix) is the single
+authority for repo validation — it stages untracked files, runs
+`nix flake check --no-build`, and dry-run-builds every host the flake
+defines (never enumerate `hosts/` by hand):
 
 ```bash
-cd ~/.config/claudeos
-nix flake check
+claudeos-validate
 ```
 
-**Expected:** No errors, warnings are acceptable
+**Expected:** exits 0 with "all hosts eval clean"
 
 ### 2. Format Check
 

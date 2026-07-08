@@ -73,16 +73,21 @@
       "--inline-info"
     ];
 
-    # Use bat for preview
-    fileWidgetCommand = "fd --type f --hidden --exclude .git";
-    fileWidgetOptions = [
-      "--preview 'bat --color=always --style=numbers --line-range=:500 {}'"
-    ];
+    # Use bat for preview (fileWidget*/changeDirWidget* were renamed to
+    # nested options in HM mid-2026)
+    fileWidget = {
+      command = "fd --type f --hidden --exclude .git";
+      options = [
+        "--preview 'bat --color=always --style=numbers --line-range=:500 {}'"
+      ];
+    };
 
-    changeDirWidgetCommand = "fd --type d --hidden --exclude .git";
-    changeDirWidgetOptions = [
-      "--preview 'eza --tree --level=1 --icons {}'"
-    ];
+    changeDirWidget = {
+      command = "fd --type d --hidden --exclude .git";
+      options = [
+        "--preview 'eza --tree --level=1 --icons {}'"
+      ];
+    };
   };
 
   # atuin - Shell history (local only — sync deliberately not used)

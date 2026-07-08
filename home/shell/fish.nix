@@ -255,7 +255,10 @@
       # dashboard lives in `today`)
       if not set -q CLAUDEOS_BRIEF_SHOWN
         set -gx CLAUDEOS_BRIEF_SHOWN 1
-        set -l brief_file "$HOME/.cache/claudeos-monitor/daily-brief.txt"
+        # Mirrors $DAILY_BRIEF_FILE from lib/claude-script.nix (fish can't
+        # source the bash preamble — keep the path in sync)
+        set -l cache_home $XDG_CACHE_HOME; test -n "$cache_home"; or set cache_home $HOME/.cache
+        set -l brief_file "$cache_home/claudeos-monitor/daily-brief.txt"
         if test -s "$brief_file"
           cat "$brief_file"
         end

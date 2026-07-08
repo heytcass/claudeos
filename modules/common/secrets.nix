@@ -1,4 +1,4 @@
-{ user, ... }:
+{ lib, user, ... }:
 
 {
   sops = {
@@ -7,42 +7,25 @@
     # which is available during early boot — unlike a user home directory key.
   };
 
-  sops.secrets.jasper_anthropic_api_key = {
-    owner = user;
-    mode = "0400";
-  };
-
-  sops.secrets.jasper_google_client_id = {
-    owner = user;
-    mode = "0400";
-  };
-
-  sops.secrets.jasper_google_client_secret = {
-    owner = user;
-    mode = "0400";
-  };
-
-  sops.secrets.jasper_google_weather_api_key = {
-    owner = user;
-    mode = "0400";
-  };
-
-  sops.secrets.jasper_google_routes_api_key = {
-    owner = user;
-    mode = "0400";
-  };
-
-  sops.secrets.jasper_home_address = {
-    owner = user;
-    mode = "0400";
-  };
-
-  # UniFi MCP server credential — fish exports UNIFI_API_KEY from this path;
-  # .mcp.json expands it from the environment (never hardcoded in git again)
-  sops.secrets.unifi_api_key = {
-    owner = user;
-    mode = "0400";
-  };
+  # Every secret is user-owned, mode 0400. The jasper_* six feed the Jasper
+  # daemon (modules/apps/jasper.nix); unifi_api_key is exported by fish as
+  # UNIFI_API_KEY for the UniFi MCP server (.mcp.json expands it from the
+  # environment — never hardcoded in git again).
+  sops.secrets =
+    lib.genAttrs
+      [
+        "jasper_anthropic_api_key"
+        "jasper_google_client_id"
+        "jasper_google_client_secret"
+        "jasper_google_weather_api_key"
+        "jasper_google_routes_api_key"
+        "jasper_home_address"
+        "unifi_api_key"
+      ]
+      (_: {
+        owner = user;
+        mode = "0400";
+      });
 
   # PENDING (uncomment once the key exists in secrets/secrets.yaml):
   # GitHub fine-grained PAT (this repo only; contents + pull-requests r/w)

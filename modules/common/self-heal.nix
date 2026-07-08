@@ -56,10 +56,7 @@ let
 
       # Per-unit cooldown (6h) — a crash-looping unit must not fan out agents
       COOLDOWN_FILE="$CACHE_DIR/cooldown-$(systemd-escape "$UNIT")"
-      if [[ -f "$COOLDOWN_FILE" ]]; then
-        last=$(stat -c %Y "$COOLDOWN_FILE" 2>/dev/null || echo 0)
-        (( $(date +%s) - last < 21600 )) && exit 0
-      fi
+      claudeos_cooldown_ok "$COOLDOWN_FILE" 21600 || exit 0
       touch "$COOLDOWN_FILE"
 
       journal=$(journalctl --user -u "$UNIT" -n 200 --no-pager 2>/dev/null)

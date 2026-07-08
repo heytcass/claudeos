@@ -37,7 +37,6 @@ let
     text = ''
       DESK_DIR="$HOME/Desk/today"
       ARCHIVE_DIR="$HOME/Desk/archive"
-      CACHE_DIR="''${XDG_CACHE_HOME:-$HOME/.cache}/claudeos-monitor"
       mkdir -p "$DESK_DIR" "$ARCHIVE_DIR"
 
       # Archive a previous day's dashboard before overwriting
@@ -60,7 +59,7 @@ let
       fi
 
       diary=""
-      [[ -s "$CACHE_DIR/diary-actionable.txt" ]] && diary=$(cat "$CACHE_DIR/diary-actionable.txt")
+      [[ -s "$DIARY_ACTIONABLE_FILE" ]] && diary=$(cat "$DIARY_ACTIONABLE_FILE")
 
       failed_units=$(claudeos_failed_units)
       disk_pct=$(claudeos_disk_pct)
