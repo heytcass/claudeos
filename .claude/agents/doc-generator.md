@@ -75,24 +75,17 @@ Keep router doc current:
 
 ## Module Categories
 
-```
-modules/
-├── common/    # Foundation (boot, disko, nix, users, networking, locale, system, secrets, snapshots, auto-update, generation-label, self-heal)
-├── desktop/   # Desktop environment (gnome, audio, fonts, theme)
-└── apps/      # Applications (terminals, claude, jasper, mcp-system-health, claude-monitor, morning-desk)
+Do NOT rely on a memorized file tree — it goes stale (this section once
+listed two long-deleted modules). Enumerate the live layout at run time:
 
-home/
-├── shell/     # Shell config (fish, cli-tools, starship)
-├── ghostty.nix
-├── git.nix
-├── vscode.nix
-├── gnome.nix
-├── macchina.nix
-├── claude-code.nix
-├── claudeos-help.nix
-├── zathura.nix
-└── imv.nix
+```bash
+Glob modules/**/*.nix
+Glob home/**/*.nix
 ```
+
+Categories: `modules/common/` (foundation), `modules/desktop/` (GNOME,
+audio, fonts, theme), `modules/apps/` (applications/services), `home/`
+(home-manager: shell, git, editors, GNOME user config).
 
 ## Quality Checks
 

@@ -1,0 +1,37 @@
+# Cloud FALLBACK for the weekly on-machine auto-update
+# (modules/common/auto-update.nix, Sat 03:00 — that unit remains primary: it
+# has the VM smoke-test gate and can actually switch the system). This bot
+# covers the one failure mode the local lane can't: both laptops off or
+# asleep for weeks. Monday noon UTC is deliberately offset from Saturday so
+# the two never race; the local run's `git pull --rebase` absorbs a merged
+# bot PR cleanly. PRs are reviewed by claude-code-review.yml and gated by
+# validate.yml like any other.
+name: Update flake.lock
+
+on:
+  schedule:
+    - cron: "0 12 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  update-flake-lock:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: cachix/install-nix-action@v31
+        with:
+          extra_nix_config: |
+            experimental-features = nix-command flakes
+
+      - uses: DeterminateSystems/update-flake-lock@v27
+        with:
+          pr-title: "chore: weekly flake.lock update (cloud fallback)"
+          commit-msg: "chore: weekly flake.lock update (cloud fallback)"
+          pr-labels: |
+            dependencies
+            automated

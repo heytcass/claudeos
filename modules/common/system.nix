@@ -86,7 +86,6 @@ in
     statix
     deadnix
     nixd # Nix LSP — flake-aware (completes real NixOS/HM options); nil went unmaintained
-    nvd # Closure diff between generations (standalone; nh diffs automatically)
     nix-output-monitor # Live build-graph visualization (nom)
   ];
 

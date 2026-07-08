@@ -1,0 +1,9 @@
+# statix configuration (read by the treefmt wrapper, the PostToolUse hook,
+# and CI alike).
+#
+# repeated_keys is disabled deliberately: this codebase organizes modules as
+# topical sections — `services.foo` here, a comment block, `services.bar`
+# there — because the narrative comment structure IS the documentation
+# (PHILOSOPHY.md: "a system you can read"). Collapsing everything into one
+# attrset per prefix would optimize for the linter over the reader.
+disabled = ["repeated_keys"]

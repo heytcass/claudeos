@@ -1,4 +1,4 @@
-{ lib, ... }:
+_:
 
 {
   # Enable NetworkManager for easy network management

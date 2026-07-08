@@ -55,9 +55,7 @@
       nixos-hardware,
       sops-nix,
       disko,
-      claude-desktop-linux,
       stylix,
-      jasper,
       treefmt-nix,
       ...
     }@inputs:
@@ -100,11 +98,16 @@
         _: host: host.config.system.build.toplevel
       ) self.nixosConfigurations;
 
-      # Formatter for `nix fmt` (treefmt-nix handles directory traversal)
+      # Formatter for `nix fmt` (treefmt-nix handles directory traversal).
+      # statix/deadnix ride along so one command formats AND lints — the
+      # same tools the validator agent runs, now enforced mechanically
+      # (nix fmt -- --ci in validate.yml fails on any of the three).
       formatter.x86_64-linux =
         (treefmt-nix.lib.evalModule nixpkgs.legacyPackages.x86_64-linux {
           projectRootFile = "flake.nix";
           programs.nixfmt.enable = true;
+          programs.statix.enable = true;
+          programs.deadnix.enable = true;
         }).config.build.wrapper;
 
       # Nix dev tools are installed system-wide (modules/common/system.nix)
