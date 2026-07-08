@@ -153,7 +153,12 @@ let
 
         ${lib.optionalString cfg.autoApply ''
           if [[ "$vm_gate" == "passed" ]]; then
-            if sudo /run/current-system/sw/bin/nixos-rebuild switch --flake "$CLAUDEOS_DIR#$HOST" 2>&1; then
+            # /run/wrappers/bin/sudo explicitly: the preamble PATH (and a
+            # systemd user unit's inherited PATH) resolves plain `sudo` to the
+            # non-setuid store binary, which cannot elevate ("sudo must be
+            # owned by uid 0"). Interactive shells never hit this — wrappers
+            # come first there — so it only bites in unit context.
+            if /run/wrappers/bin/sudo /run/current-system/sw/bin/nixos-rebuild switch --flake "$CLAUDEOS_DIR#$HOST" 2>&1; then
               claudeos_notify \
                 "System Rebuilt" "VM smoke test green — auto-update applied."
             else
