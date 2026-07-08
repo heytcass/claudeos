@@ -10,10 +10,6 @@ Ledger edits are committed by the normal rebuild auto-commit flow.
 
 <!-- new-actionable entries land here: date · signature · next step -->
 
-- 2026-07-07 · "Random seed file '/boot/loader/random-seed' is world accessible, which is a security hole!" (2 occurrences in 24h) · /boot mount is world-readable; the kernel randomness seed file should not be. Next step: verify /boot mount perms in `modules/common/` (likely `boot.loader` or disko config), tighten to 0750 or equivalent, rebuild and verify with `stat /boot`.
-
-- 2026-07-06 · "Failed to start Install Claude Code CLI on first login" (31 occurrences in 24h) · The firstLogin service for Claude Code CLI installation is failing repeatedly. Next step: check `/etc/profiles/per-user/tom/` for the Claude CLI setup script, verify the installation target directory is writable, and confirm the service definition in `modules/apps/`. This blocks proper CLI integration on login.
-
 - 2026-07-05 · `usr-bin.mount: Failed with result 'protocol'` / "Mount process
   finished, but there is no mount" (envfs FUSE on /usr/bin, intermittent —
   transporter, recurred 2026-07-06) · Investigated 2026-07-06: this is the
@@ -33,6 +29,10 @@ Ledger edits are committed by the normal rebuild auto-commit flow.
 
 <!-- known-benign noise lands here: date · signature · why it's harmless -->
 
+- 2026-07-07 · "Failed to start Install Claude Code CLI on first login" / repeated `claude-code-installer` skip lines (~31/24h) · REFUTED as a failure (runtime audit 2026-07-07): these are `ConditionPathExists=!~/.local/bin/claude` **skips** — the CLI is already installed and self-updating (v2.1.203). The one real failure (2026-07-05, `curl: command not found`) self-resolved 17 minutes later. Do not "fix" the installer.
+
+- 2026-07-07 · user services restarting during `nixos-rebuild switch` (claudeos-* timers/units bouncing mid-activation) · If observed, this is home-manager issue #7583 (user services erroneously restarted during activation when HM runs as a NixOS module) — an upstream bug, not a config regression. Don't chase it here; check the issue's status instead.
+
 - 2026-07-07 · "Skipping line 2 in filter.conf: too long" (2 occurrences in 24h) · Malformed line in audio filter config; does not affect audio functionality. Investigate if filter.conf was auto-generated or hand-edited.
 
 - 2026-07-07 · `profiles/audio/bap.c:bap_adapter_probe() BAP requires ISO Socket which is not enabled` (2 occurrences) · Bluetooth Audio Profile (BAP) codec path logs that ISO socket support is disabled; only relevant if LE Audio pairing is intended. Not a blocker for standard Bluetooth audio.
@@ -50,3 +50,7 @@ Ledger edits are committed by the normal rebuild auto-commit flow.
 ## Resolved
 
 <!-- move entries here when fixed, with the fixing commit/PR -->
+
+- 2026-07-07 · "Random seed file '/boot/loader/random-seed' is world accessible" · Fixed 2026-07-07: ESP mount masks tightened to fmask/dmask=0077 in `modules/common/disko.nix`. Takes full effect after a reboot remounts /boot; verify with `stat /boot/loader/random-seed`.
+
+- 2026-07-06 · D-Bus "Ignoring duplicate name" warnings (~1000 lines/boot at err priority) · Fixed 2026-07-07: dropped at journald ingest via `LogFilterPatterns` on both dbus-broker units (`modules/common/system.nix`) — they were burying real errors and feeding this diary pure noise. (Entry retained from Benign; the underlying behavior is normal, only the log spam was the problem.)

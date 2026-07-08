@@ -43,9 +43,12 @@ in
                 type = "filesystem";
                 format = "vfat";
                 mountpoint = "/boot";
+                # Root-only: systemd-boot keeps its random-seed file here and
+                # bootctl (rightly) flags a world-readable ESP as a security
+                # hole. Nothing non-root needs to read /boot.
                 mountOptions = [
-                  "fmask=0022"
-                  "dmask=0022"
+                  "fmask=0077"
+                  "dmask=0077"
                 ];
               };
             };
