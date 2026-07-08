@@ -64,9 +64,6 @@
       # Quick git commit
       gcam = "git commit -am $argv";
 
-      # Find large files
-      findbig = "du -sh * | sort -h | tail -20";
-
       # Claude-powered shell commands (uses haiku for speed/cost)
       fix = ''
                 set -l cmd $history[1]
@@ -240,9 +237,6 @@
     interactiveShellInit = ''
       # Disable greeting
       set fish_greeting
-
-      # Add ~/.local/bin to PATH for Claude Code CLI
-      fish_add_path ~/.local/bin
 
       # GitHub token is NOT exported globally — use the `with-github-token`
       # wrapper (cli-tools.nix) to materialize it only in the consuming

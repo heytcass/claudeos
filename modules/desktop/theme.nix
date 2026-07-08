@@ -60,6 +60,43 @@ let
           sed ${sedArgsFor folderIconSubstitutions} "$svg" > "$theme/scalable/places/''${svg##*/}"
         done
 
+        # folder-development (~/Projects, referenced by home/default.nix's
+        # .directory file) — authored in Adwaita's blue ramp so the SAME
+        # substitution recolors it onto the terracotta ramp as every other
+        # folder. Body #62a0ea→base0D, flap/shading #438de6→base0F.
+        cat > ./folder-development-src.svg <<'SVG'
+        <svg width="256" height="256" fill="none" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg">
+          <path d="m8 56c0-8.8366 7.1634-16 16-16h71.797c3.3814 0 6.6759 1.0713 9.4109 3.0602l13.584 9.8796c2.735 1.9889 6.029 3.0602 9.411 3.0602h103.8c8.837 0 16 7.1634 16 16v128c0 8.837-7.163 16-16 16h-208c-8.8366 0-16-7.163-16-16z" fill="#438de6"/>
+          <path d="m8 88c0-8.8366 7.1634-16 16-16h208c8.837 0 16 7.1634 16 16v112c0 8.837-7.163 16-16 16h-208c-8.8366 0-16-7.163-16-16z" fill="url(#g)"/>
+          <g fill="none" stroke="#fff" stroke-width="10" stroke-linecap="round" stroke-linejoin="round">
+            <path d="m100 126 -20 24 20 24"/>
+            <path d="m156 126 20 24-20 24"/>
+            <path d="m140 114-24 72"/>
+          </g>
+          <defs>
+            <linearGradient id="g" x1="248" x2="40.837" y1="72" y2="253.48" gradientUnits="userSpaceOnUse">
+              <stop stop-color="#62a0ea"/>
+              <stop stop-color="#438de6" offset="1"/>
+            </linearGradient>
+          </defs>
+        </svg>
+        SVG
+        sed ${sedArgsFor folderIconSubstitutions} ./folder-development-src.svg \
+          > "$theme/scalable/places/folder-development.svg"
+
+        # Symbolic variant: a plain mask — GTK recolors it to the context
+        # foreground, so no palette substitution applies.
+        cat > "$theme/scalable/places/folder-development-symbolic.svg" <<'SVG'
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M1 3.5C1 2.672 1.672 2 2.5 2h3.586a1.5 1.5 0 0 1 1.06.44l.914.913a1.5 1.5 0 0 0 1.061.44H13.5c.828 0 1.5.671 1.5 1.5v6.207c0 .828-.672 1.5-1.5 1.5h-11c-.828 0-1.5-.672-1.5-1.5z" fill="#222222"/>
+          <g stroke="#fff" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="m6 7-1.5 1.75L6 10.5"/>
+            <path d="m10 7 1.5 1.75L10 10.5"/>
+            <path d="m9 6.25-2 5"/>
+          </g>
+        </svg>
+        SVG
+
         # The 16x16 PNGs of the folder family are pure blue-on-alpha, so a
         # global hue rotation is fringe-free (-modulate calibrated so #62a0ea
         # lands on base0D terracotta — recalibrate if the palette changes).

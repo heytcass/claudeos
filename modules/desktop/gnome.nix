@@ -38,10 +38,8 @@ in
     # Replaces the built-in "Open in Console" that died with gnome-console.
     nautilus-python
 
-    # AppIndicator/StatusNotifier host. GNOME ships no system tray, so apps
-    # that expose a tray icon (e.g. Claude Desktop) have nowhere to render
-    # without this. Enabled per-user via dconf in home/gnome.nix.
-    gnomeExtensions.appindicator
+    # Shell extensions (appindicator, caffeine) are installed and enabled
+    # per-user via programs.gnome-shell in home/gnome.nix.
 
     wl-clipboard # Clipboard access (wl-copy / wl-paste)
     zenity # Dialog prompts (claude-ask-desktop)
@@ -61,47 +59,9 @@ in
       SVG
     '')
 
-    # folder-development icon for ~/Projects
-    (pkgs.runCommand "hicolor-folder-development" { } ''
-      mkdir -p $out/share/icons/hicolor/scalable/places
-      cat > $out/share/icons/hicolor/scalable/places/folder-development.svg <<'SVG'
-      <svg width="256" height="256" fill="none" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg">
-        <path d="m8 56c0-8.8366 7.1634-16 16-16h71.797c3.3814 0 6.6759 1.0713 9.4109 3.0602l13.584 9.8796c2.735 1.9889 6.029 3.0602 9.411 3.0602h103.8c8.837 0 16 7.1634 16 16v128c0 8.837-7.163 16-16 16h-208c-8.8366 0-16-7.163-16-16z" fill="url(#a)"/>
-        <path d="m8 88c0-8.8366 7.1634-16 16-16h208c8.837 0 16 7.1634 16 16v112c0 8.837-7.163 16-16 16h-208c-8.8366 0-16-7.163-16-16z" fill="url(#b)"/>
-        <g fill="none" stroke="#fff" stroke-width="10" stroke-linecap="round" stroke-linejoin="round">
-          <path d="m100 126 -20 24 20 24"/>
-          <path d="m156 126 20 24-20 24"/>
-          <path d="m140 114-24 72"/>
-        </g>
-        <defs>
-          <linearGradient id="a" x1="121" x2="121" y1="72.5" y2="40" gradientUnits="userSpaceOnUse">
-            <stop stop-color="#484848"/>
-            <stop stop-color="#636363" offset="1"/>
-          </linearGradient>
-          <linearGradient id="b" x1="248" x2="40.837" y1="72" y2="253.48" gradientUnits="userSpaceOnUse">
-            <stop stop-color="#979FAD"/>
-            <stop stop-color="#808080" offset="1"/>
-          </linearGradient>
-        </defs>
-      </svg>
-      SVG
-      cat > $out/share/icons/hicolor/scalable/places/folder-development-symbolic.svg <<'SVG'
-      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <g clip-path="url(#a)">
-          <path d="M0 0h16v16H0z" fill="#808080" fill-opacity="0"/>
-          <path d="M2.5 1C1.672 1 1 1.672 1 2.5v5.793c0 .398.158.779.44 1.06l5.353 5.354a1.5 1.5 0 0 0 2.121 0l5.793-5.793a1.5 1.5 0 0 0 0-2.121L9.354 1.44A1.5 1.5 0 0 0 8.293 1H2.5z" fill="#232323"/>
-          <g stroke="#fff" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="m6 5.5-2 2 2 2"/>
-            <path d="m10 5.5 2 2-2 2"/>
-            <path d="m9 4.5-2 6"/>
-          </g>
-        </g>
-        <defs>
-          <clipPath id="a"><rect width="16" height="16" fill="white"/></clipPath>
-        </defs>
-      </svg>
-      SVG
-    '')
+    # folder-development (~/Projects icon) lives in the ClaudeOS icon theme
+    # (modules/desktop/theme.nix) so it's recolored from the same palette as
+    # every other folder instead of hardcoding its own grays.
 
     # Hide unwanted .desktop entries from the launcher
     (hideDesktopEntries [
