@@ -141,6 +141,15 @@ in
   # chatty desktop IPC (GNOME Shell, portals, gsd daemons)
   services.dbus.implementation = "broker";
 
+  # dbus-broker logs "Ignoring duplicate name" at err priority for every
+  # multi-provider service file at session start (~1000 lines/boot here) —
+  # burying real errors and feeding the journal diary pure noise. Drop them
+  # at journald ingest on both buses; everything else logs normally.
+  systemd.services.dbus-broker.serviceConfig.LogFilterPatterns = [ "~Ignoring duplicate name" ];
+  systemd.user.services.dbus-broker.serviceConfig.LogFilterPatterns = [
+    "~Ignoring duplicate name"
+  ];
+
   # systemd-oomd: proactive OOM handling using PSI (Pressure Stall Information)
   # Kills memory-hogging processes before the kernel OOM killer freezes the system
   systemd.oomd = {
