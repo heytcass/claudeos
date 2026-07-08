@@ -10,6 +10,12 @@ on:
   push:
     branches: [main]
 
+# Rapid pushes supersede each other — cancel the stale run instead of
+# building two full host closures side by side
+concurrency:
+  group: validate-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   flake-validate:
     runs-on: ubuntu-latest
