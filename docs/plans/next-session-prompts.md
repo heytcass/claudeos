@@ -6,9 +6,19 @@ of a fresh session in `~/.config/claudeos` (or wherever the repo lives).
 Every prompt assumes the agent will read `docs/PHILOSOPHY.md` first — hold it
 to that.
 
+**Status pass 2026-07-07:** #1 DONE (shipped 2026-06; note its gdm.service
+assertion was wrong from day one — GDM runs as display-manager.service — so
+the gate silently blocked every update until heal PR #29 fixed it; the
+breadcrumb telemetry added the same day exists so that failure class can't
+be silent again). #8's claudeos-side ask (appindicator) DONE. #7 partially
+seeded (telegram plugin enabled + allowlisted; the long-lived channel session
+is not built). #2 (timewarp), #3 (self-merging heal PRs), #4 (morning desk
+phase 2), #5 (Hyprland specialisation — dormant by choice), #6 (below flight
+recorder) remain open backlog.
+
 ---
 
-## 1. The OS that updates itself — VM smoke-test gate
+## 1. The OS that updates itself — VM smoke-test gate — ✅ DONE (2026-06; gate fixed 2026-07-07, PR #29)
 
 > Read docs/PHILOSOPHY.md and modules/common/auto-update.nix first. Build the
 > VM smoke-test gate that makes fully autonomous weekly updates safe, then

@@ -46,10 +46,11 @@ gti (Dell XPS 13 9370) is the primary machine — currently running Ubuntu pendi
 - [x] Desktop keybindings for Claude Code (Super+C) and the ask/screenshot scripts (Super+A / Super+Shift+A / Super+Ctrl+A)
 - [x] Laptop power management (power-profiles-daemon + scx_lavd --autopower)
 - [x] Point archive mimeApps at File Roller (was xarchiver.desktop)
-- [ ] NixOS impermanence for stateless system
-- [ ] Binary cache for faster builds
-- [ ] Declare `unifi_api_key` secret for the UniFi MCP server (`.mcp.json` reads it from the environment)
+- [ ] NixOS impermanence for stateless system (decided 2026-07-07: only ever bundled with a reinstall, transporter first — not before)
+- [ ] Binary cache for faster builds (decided 2026-07-07: skip self-hosted attic/cachix at 2-host scale; cache-nix-action covers CI)
+- [x] Declare `unifi_api_key` secret for the UniFi MCP server (`.mcp.json` reads it from the environment) — declared in `modules/common/secrets.nix`, exported by fish
 - [ ] Compositor experiments (Hyprland, etc.) as specialisations
+- [ ] `github_automation_token` sops secret for headless pushes (PAT minting pending — see docs/SECRETS.md; automation degrades gracefully until then)
 
 Atuin sync is no longer a pending enhancement — history is local-only by decision (the `atuin_key` sops entry stays undeclared).
 

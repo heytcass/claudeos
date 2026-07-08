@@ -1,4 +1,4 @@
-{ ... }:
+_:
 
 {
   # Enable sound with Pipewire (modern audio server)

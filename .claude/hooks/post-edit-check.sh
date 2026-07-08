@@ -22,4 +22,16 @@ if command -v nix-instantiate >/dev/null 2>&1; then
     exit 2
   fi
 fi
+
+# Lint feedback (exit 2 so findings reach the agent's context) — same statix
+# that treefmt/CI enforce, surfaced at edit time instead of at commit
+if command -v statix >/dev/null 2>&1; then
+  if ! lint=$(statix check "$file" 2>&1) && [ -n "$lint" ]; then
+    {
+      echo "statix findings in $file (fix or justify before committing):"
+      echo "$lint"
+    } >&2
+    exit 2
+  fi
+fi
 exit 0

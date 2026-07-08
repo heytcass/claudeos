@@ -1,4 +1,4 @@
-{ lib, pkgs, ... }:
+{ ... }:
 
 {
   # Dell Latitude 7280 — TESTBED host for the ClaudeOS return.

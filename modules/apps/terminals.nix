@@ -1,4 +1,4 @@
-{ ... }:
+_:
 
 {
   # Ghostty is installed via home-manager in home/ghostty.nix
