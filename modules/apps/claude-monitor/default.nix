@@ -112,13 +112,10 @@ let
       rebuild_days=$(( (now - rebuild_epoch) / 86400 ))
       rebuild_date=$(date -d "@$rebuild_epoch" "+%Y-%m-%d %H:%M" 2>/dev/null || echo unknown)
 
-      # Flake lock age: when was nixpkgs last updated
-      if [[ -f "$CLAUDEOS_DIR/flake.lock" ]]; then
-        lock_epoch=$(stat -c %Y "$CLAUDEOS_DIR/flake.lock" 2>/dev/null || echo 0)
-        lock_days=$(( (now - lock_epoch) / 86400 ))
-      else
-        lock_days="unknown"
-      fi
+      # Last successful auto-update (breadcrumb; falls back to flake.lock's
+      # git date) — mtime lied here: a checkout refreshes it without any
+      # inputs actually moving
+      update_age=$(claudeos_update_age_days)
 
       stats="Host: $(hostname 2>/dev/null || echo unknown)
       Uptime: $(uptime -p 2>/dev/null || echo unknown)
@@ -127,7 +124,7 @@ let
       Nix store: $nix_store
       Nix generations: $generations
       Last rebuild: $rebuild_date ($rebuild_days days ago)
-      Flake lock age: $lock_days days
+      Last successful flake update: $update_age days ago
       Config repo: $(claudeos_repo_summary)"
 
       # Overnight journal-diary findings (Tier 4) feed the brief

@@ -23,7 +23,7 @@ Two age public keys can decrypt `secrets/secrets.yaml`:
 
 ### Declared secrets
 
-`modules/common/secrets.nix` declares six secrets, all owned by the user with mode `0400`, all consumed by the Jasper daemon (`modules/apps/jasper.nix`):
+`modules/common/secrets.nix` declares seven secrets, all owned by the user with mode `0400`. Six are consumed by the Jasper daemon (`modules/apps/jasper.nix`):
 
 - `jasper_anthropic_api_key`
 - `jasper_google_client_id`
@@ -32,9 +32,12 @@ Two age public keys can decrypt `secrets/secrets.yaml`:
 - `jasper_google_routes_api_key`
 - `jasper_home_address`
 
+plus `unifi_api_key` (fish exports `UNIFI_API_KEY` from its path for the UniFi MCP server).
+
 All other authentication is handled outside sops-nix:
 - **SSH keys:** Stored in `~/.ssh/` with proper permissions (not managed declaratively)
-- **GitHub:** `gh` CLI keyring auth; the `with-github-token <cmd>` wrapper materializes the token per-process (no global export)
+- **GitHub, interactive:** `gh` CLI keyring auth; the `with-github-token <cmd>` wrapper materializes the token per-process (no global export)
+- **GitHub, headless automation:** the keyring is locked outside a graphical session, and lingering means auto-update/self-heal can run in exactly that state. The pending `github_automation_token` sops secret (fine-grained PAT, this repo only) is exported as `GH_TOKEN` by the agent-script preamble (`claudeos_export_gh_token` in `lib/claude-script.nix`) when present; until it's minted, headless runs degrade to commit-locally + notify.
 - **User passwords:** Set during NixOS installation with `passwd`
 
 ## Editing Secrets
@@ -64,14 +67,15 @@ The encrypted file is safe to commit and push. Hosts pick up new values on the n
 3. Reference it via `config.sops.secrets.my_secret.path` (resolves to `/run/secrets/my_secret`)
 4. Rebuild and verify the file exists with correct ownership
 
-## Planned: `unifi_api_key`
+## Planned: `github_automation_token`
 
-`.mcp.json` registers a UniFi MCP server that reads `UNIFI_API_KEY` from the environment — fish exports it from `/run/secrets/unifi_api_key` when that file exists (`home/shell/fish.nix`). The secret itself is **not yet in `secrets/secrets.yaml`**. Follow-up:
+The headless automation lane (see above) needs a GitHub credential that works with no session. Follow-up:
 
-1. Add `unifi_api_key` via `sops secrets/secrets.yaml`
-2. Declare `sops.secrets.unifi_api_key` in `modules/common/secrets.nix` (owner = user, mode `0400`)
+1. Mint a fine-grained PAT at github.com/settings/personal-access-tokens — scope it to the claudeos repo only, contents + pull-requests read/write
+2. Add it: `sops set secrets/secrets.yaml '["github_automation_token"]' '"<PAT>"'`
+3. Uncomment the `sops.secrets.github_automation_token` block in `modules/common/secrets.nix` and rebuild
 
-Until then, the UniFi MCP server simply has no key and the fish export is a no-op.
+Until then, headless auto-update runs commit locally and notify instead of pushing, and headless self-heal runs skip with a notification instead of burning an agent session that can't open a PR.
 
 ## Adding a New Host
 

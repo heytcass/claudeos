@@ -22,6 +22,12 @@
     # Fish as default shell
     shell = pkgs.fish;
 
+    # Keep the user manager (and every claudeos-* user timer) running with no
+    # login session — the overnight automation lane must not depend on being
+    # logged in ("absence is the resource", PHILOSOPHY.md). Suspend still
+    # pauses timers; Persistent=true catches those up at wake.
+    linger = true;
+
     # SSH public keys for passwordless login
     openssh.authorizedKeys.keys = [
       "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFqJcKOf70muwJzsxYzNf988D7uJty0rtS7cCquQWBsl tom@ubuntu-dev"

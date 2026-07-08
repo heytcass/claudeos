@@ -43,6 +43,17 @@ let
       [[ -x "$CLAUDE_BIN" ]] || exit 0
       [[ -d "$CLAUDEOS_DIR/.git" ]] || exit 0
 
+      # The whole point is a pushed branch + PR — don't spend a 20-minute
+      # agent session that cannot deliver one. Headless runs (lingering, no
+      # graphical session) need the sops automation token; in-session runs
+      # can use the keyring.
+      claudeos_export_gh_token
+      if ! gh auth token >/dev/null 2>&1; then
+        claudeos_notify \
+          "Self-Heal Skipped: $UNIT" "No GitHub credential in this context (keyring locked, no sops automation token) — cannot open a PR."
+        exit 0
+      fi
+
       # Per-unit cooldown (6h) — a crash-looping unit must not fan out agents
       COOLDOWN_FILE="$CACHE_DIR/cooldown-$(systemd-escape "$UNIT")"
       if [[ -f "$COOLDOWN_FILE" ]]; then
