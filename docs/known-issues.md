@@ -51,6 +51,8 @@ Ledger edits are committed by the normal rebuild auto-commit flow.
 
 <!-- move entries here when fixed, with the fixing commit/PR -->
 
+- 2026-07-07 · VM smoke-test gate never passed — every weekly auto-update since 2026-06-12 silently reverted flake.lock (root cause of the month-stale nixpkgs) · The gate asserted `gdm.service` active, but NixOS runs GDM as `display-manager.service`; the literal unit never exists, so every run reported `gdm=inactive` and reverted. Found 2026-07-07 by the first breadcrumb-instrumented run; diagnosed independently by the self-heal agent, fixed in PR #29. The new `last-update`/`last-update-revert` breadcrumbs + >14-day health-check alert exist precisely so this failure class can't be silent again.
+
 - 2026-07-07 · "Random seed file '/boot/loader/random-seed' is world accessible" · Fixed 2026-07-07: ESP mount masks tightened to fmask/dmask=0077 in `modules/common/disko.nix`. Takes full effect after a reboot remounts /boot; verify with `stat /boot/loader/random-seed`.
 
 - 2026-07-06 · D-Bus "Ignoring duplicate name" warnings (~1000 lines/boot at err priority) · Fixed 2026-07-07: dropped at journald ingest via `LogFilterPatterns` on both dbus-broker units (`modules/common/system.nix`) — they were burying real errors and feeding this diary pure noise. (Entry retained from Benign; the underlying behavior is normal, only the log spam was the problem.)
