@@ -179,7 +179,11 @@ let
       CACHE_DIR="''${XDG_CACHE_HOME:-$HOME/.cache}/claudeos-monitor"
       mkdir -p "$CACHE_DIR"
 
+      # grep -v: the session-bus dbus-broker's "Ignoring duplicate name" spam
+      # can't be filtered at journald ingest (LogFilterPatterns is enforced
+      # for system units only) — drop it here so it can't crowd the triage
       errors=$(journalctl -p err..alert --since "-24 hours" --no-pager --output=cat 2>/dev/null \
+        | grep -v "Ignoring duplicate name" \
         | sort | uniq -c | sort -rn | head -50)
       if [[ -z "$errors" ]]; then
         rm -f "$CACHE_DIR/diary-actionable.txt"

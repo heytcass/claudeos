@@ -144,11 +144,11 @@ in
   # dbus-broker logs "Ignoring duplicate name" at err priority for every
   # multi-provider service file at session start (~1000 lines/boot here) —
   # burying real errors and feeding the journal diary pure noise. Drop them
-  # at journald ingest on both buses; everything else logs normally.
+  # at journald ingest. Note this only covers the SYSTEM bus: journald does
+  # not enforce LogFilterPatterns for user units (verified 2026-07-07), so
+  # the session bus's copies are instead grepped out where they hurt — the
+  # journal diary's error collection (modules/apps/claude-monitor).
   systemd.services.dbus-broker.serviceConfig.LogFilterPatterns = [ "~Ignoring duplicate name" ];
-  systemd.user.services.dbus-broker.serviceConfig.LogFilterPatterns = [
-    "~Ignoring duplicate name"
-  ];
 
   # systemd-oomd: proactive OOM handling using PSI (Pressure Stall Information)
   # Kills memory-hogging processes before the kernel OOM killer freezes the system
