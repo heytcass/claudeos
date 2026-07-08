@@ -65,11 +65,10 @@
   # editor = false) — the bring-up escape hatch is no longer needed now that
   # the machine boots reliably and is administrable over SSH.
 
-  # TESTBED: passwordless sudo for wheel so kernel walk-up rebuilds/reboots
-  # can be driven over SSH from gti without a human at the keyboard
-  # (per the decided autonomy-over-hardening trade-off in PHILOSOPHY.md).
-  # Revisit when transporter graduates from bring-up.
-  security.sudo-rs.wheelNeedsPassword = false;
+  # Bring-up passwordless sudo removed 2026-07-07: the walk-up above is
+  # complete, so wheel is back on the shared wheelNeedsPassword default.
+  # The auto-update lane keeps its own scoped NOPASSWD nixos-rebuild rule
+  # (modules/common/auto-update.nix) — automation is unaffected.
 
   # TESTBED TRIAL (tool-rethink 2026-06-12): iwd as NetworkManager's wifi
   # backend — faster scans, better roaming, WPA3, while NM keeps the GNOME
