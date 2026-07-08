@@ -40,6 +40,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # A full GNOME/Electron NixOS closure overflows the stock runner's
+      # ~14 GB free disk (first run died on ENOSPC) — purge the preinstalled
+      # toolchains and hand the space to /nix
+      - uses: wimpysworld/nothing-but-nix@v10
+        with:
+          hatchet-protocol: cleave
+
       - uses: cachix/install-nix-action@v31
         with:
           extra_nix_config: |
