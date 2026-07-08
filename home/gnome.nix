@@ -1,7 +1,7 @@
 # home/gnome.nix — GNOME user configuration via dconf.
 # Ports the Claude keybindings that lived in the old Niri config; everything
 # else (idle, lock, displays, clipboard) is GNOME's own machinery now.
-{ lib, ... }:
+{ lib, pkgs, ... }:
 
 let
   inherit (lib.hm.gvariant) mkTuple mkUint32;
@@ -37,6 +37,23 @@ let
     i: "org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom${toString i}";
 in
 {
+  # Qt apps follow the GNOME dark theme via the adwaita platform theme.
+  # Owned here (not modules/desktop/theme.nix): the NixOS qt module only has
+  # legacy platform plugins, and Stylix's Qt target doesn't support GNOME
+  # (it warns and emits the deprecated platformTheme "gnome"), so it's off.
+  stylix.targets.qt.enable = false;
+  qt = {
+    enable = true;
+    platformTheme.name = "adwaita";
+    style = {
+      name = "adwaita-dark";
+      package = with pkgs; [
+        adwaita-qt
+        adwaita-qt6
+      ];
+    };
+  };
+
   dconf.settings = {
     # Colemak everywhere (console keymap lives in modules/common/locale.nix)
     "org/gnome/desktop/input-sources" = {
