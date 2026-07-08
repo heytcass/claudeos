@@ -29,6 +29,12 @@ Ledger edits are committed by the normal rebuild auto-commit flow.
 
 <!-- known-benign noise lands here: date · signature · why it's harmless -->
 
+- 2026-07-08 · "Failed to start ClaudeOS system health check" (periodic) · BY DESIGN — the health check deliberately exits 1 when it finds issues, because `OnFailure=claudeos-notify.service` is how the notifier gets triggered (see the script header in `modules/apps/claude-monitor/health-check.sh`). A "failed" health-check unit means the check WORKED and found something; the something is what deserves attention, not the unit. Do not "fix" the exit code.
+
+- 2026-07-08 · Chrome thread futex/pthread waits (64 syscall_cancel, 33 futex_abstimed_wait, 22 pthread_cond_wait, etc. over 24h) · Normal thread synchronization in Chrome's multi-threaded event loop; condition-variable and futex waits are expected. No actual failure signaled.
+
+- 2026-07-08 · "ELF object binary architecture: AMD x86-64" (4 occurrences) · Informational kernel or tooling message; this system is indeed x86-64. No issue.
+
 - 2026-07-07 · "Failed to start Install Claude Code CLI on first login" / repeated `claude-code-installer` skip lines (~31/24h) · REFUTED as a failure (runtime audit 2026-07-07): these are `ConditionPathExists=!~/.local/bin/claude` **skips** — the CLI is already installed and self-updating (v2.1.203). The one real failure (2026-07-05, `curl: command not found`) self-resolved 17 minutes later. Do not "fix" the installer.
 
 - 2026-07-07 · user services restarting during `nixos-rebuild switch` (claudeos-* timers/units bouncing mid-activation) · If observed, this is home-manager issue #7583 (user services erroneously restarted during activation when HM runs as a NixOS module) — an upstream bug, not a config regression. Don't chase it here; check the issue's status instead.
