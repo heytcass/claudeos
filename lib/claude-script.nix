@@ -47,6 +47,20 @@ let
 
     claudeos_notify() { notify-send --app-name=ClaudeOS "$@"; }
 
+    # Seconds a blocking `-A` notification waits for a click before giving up.
+    # Must stay well under the calling unit's TimeoutStartSec: notify-send -A
+    # blocks until someone clicks, and when nobody does, systemd SIGTERMs the
+    # unit into `failed` — which the health check then reads as a system fault
+    # and alerts on, every 15 minutes, forever.
+    CLAUDEOS_NOTIFY_WAIT=900
+
+    # claudeos_notify_action ARGS... — the blocking `-A` form of the above.
+    # Prints the chosen action id, or nothing once the wait expires. Never
+    # fails: a notification nobody answered is not an error.
+    claudeos_notify_action() {
+      timeout "$CLAUDEOS_NOTIFY_WAIT" notify-send --app-name=ClaudeOS "$@" || true
+    }
+
     # Headless GitHub credential: with lingering, agent scripts can run with
     # no graphical session, where gh's keyring-backed token is locked. Export
     # the sops automation token as GH_TOKEN when it exists (gh and its git

@@ -28,7 +28,7 @@ let
     runtimeInputs = [ pkgs.ghostty ];
     text = ''
       CONTEXT_FILE="$MONITOR_CACHE_DIR/alert-context.txt"
-      COOLDOWN_FILE="$MONITOR_CACHE_DIR/last-claude-call"
+      COOLDOWN_FILE="$MONITOR_CACHE_DIR/last-notification"
       COOLDOWN=1800  # 30 minutes
 
       # Nothing to report
@@ -36,50 +36,46 @@ let
 
       context=$(<"$CONTEXT_FILE")
 
-      # --- Rate limit check ---
-      use_claude=true
-      claudeos_cooldown_ok "$COOLDOWN_FILE" "$COOLDOWN" || use_claude=false
+      # --- Rate limit ---
+      # Gates the notification itself, not just the Claude call. health-check
+      # re-triggers this handler on every failure, so a condition that stays
+      # broken (a unit stuck in `failed`) fires OnFailure every 15 min; when
+      # the cooldown guarded only the Claude call, the fallback path below
+      # still bannered the user on every single one of them.
+      claudeos_cooldown_ok "$COOLDOWN_FILE" "$COOLDOWN" || exit 0
+      touch "$COOLDOWN_FILE"
 
-      # --- Try Claude-authored notification ---
-      if $use_claude; then
-        prompt="You are ClaudeOS, the AI monitoring this NixOS system. Analyze these system alerts and respond with ONLY the notification body text (2-3 sentences max). Be specific and actionable — include the exact command the user should run to fix it if applicable. No markdown, no emoji, no titles, no tool use — just output plain text and nothing else.
+      prompt="You are ClaudeOS, the AI monitoring this NixOS system. Analyze these system alerts and respond with ONLY the notification body text (2-3 sentences max). Be specific and actionable — include the exact command the user should run to fix it if applicable. No markdown, no emoji, no titles, no tool use — just output plain text and nothing else.
 
       $context"
 
-        # haiku: a 2-3 sentence notification on a 15-min timer path is the
-        # cost doctrine's textbook high-frequency lane
-        notification=$(claude_text haiku "$prompt")
+      # haiku: a 2-3 sentence notification on a 15-min timer path is the
+      # cost doctrine's textbook high-frequency lane
+      notification=$(claude_text haiku "$prompt")
 
-        if [[ -n "$notification" ]]; then
-          touch "$COOLDOWN_FILE"
-          action=$(claudeos_notify --icon=claude --urgency=critical \
-            -A "fix=Open in Claude" -A "dismiss=Dismiss" \
-            "ClaudeOS Monitor" "$notification")
-
-          if [[ "$action" == "fix" ]]; then
-            claude_interactive "ClaudeOS health monitor detected issues on this system. Here is the alert context:
-
-      $context
-
-      --- Claude notification summary ---
-      $notification
-
-      Diagnose and fix these issues. Check journalctl, systemctl, and other system tools for more information as needed." "$CLAUDEOS_DIAG_TOOLS"
-          fi
-          exit 0
-        fi
+      if [[ -n "$notification" ]]; then
+        icon=claude
+        title="ClaudeOS Monitor"
+      else
+        # Fallback: truncated raw context
+        notification=$(echo "$context" | head -15)
+        icon=dialog-warning
+        title="System Alert"
       fi
 
-      # --- Fallback: truncated raw context ---
-      fallback=$(echo "$context" | head -15)
-      action=$(claudeos_notify --icon=dialog-warning --urgency=critical \
+      # Normal urgency: `critical` never expires on GNOME, so a recurring
+      # alert stacks banners the user has to dismiss by hand.
+      action=$(claudeos_notify_action --icon="$icon" \
         -A "fix=Open in Claude" -A "dismiss=Dismiss" \
-        "System Alert" "$fallback")
+        "$title" "$notification")
 
       if [[ "$action" == "fix" ]]; then
-        claude_interactive "ClaudeOS health monitor detected issues on this system. Here is the raw alert context:
+        claude_interactive "ClaudeOS health monitor detected issues on this system. Here is the alert context:
 
       $context
+
+      --- Notification summary ---
+      $notification
 
       Diagnose and fix these issues. Check journalctl, systemctl, and other system tools for more information as needed." "$CLAUDEOS_DIAG_TOOLS"
       fi
@@ -145,7 +141,7 @@ let
         echo "$brief" > "$BRIEF_FILE"
 
         # Send notification with action button
-        action=$(claudeos_notify --icon=claude \
+        action=$(claudeos_notify_action --icon=claude \
           -A "details=Details" -A "dismiss=Dismiss" \
           "Good Morning" "$brief")
 
@@ -247,8 +243,9 @@ in
           serviceConfig = {
             Type = "oneshot";
             ExecStart = toString notifyScript;
-            # notify-send -A blocks waiting for user to click an action button.
-            # Allow up to 30 min before systemd kills us (matches cooldown period).
+            # Backstop only. claudeos_notify_action self-limits its wait to
+            # CLAUDEOS_NOTIFY_WAIT (15 min), so hitting this would mean the
+            # Claude call hung — never an unclicked notification.
             TimeoutStartSec = "30min";
           };
         };
@@ -263,7 +260,9 @@ in
           serviceConfig = {
             Type = "oneshot";
             ExecStart = toString dailyBriefScript;
-            # notify-send -A blocks waiting for user to click an action button.
+            # Backstop only — see claudeos-notify. Before the wait was bounded,
+            # an unclicked 9 AM brief timed out into `failed` here, and the
+            # health check alerted on that failed unit every 15 min all day.
             TimeoutStartSec = "30min";
           };
         };
