@@ -29,6 +29,10 @@ Ledger edits are committed by the normal rebuild auto-commit flow.
 
 <!-- known-benign noise lands here: date · signature · why it's harmless -->
 
+- 2026-07-09 · "Failed to start ClaudeOS Claude-authored notification handler" (35 occurrences) · Expected: the notifier is triggered by health-check `OnFailure=`, so it runs once per health-check failure. The notifier "failing" in the journal is the normal exit; the actual notification (if any) is the only actionable part.
+
+- 2026-07-09 · "Failed to start ClaudeOS morning system briefing" (1 occurrence) · Likely transient or timer not yet fired (scheduled service runs once daily). Monitor if pattern continues.
+
 - 2026-07-08 · "Failed to start ClaudeOS system health check" (periodic) · BY DESIGN — the health check deliberately exits 1 when it finds issues, because `OnFailure=claudeos-notify.service` is how the notifier gets triggered (see the script header in `modules/apps/claude-monitor/health-check.sh`). A "failed" health-check unit means the check WORKED and found something; the something is what deserves attention, not the unit. Do not "fix" the exit code.
 
 - 2026-07-08 · Chrome thread futex/pthread waits (64 syscall_cancel, 33 futex_abstimed_wait, 22 pthread_cond_wait, etc. over 24h) · Normal thread synchronization in Chrome's multi-threaded event loop; condition-variable and futex waits are expected. No actual failure signaled.
