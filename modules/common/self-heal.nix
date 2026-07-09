@@ -4,11 +4,31 @@
 # to opted-in units. On failure, a headless Claude agent session receives the
 # unit's journal + systemctl state, investigates the owning module in the
 # claudeos repo, and — if the failure is config-rooted — fixes it on a
-# heal/* branch, validates with a dry-run build, and opens a PR for review.
-# It never touches main; the human merge is the approval gate.
+# heal/* branch, validates with a dry-run build, and opens a PR.
+# It never touches main directly.
+#
+# Approval gate — trust ladder, rung 2 (see docs/PHILOSOPHY.md, "The
+# constitution"). This agent used to require a human merge for every fix.
+# It no longer does, but only for the narrowest possible class of change.
+# `.github/workflows/heal-automerge.yml` squash-merges a heal/* PR by itself
+# when ALL of these hold, and holds it for a human otherwise:
+#
+#   - CI green on that exact SHA (treefmt/statix/deadnix + dry-run eval of
+#     every host + one real toplevel build)
+#   - the diff touches EXACTLY ONE file under modules/ or home/, *.nix
+#   - never flake.nix, flake.lock, .sops.yaml, secrets/, .github/, .claude/
+#   - <= 40 changed lines
+#   - a separate Claude machine-review returns `VERDICT: APPROVE`
+#   - the PR carries no `heal-hold` label
+#
+# `heal-hold` is the escape hatch: label any heal PR with it and the gate
+# stands down. The gate cannot edit itself (.github/ is a protected path, and
+# workflow_run always runs main's copy), and anything it merges is reversible
+# — `git revert` the squash commit, or boot the previous generation.
 #
 # Cost profile: event-driven (unit failures only), per-unit 6h cooldown,
-# sonnet-class model, runs on the Claude subscription.
+# sonnet-class model, runs on the Claude subscription. The merge gate adds one
+# more sonnet call per heal PR.
 {
   lib,
   config,
@@ -80,7 +100,9 @@ let
       1. Decide whether this failure is rooted in the NixOS configuration in this repo (the unit is defined somewhere under modules/ or home/). If it is transient (network blip, the machine was suspending, an external service was down) or you cannot determine a config-level cause, output exactly SKIP: <one-line reason> and STOP — do not edit anything.
       2. If config-rooted: find the owning module (grep for the unit name), make the minimal fix, and validate it with: nix build .#nixosConfigurations.\$(hostname).config.system.build.toplevel --dry-run
       3. Work ONLY on a new branch named $branch — never commit to main. Stage, commit (conventional message, mention the unit), push the branch, then open a PR with: gh pr create --base main --fill
-      4. Your final output: the PR URL, or SKIP: <reason>."
+      4. Your final output: the PR URL, or SKIP: <reason>.
+
+      A PR that changes exactly one *.nix file under modules/ or home/, by 40 lines or fewer, touching none of flake.nix / flake.lock / .sops.yaml / secrets/ / .github/ / .claude/, may be auto-merged once CI is green and a machine review approves it (trust ladder rung 2 — see the header of modules/common/self-heal.nix). Prefer the minimal, single-file fix when that IS the correct fix. Never contort a fix to fit the window: if the right change spans several files or exceeds 40 lines, make the right change and let a human review it. Widening a diff to dodge review, or narrowing one to court auto-merge, are the same failure."
 
       text=$(claude_headless sonnet "$prompt" \
         --allowedTools 'Read,Grep,Glob,Edit,Bash(git status*),Bash(git diff*),Bash(git log*),Bash(git checkout -b *),Bash(git add *),Bash(git commit *),Bash(git push *),Bash(gh pr create*),Bash(nix build*--dry-run*),Bash(journalctl*),Bash(systemctl status*),Bash(systemctl --user status*),Bash(hostname)')

@@ -110,7 +110,10 @@ keeps half-finished things from dying. Hence:
    exploit the system-is-a-repo property (the entire next OS state is a
    derivation you can boot before betting the laptop on it). And the result
    stays reversible the NixOS way: the previous generation is one reboot
-   away.*
+   away. Second graduated lane (2026-07): low-risk self-heal PRs now merge
+   themselves — see "The rung-2 window" under the constitution. It bought its
+   rung the same way, and the shape generalizes: **graduation is a narrow
+   window plus a machine check, never a broad grant of trust.***
 5. **The computer's unique knowledge is attention and activity** — what's
    focused, what's half-done, whether you're even there. Web services know
    your calendar; only the OS knows your *state*. Future capabilities should
@@ -139,13 +142,67 @@ advisory ones:
   `git commit` with staged `.nix` changes is **denied** unless the flake
   evaluates. The constitution lives in git, so every change to what agents
   may do is a reviewable diff.
-- Agents work on branches (`heal/*`) and open PRs; the human merge is the
-  approval gate.
+- Agents work on branches (`heal/*`) and open PRs. **A PR merges itself only
+  inside the rung-2 window below; everything else waits for a human.**
 - Identity note: agents run as the user (a separate "agent user" fights
   Claude Code's per-user OAuth model — evaluated and rejected). Scoping comes
   from `--allowedTools` allowlists, systemd sandboxing where user units
   support it, cooldowns, and loop-prevention (never attach self-heal to
   itself).
+
+### The rung-2 window (self-merging heal PRs)
+
+*Second graduated lane, 2026-07-09. Implemented in
+`.github/workflows/heal-automerge.yml`.* A `heal/*` PR squash-merges itself
+when **all** of the following hold — and is held open with a comment
+explaining why, the moment any one of them does not:
+
+1. CI green on that exact commit: treefmt/statix/deadnix, a dry-run eval of
+   every host, and one real `system.build.toplevel` build.
+2. The diff touches **exactly one** `*.nix` file under `modules/` or `home/`.
+3. It touches none of `flake.nix`, `flake.lock`, `.sops.yaml`, `secrets/`,
+   `.github/`, `.claude/`.
+4. Forty changed lines or fewer.
+5. A Claude machine-review returns exactly `VERDICT: APPROVE`.
+6. No `heal-hold` label. *(Applying it is the human's stop button.)*
+7. The PR head is still the commit CI tested.
+
+The window is drawn so that everything inside it is **cheap to be wrong
+about**. One module file cannot alter the boot path, the disk layout, the
+secrets, the pinned inputs, or the rules governing agents — those are all
+either protected paths or beyond a one-file diff. And the blast radius has a
+floor NixOS gives us for free: a bad merge is one `git revert` or one reboot
+into the previous generation.
+
+Three properties make this a graduation rather than a surrender, and a future
+change that breaks any of them un-earns the rung:
+
+- **The gate is a machine check, not a vibe.** Rung 1's approval gate was a
+  human reading a small diff. Rung 2 replaces it with the failure classes that
+  human was actually catching — build breakage (a real toplevel build), style
+  and dead-code drift (statix/deadnix), and "would a reviewer have commented?"
+  (a Claude call with a strict `VERDICT:` contract, failing closed on silence,
+  on garbled output, and on its own uncertainty). This is the rule item 4 of
+  the proactivity doctrine sets: *a lane may graduate by adding a machine check
+  that catches the failure class a human review was catching.*
+- **The gate cannot be edited by what it gates.** `.github/` is a protected
+  path, and `workflow_run` always executes the default branch's copy of the
+  workflow. An agent cannot widen its own window — not even by merging a PR
+  that widens it.
+- **Machine gates never parse prose.** The human-readable review posted by
+  `claude-code-review.yml` is written for Tom and is *not* consulted by the
+  gate. The gate makes its own call with a one-line output contract. Prose
+  written for a person is not a control signal; the day a review template gets
+  reworded, merge behaviour must not change.
+
+The honest residual risks, recorded rather than hidden: the diff is untrusted
+text fed to the reviewing model, so prompt injection is possible in principle
+(mitigated by the one-file/40-line window, the green build, and revertibility,
+not eliminated); the branch prefix `heal/*` is the only thing marking a PR as
+agent-authored, and a human can push that prefix too — which is acceptable
+precisely because the gate judges content, never authorship; and `workflow_run`
+hands a write token to a job that checks out PR-authored code, safe only while
+that job refuses forks and never *executes* what it checks out.
 
 ## Security posture (decided, not pending)
 

@@ -19,10 +19,15 @@ jobs:
     #   github.event.pull_request.author_association == 'FIRST_TIME_CONTRIBUTOR'
 
     runs-on: ubuntu-latest
+    # write, not read: with `pull-requests: read` this job ran green on every
+    # PR while silently posting nothing — a review nobody could see. The
+    # rung-2 merge gate (heal-automerge.yml) deliberately does NOT consume
+    # this job's result; it makes its own call with a strict verdict contract.
+    # This review is for the human.
     permissions:
       contents: read
-      pull-requests: read
-      issues: read
+      pull-requests: write
+      issues: write
       id-token: write
 
     steps:
