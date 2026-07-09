@@ -1,8 +1,31 @@
-_:
+{ pkgs, ... }:
 
 {
   # Enable NetworkManager for easy network management
   networking.networkmanager.enable = true;
+
+  # Docked = wired: never hold two addresses on the same LAN. Dual-homing
+  # wired + wifi on one subnet makes source-address selection and the strict
+  # rp_filter hardening (system.nix) drop asymmetric flows — seen 2026-07-09
+  # as intermittent "dial tcp i/o timeout" to GitHub while pushes worked.
+  # Ethernet carrier turns wifi off; unplugging turns it back on.
+  networking.networkmanager.dispatcherScripts = [
+    {
+      type = "basic";
+      source = pkgs.writeText "wired-wifi-toggle" ''
+        nmcli=${pkgs.networkmanager}/bin/nmcli
+        [ "$("$nmcli" -g GENERAL.TYPE device show "$1" 2>/dev/null)" = "ethernet" ] || exit 0
+        case "$2" in
+          up) "$nmcli" radio wifi off ;;
+          down)
+            # Re-enable only when no other wired link remains connected
+            "$nmcli" -t -f TYPE,STATE device | grep -q "^ethernet:connected" \
+              || "$nmcli" radio wifi on
+            ;;
+        esac
+      '';
+    }
+  ];
 
   # Use systemd-resolved for DNS (caching, DNSSEC validation, DNS-over-TLS)
   # NetworkManager delegates DNS resolution to resolved automatically
