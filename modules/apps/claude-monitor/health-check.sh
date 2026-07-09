@@ -18,8 +18,12 @@ if [[ -n "$failed" ]]; then
 fi
 
 # --- Failed systemd services (user, excluding our own) ---
+# The monitor's own notifier units are excluded, daily-brief included: they
+# exist to display notifications, so their failures say nothing about system
+# health, and alerting on one makes this check fail every 15 minutes — an
+# alert loop feeding itself. self-heal.nix skips them for the same reason.
 failed_user=$(systemctl --user --failed --no-legend --no-pager 2>/dev/null \
-  | grep -v -e claudeos-health-check -e claudeos-notify -e "^$" || true)
+  | grep -v -e claudeos-health-check -e claudeos-notify -e claudeos-daily-brief -e "^$" || true)
 if [[ -n "$failed_user" ]]; then
   printf '=== Failed User Services ===\n%s\n\n' "$failed_user" >> "$CONTEXT_FILE"
   issues=1
