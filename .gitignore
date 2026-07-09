@@ -22,6 +22,9 @@ secrets/*.age
 # Machine-local Claude Code settings (session-scratch allowlist; accretes
 # one-off commands and machine paths — durable rules live in settings.json)
 .claude/settings.local.json
+# Claude Code writes settings.local.json.tmp.<pid>.<hash> while saving; a
+# `git add -A` mid-write will otherwise commit one (it did, once).
+.claude/settings.local.json.tmp.*
 
 # Temporary files
 *.tmp
