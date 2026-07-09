@@ -19,10 +19,24 @@ jobs:
     #   github.event.pull_request.author_association == 'FIRST_TIME_CONTRIBUTOR'
 
     runs-on: ubuntu-latest
+    # write, not read: with `pull-requests: read` this job could not have
+    # posted a review even if it produced one.
+    #
+    # Necessary but NOT sufficient — verified on PR #30, where the job ran with
+    # `PullRequests: write` and still posted nothing: the action's own step
+    # exits success after ~6s without ever running the agent. That second cause
+    # lives inside claude-code-action / the code-review plugin and is not fixed
+    # here. Tracked separately; this workflow has been a green no-op since it
+    # was added.
+    #
+    # Nothing depends on it. The rung-2 merge gate (heal-automerge.yml)
+    # deliberately does NOT consume this job's result — it makes its own Claude
+    # call with a strict verdict contract. This review is for the human, and
+    # its absence blocks nothing.
     permissions:
       contents: read
-      pull-requests: read
-      issues: read
+      pull-requests: write
+      issues: write
       id-token: write
 
     steps:
