@@ -18,9 +18,13 @@
       name = "Inter";
       package = pkgs: pkgs.inter;
     };
+    # Lora is the Anthropic brand body face. It IS the system serif: document
+    # and prose contexts carry the brand, while sansSerif stays Inter, which
+    # was drawn for dense UI chrome. (Noto Serif remains available via
+    # noto-fonts, kept in fonts.packages for its Noto Sans fallback.)
     serif = {
-      name = "Noto Serif";
-      package = pkgs: pkgs.noto-fonts;
+      name = "Lora";
+      package = pkgs: pkgs.lora;
     };
     emoji = {
       name = "Noto Color Emoji";
@@ -32,6 +36,20 @@
       package = pkgs: pkgs.nerd-fonts.symbols-only;
     };
   };
+  # Anthropic brand display face. Deliberately NOT in `fonts` above: those keys
+  # drive Stylix (GTK, shell, editor), and Poppins is a geometric display face
+  # — legible in a headline, poor at 11px UI sizes. Installed for fontconfig so
+  # locally-rendered artifacts (the morning desk dashboard) can name it for
+  # headings, without it becoming the UI font.
+  # The brand body face, Lora, needs no entry here: it IS `fonts.serif`.
+  # See .claude/skills/brand-guidelines.
+  brand = {
+    display = {
+      name = "Poppins";
+      package = pkgs: pkgs.poppins;
+    };
+  };
+
   icons = {
     name = "Adwaita";
   };
