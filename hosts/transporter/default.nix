@@ -1,4 +1,4 @@
-{ ... }:
+{ user, ... }:
 
 {
   # Dell Latitude 7280 — TESTBED host for the ClaudeOS return.
@@ -76,4 +76,17 @@
   # holds. Note: wifi passphrases are entered fresh (no wpa_supplicant
   # profile migration — fresh install anyway).
   networking.networkmanager.wifi.backend = "iwd";
+
+  # Hyprland + bespoke Quickshell bar, as a boot-menu specialisation. This is
+  # the ONLY place claude-os.hyprland.enable is flipped on, and the only place
+  # the Hyprland/Quickshell home config is attached — so nothing leaks onto the
+  # default GNOME generation or onto gti. systemd-boot auto-emits a second boot
+  # entry ("… (hyprland)"); boot into it to try Hyprland, reboot into the
+  # default entry for GNOME. Do NOT `switch-to-configuration` into it — live HM
+  # activation inside a specialisation is unverified (boot-into is the safe
+  # path). See docs/plans/2026-07-10-wm-evaluation-report.md (Part 4).
+  specialisation.hyprland.configuration = {
+    claude-os.hyprland.enable = true;
+    home-manager.users.${user}.imports = [ ../../home/hyprland.nix ];
+  };
 }
