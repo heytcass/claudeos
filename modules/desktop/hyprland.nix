@@ -17,8 +17,7 @@ let
   cfg = config.claude-os.hyprland;
 in
 {
-  options.claude-os.hyprland.enable =
-    lib.mkEnableOption "the Hyprland compositor (transporter testbed specialisation)";
+  options.claude-os.hyprland.enable = lib.mkEnableOption "the Hyprland compositor (transporter testbed specialisation)";
 
   config = lib.mkIf cfg.enable {
     # Hyprland from nixpkgs (nixos-unstable) — Mesa matches the system by
