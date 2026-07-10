@@ -11,7 +11,6 @@
   lib,
   pkgs,
   config,
-  osConfig,
   ...
 }:
 let
@@ -98,8 +97,9 @@ in
         border_size = 2;
         gaps_in = 4;
         gaps_out = 8;
-        "col.active_border" = "rgba(${c.base0D}ff)"; # terracotta
-        "col.inactive_border" = "rgba(${c.base03}aa)";
+        # Border colors come from Stylix's Hyprland target (base0D terracotta on
+        # the active border, from the same palette) — setting them here conflicts
+        # with Stylix's own definitions.
       };
 
       decoration.rounding = 8;
@@ -131,11 +131,7 @@ in
   services.mako.enable = true;
   programs.hyprlock.enable = true;
   services.hypridle.enable = true;
-  services.hyprpaper = {
-    enable = true;
-    settings = {
-      preload = [ "${osConfig.stylix.image}" ];
-      wallpaper = [ ",${osConfig.stylix.image}" ];
-    };
-  };
+  # Wallpaper: enable hyprpaper; Stylix's hyprpaper target sets the image from
+  # stylix.image, so setting settings here would conflict with it.
+  services.hyprpaper.enable = true;
 }
