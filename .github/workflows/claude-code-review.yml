@@ -20,14 +20,16 @@ jobs:
 
     runs-on: ubuntu-latest
     # write, not read: with `pull-requests: read` this job could not have
-    # posted a review even if it produced one.
+    # posted a review even if it produced one. Whether that alone explains the
+    # silence is still open — see issue #32.
     #
-    # Necessary but NOT sufficient — verified on PR #30, where the job ran with
-    # `PullRequests: write` and still posted nothing: the action's own step
-    # exits success after ~6s without ever running the agent. That second cause
-    # lives inside claude-code-action / the code-review plugin and is not fixed
-    # here. Tracked separately; this workflow has been a green no-op since it
-    # was added.
+    # Do NOT diagnose this workflow from a PR that edits this file.
+    # claude-code-action refuses to run when the workflow file differs from the
+    # copy on the default branch ("Workflow validation failed"), so the job
+    # exits success in ~6s having done nothing. That is a security control, not
+    # a bug: a PR must not be able to rewrite the review workflow and capture
+    # the app token. PR #30 edited this file and so could not test its own fix —
+    # a mistake already made once, in the comment this one replaces.
     #
     # Nothing depends on it. The rung-2 merge gate (heal-automerge.yml)
     # deliberately does NOT consume this job's result — it makes its own Claude
