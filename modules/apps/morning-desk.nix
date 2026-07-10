@@ -5,7 +5,10 @@
 # system state — and writes ~/Desk/today/index.html: a self-contained,
 # Stylix-themed dashboard ordered by what deserves attention first
 # (Jasper doctrine: ONE most important thing on top, never a feed).
-# At first login of the day it opens automatically in Chrome app mode.
+# It opens once a day in Chrome app mode, the first time the session is
+# unlocked after the build — armed by a timer, not by login. A laptop that
+# suspends rather than reboots enters graphical-session.target once and then
+# never again, so a login-only trigger shows the page exactly once, ever.
 #
 # Presentation is NOT the model's job. The <style> and <script> below are
 # built here, from the Stylix palette and the brand faces in lib/theme.nix,
@@ -694,6 +697,7 @@ let
       pkgs.lib.makeBinPath [
         pkgs.coreutils
         pkgs.google-chrome
+        pkgs.systemd # loginctl
       ]
     }:$PATH"
     STAMP_DIR="''${XDG_CACHE_HOME:-$HOME/.cache}/claudeos-desk"
@@ -710,8 +714,22 @@ let
     done
     [[ -f "$DESK" ]] || exit 0
     [[ "$(date -r "$DESK" +%F)" == "$(date +%F)" ]] || exit 0
+
+    # Wait until someone is actually at the machine. The daily timer fires at
+    # dawn; opening Chrome behind a lock screen just parks a window nobody
+    # asked for. Give up after 4h — tomorrow gets a fresh page anyway.
+    session=$(loginctl show-user "$(id -un)" --value -p Display 2>/dev/null || true)
+    if [[ -n "$session" ]]; then
+      for _ in $(seq 2880); do
+        [[ "$(loginctl show-session "$session" --value -p LockedHint 2>/dev/null || echo no)" == "no" ]] && break
+        sleep 5
+      done
+    fi
+
     sleep 8 # let the session settle before claiming the screen
-    touch "$STAMP"
+    # Atomic claim: the login trigger and the daily timer can both reach here.
+    # noclobber makes exactly one of them win; the loser exits quietly.
+    (set -o noclobber; : > "$STAMP") 2>/dev/null || exit 0
     exec google-chrome-stable --app="file://$DESK"
   '';
 in
@@ -723,6 +741,16 @@ in
       type = lib.types.str;
       default = "*-*-* 05:30:00";
       description = "When to build the dashboard (systemd calendar expression).";
+    };
+
+    showSchedule = lib.mkOption {
+      type = lib.types.str;
+      default = "*-*-* 05:35:00";
+      description = ''
+        When to arm the opener (systemd calendar expression). It then waits for
+        the session to be unlocked, so this is when the day's page becomes
+        eligible to appear — not when a window pops up.
+      '';
     };
   };
 
@@ -746,8 +774,12 @@ in
       };
     };
 
+    # Two triggers, because they cover different days. graphical-session
+    # catches a fresh boot or login; the timer catches every other morning on
+    # a laptop that suspends instead of rebooting — where the session target
+    # fires once and then never again. The per-day stamp keeps them honest.
     systemd.user.services.claudeos-morning-desk-show = {
-      description = "Open today's dashboard at first login";
+      description = "Open today's dashboard once the session is unlocked";
       wantedBy = [ "graphical-session.target" ];
       # Order after the build when both jobs are queued together (login-time
       # Persistent catch-up); the in-script wait covers the async case.
@@ -758,6 +790,19 @@ in
       serviceConfig = {
         Type = "oneshot";
         ExecStart = toString showScript;
+        # Must outlast the build wait (10min) plus the unlock wait (4h).
+        TimeoutStartSec = "5h";
+      };
+    };
+
+    systemd.user.timers.claudeos-morning-desk-show = {
+      description = "Arm the morning desk opener for today";
+      wantedBy = [ "timers.target" ];
+      timerConfig = {
+        OnCalendar = cfg.showSchedule;
+        # Catch up after a suspend spanning the scheduled time; the script
+        # then waits for unlock rather than opening into a locked screen.
+        Persistent = true;
       };
     };
   };
