@@ -10,6 +10,8 @@ Ledger edits are committed by the normal rebuild auto-commit flow.
 
 <!-- new-actionable entries land here: date · signature · next step -->
 
+- 2026-07-10 · xhci_hcd USB host controller PCI post-resume error -19 + "HC died; cleaning up" + pcieport D3hot→D0 power state failure (same suspend/resume cycle) · USB and PCIe power state management issue after resume. Next step: verify USB connectivity; test suspend/resume cycle (`systemctl suspend`) to confirm reproducibility; if repeats, investigate firmware/driver updates or BIOS sleep state settings (transporter).
+
 - 2026-07-05 · `usr-bin.mount: Failed with result 'protocol'` / "Mount process
   finished, but there is no mount" (envfs FUSE on /usr/bin, intermittent —
   transporter, recurred 2026-07-06) · Investigated 2026-07-06: this is the
@@ -28,6 +30,14 @@ Ledger edits are committed by the normal rebuild auto-commit flow.
 ## Benign
 
 <!-- known-benign noise lands here: date · signature · why it's harmless -->
+
+- 2026-07-10 · pam_unix sudo auth failures: "conversation failed" and "auth could not identify password for [tom]" (4 each) · Transient sudo authentication hiccups; if `sudo` works normally when needed, these are harmless glitches (possibly password-echo races or stale TTY state). Escalate only if sudo becomes unusable.
+
+- 2026-07-10 · i915 GPU *ERROR* "Atomic update failure on pipe A" (scanline timing, 1 occurrence) · Transient GPU display timing glitch during vertical sync update; does not affect display output or functionality. One-off event, benign if display remains stable.
+
+- 2026-07-10 · connman/iwd "operation failed" on device config (.Set failed) · Transient WiFi configuration operation failure; if network connectivity works, the device recovered. Monitor if pattern repeats; only escalate if WiFi stops connecting.
+
+- 2026-07-10 · iwlwifi 0000:02:00.0 "transaction failed, dumping registers" (1 occurrence, followed by memory dumps) · WiFi adapter transient firmware/hardware glitch with state dump for diagnostic purposes; adapter likely recovered if connectivity remains stable. One-off event, benign if WiFi functional.
 
 - 2026-07-09 · "Failed to start ClaudeOS Claude-authored notification handler" (35 occurrences) · Expected: the notifier is triggered by health-check `OnFailure=`, so it runs once per health-check failure. The notifier "failing" in the journal is the normal exit; the actual notification (if any) is the only actionable part.
 
