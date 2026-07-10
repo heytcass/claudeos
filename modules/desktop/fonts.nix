@@ -43,8 +43,12 @@ in
     # name→package pairing), plus extra fallback/coverage fonts
     packages =
       map (font: font.package pkgs) (builtins.attrValues themeLib.fonts)
+      # Brand faces: installed so generated artifacts can name them, but
+      # absent from defaultFonts above — they never become the UI font.
+      ++ map (font: font.package pkgs) (builtins.attrValues themeLib.brand)
       ++ (with pkgs; [
         # System fonts for fallbacks and Unicode coverage
+        noto-fonts # provides the "Noto Sans" sans fallback named above
         noto-fonts-cjk-sans
         noto-fonts-cjk-serif # CJK in serif contexts rendered as tofu without it
         liberation_ttf
