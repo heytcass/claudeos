@@ -24,4 +24,7 @@ ShellRoot {
 
     // Notification toasts (their own layer-shell windows, per monitor).
     Toasts {}
+
+    // SUPER+H keybinding cheat sheet (its own overlay window).
+    CheatSheet {}
 }
