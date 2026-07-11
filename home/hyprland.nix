@@ -78,6 +78,9 @@ in
 {
   wayland.windowManager.hyprland = {
     enable = true;
+    # Pin the legacy hyprlang config format (this module's `settings` are
+    # hyprlang, not lua) — silences the configType default-change warning.
+    configType = "hyprlang";
     # UWSM owns the session (system module sets programs.hyprland.withUWSM);
     # don't also let home-manager start a hyprland systemd target.
     systemd.enable = false;
@@ -87,10 +90,36 @@ in
       "$terminal" = "ghostty";
       "$launcher" = "fuzzel";
 
+      # Keyboard: Hyprland owns the in-session Wayland layout (it does NOT
+      # inherit GNOME's dconf input-sources), so mirror the Colemak setup from
+      # home/gnome.nix here. The console keymap lives in modules/common/locale.nix.
+      input = {
+        kb_layout = "us";
+        kb_variant = "colemak";
+      };
+
+      # Cursor: point Xcursor at the Stylix Adwaita theme (cursor.package +
+      # size from modules/desktop/theme.nix) so the built-in Hyprland cursor
+      # doesn't show. Also applied live via `hyprctl setcursor` in exec-once.
+      env = [
+        "XCURSOR_THEME,Adwaita"
+        "XCURSOR_SIZE,20"
+      ];
+
       exec-once = [
         "qs" # the bespoke Quickshell bar
         "hyprpaper"
         "hypridle"
+        # Apply the Adwaita cursor at runtime (belt-and-suspenders with env above).
+        "hyprctl setcursor Adwaita 20"
+        # Start + unlock the Secret Service (org.freedesktop.secrets) so Claude
+        # and other libsecret apps can save logins. GNOME (co-installed) provides
+        # gnome-keyring and the GDM PAM unlock; a bare WM session must still start
+        # the daemon's components itself.
+        "gnome-keyring-daemon --start --components=secrets,ssh,pkcs11"
+        # Polkit authentication agent — GNOME ran one for free; without it, GUI
+        # privilege prompts (mounting, NM edits, etc.) silently fail.
+        "${pkgs.polkit_gnome}/libexec/polkit-gnome-authentication-agent-1"
       ];
 
       general = {
@@ -113,12 +142,28 @@ in
         "$mod, F, fullscreen,"
         "$mod, J, movefocus, l"
         "$mod, SEMICOLON, movefocus, r"
+        "$mod SHIFT, M, exit," # graceful exit back to GDM
       ]
       ++ (lib.concatMap (n: [
         "$mod, ${toString n}, workspace, ${toString n}"
         "$mod SHIFT, ${toString n}, movetoworkspace, ${toString n}"
       ]) (lib.range 1 5))
       ++ (map toHyprBind claudeBinds);
+
+      # Media + brightness keys — GNOME's settings-daemon handled these; a bare
+      # compositor doesn't. bindel = repeat while held; bindl = fire even locked.
+      bindel = [
+        ",XF86AudioRaiseVolume, exec, wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%+"
+        ",XF86AudioLowerVolume, exec, wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%-"
+        ",XF86MonBrightnessUp, exec, brightnessctl set 5%+"
+        ",XF86MonBrightnessDown, exec, brightnessctl set 5%-"
+      ];
+      bindl = [
+        ",XF86AudioMute, exec, wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle"
+        ",XF86AudioPlay, exec, playerctl play-pause"
+        ",XF86AudioNext, exec, playerctl next"
+        ",XF86AudioPrev, exec, playerctl previous"
+      ];
     };
   };
 
@@ -130,7 +175,32 @@ in
   programs.fuzzel.enable = true;
   services.mako.enable = true;
   programs.hyprlock.enable = true;
-  services.hypridle.enable = true;
+
+  # Idle → lock, matching GNOME's 5-min lock (home/gnome.nix idle-delay 300).
+  # hypridle does nothing without listeners, so define them: lock at 5 min,
+  # screen off at 10, and lock before sleep. On AC the machine stays awake for
+  # overnight automation (no suspend listener here — same intent as gnome.nix).
+  services.hypridle = {
+    enable = true;
+    settings = {
+      general = {
+        lock_cmd = "pidof hyprlock || hyprlock";
+        before_sleep_cmd = "loginctl lock-session";
+        after_sleep_cmd = "hyprctl dispatch dpms on";
+      };
+      listener = [
+        {
+          timeout = 300;
+          on-timeout = "loginctl lock-session";
+        }
+        {
+          timeout = 600;
+          on-timeout = "hyprctl dispatch dpms off";
+          on-resume = "hyprctl dispatch dpms on";
+        }
+      ];
+    };
+  };
   # Wallpaper: enable hyprpaper; Stylix's hyprpaper target sets the image from
   # stylix.image, so setting settings here would conflict with it.
   services.hyprpaper.enable = true;
