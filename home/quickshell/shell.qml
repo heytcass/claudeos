@@ -5,14 +5,23 @@
 import QtQuick
 import Quickshell
 
-// Entry point for the bespoke ClaudeOS bar. Colors come from the Stylix-
-// generated Colors.qml singleton (dropped into this dir by home/hyprland.nix)
-// and are auto-registered, so Bar.qml references `Colors.*` directly.
+// Root of the ClaudeOS shell: one Bar per monitor, the notification toast
+// stack, and (touched below so it binds the D-Bus name at startup) the
+// notification server. Colors/fonts come from the Stylix-generated Theme
+// singleton (Theme.qml, written by home/hyprland.nix).
 ShellRoot {
-    // One bar per monitor. Variants injects `modelData` (the QuickshellScreen)
-    // into each Bar; Bar is a PanelWindow that anchors itself to the top edge.
+    // Force the Notifications singleton to instantiate at startup so the
+    // NotificationServer claims org.freedesktop.Notifications immediately,
+    // rather than lazily when a popup first reads it (which would drop any
+    // notifications fired before then).
+    Component.onCompleted: Notifications.list
+
+    // One bar per monitor.
     Variants {
         model: Quickshell.screens
         Bar {}
     }
+
+    // Notification toasts (their own layer-shell windows, per monitor).
+    Toasts {}
 }
