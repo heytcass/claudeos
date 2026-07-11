@@ -59,6 +59,12 @@ All work is done directly on NixOS machines:
 
 **Important:** Always modify files in `~/.config/claudeos/` — never edit upstream module files or flake input sources directly.
 
+## Compositor config isn't validated by the build
+
+`nix build` / `nix flake check` only check Nix **evaluation** — they cannot parse the *contents* of a generated `hyprland.conf` or the Quickshell QML. A config that builds green can still be rejected at runtime: e.g. Hyprland 0.55 changed `windowrule` grammar to space-separated (`float class:^(…)$`), so the old comma form (`float, class:…`) builds fine but throws `invalid field float` and raises Hyprland's on-screen config-error banner. Likewise a single broken QML file blanks the entire bar (Quickshell registers the config dir as one module).
+
+So validate **new Hyprland config values against the running binary** before rebuilding: `hyprctl keyword <field> <value>` must return `ok`, and `hyprctl configerrors` must be empty after `hyprctl reload`. Validate the **Quickshell bar the same way via `qs` fast-reload** — copy `~/.config/quickshell` somewhere writable, run `qs -p <copy>/shell.qml`, and confirm it loads with no errors — before baking the change into a rebuild.
+
 ## Capabilities
 
 Read `CAPABILITIES.md` for the full system capabilities reference — MCP servers, agents, skills, hooks, desktop integration, and proactive behaviors.
