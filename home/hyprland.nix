@@ -131,6 +131,21 @@ let
   '';
 in
 {
+  # Portals: the HM hyprland module auto-enables xdg.portal with ONLY the
+  # hyprland backend, and HM's NIX_XDG_DESKTOP_PORTAL_DIR (hm-session-vars)
+  # SHADOWS the system portal dir — so the frontend saw no gtk backend, and
+  # FileChooser/Settings had no implementation (Claude Desktop SIGABRTed opening
+  # a directory picker, 2026-07-11). Complete the per-user set instead: gtk
+  # rides alongside xdph, and the config routes anything hyprland doesn't
+  # implement (FileChooser, Settings, …) to gtk — mirroring the system module.
+  xdg.portal = {
+    extraPortals = [ pkgs.xdg-desktop-portal-gtk ];
+    config.common.default = [
+      "hyprland"
+      "gtk"
+    ];
+  };
+
   wayland.windowManager.hyprland = {
     enable = true;
     # Pin the legacy hyprlang config format (this module's `settings` are
