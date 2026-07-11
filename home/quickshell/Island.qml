@@ -56,13 +56,28 @@ Rectangle {
     implicitHeight: Theme.barHeight - 6
     radius: height / 2
     color: hover.hovered ? Qt.lighter(Theme.surface, 1.15) : Theme.surface
-    border.width: 1
-    border.color: root.state === "notif" ? Theme.accent : Qt.rgba(Theme.muted.r, Theme.muted.g, Theme.muted.b, playing ? 0.5 : 0.25)
-    Behavior on border.color {
-        ColorAnimation {
-            duration: 200
+
+    // Agent pulse: while ClaudeOS is working on itself (a rebuild/build), the
+    // border breathes terracotta — the machine's "I'm alive and busy" tell.
+    // Drives `pulse` 0→1→0; the border alpha follows it. Highest-priority border
+    // treatment (over notif/idle) because it's a persistent state, not transient.
+    property real pulse: 0
+    SequentialAnimation on pulse {
+        running: Agent.active
+        loops: Animation.Infinite
+        NumberAnimation {
+            to: 1
+            duration: 1100
+            easing.type: Easing.InOutSine
+        }
+        NumberAnimation {
+            to: 0
+            duration: 1100
+            easing.type: Easing.InOutSine
         }
     }
+    border.width: Agent.active ? 2 : 1
+    border.color: Agent.active ? Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.3 + 0.6 * pulse) : (root.state === "notif" ? Theme.accent : Qt.rgba(Theme.muted.r, Theme.muted.g, Theme.muted.b, playing ? 0.5 : 0.25))
 
     // Width tracks the visible content; springs open/closed on morph.
     implicitWidth: {
