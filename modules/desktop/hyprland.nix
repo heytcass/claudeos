@@ -49,16 +49,16 @@ in
 
     environment.sessionVariables.XDG_CURRENT_DESKTOP = "Hyprland";
 
-    # Secret Service (org.freedesktop.secrets) for the Hyprland session.
-    # gdm-password login does NOT run pam_gnome_keyring by default, so the login
-    # keyring is never unlocked at login. GNOME's gnome-session papers over this
-    # by starting + unlocking the daemon itself; a bare Hyprland session can't,
-    # leaving libsecret clients (notably Claude Desktop's OAuth token store)
-    # facing a *locked* keyring — which is why Desktop auth fails under Hyprland.
-    # Unlock it at login instead, the standard way. Gated to the specialisation,
-    # so the default GNOME generation's PAM stack is byte-identical.
-    services.gnome.gnome-keyring.enable = true;
-    security.pam.services.gdm-password.enableGnomeKeyring = true;
+    # Secret Service (org.freedesktop.secrets): NO extra PAM config needed.
+    # Verified 2026-07-11 against the built system: GDM's module defines
+    # gdm-password as a full-text override that SUBSTACKS `login`, and `login`
+    # already carries pam_gnome_keyring (auth + session auto_start) via
+    # services.gnome.gnome-keyring — so the login keyring unlocks at GDM
+    # password login in this session too. Setting
+    # `security.pam.services.gdm-password.enableGnomeKeyring` here rendered
+    # NOTHING (text override beats generated rules) — it was a silent no-op,
+    # removed. The exec-once gnome-keyring-daemon --start in home/hyprland.nix
+    # exposes the components in-session.
 
     # Polkit authentication agent — soteria (Rust + GTK4). Replaces the
     # unmaintained polkit-gnome; the NixOS module installs and autostarts the
