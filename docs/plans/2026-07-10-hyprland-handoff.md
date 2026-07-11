@@ -32,16 +32,21 @@ except where noted.
    `y`/`m` → `yr`/`mo`. `qs` now loads clean; `hyprctl layers` shows the
    `quickshell` bar layer and it renders correctly (workspaces · title · clock ·
    media · volume · network · battery · tray).
-2. **Keyring — FIXED (deterministically) ✅.** Root cause: `gdm-password` PAM had
-   **no** `pam_gnome_keyring` line, so a password GDM login never unlocked the
-   login keyring — GNOME's gnome-session hides this, a bare Hyprland session
-   can't, so libsecret clients (Claude Desktop's token store) hit a *locked*
-   collection. Added `security.pam.services.gdm-password.enableGnomeKeyring`
-   (+ `services.gnome.gnome-keyring.enable`) in `modules/desktop/hyprland.nix`,
-   gated to the specialisation. (On the current boot the login collection
-   happened to be unlocked via empty-password auto-unlock, so the exact Desktop
-   failure wasn't reproducible live — but PAM unlock is the correct, race-free
-   mechanism.)
+2. **Keyring — ERRATUM (2026-07-11, later same day): the PAM fix was a no-op,
+   and the diagnosis was wrong.** Verified against the built system: GDM defines
+   `gdm-password` as a full-text override that **substacks `login`**, and
+   `login` already carries `pam_gnome_keyring` (via
+   `services.gnome.gnome-keyring`, which GNOME enables) — so the login keyring
+   *was* unlocking at GDM password login all along, and
+   `security.pam.services.gdm-password.enableGnomeKeyring` rendered nothing
+   (text override beats generated rules; removed in `5f201dd`). The *actual*
+   Desktop breakage under Hyprland was the **portal backend shadowing**:
+   home-manager's hyprland module auto-enables `xdg.portal` with only
+   `xdg-desktop-portal-hyprland`, and HM's `NIX_XDG_DESKTOP_PORTAL_DIR`
+   shadows the system portal dir — leaving the frontend with **no
+   FileChooser/Settings backend** (Claude Desktop SIGABRTed opening a
+   directory picker). Fixed by completing HM's portal set (gtk backend +
+   `config.common.default = hyprland;gtk` in `home/hyprland.nix`, `5f201dd`).
 3. **Ghostty black-on-black — NOT REPRODUCED.** Both terminals render fine
    (dark bg, readable fg) on this boot; the theme file carries explicit colors.
    No fabricated fix. BUT the underlying lead was real and *is* fixed anyway:
