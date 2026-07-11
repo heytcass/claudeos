@@ -286,9 +286,11 @@ in
 
   # The bespoke bar: Quickshell package + the generated config dir. cava feeds
   # the island's audio spectrum (Spectrum.qml runs it on the default sink).
+  # qml-preview is the fast-reload dev helper (see .claude/skills/qml-dial-in).
   home.packages = [
     pkgs.quickshell
     pkgs.cava
+    (pkgs.writeShellScriptBin "qml-preview" (builtins.readFile ./qml-preview.sh))
   ];
   xdg.configFile."quickshell".source = qsConfig;
 
