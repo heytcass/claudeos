@@ -38,6 +38,12 @@ in
 
     environment.sessionVariables.XDG_CURRENT_DESKTOP = "Hyprland";
 
+    # Polkit authentication agent — soteria (Rust + GTK4). Replaces the
+    # unmaintained polkit-gnome; the NixOS module installs and autostarts the
+    # agent (systemd user service), so GUI privilege prompts work. GTK4 means it
+    # inherits Stylix's GTK theming rather than needing its own.
+    security.soteria.enable = true;
+
     # CLIs the Quickshell bar and keybinds shell out to. GNOME's settings-daemon
     # handled media/brightness keys and screenshots for free; a bare Hyprland
     # session needs the tools on PATH so the binds in home/hyprland.nix work.
