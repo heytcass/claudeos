@@ -40,7 +40,7 @@ lib/                   # Helpers: mkSystem, hideDesktopEntries, theme utilities
 assets/                # Static files (wallpapers, etc.)
 ```
 
-**Key inputs:** nixpkgs (unstable), home-manager, nixos-hardware, sops-nix, disko, stylix, claude-desktop-linux, jasper, nix-index-database
+**Key inputs:** nixpkgs (unstable), home-manager, nixos-hardware, sops-nix, disko, stylix, claude-desktop-linux, nix-index-database
 
 home-manager runs as a NixOS module (not standalone) — configured in `lib/mkSystem.nix`.
 

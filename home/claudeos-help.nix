@@ -101,7 +101,7 @@ in
         set_color $key; printf "    %-22s " "Daily brief"
         set_color $desc; echo "System summary at 9 AM, shown in first terminal"
         set_color $key; printf "    %-22s " "Jasper"
-        set_color $desc; echo "AI companion in the system bar"
+        set_color $desc; echo "Personal companion lane — in progress (bar face pending)"
         set_color normal
         echo ""
   '';

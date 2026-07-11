@@ -37,6 +37,8 @@ PanelWindow {
         ActiveWindow {
             Layout.maximumWidth: 440
         }
+        // Jasper's insight — the one thing worth surfacing, click to expand.
+        JasperWidget {}
     }
 
     // ---- center: the adaptive island (clock ⇄ now-playing) ----

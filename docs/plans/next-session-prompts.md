@@ -40,60 +40,36 @@ recorder) remain open backlog.
 > nix flake check for both hosts; do not claim runtime success — add the VM
 > gate's first real run to the testbed checklist.
 
-## 9. Jasper revival — the face of the machine + the household agent
+## 9. Jasper — the personal-companion lane (RESOLVED 2026-07-11)
 
-Decided 2026-07-08 (deep-dive session): Jasper is NOT retired — it becomes
-the *personal* companion, distinct from ClaudeOS's *system* automations.
-Division of labor: **ClaudeOS is the system's agent; Jasper is Tom's.**
+The 2026-07-08 sketch here proposed *reviving the Rust daemon* (persistent
+session, tray, two-repo workflow). That was superseded on 2026-07-11: reviving
+the daemon is the "daemon trap" (second brain, separate auth/memory/voice) the
+PHILOSOPHY now forbids. **The division of labor still holds — ClaudeOS is the
+system's agent; Jasper is Tom's** — but Jasper becomes a *lane*, not a process.
+See docs/PHILOSOPHY.md "On Jasper specifically" for the canonical statement.
 
-> Read docs/PHILOSOPHY.md, modules/apps/jasper.nix, modules/common/secrets.nix,
-> and modules/apps/morning-desk.nix first. Then read the jasper repo itself
-> (flake input `jasper`, github:heytcass/jasper) — most of this work lives
-> THERE, with a thin claudeos integration layer.
+> Direction: dumb collectors (gcalcli, weather, routes — Jasper's existing sops
+> keys) → one `claude -p` call carrying Jasper's persona + ownership-aware,
+> one-insight prompt → the Quickshell bar as its face. The Rust daemon and its
+> waybar/GNOME/COSMIC/Noctalia frontends are retired; the flake input is
+> dropped. Implemented as a ClaudeOS lane in modules/apps/jasper.nix, modeled
+> on morning-desk.nix and built on lib/claude-script.nix.
 >
-> Context you'd otherwise have to rediscover:
-> - The jasper flake input has been pinned since 2026-03 (repo dormant).
->   Step zero: bump it, get it building against current nixpkgs.
-> - The daemon runs but has NO user-facing surface — the tray
->   indicator/widget was always "a follow-up task" (jasper.nix comment),
->   and the `claudeos` help screen's "Jasper — AI companion in the system
->   bar" row is currently an unbacked claim (the same drift class as the
->   fixed Ctrl+Alt+Space row — home/claudeos-help.nix). The appindicator
->   host it needs is NOW properly installed (programs.gnome-shell,
->   home/gnome.nix).
+> Still-relevant context carried forward:
 > - Jasper holds the personal-world credentials (sops: Google
->   weather/routes/calendar OAuth, home address) that ClaudeOS's system
->   agents duplicate poorly — morning-desk uses wttr.in and tells the user
->   to gcalcli-init with Jasper's own OAuth client. Deduplicate toward
->   Jasper's keys.
-> - Jasper is the one ANTHROPIC_API_KEY consumer (everything else rides
->   the Claude subscription via claude -p). Evaluate moving its calls to
->   the CLI lane per the PHILOSOPHY cost doctrine, or justify the key.
-> - HISTORY: jasper's unit once pulled graphical-session.target active in
->   GDM greeter sessions and killed the greeter in a boot loop (comments in
->   jasper.nix + hosts/transporter/default.nix). Never regress that unit
->   ordering. ConditionUser now derives from the `user` specialArg.
->
-> Scope (build in this order):
-> 1. **Presence**: tray indicator via StatusNotifier with a quick panel —
->    Jasper's face. Stylix palette (read ~/.config/stylix/palette.json at
->    runtime like claude-statusline does; never hardcode hex).
-> 2. **Continuity**: a persistent conversational session (the daemon holds
->    state; one-shot ClaudeOS timers can't). The tray, a future launcher,
->    and the Telegram channel (prompt #7) are surfaces onto the SAME
->    session.
-> 3. **Household**: departure-time nudges (routes key + calendar + home
->    address), and Home Assistant integration (Tom runs HA) — presence-aware
->    behaviors. Proactivity doctrine applies: interject on the Jasper
->    doctrine ("one most important thing, never a feed"), rate-limited.
-> 4. **Cleanup**: morning-desk consumes Jasper's weather/calendar instead of
->    wttr.in/gcalcli; help screen row becomes true; docs updated
->    (MODULES.md, CAPABILITIES.md).
->
-> Two-repo workflow: daemon/UI work in the jasper repo, integration in
-> claudeos; bump the flake input as features land. Validate with
-> claudeos-validate; runtime-verify the unit ordering on transporter before
-> gti ever sees it.
+>   weather/routes/calendar OAuth, home address). Deduplicate toward these
+>   keys — morning-desk currently uses wttr.in and its own gcalcli bootstrap.
+> - Cost: the lane rides the Claude subscription via `claude -p` — NO
+>   dedicated ANTHROPIC_API_KEY (the old daemon was the last key consumer).
+> - HISTORY: the retired daemon's unit once pulled graphical-session.target
+>   active in GDM greeter sessions and killed the greeter in a boot loop
+>   (comments in jasper.nix + hosts/transporter/default.nix). Retiring the
+>   daemon removes that entire failure class — a lane's timer never touches
+>   graphical-session.target.
+> - Home Assistant reach and a persistent conversational surface (Telegram,
+>   prompt #7) remain open future directions, but layer onto the lane — they
+>   are not reasons to stand a daemon back up.
 
 ## 2. `timewarp` — named time travel
 

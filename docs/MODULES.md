@@ -25,7 +25,6 @@ The formatter is `nixfmt` via treefmt-nix (set in `flake.nix`).
 | disko | nix-community | Declarative disk partitioning |
 | stylix | danth | Unified theming (base16) |
 | claude-desktop-linux | heytcass | Claude Desktop Electron app (follows main nixpkgs) |
-| jasper | heytcass | Jasper AI companion daemon |
 | treefmt-nix | numtide | Formatter wiring for `nix fmt` |
 | nix-index-database | nix-community | Prebuilt nix-index DB for comma (`, foo`) |
 
@@ -217,7 +216,7 @@ Claude-named generations. Reads the repo-root `generation-label` file (a short s
 
 The OS files its own fix PRs (`claude-os.selfHeal`, enabled by default).
 
-- **Mechanism:** systemd user template `claude-heal@.service` attached via `OnFailure=` to opted-in units (option `claude-os.selfHeal.units`; defaults: `claudeos-auto-update`, `claudeos-journal-diary`, `jasper-companion`)
+- **Mechanism:** systemd user template `claude-heal@.service` attached via `OnFailure=` to opted-in units (option `claude-os.selfHeal.units`; defaults: `claudeos-auto-update`, `claudeos-journal-diary`)
 - **On failure:** a headless Claude agent (sonnet) receives the unit's journal + systemctl state, investigates the owning module, and -- only if the failure is config-rooted -- fixes it on a `heal/*` branch, validates with a dry-run build, and opens a PR via `gh pr create`. Transient failures get a `SKIP: <reason>` and no edits
 - **Safety:** never touches main (human merge is the approval gate), per-unit 6h cooldown, restricted allowed tools; never watches `claude-heal@` itself or `claudeos-health-check` (loop prevention); skips upfront (with a notification) when no GitHub credential is reachable — keyring in-session, `github_automation_token` sops secret headless — rather than spending an agent session that cannot open a PR
 - **Follow-up:** the agent session id is saved so the fish `approve` function can resume it
@@ -334,16 +333,15 @@ Claude Code CLI and Claude Desktop.
 
 ### modules/apps/jasper.nix
 
-Jasper AI companion daemon.
+Jasper, the personal-companion **lane** (`claude-os.jasper`, enabled by default). Formerly a standalone Rust daemon; now a ClaudeOS lane per `docs/PHILOSOPHY.md` "On Jasper specifically" — take the thinking, not the daemon. Built on `lib/claude-script.nix`, modeled on `morning-desk.nix`.
 
-**System packages:** `jasperPkgs.daemon` (from `inputs.jasper`). A desktop surface (e.g. GNOME shell integration) is a follow-up task.
+- **Poll (every 30 min during waking hours, configurable `schedule`):** a `oneshot` user service runs dumb collectors — weather (wttr.in) and calendar (gcalcli, if connected) — then a bash **significance gate** decides whether anything changed (hash of the day's stable weather + labelled agenda) or a morning/midday/evening heartbeat is due.
+- **One call, one insight:** only when the gate fires does a single `claude -p` **sonnet** call (riding the Claude subscription — **no dedicated API key**) synthesize ONE warm, ownership-aware sentence ("Christen has soccer," never "you have soccer"). Written to `~/.cache/claudeos-monitor/jasper-insight.txt` (the monitor-cache file contract).
+- **Face:** `home/quickshell/Jasper.qml` (singleton) + `JasperWidget.qml` read that file and show the insight in the bar (click to expand). One thing, never a feed.
+- **Never touches `graphical-session.target`** — a plain `timers.target` oneshot, so the retired daemon's greeter-killing boot loop cannot recur.
+- **Calendar bootstrap (one-time, interactive):** `gcalcli init` with the Google OAuth client from sops (`jasper_google_client_id`/`secret`); until then it runs weather-only and never invents events.
 
-**Systemd user service** (`jasper-companion`):
-- Starts after `graphical-session.target`
-- Reads `ANTHROPIC_API_KEY` from sops secret (`jasper_anthropic_api_key`) at runtime
-- Restarts on failure (5 second delay)
-
-**Dependency:** `modules/common/secrets.nix` (provides the sops secret)
+**Dependency:** `modules/common/secrets.nix` (Jasper's Google/home-address sops secrets). The `jasper_anthropic_api_key` secret is no longer consumed by this module.
 
 ### modules/apps/mcp-system-health/
 
