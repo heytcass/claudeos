@@ -201,6 +201,17 @@ in
     };
   };
 
+  # Force-overwrite hyprland.conf. If HM ever fails to place this (e.g. an
+  # unrelated activation error) Hyprland boots configless and writes its own
+  # STUB config as a *real* file at this path. On the next activation HM's
+  # backupFileExtension="backup" dance then dies with "backup would be clobbered"
+  # (the stub's own .backup already exists) — aborting the ENTIRE activation, so
+  # NO home files deploy and the session comes up with default binds and no bar.
+  # force=true makes HM overwrite the stub outright, breaking that trap. (Cost:
+  # a hand-edited hyprland.conf would be silently replaced — acceptable, this
+  # file is fully declarative.)
+  xdg.configFile."hypr/hyprland.conf".force = true;
+
   # The bespoke bar: Quickshell package + the generated config dir.
   home.packages = [ pkgs.quickshell ];
   xdg.configFile."quickshell".source = qsConfig;
