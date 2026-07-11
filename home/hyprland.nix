@@ -117,9 +117,8 @@ in
         # gnome-keyring and the GDM PAM unlock; a bare WM session must still start
         # the daemon's components itself.
         "gnome-keyring-daemon --start --components=secrets,ssh,pkcs11"
-        # Polkit authentication agent — GNOME ran one for free; without it, GUI
-        # privilege prompts (mounting, NM edits, etc.) silently fail.
-        "${pkgs.polkit_gnome}/libexec/polkit-gnome-authentication-agent-1"
+        # (Polkit agent is soteria, autostarted by security.soteria.enable in
+        # modules/desktop/hyprland.nix — no exec-once needed.)
       ];
 
       general = {
