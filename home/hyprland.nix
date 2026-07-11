@@ -17,6 +17,10 @@ let
   # Plain (no-hash) base16 strings for Hyprland's rgba() color syntax.
   c = config.lib.stylix.colors;
 
+  # Font names for the Quickshell Theme singleton — same source of truth the
+  # rest of the system themes from (lib/theme.nix), so the bar matches.
+  themeLib = import ../lib/theme.nix;
+
   # Reuse THE keybinding source of truth — lib/keybindings.nix drives the GNOME
   # dconf binds AND the claudeos help screen, so converting it here keeps
   # Hyprland in sync by construction rather than duplicating the list.
@@ -49,11 +53,13 @@ let
   qsConfig = pkgs.runCommand "claudeos-quickshell" { } ''
     mkdir -p "$out"
     cp -r ${./quickshell}/. "$out/"
-    cat > "$out/Colors.qml" <<'EOF'
+    cat > "$out/Theme.qml" <<'EOF'
     pragma Singleton
     import Quickshell
     import QtQuick
 
+    // Generated from the Stylix base16 palette + lib/theme.nix fonts. The whole
+    // bar reads colors/fonts/metrics from here — never hardcode hex in the QML.
     Singleton {
       readonly property color base00: "#${c.base00}"
       readonly property color base01: "#${c.base01}"
@@ -71,6 +77,30 @@ let
       readonly property color base0D: "#${c.base0D}"
       readonly property color base0E: "#${c.base0E}"
       readonly property color base0F: "#${c.base0F}"
+
+      // Semantic aliases (so widgets read intent, not palette indices)
+      readonly property color bg: base01
+      readonly property color bgAlt: base00
+      readonly property color surface: base02
+      readonly property color text: base05
+      readonly property color subtext: base04
+      readonly property color muted: base03
+      readonly property color accent: base0D
+      readonly property color accentAlt: base0F
+      readonly property color good: base0B
+      readonly property color warn: base0A
+      readonly property color urgent: base08
+
+      // Fonts (single source of truth: lib/theme.nix)
+      readonly property string fontSans: "${themeLib.fonts.sansSerif.name}"
+      readonly property string fontMono: "${themeLib.fonts.monospace.nerdName}"
+      readonly property int fontSize: 13
+      readonly property int iconSize: 15
+
+      // Metrics
+      readonly property int barHeight: 34
+      readonly property int radius: 8
+      readonly property int gap: 8
     }
     EOF
   '';
@@ -172,7 +202,10 @@ in
 
   # Light companions — Stylix auto-themes those with targets (autoEnable is on).
   programs.fuzzel.enable = true;
-  services.mako.enable = true;
+  # Notifications are owned by the Quickshell shell now (home/quickshell —
+  # Notifications.qml runs the org.freedesktop.Notifications server + toasts).
+  # mako is deliberately NOT enabled: only one process can own that D-Bus name,
+  # so running mako would silently steal notifications from the shell.
   programs.hyprlock.enable = true;
 
   # Idle → lock, matching GNOME's 5-min lock (home/gnome.nix idle-delay 300).
