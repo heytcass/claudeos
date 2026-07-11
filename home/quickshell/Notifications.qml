@@ -3,6 +3,7 @@
 // and `history` drives the notification center in the calendar dropdown.
 // Only ONE NotificationServer may exist, so this is a Singleton and mako is off.
 pragma Singleton
+import QtQuick // ListModel
 import Quickshell
 import Quickshell.Services.Notifications
 
