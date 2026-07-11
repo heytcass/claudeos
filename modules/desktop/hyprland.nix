@@ -34,15 +34,44 @@ in
     xdg.portal = {
       enable = true;
       extraPortals = [ pkgs.xdg-desktop-portal-gtk ];
+      # Route interfaces explicitly. Without this, nothing serves
+      # org.freedesktop.portal.Settings under XDG_CURRENT_DESKTOP=Hyprland: the
+      # hyprland portal only implements Screenshot/ScreenCast/GlobalShortcuts,
+      # and gtk/gnome are UseIn=gnome — so Settings (how apps read the
+      # dark/light color-scheme) answers "no such interface". Fall back to gtk
+      # for everything the hyprland portal doesn't implement (Settings,
+      # FileChooser, Notification, …).
+      config.common.default = [
+        "hyprland"
+        "gtk"
+      ];
     };
 
     environment.sessionVariables.XDG_CURRENT_DESKTOP = "Hyprland";
+
+    # Secret Service (org.freedesktop.secrets) for the Hyprland session.
+    # gdm-password login does NOT run pam_gnome_keyring by default, so the login
+    # keyring is never unlocked at login. GNOME's gnome-session papers over this
+    # by starting + unlocking the daemon itself; a bare Hyprland session can't,
+    # leaving libsecret clients (notably Claude Desktop's OAuth token store)
+    # facing a *locked* keyring — which is why Desktop auth fails under Hyprland.
+    # Unlock it at login instead, the standard way. Gated to the specialisation,
+    # so the default GNOME generation's PAM stack is byte-identical.
+    services.gnome.gnome-keyring.enable = true;
+    security.pam.services.gdm-password.enableGnomeKeyring = true;
 
     # Polkit authentication agent — soteria (Rust + GTK4). Replaces the
     # unmaintained polkit-gnome; the NixOS module installs and autostarts the
     # agent (systemd user service), so GUI privilege prompts work. GTK4 means it
     # inherits Stylix's GTK theming rather than needing its own.
     security.soteria.enable = true;
+    # ...but don't let its systemd --user service autostart. It runs at
+    # graphical-session.target, before UWSM exports XDG_SESSION_ID to the user
+    # manager, so it dies ("Could not get XDG session id") and start-limit-hits,
+    # leaving a FAILED unit. home/hyprland.nix launches soteria from Hyprland's
+    # exec-once instead (inherits the live session env). The unit stays defined
+    # (so `systemctl --user start polkit-soteria` still works) but idle.
+    systemd.user.services.polkit-soteria.wantedBy = lib.mkForce [ ];
 
     # CLIs the Quickshell bar and keybinds shell out to. GNOME's settings-daemon
     # handled media/brightness keys and screenshots for free; a bare Hyprland

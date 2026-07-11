@@ -8,10 +8,12 @@ import QtQuick.Layouts
 ColumnLayout {
     id: root
     property date shown: new Date()
-    readonly property int y: shown.getFullYear()
-    readonly property int m: shown.getMonth()
+    // Named yr/mo, not y/m: `y` would shadow Item.y (vertical position), which
+    // recent Qt marks FINAL — overriding it fails config load and blanks the bar.
+    readonly property int yr: shown.getFullYear()
+    readonly property int mo: shown.getMonth()
     // weekday index (0=Sun) of the 1st of the shown month
-    readonly property int firstWeekday: new Date(y, m, 1).getDay()
+    readonly property int firstWeekday: new Date(yr, mo, 1).getDay()
     readonly property date today: new Date()
 
     function sameDay(a, b) {
@@ -38,7 +40,7 @@ ColumnLayout {
             font.family: Theme.fontMono
             font.pixelSize: 12
             TapHandler {
-                onTapped: root.shown = new Date(root.y, root.m - 1, 1)
+                onTapped: root.shown = new Date(root.yr, root.mo - 1, 1)
             }
         }
         Text {
@@ -48,7 +50,7 @@ ColumnLayout {
             font.pixelSize: 12
             leftPadding: 10
             TapHandler {
-                onTapped: root.shown = new Date(root.y, root.m + 1, 1)
+                onTapped: root.shown = new Date(root.yr, root.mo + 1, 1)
             }
         }
     }
@@ -80,14 +82,14 @@ ColumnLayout {
             model: 42
             delegate: Item {
                 required property int index
-                readonly property date cellDate: new Date(root.y, root.m, 1 - root.firstWeekday + index)
+                readonly property date cellDate: new Date(root.yr, root.mo, 1 - root.firstWeekday + index)
                 width: 36
                 height: 26
 
                 Text {
                     anchors.centerIn: parent
                     text: parent.cellDate.getDate()
-                    opacity: parent.cellDate.getMonth() === root.m ? 1 : 0.3
+                    opacity: parent.cellDate.getMonth() === root.mo ? 1 : 0.3
                     color: root.sameDay(parent.cellDate, root.today) ? Theme.accent : Theme.text
                     font.family: Theme.fontSans
                     font.pixelSize: 12

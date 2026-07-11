@@ -8,6 +8,9 @@ import Quickshell.Services.UPower
 Rectangle {
     id: root
     readonly property var bat: UPower.displayDevice
+    // Quickshell's UPowerDevice.percentage is a 0..1 fraction (NOT 0..100) —
+    // scale to whole percent once, here, and use `pct` everywhere below.
+    readonly property int pct: bat ? Math.round(bat.percentage * 100) : 0
     readonly property bool charging: bat.state === UPowerDeviceState.Charging || bat.state === UPowerDeviceState.FullyCharged
 
     visible: bat && bat.isLaptopBattery
@@ -44,14 +47,14 @@ Rectangle {
         Text {
             font.family: Theme.fontMono
             font.pixelSize: Theme.iconSize
-            color: (root.bat.percentage <= 15 && !root.charging) ? Theme.urgent : Theme.text
-            text: root.iconFor(root.bat.percentage)
+            color: (root.pct <= 15 && !root.charging) ? Theme.urgent : Theme.text
+            text: root.iconFor(root.pct)
         }
         Text {
             font.family: Theme.fontSans
             font.pixelSize: Theme.fontSize
             color: Theme.text
-            text: Math.round(root.bat.percentage) + "%"
+            text: root.pct + "%"
         }
     }
 
@@ -88,7 +91,7 @@ Rectangle {
                 font.family: Theme.fontSans
                 font.pixelSize: 12
                 text: {
-                    const p = Math.round(root.bat.percentage) + "%";
+                    const p = root.pct + "%";
                     if (root.charging)
                         return root.bat.timeToFull > 0 ? p + "  ·  " + root.fmt(root.bat.timeToFull) + " to full" : p + "  ·  charging";
                     return root.bat.timeToEmpty > 0 ? p + "  ·  " + root.fmt(root.bat.timeToEmpty) + " left" : p;

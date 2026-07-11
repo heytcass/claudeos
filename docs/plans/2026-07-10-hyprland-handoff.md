@@ -19,7 +19,58 @@ directly, so it should close these out fast. Branch:
 > the bar in seconds instead of rebuilding. Start by reproducing bug #1: boot the
 > hyprland specialisation (or just run `qs` in it) and read the error.
 
-## Where we are
+## Resolution (local session, 2026-07-11)
+
+Picked up in a `claude` CLI session running **inside** the Hyprland session
+(Claude Desktop couldn't auth pre-fix — see #2 — so the CLI, which stores creds
+in a file not the keyring, was the way in). Fixes below are **verified live**
+except where noted.
+
+1. **Bar — FIXED ✅.** The predicted third load error was
+   `Calendar.qml: Cannot override FINAL property`: the property named `y`
+   shadows `Item.y` (vertical position), which recent Qt marks `FINAL`. Renamed
+   `y`/`m` → `yr`/`mo`. `qs` now loads clean; `hyprctl layers` shows the
+   `quickshell` bar layer and it renders correctly (workspaces · title · clock ·
+   media · volume · network · battery · tray).
+2. **Keyring — FIXED (deterministically) ✅.** Root cause: `gdm-password` PAM had
+   **no** `pam_gnome_keyring` line, so a password GDM login never unlocked the
+   login keyring — GNOME's gnome-session hides this, a bare Hyprland session
+   can't, so libsecret clients (Claude Desktop's token store) hit a *locked*
+   collection. Added `security.pam.services.gdm-password.enableGnomeKeyring`
+   (+ `services.gnome.gnome-keyring.enable`) in `modules/desktop/hyprland.nix`,
+   gated to the specialisation. (On the current boot the login collection
+   happened to be unlocked via empty-password auto-unlock, so the exact Desktop
+   failure wasn't reproducible live — but PAM unlock is the correct, race-free
+   mechanism.)
+3. **Ghostty black-on-black — NOT REPRODUCED.** Both terminals render fine
+   (dark bg, readable fg) on this boot; the theme file carries explicit colors.
+   No fabricated fix. BUT the underlying lead was real and *is* fixed anyway:
+   `org.freedesktop.portal.Settings` genuinely had **no backend** under
+   `XDG_CURRENT_DESKTOP=Hyprland` (hyprland portal implements only
+   Screenshot/ScreenCast/GlobalShortcuts; gtk/gnome are `UseIn=gnome`). Added
+   `xdg.portal.config.common.default = [ "hyprland" "gtk" ]` so Settings (and
+   FileChooser etc.) fall back to gtk. If black-on-black recurs, this is the
+   most likely cure.
+4. **soteria polkit agent — FIXED ✅ (regression not in the original 3).** Its
+   systemd `--user` service dies at boot with "Could not get XDG session id" →
+   start-limit-hit → FAILED unit: the user manager's environment lacks
+   `XDG_SESSION_ID` (UWSM exports it too late for `graphical-session.target`).
+   Disabled the unit's autostart (`wantedBy = mkForce []`) and launch soteria
+   from Hyprland `exec-once` instead (inherits the live session env). Verified:
+   registers as authentication provider.
+5. **Battery widget — FIXED ✅ (found live).** Bar showed `1%` for an 80%
+   battery. Quickshell's `UPower.displayDevice.percentage` is a **0..1 fraction**
+   (probed: `0.8`), NOT 0..100 as this handoff's API notes claimed. Added a
+   single `pct: Math.round(bat.percentage * 100)` in `BatteryWidget.qml` and use
+   it for the label, icon thresholds, and urgent color. Now reads 80%. **Heads-up
+   for future widgets: correct that 0..100 note below.**
+
+Everything above builds (`nix build …transporter…`) + `nix flake check` + `nix
+fmt` clean. Needs a `nixos-rebuild switch` + reboot into the `(hyprland)` entry
+to bake in the four `.nix`-side fixes (#2/#3/#4); the QML fixes (#1/#5) were
+verified via the live fast-reload loop.
+
+## Where we are (original handoff, pre-fix)
 
 - **Works** on the `transporter` hyprland specialisation: boots, GDM lists the
   Hyprland (UWSM) session, Colemak keyboard, Adwaita cursor, portals installed,
@@ -117,8 +168,11 @@ Save the local session rediscovery:
   broken file breaks the whole dir's type registration (why a single error blanks
   the bar).
 - Active window: `Hyprland.activeToplevel?.title`. Battery:
-  `UPower.displayDevice.{percentage (0..100), timeToEmpty/timeToFull (seconds),
-  state}`.
+  `UPower.displayDevice.{percentage (**0..1 fraction**, NOT 0..100 — multiply by
+  100 for display; verified by probe 2026-07-11), timeToEmpty/timeToFull
+  (seconds), state}`. `displayDevice` is briefly null/unpopulated at startup —
+  null-guard, and its values are 0 for the first ~1s while the D-Bus query
+  lands.
 
 ## Decisions locked (do not relitigate — see the eval report for the why)
 

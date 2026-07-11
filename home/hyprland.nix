@@ -147,8 +147,13 @@ in
         # gnome-keyring and the GDM PAM unlock; a bare WM session must still start
         # the daemon's components itself.
         "gnome-keyring-daemon --start --components=secrets,ssh,pkcs11"
-        # (Polkit agent is soteria, autostarted by security.soteria.enable in
-        # modules/desktop/hyprland.nix — no exec-once needed.)
+        # Polkit agent (soteria). Launched here, NOT via its systemd --user
+        # service: that service starts at graphical-session.target but the user
+        # manager's environment lacks XDG_SESSION_ID (UWSM exports it too late),
+        # so soteria dies with "Could not get XDG session id" and start-limit-
+        # hits. exec-once inherits the live session env, so it registers fine.
+        # Its systemd unit's autostart is disabled in modules/desktop/hyprland.nix.
+        "soteria"
       ];
 
       general = {
