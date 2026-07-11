@@ -56,6 +56,12 @@ Atuin sync is no longer a pending enhancement — history is local-only by decis
 
 ## Maintenance Log
 
+### 2026-07-11 — Jasper: daemon → ClaudeOS lane
+- Retired the standalone Jasper Rust daemon; dropped the `jasper` flake input (and its transitive rust-overlay/flake-utils from the lock). Per `docs/PHILOSOPHY.md` "On Jasper specifically": take the thinking, not the daemon.
+- Rewrote `modules/apps/jasper.nix` as a personal-companion **lane** — a 30-min oneshot poll (wttr.in + gcalcli collectors) with a bash significance gate and ONE `claude -p` sonnet call for a warm, ownership-aware insight. **No dedicated ANTHROPIC_API_KEY** (rides the subscription); writes `~/.cache/claudeos-monitor/jasper-insight.txt`.
+- Added Jasper's face to the Quickshell bar: `home/quickshell/Jasper.qml` (singleton) + `JasperWidget.qml`, wired into `Bar.qml`. Backs the previously-unbacked help-screen row.
+- Dropped `jasper-companion` from the self-heal watch list (a oneshot's transient collector failure is not config-rooted). The retired daemon's greeter-killing `graphical-session.target` failure class is gone by construction.
+
 ### 2026-06-12 — tool rethink quick wins
 - imv removed (`home/imv.nix` deleted) — images open in Loupe (`org.gnome.Loupe`), GNOME's GTK4/Rust viewer; imv was an unmaintained Niri-era leftover that rendered undecorated on Mutter
 - macchina removed entirely (`home/macchina.nix` deleted), no fastfetch replacement — deliberate: the proactivity doctrine says no spec-sheet feed above the daily brief. First shell now shows only the brief (guard var renamed `CLAUDEOS_BRIEF_SHOWN`)
@@ -80,7 +86,7 @@ Atuin sync is no longer a pending enhancement — history is local-only by decis
   - Fish functions `approve` (resume last agent session) and `today`
 - Morning desk (`modules/apps/morning-desk.nix`): 05:30 agent builds ~/Desk/today/index.html (self-contained Stylix-themed dashboard, attention-first hierarchy), auto-opened in Chrome --app mode at first login; calendar via gcalcli (one-time `gcalcli init` with the Google OAuth client in sops); archives to ~/Desk/archive/
 - Claude Code config is now seed-once (two-ring): ~/.claude/settings.json and .mcp.json seeded on first activation then mutable; VSCode extensions Marketplace-managed; statusline is a `claude-statusline` command
-- Flake inputs now: nixpkgs, home-manager, nixos-hardware, sops-nix, disko, claude-desktop-linux (follows main nixpkgs again), stylix, jasper, treefmt-nix, nix-index-database
+- Flake inputs now: nixpkgs, home-manager, nixos-hardware, sops-nix, disko, claude-desktop-linux (follows main nixpkgs again), stylix, treefmt-nix, nix-index-database
 
 ### 2026-06-11
 - Security/quality audit cleanup

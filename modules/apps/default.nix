@@ -12,6 +12,10 @@
 
   # Enable Claude and Jasper by default (override per-host with `false`)
   claude-os.claude.enable = lib.mkDefault true;
+  # Jasper is now a ClaudeOS lane, not the old Rust daemon (docs/PHILOSOPHY.md
+  # "On Jasper specifically" — take the thinking, not the daemon). It rides the
+  # Claude subscription (no dedicated API key) and writes a gated insight for
+  # the bar; cheap to leave on.
   claude-os.jasper.enable = lib.mkDefault true;
   claude-os.monitor.enable = lib.mkDefault true;
   claude-os.monitor.dailyBrief = lib.mkDefault true;

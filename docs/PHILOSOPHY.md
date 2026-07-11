@@ -132,6 +132,16 @@ it would create a second brain with separate auth, memory, and voice. The
 rule generalizes: **take the thinking, not the daemon.** Port doctrines into
 prompts; let collectors be dumb scripts; let Claude Code be the only brain.
 
+The *name* survives, though. "Jasper" is the voice of the **personal** lane —
+the household/family-calendar companion, as distinct from ClaudeOS's *system*
+automations (ClaudeOS is the system's agent; Jasper is Tom's). But it is a
+lane, not a process: dumb collectors (gcalcli, weather, routes) → one
+`claude -p` call carrying Jasper's persona and ownership-aware, one-insight
+prompt → the Quickshell bar as its face. So both things are true at once —
+Jasper is not retired, and the daemon is not revived. *(Resolved 2026-07-11,
+superseding the 2026-07-08 "daemon revival" sketch in
+docs/plans/next-session-prompts.md #9.)*
+
 ## The constitution
 
 Autonomous agents editing the OS are made safe by *mechanical* rules, not

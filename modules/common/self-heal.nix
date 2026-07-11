@@ -46,7 +46,6 @@ let
   unitEnabled = {
     "claudeos-auto-update" = config.claude-os.autoUpdate.enable;
     "claudeos-journal-diary" = config.claude-os.monitor.enable && config.claude-os.monitor.journalDiary;
-    "jasper-companion" = config.claude-os.jasper.enable;
   };
   watchedUnits = lib.filter (u: unitEnabled.${u} or true) cfg.units;
 
@@ -126,10 +125,12 @@ in
 
     units = lib.mkOption {
       type = lib.types.listOf lib.types.str;
+      # The Jasper lane (claudeos-jasper) is deliberately NOT here: it's a
+      # oneshot that can fail on a transient curl/gcalcli hiccup, which is not
+      # config-rooted and must not spawn a heal PR.
       default = [
         "claudeos-auto-update"
         "claudeos-journal-diary"
-        "jasper-companion"
       ];
       description = ''
         systemd user units that get OnFailure=claude-heal@%n.service attached.
