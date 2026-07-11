@@ -103,6 +103,31 @@ let
       readonly property int gap: 8
     }
     EOF
+
+    # cava config for the island's audio spectrum (Spectrum.qml runs
+    # `cava -p cava.conf`). Raw ascii on stdout: `bars` values 0..1000 per line,
+    # ';'-separated, one frame per newline. bars here MUST match Spectrum.bars.
+    cat > "$out/cava.conf" <<'EOF'
+    [general]
+    mode = normal
+    bars = 14
+    framerate = 60
+    autosens = 1
+
+    [input]
+    method = pipewire
+    source = auto
+
+    [output]
+    method = raw
+    channels = mono
+    mono_option = average
+    raw_target = /dev/stdout
+    data_format = ascii
+    ascii_max_range = 1000
+    bar_delimiter = 59
+    frame_delimiter = 10
+    EOF
   '';
 in
 {
@@ -167,6 +192,27 @@ in
 
       decoration.rounding = 8;
 
+      # dwindle (default layout): keep the split direction when a window closes
+      # so the layout doesn't reflow unexpectedly.
+      dwindle.preserve_split = true;
+
+      # Auto-float utility windows + the GTK file picker, so dialogs don't tile
+      # awkwardly. Match by app class; add more as they come up.
+      # Hyprland 0.55 `windowrule` grammar is `<rule> <matcher>` — SPACE, not a
+      # comma. `float, class:…` fails to parse ("invalid field float"); the
+      # space form `float class:…` is correct. (windowrulev2 is deprecated.)
+      windowrule = [
+        "float class:^(pavucontrol|nm-connection-editor|blueman-manager|org.gnome.Calculator)$"
+        "float class:^(xdg-desktop-portal-gtk)$"
+      ];
+
+      # Drag to move (SUPER+left), drag to resize (SUPER+right) — the biggest
+      # everyday win a bare compositor otherwise lacks.
+      bindm = [
+        "$mod, mouse:272, movewindow"
+        "$mod, mouse:273, resizewindow"
+      ];
+
       bind = [
         "$mod, Return, exec, $terminal"
         "$mod, Q, killactive,"
@@ -174,8 +220,34 @@ in
         "$mod, L, exec, hyprlock"
         "$mod, V, togglefloating,"
         "$mod, F, fullscreen,"
-        "$mod, J, movefocus, l"
-        "$mod, SEMICOLON, movefocus, r"
+        "$mod, P, pseudo," # toggle pseudo-tiling for the focused window
+        "$mod, H, global, quickshell:cheatsheet" # floating keybind cheat sheet
+
+        # Focus with arrows — layout-independent (no vim h/j/k/l: the physical
+        # keys don't land on the home row under Colemak, so they're not muscle
+        # memory here).
+        "$mod, left, movefocus, l"
+        "$mod, right, movefocus, r"
+        "$mod, up, movefocus, u"
+        "$mod, down, movefocus, d"
+
+        # Move the focused window within the layout.
+        "$mod SHIFT, left, movewindow, l"
+        "$mod SHIFT, right, movewindow, r"
+        "$mod SHIFT, up, movewindow, u"
+        "$mod SHIFT, down, movewindow, d"
+
+        # Resize the focused window (40px steps).
+        "$mod CTRL, left, resizeactive, -40 0"
+        "$mod CTRL, right, resizeactive, 40 0"
+        "$mod CTRL, up, resizeactive, 0 -40"
+        "$mod CTRL, down, resizeactive, 0 40"
+
+        # Scratchpad: SUPER+S toggles a hidden "magic" workspace, SUPER+SHIFT+S
+        # stashes the focused window into it.
+        "$mod, S, togglespecialworkspace, magic"
+        "$mod SHIFT, S, movetoworkspace, special:magic"
+
         "$mod SHIFT, M, exit," # graceful exit back to GDM
       ]
       ++ (lib.concatMap (n: [
@@ -212,8 +284,12 @@ in
   # file is fully declarative.)
   xdg.configFile."hypr/hyprland.conf".force = true;
 
-  # The bespoke bar: Quickshell package + the generated config dir.
-  home.packages = [ pkgs.quickshell ];
+  # The bespoke bar: Quickshell package + the generated config dir. cava feeds
+  # the island's audio spectrum (Spectrum.qml runs it on the default sink).
+  home.packages = [
+    pkgs.quickshell
+    pkgs.cava
+  ];
   xdg.configFile."quickshell".source = qsConfig;
 
   # Light companions — Stylix auto-themes those with targets (autoEnable is on).

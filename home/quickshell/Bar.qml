@@ -39,8 +39,8 @@ PanelWindow {
         }
     }
 
-    // ---- center ----
-    ClockWidget {
+    // ---- center: the adaptive island (clock ⇄ now-playing) ----
+    Island {
         anchors.centerIn: parent
     }
 
@@ -51,7 +51,7 @@ PanelWindow {
         anchors.verticalCenter: parent.verticalCenter
         spacing: 4
 
-        MediaWidget {}
+        // (now-playing moved to the center island)
         VolumeWidget {}
         NetworkWidget {}
         BatteryWidget {}
