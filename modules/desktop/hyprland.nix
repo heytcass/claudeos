@@ -38,11 +38,16 @@ in
 
     environment.sessionVariables.XDG_CURRENT_DESKTOP = "Hyprland";
 
-    # CLIs the Quickshell bar and keybinds shell out to (screenshots, clipboard).
+    # CLIs the Quickshell bar and keybinds shell out to. GNOME's settings-daemon
+    # handled media/brightness keys and screenshots for free; a bare Hyprland
+    # session needs the tools on PATH so the binds in home/hyprland.nix work.
     environment.systemPackages = with pkgs; [
-      wl-clipboard
-      grim
-      slurp
+      wl-clipboard # copy/paste (wl-copy / wl-paste)
+      grim # screenshots (session-aware capture in modules/common/system.nix)
+      slurp # region select for grim
+      brightnessctl # XF86MonBrightness keys
+      playerctl # XF86Audio play/pause/next/prev keys
+      wireplumber # wpctl — volume/mute keys (audio.nix's stated control tool)
     ];
 
     # Leaner-closure follow-up — drops GNOME from THIS generation (gnome.nix

@@ -36,10 +36,20 @@ in
     # Screenshot → Claude analysis (notification, bound to Super+Shift+A)
     (claudeLib.mkClaudeScriptBin {
       name = "claude-screenshot";
-      runtimeInputs = [ pkgs.gnome-screenshot ];
+      runtimeInputs = [
+        pkgs.gnome-screenshot
+        pkgs.grim
+      ];
       text = ''
         SCREENSHOT="/tmp/claudeos-screenshot-$$.png"
-        gnome-screenshot -f "$SCREENSHOT"
+        # Session-aware capture: grim under Hyprland (gnome-screenshot needs
+        # GNOME Shell's D-Bus iface, absent there), gnome-screenshot under
+        # GNOME (Mutter has no wlr-screencopy for grim).
+        if [ -n "''${HYPRLAND_INSTANCE_SIGNATURE:-}" ]; then
+          grim "$SCREENSHOT"
+        else
+          gnome-screenshot -f "$SCREENSHOT"
+        fi
         response=$(claude_text haiku "${screenshotPrompt}" --allowedTools "Read")
         if [[ -n "$response" ]]; then
           claudeos_notify "Screen Analysis" "$response"
@@ -55,11 +65,17 @@ in
       name = "claude-screenshot-interactive";
       runtimeInputs = [
         pkgs.gnome-screenshot
+        pkgs.grim
         pkgs.ghostty
       ];
       text = ''
         SCREENSHOT="/tmp/claudeos-screenshot-$$.png"
-        gnome-screenshot -f "$SCREENSHOT"
+        # Session-aware capture (see claude-screenshot above).
+        if [ -n "''${HYPRLAND_INSTANCE_SIGNATURE:-}" ]; then
+          grim "$SCREENSHOT"
+        else
+          gnome-screenshot -f "$SCREENSHOT"
+        fi
         claude_interactive "${screenshotPrompt}" "Read" --model sonnet
         rm -f "$SCREENSHOT"
       '';
