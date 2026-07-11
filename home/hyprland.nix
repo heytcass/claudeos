@@ -197,12 +197,13 @@ in
       dwindle.preserve_split = true;
 
       # Auto-float utility windows + the GTK file picker, so dialogs don't tile
-      # awkwardly. Match by app class; add more as they come up. (`windowrule`,
-      # not `windowrulev2` — the v2 syntax became the default in Hyprland 0.55
-      # and windowrulev2 now warns as deprecated.)
+      # awkwardly. Match by app class; add more as they come up.
+      # Hyprland 0.55 `windowrule` grammar is `<rule> <matcher>` — SPACE, not a
+      # comma. `float, class:…` fails to parse ("invalid field float"); the
+      # space form `float class:…` is correct. (windowrulev2 is deprecated.)
       windowrule = [
-        "float, class:^(pavucontrol|nm-connection-editor|blueman-manager|org.gnome.Calculator)$"
-        "float, class:^(xdg-desktop-portal-gtk)$"
+        "float class:^(pavucontrol|nm-connection-editor|blueman-manager|org.gnome.Calculator)$"
+        "float class:^(xdg-desktop-portal-gtk)$"
       ];
 
       # Drag to move (SUPER+left), drag to resize (SUPER+right) — the biggest
