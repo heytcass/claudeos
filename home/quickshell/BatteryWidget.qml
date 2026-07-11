@@ -1,7 +1,8 @@
-// BatteryWidget.qml — battery icon + %, hover shows time-remaining. Only
-// visible on machines with a laptop battery. Goes red near empty on battery.
+// BatteryWidget.qml — battery icon + %, click for time-remaining. No
+// QtQuick.Controls (ToolTip unavailable in the quickshell QML path) — the
+// detail is a small PopupWindow instead.
 import QtQuick
-import QtQuick.Controls
+import Quickshell
 import Quickshell.Services.UPower
 
 Rectangle {
@@ -13,7 +14,7 @@ Rectangle {
     implicitWidth: r.implicitWidth + 12
     implicitHeight: Theme.barHeight - 8
     radius: Theme.radius
-    color: hover.hovered ? Theme.surface : "transparent"
+    color: hover.hovered || popup.visible ? Theme.surface : "transparent"
 
     function iconFor(p) {
         if (root.charging)
@@ -31,8 +32,8 @@ Rectangle {
     function fmt(s) {
         s = Math.round(s);
         const h = Math.floor(s / 3600);
-        const m = Math.floor((s % 3600) / 60);
-        return (h ? h + "h " : "") + m + "m";
+        const mm = Math.floor((s % 3600) / 60);
+        return (h ? h + "h " : "") + mm + "m";
     }
 
     Row {
@@ -57,6 +58,42 @@ Rectangle {
     HoverHandler {
         id: hover
     }
-    ToolTip.visible: hover.hovered
-    ToolTip.text: root.charging ? (root.bat.timeToFull > 0 ? root.fmt(root.bat.timeToFull) + " to full" : "Charging") : (root.bat.timeToEmpty > 0 ? root.fmt(root.bat.timeToEmpty) + " left" : "")
+    TapHandler {
+        onTapped: popup.visible = !popup.visible
+    }
+
+    PopupWindow {
+        id: popup
+        anchor.item: root
+        anchor.edges: Edges.Bottom | Edges.Right
+        anchor.gravity: Edges.Bottom | Edges.Left
+        anchor.margins.top: 6
+        implicitWidth: detail.implicitWidth + 24
+        implicitHeight: 40
+        visible: false
+        grabFocus: true
+        color: "transparent"
+
+        Rectangle {
+            anchors.fill: parent
+            color: Theme.bg
+            radius: 10
+            border.color: Theme.surface
+            border.width: 1
+
+            Text {
+                id: detail
+                anchors.centerIn: parent
+                color: Theme.text
+                font.family: Theme.fontSans
+                font.pixelSize: 12
+                text: {
+                    const p = Math.round(root.bat.percentage) + "%";
+                    if (root.charging)
+                        return root.bat.timeToFull > 0 ? p + "  ·  " + root.fmt(root.bat.timeToFull) + " to full" : p + "  ·  charging";
+                    return root.bat.timeToEmpty > 0 ? p + "  ·  " + root.fmt(root.bat.timeToEmpty) + " left" : p;
+                }
+            }
+        }
+    }
 }
