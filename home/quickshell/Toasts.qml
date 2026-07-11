@@ -71,8 +71,14 @@ Variants {
                             Layout.preferredWidth: 36
                             Layout.preferredHeight: 36
                             Layout.alignment: Qt.AlignTop
+                            // A missing icon name still resolves to an "image://icon/…"
+                            // URL that loads a MAGENTA placeholder with status=Ready, so
+                            // neither source!="" nor status can catch it. iconPath(name,
+                            // true) does an existence check and returns "" when the theme
+                            // lacks the icon — hide on that. (A hidden item is dropped from
+                            // the RowLayout, so the text fills the space.)
                             visible: source !== ""
-                            source: card.modelData.image !== "" ? card.modelData.image : Quickshell.iconPath(card.modelData.appIcon, "dialog-information")
+                            source: card.modelData.image !== "" ? card.modelData.image : Quickshell.iconPath(card.modelData.appIcon, true)
                         }
 
                         ColumnLayout {
