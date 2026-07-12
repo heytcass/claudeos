@@ -1,8 +1,9 @@
-// Agent.qml — "is ClaudeOS working on itself right now?" signal for the island.
-// `active` is true while a rebuild runs (nh — the rebuild wrapper — or a direct
-// nixos-rebuild), OR while any process touches the marker file
-// $XDG_RUNTIME_DIR/claudeos-agent — the extension point for automations (or a
-// heal run) to say "I'm doing something." Polled cheaply.
+// Agent.qml — "what is ClaudeOS doing to itself right now?" signal for the island.
+// The marker file $XDG_RUNTIME_DIR/claudeos-agent is the protocol: any automation
+// (heal, morning-desk, auto-update, a Claude session hook) writes a short phrase
+// into it — "healing", "morning desk" — and the island shows it. An empty marker
+// still counts (phrase defaults to "working"). Rebuilds are detected by process
+// as a fallback so plain `nixos-rebuild`/`nh` runs pulse too. Polled cheaply.
 //
 // Matched by process name (pgrep -x, full-comm regex), not cmdline (-f): -f
 // would also fire on any shell command that merely mentions "nixos-rebuild"
@@ -16,17 +17,27 @@ import Quickshell.Io
 
 Singleton {
     id: root
-    property bool active: false
 
+    // What the machine is doing, e.g. "rebuilding" / "healing" — "" when idle.
+    property string activity: ""
+    readonly property bool active: activity !== ""
+
+    // Every poll prints exactly one "@<phrase>" line ("@" alone = idle): the
+    // sentinel keeps the idle case parseable (SplitParser may drop bare empty
+    // lines) and marker content can never be mistaken for no-output.
     Process {
         id: probe
         command: [
             "sh",
             "-c",
-            "if pgrep -x nh >/dev/null 2>&1 || pgrep -x '[.]?nixos-rebuild.*' >/dev/null 2>&1 || [ -e \"$XDG_RUNTIME_DIR/claudeos-agent\" ]; then echo 1; else echo 0; fi"
+            "if [ -e \"$XDG_RUNTIME_DIR/claudeos-agent\" ]; then a=$(head -n1 \"$XDG_RUNTIME_DIR/claudeos-agent\" 2>/dev/null); echo \"@${a:-working}\"; elif pgrep -x nh >/dev/null 2>&1 || pgrep -x '[.]?nixos-rebuild.*' >/dev/null 2>&1; then echo '@rebuilding'; else echo '@'; fi"
         ]
         stdout: SplitParser {
-            onRead: line => root.active = (line.trim() === "1")
+            onRead: line => {
+                const t = line.trim();
+                if (t.startsWith("@"))
+                    root.activity = t.slice(1);
+            }
         }
     }
 
