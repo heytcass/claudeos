@@ -57,6 +57,36 @@ Rectangle {
     radius: height / 2
     color: hover.hovered ? Qt.lighter(Theme.surface, 1.15) : Theme.surface
 
+    // Staggered entrance (matches Pill.qml) — the center settles in between the
+    // left and right islands.
+    property int entranceDelay: 90
+    opacity: 0
+    scale: 0.92
+    Component.onCompleted: entrance.start()
+    SequentialAnimation {
+        id: entrance
+        PauseAnimation {
+            duration: root.entranceDelay
+        }
+        ParallelAnimation {
+            NumberAnimation {
+                target: root
+                property: "opacity"
+                to: 1
+                duration: 320
+                easing.type: Easing.OutCubic
+            }
+            NumberAnimation {
+                target: root
+                property: "scale"
+                to: 1
+                duration: 460
+                easing.type: Easing.OutBack
+                easing.overshoot: 1.15
+            }
+        }
+    }
+
     // Agent pulse: while ClaudeOS is working on itself (a rebuild/build), the
     // border breathes terracotta — the machine's "I'm alive and busy" tell.
     // Drives `pulse` 0→1→0; the border alpha follows it. Highest-priority border
@@ -98,11 +128,10 @@ Rectangle {
     }
 
     // ---- clock face ----
-    Item {
+    Row {
         id: clockContent
         anchors.centerIn: parent
-        implicitWidth: clockLabel.implicitWidth
-        implicitHeight: clockLabel.implicitHeight
+        spacing: 9
         opacity: root.state === "clock" ? 1 : 0
         visible: opacity > 0
         Behavior on opacity {
@@ -110,9 +139,20 @@ Rectangle {
                 duration: 150
             }
         }
+        // Jasper's mood emoji — the companion's whole bar presence. The
+        // sentence rides at the top of the calendar popup (one tap, one
+        // dropdown). Dimmed when the insight has gone stale.
+        Text {
+            anchors.verticalCenter: parent.verticalCenter
+            visible: Jasper.emoji !== ""
+            text: Jasper.emoji
+            opacity: Jasper.stale ? 0.5 : 1
+            font.family: Theme.fontSans
+            font.pixelSize: Theme.fontSize
+        }
         Text {
             id: clockLabel
-            anchors.centerIn: parent
+            anchors.verticalCenter: parent.verticalCenter
             text: Qt.formatDateTime(clock.date, "ddd d MMM   HH:mm")
             color: Theme.text
             font.family: Theme.fontSans

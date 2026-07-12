@@ -1,4 +1,6 @@
-// VolumeWidget.qml — default-sink volume. Scroll to adjust, click to mute.
+// VolumeWidget.qml — default-sink volume as a colored glyph + slim level bar
+// (no percent text; scroll to adjust, click to mute). The bar fills with the
+// level and the glyph colours by state — accent when loud, muted when muted.
 // Requires PwObjectTracker to bind the node, or volume/muted read/write no-op.
 import QtQuick
 import Quickshell.Services.Pipewire
@@ -6,11 +8,13 @@ import Quickshell.Services.Pipewire
 Rectangle {
     id: root
     readonly property PwNode sink: Pipewire.defaultAudioSink
+    readonly property real vol: sink?.audio ? sink.audio.volume : 0
+    readonly property bool muted: !sink?.audio || sink.audio.muted
 
-    implicitWidth: r.implicitWidth + 14
+    implicitWidth: r.implicitWidth + 12
     implicitHeight: Theme.barHeight - 8
     radius: Theme.radius
-    color: hover.hovered ? Theme.surface : "transparent"
+    color: "transparent"
 
     // Bind the sink so its audio props become valid/writable.
     PwObjectTracker {
@@ -20,23 +24,40 @@ Rectangle {
     Row {
         id: r
         anchors.centerIn: parent
-        spacing: 5
+        spacing: 6
 
         Text {
+            anchors.verticalCenter: parent.verticalCenter
             font.family: Theme.fontMono
             font.pixelSize: Theme.iconSize
-            color: Theme.text
+            color: root.muted ? Theme.muted : (root.vol > 0.5 ? Theme.accent : Theme.text)
             text: {
-                if (!root.sink?.audio || root.sink.audio.muted)
+                if (root.muted)
                     return Icons.volumeMute;
-                return root.sink.audio.volume > 0.5 ? Icons.volumeHigh : Icons.volumeLow;
+                return root.vol > 0.5 ? Icons.volumeHigh : Icons.volumeLow;
             }
         }
-        Text {
-            font.family: Theme.fontSans
-            font.pixelSize: Theme.fontSize
-            color: Theme.text
-            text: root.sink?.audio ? Math.round(root.sink.audio.volume * 100) + "%" : "—"
+        // slim level track + fill
+        Rectangle {
+            anchors.verticalCenter: parent.verticalCenter
+            width: 26
+            height: 3
+            radius: 1.5
+            color: Qt.rgba(Theme.muted.r, Theme.muted.g, Theme.muted.b, 0.35)
+            Rectangle {
+                anchors.left: parent.left
+                anchors.verticalCenter: parent.verticalCenter
+                width: Math.max(0, Math.min(1, root.vol)) * parent.width
+                height: parent.height
+                radius: parent.radius
+                color: root.muted ? Theme.muted : Theme.accent
+                Behavior on width {
+                    NumberAnimation {
+                        duration: 120
+                        easing.type: Easing.OutCubic
+                    }
+                }
+            }
         }
     }
 
