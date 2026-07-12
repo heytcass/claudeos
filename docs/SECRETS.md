@@ -23,9 +23,8 @@ Two age public keys can decrypt `secrets/secrets.yaml`:
 
 ### Declared secrets
 
-`modules/common/secrets.nix` declares seven secrets, all owned by the user with mode `0400`. Six are Jasper's personal-world credentials. Since Jasper became a lane (no daemon; rides the Claude subscription), they are used as follows:
+`modules/common/secrets.nix` declares seven secrets, all owned by the user with mode `0400`. Five are Jasper's personal-world credentials (`jasper_anthropic_api_key` was retired with the daemon — removed from both the declaration and the yaml on 2026-07-11; the lane rides the Claude subscription):
 
-- `jasper_anthropic_api_key` — **now unused** (the daemon was the last consumer; safe to remove on the next `sops` re-encrypt)
 - `jasper_google_client_id` / `jasper_google_client_secret` — the Google OAuth app for the one-time `gcalcli init` (calendar); also reused by `morning-desk.nix`
 - `jasper_google_weather_api_key` — reserved (the lane currently uses keyless wttr.in)
 - `jasper_google_routes_api_key` / `jasper_home_address` — reserved for the future Routes travel-time enhancement (see `modules/apps/jasper.nix`)
