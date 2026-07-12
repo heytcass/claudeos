@@ -37,6 +37,26 @@ Rectangle {
         width: shell.width + 2
         height: shell.height
 
+        // Low-battery breathing: the whole graphic pulses when it's genuinely
+        // urgent — discharging at ≤15%. Settles back to full opacity otherwise.
+        readonly property bool low: !root.charging && root.pct <= 15
+        SequentialAnimation on opacity {
+            running: graphic.low
+            loops: Animation.Infinite
+            NumberAnimation {
+                to: 0.4
+                duration: 850
+                easing.type: Easing.InOutSine
+            }
+            NumberAnimation {
+                to: 1
+                duration: 850
+                easing.type: Easing.InOutSine
+            }
+        }
+        onLowChanged: if (!low)
+            opacity = 1
+
         Rectangle {
             id: shell
             width: 24
@@ -55,6 +75,7 @@ Rectangle {
                 height: shell.height - 4
                 radius: 1.5
                 color: root.lvlColor
+                clip: true
                 Behavior on width {
                     NumberAnimation {
                         duration: 400
@@ -64,6 +85,24 @@ Rectangle {
                 Behavior on color {
                     ColorAnimation {
                         duration: 300
+                    }
+                }
+
+                // Charging shimmer: a light band sweeps the fill while juice
+                // flows in — palette-derived highlight, no raw hex.
+                Rectangle {
+                    id: shimmer
+                    visible: root.charging
+                    width: 6
+                    height: parent.height
+                    color: Qt.rgba(Theme.base07.r, Theme.base07.g, Theme.base07.b, 0.35)
+                    NumberAnimation on x {
+                        running: root.charging
+                        loops: Animation.Infinite
+                        from: -6
+                        to: 24
+                        duration: 1400
+                        easing.type: Easing.InOutQuad
                     }
                 }
             }
