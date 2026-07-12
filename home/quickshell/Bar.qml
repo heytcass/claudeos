@@ -67,16 +67,12 @@ PanelWindow {
         RowLayout {
             spacing: 4
 
-            // Caffeine indicator — exists only while idle-inhibit holds.
-            // Accent mug = deliberate SUPER+I hold; muted mug = the agent's
-            // auto-hold (it disappears on its own when the run ends).
-            Text {
-                visible: Caffeine.inhibited
-                text: Icons.coffee
-                font.family: Theme.fontMono
-                font.pixelSize: Theme.iconSize
-                color: Caffeine.manual ? Theme.accent : Theme.subtext
-            }
+            // The bar's conscience — only exists when a claudeos-* unit failed.
+            HealthWidget {}
+
+            // Caffeine indicator — exists only while idle-inhibit holds
+            // (accent = SUPER+I, muted = agent auto-hold), steam included.
+            CaffeineWidget {}
 
             VolumeWidget {}
             NetworkWidget {}
