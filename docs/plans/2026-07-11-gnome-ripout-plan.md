@@ -50,9 +50,13 @@ must own them before it's the daily driver:
       with mkForce across co-imported modules is messier than waiting until
       the inversion stops importing gnome.nix into the Hyprland generation.
       Then: enable Stylix's Qt target, delete the adwaita-qt hand-roll.
-- [ ] **Caffeine replacement**: bar toggle for idle-inhibit (Hyprland
-      idle-inhibit / systemd-inhibit) — long agent runs must not lock
-      mid-flight.
+- [x] **Caffeine replacement** (decided "keybind + auto on agent activity"):
+      Caffeine.qml singleton — SUPER+I manual hold + auto-hold while Agent.qml
+      reports activity; Wayland IdleInhibitor in Bar.qml; mug indicator only
+      while holding (accent = manual, muted = agent auto). All three states
+      verified via qml-preview 2026-07-11. Burn-in must still prove the
+      inhibitor actually blocks the 5-min hyprlock (protocol registration
+      verified, efficacy not yet — leave idle 5 min with a hold on).
 - [ ] **greetd + regreet module**: `programs.regreet.enable` (pulls greetd,
       runs under cage). Colemak at the greeter: set XKB env
       (`XKB_DEFAULT_LAYOUT=us`, `XKB_DEFAULT_VARIANT=colemak`) for the cage

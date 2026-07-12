@@ -29,4 +29,6 @@ Singleton {
     readonly property string chevronLeft: String.fromCharCode(0xf053)
     readonly property string chevronRight: String.fromCharCode(0xf054)
     readonly property string bell: String.fromCharCode(0xf0f3)
+
+    readonly property string coffee: String.fromCharCode(0xf0f4)
 }
