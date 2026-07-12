@@ -121,6 +121,39 @@ Rectangle {
     border.width: Agent.active ? 2 : 1
     border.color: Agent.active ? Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.3 + 0.6 * pulse) : (root.state === "notif" ? peekColor : Qt.rgba(Theme.muted.r, Theme.muted.g, Theme.muted.b, playing ? 0.5 : 0.25))
 
+    // Outer glow while the agent works: two soft halo layers behind the pill
+    // (negative z paints below the parent's own fill), swelling and fading on
+    // the same breath as the border. Reads as light the island gives off, not
+    // a drawn ring.
+    Repeater {
+        model: [
+            {
+                pad: 10,
+                alpha: 0.16
+            },
+            {
+                pad: 22,
+                alpha: 0.07
+            }
+        ]
+        delegate: Rectangle {
+            required property var modelData
+            z: -1
+            anchors.centerIn: parent
+            width: root.width + modelData.pad + 8 * root.pulse
+            height: root.height + modelData.pad + 8 * root.pulse
+            radius: height / 2
+            color: Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, modelData.alpha * (0.4 + 0.6 * root.pulse))
+            opacity: Agent.active ? 1 : 0
+            visible: opacity > 0
+            Behavior on opacity {
+                NumberAnimation {
+                    duration: 400
+                }
+            }
+        }
+    }
+
     // Width tracks the visible content; springs open/closed on morph.
     implicitWidth: {
         const w = state === "notif" ? notifContent.implicitWidth : state === "media" ? mediaContent.implicitWidth : state === "agent" ? agentContent.implicitWidth : clockContent.implicitWidth;
@@ -185,12 +218,20 @@ Rectangle {
             }
         }
 
-        // Claude's spark, breathing on the same rhythm as the border pulse.
+        // Claude's spark, breathing on the border's rhythm and turning slowly
+        // — deliberate, unhurried work, not a busy spinner.
         Text {
             anchors.verticalCenter: parent.verticalCenter
             text: "✳"
             color: Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.45 + 0.55 * root.pulse)
             font.pixelSize: Theme.fontSize + 1
+            RotationAnimation on rotation {
+                running: root.state === "agent"
+                loops: Animation.Infinite
+                from: 0
+                to: 360
+                duration: 14000
+            }
         }
         Text {
             anchors.verticalCenter: parent.verticalCenter

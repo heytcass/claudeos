@@ -219,6 +219,14 @@ in
       windowrule = [
         "float class:^(pavucontrol|nm-connection-editor|blueman-manager|org.gnome.Calculator)$"
         "float class:^(xdg-desktop-portal-gtk)$"
+        # Morning desk (Chrome --app on ~/Desk/today/index.html) presents like
+        # the SUPER+H cheat sheet: floating centered card, everything behind it
+        # dimmed. The class derives from the fixed file path; Super+Q dismisses
+        # (a real window can't do the overlay's click-away).
+        "float class:^(chrome-.*Desk_today_index\\.html-Default)$"
+        "center class:^(chrome-.*Desk_today_index\\.html-Default)$"
+        "size 1150 900 class:^(chrome-.*Desk_today_index\\.html-Default)$"
+        "dimaround class:^(chrome-.*Desk_today_index\\.html-Default)$"
       ];
 
       # Drag to move (SUPER+left), drag to resize (SUPER+right) — the biggest

@@ -47,6 +47,19 @@ let
 
     claudeos_notify() { notify-send --app-name=ClaudeOS "$@"; }
 
+    # Agent presence: the bar's island shows what the machine is doing to
+    # itself (Agent.qml reads the newest fresh file in this dir and displays
+    # its first line — the "agent face"). One file per process, so concurrent
+    # agents coexist; the EXIT trap clears it however the script ends, and the
+    # bar ignores files older than 60 min as a stuck-marker backstop.
+    CLAUDEOS_AGENT_DIR="''${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/claudeos-agent.d"
+    claudeos_agent_begin() {
+      mkdir -p "$CLAUDEOS_AGENT_DIR"
+      printf '%s\n' "$1" > "$CLAUDEOS_AGENT_DIR/$$"
+      trap claudeos_agent_end EXIT
+    }
+    claudeos_agent_end() { rm -f "$CLAUDEOS_AGENT_DIR/$$"; }
+
     # Seconds a blocking `-A` notification waits for a click before giving up.
     # Must stay well under the calling unit's TimeoutStartSec: notify-send -A
     # blocks until someone clicks, and when nobody does, systemd SIGTERMs the
@@ -139,6 +152,43 @@ let
     echo
     echo 'Press Enter to close...'
     read"
+    }
+
+    # Shared personal-world collectors (morning desk, jasper lane) — one
+    # implementation of the wttr.in fetch and the gcalcli guard; consumers jq
+    # their own shape out of the raw JSON.
+
+    # Raw wttr.in j1 JSON, cached 15 min so co-scheduled lanes share a fetch.
+    # Prints nothing when the fetch fails and no cache exists; a stale cache
+    # beats an empty answer. Needs curl in runtimeInputs.
+    claudeos_wttr_json() {
+      local cache="$MONITOR_CACHE_DIR/wttr-j1.json" out
+      mkdir -p "$MONITOR_CACHE_DIR"
+      if [[ -s "$cache" ]] && (( $(date +%s) - $(stat -c %Y "$cache") < 900 )); then
+        cat "$cache"
+        return 0
+      fi
+      out=$(timeout 15 curl -fsSL "wttr.in/?format=j1" 2>/dev/null) || out=""
+      if [[ -n "$out" ]]; then
+        printf '%s' "$out" > "$cache"
+        printf '%s' "$out"
+      elif [[ -s "$cache" ]]; then
+        cat "$cache"
+      fi
+    }
+
+    # claudeos_gcal_agenda START END [extra gcalcli agenda args...] — guarded
+    # calendar fetch. Prints the agenda, "not connected" before the one-time
+    # `gcalcli init` (OAuth client in sops: jasper_google_client_id/secret),
+    # or "fetch failed". Needs gcalcli in runtimeInputs.
+    claudeos_gcal_agenda() {
+      local start="$1" end="$2"
+      shift 2
+      if ! command -v gcalcli >/dev/null || [[ ! -d "$HOME/.local/share/gcalcli" && ! -f "$HOME/.gcalcli_oauth" ]]; then
+        echo "not connected"
+        return 0
+      fi
+      timeout 60 gcalcli --nocolor agenda "$@" "$start" "$end" 2>/dev/null || echo "fetch failed"
     }
 
     # Shared system-state collectors (daily brief, morning desk)

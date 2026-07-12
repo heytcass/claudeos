@@ -49,6 +49,13 @@ Item {
         levels = a;
     }
 
+    // Intensity-by-height: quiet bars rest muted, loud ones burn terracotta —
+    // the whole strip reads as heat, not a picket fence of one colour.
+    function heat(t) {
+        const a = Theme.muted, b = root.barColor;
+        return Qt.rgba(a.r + (b.r - a.r) * t, a.g + (b.g - a.g) * t, a.b + (b.b - a.b) * t, 1);
+    }
+
     Row {
         id: row
         anchors.centerIn: parent
@@ -58,15 +65,21 @@ Item {
             model: root.bars
             delegate: Rectangle {
                 required property int index
+                readonly property real level: root.levels[index] ?? 0
                 width: 3
                 radius: 1.5
                 anchors.verticalCenter: parent.verticalCenter
-                color: root.barColor
-                height: Math.max(3, (root.levels[index] ?? 0) * root.height)
+                color: root.heat(Math.min(1, level * 1.6))
+                height: Math.max(3, level * root.height)
                 Behavior on height {
                     NumberAnimation {
                         duration: 85
                         easing.type: Easing.OutQuad
+                    }
+                }
+                Behavior on color {
+                    ColorAnimation {
+                        duration: 85
                     }
                 }
             }

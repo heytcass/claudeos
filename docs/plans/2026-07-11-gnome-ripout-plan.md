@@ -129,6 +129,16 @@ context menu in Nautilus.
 
 ## Deferred / future
 
+- **oo7-daemon as the gnome-keyring successor**: Rust reimplementation of the
+  Secret Service, same D-Bus API, reads gnome-keyring's keyring format —
+  GNOME's own intended replacement, so it's the natural "last GNOME-C daemon
+  leaves" step. NOT actionable yet: the locked nixpkgs ships only `oo7`
+  0.6.0 (CLI, verified 2026-07-11 — no daemon package), and its PAM
+  auto-unlock story is younger than pam_gnome_keyring's. Re-check when
+  nixpkgs grows an oo7-daemon package; trial on transporter first.
+- Trim gnome-keyring components: exec-once starts `secrets,ssh,pkcs11` — if
+  the ssh-agent and pkcs11 components are unused (git signs with a plain SSH
+  key), slim to `--components=secrets`.
 - Bespoke QML greeter (SDDM or greetd-native QML greeter) as its own project.
 - Bar growth: network menu, idle-inhibit toggle, display switcher — replacing
   the last reasons to open a "settings app" at all.

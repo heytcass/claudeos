@@ -568,6 +568,9 @@ let
       ARCHIVE_DIR="$HOME/Desk/archive"
       mkdir -p "$DESK_DIR" "$ARCHIVE_DIR"
 
+      # Tell the bar's island what we're up to for the duration of the build.
+      claudeos_agent_begin "preparing the morning desk"
+
       # Archive a previous day's dashboard before overwriting
       if [[ -f "$DESK_DIR/index.html" ]]; then
         prev_day=$(date -r "$DESK_DIR/index.html" +%F 2>/dev/null)
@@ -579,14 +582,15 @@ let
       today=$(date "+%A, %B %-d, %Y")
       now_hour=$(date +%-H)
 
-      weather=$(timeout 15 curl -fsSL "wttr.in/?format=j1" 2>/dev/null \
+      # Shared collectors (lib/claude-script.nix) — same sources as the jasper
+      # lane; this script only owns its jq shape and the setup hint.
+      weather=$(claudeos_wttr_json \
         | jq -c '{now: .current_condition[0] | {tempF: .temp_F, feelsF: .FeelsLikeF, desc: .weatherDesc[0].value}, today: .weather[0] | {maxF: .maxtempF, minF: .mintempF, hourly: [.hourly[] | {time, tempF, chanceofrain, desc: .weatherDesc[0].value}]}}' 2>/dev/null)
       [[ -z "$weather" ]] && weather="unavailable"
 
-      calendar="not connected — run: gcalcli init (OAuth client in sops as jasper_google_client_id/secret)"
-      if command -v gcalcli >/dev/null && [[ -d "$HOME/.local/share/gcalcli" || -f "$HOME/.gcalcli_oauth" ]]; then
-        calendar=$(timeout 60 gcalcli --nocolor agenda "$(date +%F)" "$(date -d tomorrow +%F)" 2>/dev/null || echo "fetch failed")
-      fi
+      calendar=$(claudeos_gcal_agenda "$(date +%F)" "$(date -d tomorrow +%F)")
+      [[ "$calendar" == "not connected" ]] \
+        && calendar="not connected — run: gcalcli init (OAuth client in sops as jasper_google_client_id/secret)"
 
       diary=""
       [[ -s "$DIARY_ACTIONABLE_FILE" ]] && diary=$(cat "$DIARY_ACTIONABLE_FILE")

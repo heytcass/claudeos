@@ -78,6 +78,9 @@ let
       claudeos_cooldown_ok "$COOLDOWN_FILE" 21600 || exit 0
       touch "$COOLDOWN_FILE"
 
+      # Tell the bar's island what we're up to for the duration of the run.
+      claudeos_agent_begin "healing ''${UNIT%.service}"
+
       journal=$(journalctl --user -u "$UNIT" -n 200 --no-pager 2>/dev/null)
       [[ -z "$journal" ]] && journal=$(journalctl -u "$UNIT" -n 200 --no-pager 2>/dev/null)
       state=$(systemctl --user show "$UNIT" \
