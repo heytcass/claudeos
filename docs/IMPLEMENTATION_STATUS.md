@@ -1,6 +1,6 @@
 # ClaudeOS Status
 
-**Last Updated:** 2026-06-12
+**Last Updated:** 2026-07-12
 
 ## Current State
 
@@ -11,7 +11,7 @@ ClaudeOS is a fully operational NixOS configuration for personal machines.
 gti (Dell XPS 13 9370) is the primary machine — currently running Ubuntu pending the ClaudeOS reinstall. transporter (Dell Latitude 7280) is the testbed host proving the integration story before the reinstall.
 
 **What works:**
-- GNOME on Wayland (GDM, trimmed default app set) with Claude keybindings (Super+C / Super+A / Super+Shift+A / Super+Ctrl+A)
+- Hyprland + bespoke Quickshell bar (greetd/regreet) with Claude keybindings (Super+C / Super+A / Super+Shift+A / Super+Ctrl+A)
 - Pipewire audio with Bluetooth
 - Ghostty terminal with Fish shell and Starship prompt
 - Modern CLI tools (eza, bat, zoxide, atuin, yazi, fzf, ripgrep, fd) + uutils coreutils at hiPrio on the user PATH
@@ -32,9 +32,9 @@ gti (Dell XPS 13 9370) is the primary machine — currently running Ubuntu pendi
 | Category | Modules | Purpose |
 |----------|---------|---------|
 | common/ | boot, disko, nix, users, networking, locale, system, secrets, snapshots, auto-update, generation-label, self-heal, claude-helpers | Foundation |
-| desktop/ | gnome, audio, fonts, theme | GNOME desktop |
+| desktop/ | hyprland, audio, fonts, theme | Hyprland desktop |
 | apps/ | terminals, claude, jasper, mcp-system-health, claude-monitor, morning-desk | Applications + AI |
-| home/ | shell (fish, cli-tools, starship), ghostty, git, vscode, gnome, claude-code, claudeos-help, zathura | User config |
+| home/ | shell (fish, cli-tools, starship), ghostty, git, vscode, hyprland (+ quickshell/), claude-code, claudeos-help, zathura | User config |
 
 ## Future Enhancements
 
@@ -49,7 +49,7 @@ gti (Dell XPS 13 9370) is the primary machine — currently running Ubuntu pendi
 - [ ] NixOS impermanence for stateless system (decided 2026-07-07: only ever bundled with a reinstall, transporter first — not before)
 - [ ] Binary cache for faster builds (decided 2026-07-07: skip self-hosted attic/cachix at 2-host scale; cache-nix-action covers CI)
 - [x] Declare `unifi_api_key` secret for the UniFi MCP server (`.mcp.json` reads it from the environment) — declared in `modules/common/secrets.nix`, exported by fish
-- [ ] Compositor experiments (Hyprland, etc.) as specialisations
+- [x] Compositor experiments (Hyprland, etc.) as specialisations — the experiment won: Hyprland became transporter's default (Phase 1 inversion 2026-07-11) and GNOME was deleted entirely (Phase 3, 2026-07-12); no specialisation remains on any host (see docs/plans/2026-07-11-gnome-ripout-plan.md)
 - [ ] `github_automation_token` sops secret for headless pushes (PAT minting pending — see docs/SECRETS.md; automation degrades gracefully until then)
 
 Atuin sync is no longer a pending enhancement — history is local-only by decision (the `atuin_key` sops entry stays undeclared).
@@ -73,7 +73,7 @@ Atuin sync is no longer a pending enhancement — history is local-only by decis
 - atuin: local-only by decision — sync settings and the re-enable TODO comment deleted (atuin itself stays)
 
 ### 2026-06-12
-- Desktop pivot: Niri + Noctalia retired in favor of GNOME on Wayland
+- Desktop pivot: Niri + Noctalia retired in favor of GNOME on Wayland *(since superseded: Hyprland + the bespoke Quickshell bar became the default via the Phase 1 inversion 2026-07-11, and GNOME was deleted in Phase 3, 2026-07-12)*
   - `modules/desktop/gnome.nix` (GDM, services.desktopManager.gnome, trimmed default apps); `home/gnome.nix` dconf (Colemak input, idle/lock policy, four Claude keybindings on Super)
   - `mcp-niri` MCP server removed; Thunar/xarchiver replaced by Nautilus/File Roller from GNOME's default set (note: archive mimeApps in `home/default.nix` still name xarchiver.desktop — leftover); zenity + gnome-screenshot back the desktop Claude scripts
   - Compositor experiments (Hyprland) may return later as specialisations

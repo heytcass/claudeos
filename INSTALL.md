@@ -109,7 +109,7 @@ The configuration repository is automatically installed at `~/.config/claudeos`.
 
 Based on hostname (`gti` or `transporter`):
 - NixOS unstable
-- GNOME on Wayland (GDM)
+- Hyprland with bespoke Quickshell bar (greetd/regreet login)
 - Pipewire audio
 - Fish shell
 - Home Manager
@@ -121,7 +121,7 @@ See [docs/MODULES.md](docs/MODULES.md) for complete feature list.
 
 ### First Boot
 
-1. Log in with user `tom` (password set during installation)
+1. Log in with user `tom` (password set during installation) — at the greeter, pick the **"Hyprland (UWSM)"** session entry, not plain "Hyprland" (the plain entry strands the session services bound to `graphical-session.target`; regreet remembers the pick per user)
 2. Connect to WiFi (NetworkManager)
 3. System is ready to use!
 

@@ -30,10 +30,12 @@ themed by `home/hyprland.nix`. When editing it:
   is empty after `hyprctl reload`. (See CLAUDE.md "Compositor config isn't
   validated by the build".)
 
-- **Deploy needs a reboot, not a switch.** The bar is in the `transporter`
-  Hyprland *specialisation*; `nixos-rebuild switch` activates GNOME and strips
-  the running Hyprland config. Deploy = `rebuild` → reboot into the `(hyprland)`
-  boot entry.
+- **Deploy = `rebuild`, then pick up the new config.** Hyprland is the default
+  generation on every host (no specialisation since the GNOME rip-out,
+  2026-07-12). After a `switch`, relaunch `qs` to load the newly generated
+  config — or just reboot. Caveat: switching the machine Claude is running on
+  has its own hazards (dry-activate first; commit+push before switching — see
+  memory "switch on host kills session").
 
 **Quickshell 0.3.x API gotchas** (UPower percentage is 0..1 not 0..100, MPRIS
 `trackArtist` singular + non-reactive `position`, Pipewire volume needs

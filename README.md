@@ -35,7 +35,7 @@ NixOS configuration optimized for Claude Code workflow.
 ## Stack
 
 - **OS:** NixOS unstable
-- **Desktop:** GNOME on Wayland (GDM) — compositor experiments may return as specialisations
+- **Desktop:** Hyprland with bespoke Quickshell bar (Wayland) — greetd/regreet login
 - **Audio:** PipeWire with ALSA and PulseAudio compatibility
 - **Shell:** Fish + Starship prompt + modern CLI tools
 - **Terminal:** Ghostty
@@ -62,12 +62,11 @@ NixOS configuration optimized for Claude Code workflow.
 
 ## Current Status
 
-Gti (Dell XPS 13 9370) is the primary machine (currently running Ubuntu pending the ClaudeOS reinstall). Transporter (Dell Latitude 7280) is defined as a testbed host to prove the integration story before gti is reinstalled. The desktop is GNOME on Wayland — the earlier Niri + Noctalia stack was retired in June 2026 for better app integration (portals, file pickers, drag-and-drop).
+Gti (Dell XPS 13 9370) is the primary machine (currently running Ubuntu pending the ClaudeOS reinstall). Transporter (Dell Latitude 7280) is defined as a testbed host to prove the integration story before gti is reinstalled. The desktop is Hyprland with bespoke Quickshell bar (Wayland) — Niri + Noctalia was retired in June 2026 for GNOME, and GNOME itself was removed in July 2026 once the Hyprland + Quickshell stack won the trial.
 
 **Future Enhancements:**
 - NixOS impermanence for stateless system
 - Binary cache setup for faster builds
-- Compositor experiments (Hyprland, etc.) as specialisations
 
 ## Contributing
 

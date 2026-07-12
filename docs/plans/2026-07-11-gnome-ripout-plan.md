@@ -1,4 +1,4 @@
-# GNOME rip-out: Hyprland becomes the default (2026-07-11)
+# GNOME rip-out: Hyprland becomes the default (2026-07-11) — COMPLETE (Phase 3 executed 2026-07-12)
 
 Decided with Tom in-session. Supersedes the "GNOME stays the default" framing
 of `2026-07-10-wm-evaluation-report.md` — the specialisation trial convinced
@@ -130,20 +130,25 @@ context menu in Nautilus.
 
 ## Phase 3 — the rip-out
 
-- [ ] Delete `specialisation.gnome`, modules/desktop/gnome.nix,
+- [x] Delete `specialisation.gnome`, modules/desktop/gnome.nix,
       home/gnome.nix (dconf tree dies with it).
-- [ ] theme.nix: delete the gnome-shell gresource surgery (~100 lines: shell
+- [x] theme.nix: delete the gnome-shell gresource surgery (~100 lines: shell
       theme rebuild, GDM stylesheet, User Theme override). ClaudeOS icon
       theme and all GTK/Stylix theming stay.
-- [ ] modules/common/system.nix: collapse the session-aware claude-screenshot
+- [x] modules/common/system.nix: collapse the session-aware claude-screenshot
       wrapper to grim-only; drop gnome-screenshot.
-- [ ] locale.nix: drop the GDM-greeter Colemak note/workaround.
-- [ ] Update PHILOSOPHY.md (the 2026-06 "GNOME over Niri" conclusion) and
+- [x] locale.nix: drop the GDM-greeter Colemak note/workaround.
+- [x] Update PHILOSOPHY.md (the 2026-06 "GNOME over Niri" conclusion) and
       CLAUDE.md's Environment line, same PR.
-- [ ] Update memory files that encode GNOME-era facts (gnome-screenshot D-Bus,
+- [x] Update memory files that encode GNOME-era facts (gnome-screenshot D-Bus,
       rebuild-switch-breaks-specialisation, specialisation-env — all invert or
       expire).
-- [ ] gti reinstall inherits Hyprland-as-default with no GNOME ever installed.
+- [x] gti reinstall inherits Hyprland-as-default with no GNOME ever installed.
+
+Executed 2026-07-12 with notes: dconf survives (programs.dconf.enable in
+modules/desktop/default.nix — GTK apps + gtk portal Settings need it);
+sedArgsFor survives in theme.nix (folder icon recoloring); locale.nix
+xserver.xkb workaround deleted.
 
 ## Deferred / future
 
