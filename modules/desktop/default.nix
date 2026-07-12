@@ -7,12 +7,16 @@ let
 in
 {
   imports = [
-    ./gnome.nix # inert unless claude-os.gnome.enable (default false)
     ./hyprland.nix # inert unless claude-os.hyprland.enable (default false)
     ./audio.nix
     ./fonts.nix
     ./theme.nix
   ];
+
+  # dconf: the settings backend GTK apps + the gtk portal's Settings iface
+  # read (icon theme, color-scheme). GNOME used to pull this in implicitly;
+  # standalone GTK apps (Nautilus, Loupe) still need it under Hyprland.
+  programs.dconf.enable = true;
 
   # Disable X11 forwarding over SSH for security
   services.openssh.settings.X11Forwarding = lib.mkDefault false;

@@ -1,4 +1,4 @@
-{ lib, ... }:
+{ ... }:
 
 {
   # Dell Latitude 7280 — TESTBED host for the ClaudeOS return.
@@ -77,21 +77,9 @@
   # profile migration — fresh install anyway).
   networking.networkmanager.wifi.backend = "iwd";
 
-  # THE INVERSION (GNOME rip-out Phase 1, 2026-07-11 — see
-  # docs/plans/2026-07-11-gnome-ripout-plan.md): Hyprland + the bespoke
-  # Quickshell bar IS the default generation now; GNOME survives only as the
-  # `gnome` fallback boot entry for the burn-in period, then Phase 3 deletes
-  # it. Each desktop module attaches its own home config, so flipping the
-  # options swaps the whole story. NOTE the old deploy caution INVERTED with
-  # it: `switch-to-configuration` now activates HYPRLAND and would strip a
-  # running GNOME fallback session — boot-into remains the safe path in both
-  # directions.
+  # Hyprland + the bespoke Quickshell bar (the sole desktop since the GNOME
+  # rip-out completed 2026-07-12 — see docs/plans/2026-07-11-gnome-ripout-plan.md).
+  # GNOME's fallback specialisation is gone from NEW generations; pre-Phase-3
+  # boot generations still carry it if a GNOME session is ever needed again.
   claude-os.hyprland.enable = true;
-  specialisation.gnome.configuration = {
-    claude-os.gnome.enable = true;
-    # Specialisations inherit the parent config, so Hyprland must be forced
-    # back off — two desktops in one generation would collide at the display
-    # manager and portal layers.
-    claude-os.hyprland.enable = lib.mkForce false;
-  };
 }

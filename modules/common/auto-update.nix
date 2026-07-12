@@ -291,9 +291,10 @@ in
           # Wait for the startup transaction to settle ("running"/"degraded")
           status=$(systemctl is-system-running --wait || true)
           multiuser=$(systemctl is-active multi-user.target || true)
-          # NixOS's gdm module disables the literal gdm.service unit (the gdm
-          # package ships its own conflicting unit file — nixpkgs#108672) and
-          # runs the greeter under display-manager.service instead.
+          # The login manager (greetd since the GNOME rip-out; GDM before)
+          # runs as display-manager.service — never assert a literal
+          # gdm/greetd unit name (that literal-unit assumption caused the
+          # month-long silent-revert bug, PR #29).
           displaymgr=$(systemctl is-active display-manager.service || true)
           failed=$(systemctl --failed --no-legend --plain | awk '{print $1}' | xargs || true)
           if [ "$multiuser" = "active" ] && [ "$displaymgr" = "active" ] && [ -z "$failed" ]; then

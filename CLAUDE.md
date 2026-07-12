@@ -6,7 +6,7 @@ This is a NixOS system configuration repo optimized for tight Claude integration
 
 ## Environment
 
-User runs NixOS with GNOME on Wayland (chosen 2026-06; compositor experiments like Hyprland may return later as specialisations). Fish shell with Starship prompt. Do not assume bash/PS1.
+User runs NixOS with Hyprland on Wayland + a bespoke Quickshell bar (chosen 2026-07; GNOME was removed entirely in the rip-out — docs/plans/2026-07-11-gnome-ripout-plan.md). Session must be launched via the "Hyprland (UWSM)" entry at the regreet greeter. Fish shell with Starship prompt. Do not assume bash/PS1.
 
 ## Theming & Styling
 
@@ -24,7 +24,7 @@ This is a multi-host flake (`gti` primary, `transporter` testbed). Check which h
 
 Always use `$(hostname)` in build/deploy commands rather than hardcoding a host name. Available hosts are defined in `hosts/` and `flake.nix`: `gti` (Dell XPS 13 9370, primary) and `transporter` (Dell Latitude 7280, testbed).
 
-**Stack:** NixOS unstable • GNOME (Wayland) • Pipewire • home-manager • sops-nix • Stylix
+**Stack:** NixOS unstable • Hyprland (Wayland) + Quickshell bar • greetd/regreet • Pipewire • home-manager • sops-nix • Stylix
 
 ## Architecture
 

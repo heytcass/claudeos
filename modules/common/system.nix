@@ -26,7 +26,8 @@ in
     dig
     traceroute
 
-    # Claude Code quick-launch (bound to Super+C via GNOME custom keybinding)
+    # Claude Code quick-launch (bound to Super+C — lib/keybindings.nix drives
+    # the Hyprland binds and the help screen)
     (pkgs.writeShellScriptBin "claude-quick" ''
       exec ghostty \
         --class=claude-quick \
@@ -37,19 +38,11 @@ in
     (claudeLib.mkClaudeScriptBin {
       name = "claude-screenshot";
       runtimeInputs = [
-        pkgs.gnome-screenshot
         pkgs.grim
       ];
       text = ''
         SCREENSHOT="/tmp/claudeos-screenshot-$$.png"
-        # Session-aware capture: grim under Hyprland (gnome-screenshot needs
-        # GNOME Shell's D-Bus iface, absent there), gnome-screenshot under
-        # GNOME (Mutter has no wlr-screencopy for grim).
-        if [ -n "''${HYPRLAND_INSTANCE_SIGNATURE:-}" ]; then
-          grim "$SCREENSHOT"
-        else
-          gnome-screenshot -f "$SCREENSHOT"
-        fi
+        grim "$SCREENSHOT"
         response=$(claude_text haiku "${screenshotPrompt}" --allowedTools "Read")
         if [[ -n "$response" ]]; then
           claudeos_notify "Screen Analysis" "$response"
@@ -64,18 +57,12 @@ in
     (claudeLib.mkClaudeScriptBin {
       name = "claude-screenshot-interactive";
       runtimeInputs = [
-        pkgs.gnome-screenshot
         pkgs.grim
         pkgs.ghostty
       ];
       text = ''
         SCREENSHOT="/tmp/claudeos-screenshot-$$.png"
-        # Session-aware capture (see claude-screenshot above).
-        if [ -n "''${HYPRLAND_INSTANCE_SIGNATURE:-}" ]; then
-          grim "$SCREENSHOT"
-        else
-          gnome-screenshot -f "$SCREENSHOT"
-        fi
+        grim "$SCREENSHOT"
         claude_interactive "${screenshotPrompt}" "Read" --model sonnet
         rm -f "$SCREENSHOT"
       '';
