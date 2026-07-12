@@ -14,6 +14,13 @@ Singleton {
     property string text: ""
     property bool stale: false
 
+    // The lane's prompt guarantees "emoji, space, sentence" — split on the
+    // first space (never by character: multi-codepoint emoji like 🌤️ would be
+    // cut in half). No space → treat the whole thing as the emoji.
+    readonly property int splitAt: text.indexOf(" ")
+    readonly property string emoji: splitAt < 0 ? text : text.slice(0, splitAt)
+    readonly property string sentence: splitAt < 0 ? "" : text.slice(splitAt + 1)
+
     // One probe prints "<fresh|stale>\t<insight>"; missing file prints nothing
     // (text stays as-is → hidden on first run before the lane has run once).
     Process {

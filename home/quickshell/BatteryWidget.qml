@@ -1,6 +1,7 @@
-// BatteryWidget.qml — battery icon + %, click for time-remaining. No
-// QtQuick.Controls (ToolTip unavailable in the quickshell QML path) — the
-// detail is a small PopupWindow instead.
+// BatteryWidget.qml — a *drawn* battery that fills and colors by level
+// (green → amber → red), so charge reads at a glance without a number. The
+// exact %/time still lives in the click popup. No QtQuick.Controls (ToolTip
+// unavailable in the quickshell QML path) — the detail is a PopupWindow.
 import QtQuick
 import Quickshell
 import Quickshell.Services.UPower
@@ -13,25 +14,15 @@ Rectangle {
     readonly property int pct: bat ? Math.round(bat.percentage * 100) : 0
     readonly property bool charging: bat.state === UPowerDeviceState.Charging || bat.state === UPowerDeviceState.FullyCharged
 
+    // Level → semantic colour. Charging always reads "good".
+    readonly property color lvlColor: charging ? Theme.good : (pct <= 15 ? Theme.urgent : (pct <= 35 ? Theme.warn : Theme.good))
+
     visible: bat && bat.isLaptopBattery
-    implicitWidth: r.implicitWidth + 12
+    implicitWidth: graphic.width + 12
     implicitHeight: Theme.barHeight - 8
     radius: Theme.radius
-    color: hover.hovered || popup.visible ? Theme.surface : "transparent"
+    color: "transparent"
 
-    function iconFor(p) {
-        if (root.charging)
-            return Icons.charging;
-        if (p >= 90)
-            return Icons.batFull;
-        if (p >= 65)
-            return Icons.batThreeQuarter;
-        if (p >= 40)
-            return Icons.batHalf;
-        if (p >= 15)
-            return Icons.batQuarter;
-        return Icons.batEmpty;
-    }
     function fmt(s) {
         s = Math.round(s);
         const h = Math.floor(s / 3600);
@@ -39,22 +30,61 @@ Rectangle {
         return (h ? h + "h " : "") + mm + "m";
     }
 
-    Row {
-        id: r
+    // ---- the battery graphic: shell + proportional fill + tip + charge bolt ----
+    Item {
+        id: graphic
         anchors.centerIn: parent
-        spacing: 5
+        width: shell.width + 2
+        height: shell.height
 
-        Text {
-            font.family: Theme.fontMono
-            font.pixelSize: Theme.iconSize
-            color: (root.pct <= 15 && !root.charging) ? Theme.urgent : Theme.text
-            text: root.iconFor(root.pct)
+        Rectangle {
+            id: shell
+            width: 24
+            height: 12
+            radius: 3
+            color: "transparent"
+            border.width: 1.5
+            border.color: Qt.rgba(root.lvlColor.r, root.lvlColor.g, root.lvlColor.b, 0.55)
+
+            Rectangle {
+                id: fill
+                anchors.left: parent.left
+                anchors.leftMargin: 2
+                anchors.verticalCenter: parent.verticalCenter
+                width: Math.max(2, (shell.width - 4) * root.pct / 100)
+                height: shell.height - 4
+                radius: 1.5
+                color: root.lvlColor
+                Behavior on width {
+                    NumberAnimation {
+                        duration: 400
+                        easing.type: Easing.OutCubic
+                    }
+                }
+                Behavior on color {
+                    ColorAnimation {
+                        duration: 300
+                    }
+                }
+            }
         }
+        // positive tip
+        Rectangle {
+            anchors.left: shell.right
+            anchors.verticalCenter: shell.verticalCenter
+            width: 2
+            height: 5
+            radius: 1
+            color: Qt.rgba(root.lvlColor.r, root.lvlColor.g, root.lvlColor.b, 0.55)
+        }
+        // charge bolt overlay
         Text {
-            font.family: Theme.fontSans
-            font.pixelSize: Theme.fontSize
-            color: Theme.text
-            text: root.pct + "%"
+            anchors.centerIn: shell
+            visible: root.charging
+            text: Icons.charging
+            font.family: Theme.fontMono
+            font.pixelSize: 9
+            color: Theme.bgAlt
         }
     }
 

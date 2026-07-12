@@ -37,6 +37,42 @@ PopupWindow {
             anchors.margins: 12
             spacing: 12
 
+            // Jasper's insight — the one most important thing, above the day it
+            // was derived from. The island shows only the emoji; this is where
+            // the sentence lives.
+            Rectangle {
+                Layout.fillWidth: true
+                visible: Jasper.text !== ""
+                implicitHeight: jasperRow.implicitHeight + 16
+                radius: 8
+                color: Theme.surface
+
+                RowLayout {
+                    id: jasperRow
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    anchors.verticalCenter: parent.verticalCenter
+                    anchors.margins: 8
+                    spacing: 8
+
+                    Text {
+                        Layout.alignment: Qt.AlignTop
+                        text: Jasper.emoji
+                        opacity: Jasper.stale ? 0.5 : 1
+                        font.family: Theme.fontSans
+                        font.pixelSize: Theme.fontSize + 2
+                    }
+                    Text {
+                        Layout.fillWidth: true
+                        text: Jasper.sentence !== "" ? Jasper.sentence : Jasper.text
+                        color: Jasper.stale ? Theme.subtext : Theme.text
+                        font.family: Theme.fontSans
+                        font.pixelSize: 12
+                        wrapMode: Text.WordWrap
+                    }
+                }
+            }
+
             Calendar {
                 Layout.fillWidth: true
             }
