@@ -119,15 +119,16 @@
         claude -p "$argv" --model haiku 2>/dev/null
       '';
 
-      # Open today's morning-desk dashboard; --refresh rebuilds it first
+      # Open today's morning-desk dashboard; --refresh rebuilds it first.
+      # claudeos-desk-open (modules/apps/morning-desk.nix) floats + centers it
+      # like the SUPER+H cheat sheet under Hyprland.
       today = ''
         if contains -- --refresh $argv
           echo "Rebuilding today's dashboard..."
           systemctl --user start claudeos-morning-desk
         end
-        set -l desk ~/Desk/today/index.html
-        if test -f $desk
-          google-chrome-stable --app="file://$desk" &>/dev/null &
+        if test -f ~/Desk/today/index.html
+          claudeos-desk-open &>/dev/null &
           disown
         else
           echo "No dashboard yet — run: today --refresh"
