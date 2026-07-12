@@ -31,4 +31,5 @@ Singleton {
     readonly property string bell: String.fromCharCode(0xf0f3)
 
     readonly property string coffee: String.fromCharCode(0xf0f4)
+    readonly property string bluetooth: String.fromCharCode(0xf293)
 }
