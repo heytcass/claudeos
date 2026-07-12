@@ -696,11 +696,51 @@ let
     '';
   };
 
-  showScript = pkgs.writeShellScript "claudeos-morning-desk-show" ''
+  # The one way the desk opens — used by the show service below AND the fish
+  # `today` function. Chrome app window; under Hyprland the windowrule
+  # (home/hyprland.nix) floats/sizes/dims it like the SUPER+H cheat sheet, but
+  # the initial POSITION races Chrome's first configure (and `center`/
+  # `centerwindow` are fooled by Chrome's CSD shadow geometry), so once the
+  # window maps we nudge it to true center. 1150x900 here must match the
+  # windowrule's `size`. No-ops gracefully outside Hyprland (GNOME just gets
+  # a normal window).
+  openScript = pkgs.writeShellScriptBin "claudeos-desk-open" ''
     export PATH="${
       pkgs.lib.makeBinPath [
         pkgs.coreutils
         pkgs.google-chrome
+        pkgs.jq
+      ]
+    }:$PATH"
+    DESK="$HOME/Desk/today/index.html"
+    [[ -f "$DESK" ]] || {
+      echo "no dashboard at $DESK (build with: systemctl --user start claudeos-morning-desk)" >&2
+      exit 1
+    }
+    google-chrome-stable --app="file://$DESK" >/dev/null 2>&1 &
+    chrome=$!
+    if hyprctl monitors -j >/dev/null 2>&1; then
+      addr=""
+      for _ in $(seq 40); do
+        addr=$(hyprctl clients -j 2>/dev/null | jq -r '[.[] | select(.class | test("Desk_today_index"))][0].address // empty')
+        [[ -n "$addr" ]] && break
+        sleep 0.25
+      done
+      if [[ -n "$addr" ]]; then
+        # Logical (scale-corrected) monitor size — window coords are logical.
+        read -r mw mh < <(hyprctl monitors -j 2>/dev/null \
+          | jq -r '[.[] | select(.focused)][0] | "\(.width / .scale | floor) \(.height / .scale | floor)"')
+        [[ -n "$mw" && "$mw" != "null" ]] \
+          && hyprctl dispatch movewindowpixel "exact $(((mw - 1150) / 2)) $(((mh - 900) / 2)),address:$addr" >/dev/null 2>&1 || true
+      fi
+    fi
+    wait "$chrome"
+  '';
+
+  showScript = pkgs.writeShellScript "claudeos-morning-desk-show" ''
+    export PATH="${
+      pkgs.lib.makeBinPath [
+        pkgs.coreutils
         pkgs.systemd # loginctl
       ]
     }:$PATH"
@@ -734,7 +774,7 @@ let
     # Atomic claim: the login trigger and the daily timer can both reach here.
     # noclobber makes exactly one of them win; the loser exits quietly.
     (set -o noclobber; : > "$STAMP") 2>/dev/null || exit 0
-    exec google-chrome-stable --app="file://$DESK"
+    exec ${openScript}/bin/claudeos-desk-open
   '';
 in
 {
@@ -759,6 +799,9 @@ in
   };
 
   config = lib.mkIf cfg.enable {
+    # `claudeos-desk-open` on PATH — the fish `today` function calls it.
+    environment.systemPackages = [ openScript ];
+
     systemd.user.services.claudeos-morning-desk = {
       description = "ClaudeOS morning desk dashboard build";
       serviceConfig = {
