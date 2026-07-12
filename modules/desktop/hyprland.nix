@@ -1,10 +1,11 @@
 # modules/desktop/hyprland.nix — Hyprland compositor, gated OFF by default.
-# Enabled only inside the `hyprland` specialisation on transporter (see
-# hosts/transporter/default.nix); GNOME (gnome.nix) stays the default GDM
-# session on every host. As of Phase 0 of the GNOME rip-out
-# (docs/plans/2026-07-11-gnome-ripout-plan.md) this module is no longer
-# strictly additive: it replaces GDM with greetd + regreet inside the
-# specialisation, so the greeter itself gets proven before the inversion.
+# THE ClaudeOS desktop since the Phase 1 inversion (2026-07,
+# docs/plans/2026-07-11-gnome-ripout-plan.md): transporter's default
+# generation, with GNOME demoted to a fallback specialisation; gti follows at
+# its reinstall. The module attaches its own home config (home/hyprland.nix)
+# and carries everything gsd/GNOME used to provide — login manager (greetd +
+# regreet), keyring PAM, power policy, night light, and the standalone app
+# set (Files, calculator, image viewer, settings surfaces).
 #
 # Chosen 2026-07 to answer GNOME's "heavy for what little it shows"
 # sluggishness with a lean C compositor (no JS shell). See the evaluation
@@ -13,15 +14,17 @@
   lib,
   pkgs,
   config,
+  user,
   ...
 }:
 let
   cfg = config.claude-os.hyprland;
 in
 {
-  options.claude-os.hyprland.enable = lib.mkEnableOption "the Hyprland compositor (transporter testbed specialisation)";
+  options.claude-os.hyprland.enable = lib.mkEnableOption "the Hyprland desktop (compositor + bespoke Quickshell bar)";
 
   config = lib.mkIf cfg.enable {
+    home-manager.users.${user}.imports = [ ../../home/hyprland.nix ];
     # Hyprland from nixpkgs (nixos-unstable) — Mesa matches the system by
     # construction, sidestepping the flake-Hyprland GPU-glitch. UWSM is the
     # recommended session launcher; GDM shows hyprland-uwsm.desktop.
@@ -64,8 +67,9 @@ in
     # rip-out — see the plan doc for the greetd-vs-SDDM decision). regreet is
     # GTK4 under a cage kiosk; enabling it pulls greetd and sets the
     # default_session command. Sessions are discovered via XDG_DATA_DIRS
-    # (pam_env supplies it), so the GNOME session stays pickable as long as
-    # it's installed. gnome.nix hard-enables GDM, hence the mkForce.
+    # (pam_env supplies it). Since the Phase 1 inversion GNOME is never
+    # co-enabled in this generation; the gdm mkForce stays as a guard against
+    # a host enabling claude-os.gnome and claude-os.hyprland together.
     # Theming: Stylix has an auto-enabled regreet target that sets the whole
     # greeter from the shared source of truth — wallpaper background, base16
     # GTK CSS, sans font, cursor + icon themes, dark polarity. Setting any of
@@ -124,11 +128,35 @@ in
       brightnessctl # XF86MonBrightness keys
       playerctl # XF86Audio play/pause/next/prev keys
       wireplumber # wpctl — volume/mute keys (audio.nix's stated control tool)
+
+      # The standalone app set (rip-out decisions: keep the good GNOME apps,
+      # they run fine without GNOME and stay Stylix/libadwaita-themed).
+      nautilus # Files — inode/directory handler in home/default.nix mimeApps
+      nautilus-python # loader for Ghostty's "Open in Ghostty" context menu
+      gnome-calculator
+      loupe # image viewer — image/* handler in mimeApps
+      file-roller # archives — application/zip etc. in mimeApps
+      mpv # video (Showtime/Totem never made the cut)
+
+      # Per-domain "Settings" surfaces (windowrules in home/hyprland.nix
+      # already float these): audio, bluetooth, network, displays. The shared
+      # hide list deliberately does NOT hide nm-connection-editor here — under
+      # GNOME it was clutter next to Settings; here it IS network settings.
+      pavucontrol
+      networkmanagerapplet # nm-connection-editor (visible); nm-applet entry stays hidden
+      nwg-displays # monitor layout GUI, writes Hyprland monitor config
     ];
 
-    # Leaner-closure follow-up — drops GNOME from THIS generation (gnome.nix
-    # hard-enables it, so force it off here). Trade-off: loses GNOME as an
-    # in-session fallback; the reboot-into-default-entry fallback still stands.
-    # services.desktopManager.gnome.enable = lib.mkForce false;
+    # Nautilus outside GNOME: gvfs for trash/MTP/network mounts, and the two
+    # lines GNOME's module normally provides so Nautilus finds python
+    # extensions (Ghostty's context-menu entry rides on nautilus-python).
+    services.gvfs.enable = true;
+    environment.pathsToLink = [ "/share/nautilus-python/extensions" ];
+    environment.sessionVariables.NAUTILUS_4_EXTENSION_DIR = "${config.system.path}/lib/nautilus/extensions-4";
+
+    # Bluetooth manager (GUI + tray applet). blueman-applet is D-Bus activated
+    # on demand; blueman-manager is the settings surface.
+    services.blueman.enable = true;
+
   };
 }

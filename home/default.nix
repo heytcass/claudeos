@@ -10,13 +10,15 @@ let
   hideDesktopEntries = import ../lib/hideDesktopEntries.nix { inherit pkgs lib; };
 in
 {
-  # Import all Home Manager modules
+  # Import all Home Manager modules. Desktop-specific home config is NOT
+  # here: modules/desktop/gnome.nix and hyprland.nix each attach their own
+  # (home/gnome.nix / home/hyprland.nix), so a generation's home matches its
+  # system desktop by construction.
   imports = [
     ./shell
     ./ghostty.nix
     ./git.nix
     ./vscode.nix
-    ./gnome.nix
     ./claude-code.nix
     ./claudeos-help.nix
     ./zathura.nix
@@ -105,7 +107,12 @@ in
   # Let home-manager manage itself
   programs.home-manager.enable = true;
 
-  # Hide unwanted apps from launcher (per-user profile entries)
+  # Hide unwanted apps from launcher. ONLY home-managed packages belong in
+  # this list: hides win by hiPrio collision within one profile, and per-user
+  # profiles precede the system profile in XDG_DATA_DIRS — a system-level
+  # hide can never mask an HM-installed package (btop and zathura were
+  # visible in fuzzel for weeks because their hides sat in the system list;
+  # found 2026-07-11). System-installed hides: modules/desktop/default.nix.
   home.packages = [
     (hideDesktopEntries [
       "yazi"
@@ -113,6 +120,12 @@ in
       "kvantummanager"
       "qt5ct"
       "qt6ct"
+      "btop" # home/shell/cli-tools.nix
+      "org.pwmt.zathura" # home/zathura.nix — launched via mimeApps, not the picker
+      "org.pwmt.zathura-cb"
+      "org.pwmt.zathura-djvu"
+      "org.pwmt.zathura-pdf-mupdf"
+      "org.pwmt.zathura-ps"
     ])
   ];
 }
