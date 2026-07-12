@@ -1,11 +1,10 @@
-# modules/desktop/hyprland.nix — Hyprland compositor, gated OFF by default.
-# THE ClaudeOS desktop since the Phase 1 inversion (2026-07,
-# docs/plans/2026-07-11-gnome-ripout-plan.md): transporter's default
-# generation, with GNOME demoted to a fallback specialisation; gti follows at
-# its reinstall. The module attaches its own home config (home/hyprland.nix)
-# and carries everything gsd/GNOME used to provide — login manager (greetd +
-# regreet), keyring PAM, power policy, night light, and the standalone app
-# set (Files, calculator, image viewer, settings surfaces).
+# modules/desktop/hyprland.nix — THE ClaudeOS desktop (GNOME was removed
+# entirely in the 2026-07 rip-out; docs/plans/2026-07-11-gnome-ripout-plan.md
+# records the decisions). The module attaches its own home config
+# (home/hyprland.nix) and owns everything a full DE would otherwise provide —
+# login manager (greetd + regreet), keyring PAM, power policy, night light,
+# and the standalone app set (Files, calculator, image viewer, settings
+# surfaces). Still option-gated so a host or specialisation can turn it off.
 #
 # Chosen 2026-07 to answer GNOME's "heavy for what little it shows"
 # sluggishness with a lean C compositor (no JS shell). See the evaluation
@@ -27,7 +26,7 @@ in
     home-manager.users.${user}.imports = [ ../../home/hyprland.nix ];
     # Hyprland from nixpkgs (nixos-unstable) — Mesa matches the system by
     # construction, sidestepping the flake-Hyprland GPU-glitch. UWSM is the
-    # recommended session launcher; GDM shows hyprland-uwsm.desktop.
+    # session launcher (regreet lists hyprland-uwsm.desktop).
     programs.hyprland = {
       enable = true;
       withUWSM = true;
@@ -63,18 +62,16 @@ in
       XKB_DEFAULT_VARIANT = "colemak";
     };
 
-    # Login manager: greetd + regreet, replacing GDM (Phase 0 of the GNOME
-    # rip-out — see the plan doc for the greetd-vs-SDDM decision). regreet is
-    # GTK4 under a cage kiosk; enabling it pulls greetd and sets the
-    # default_session command. Sessions are discovered via XDG_DATA_DIRS
-    # (pam_env supplies it). Since the Phase 1 inversion GNOME is never
-    # co-enabled in this generation; the gdm mkForce stays as a guard against
-    # a host enabling claude-os.gnome and claude-os.hyprland together.
-    # Theming: Stylix has an auto-enabled regreet target that sets the whole
-    # greeter from the shared source of truth — wallpaper background, base16
-    # GTK CSS, sans font, cursor + icon themes, dark polarity. Setting any of
-    # those here just conflicts with it (found the hard way: dry-run 2026-07-11).
-    services.displayManager.gdm.enable = lib.mkForce false;
+    # Login manager: greetd + regreet (chose over SDDM/GDM in the rip-out —
+    # see the plan doc). regreet is GTK4 under a cage kiosk; enabling it pulls
+    # greetd and sets the default_session command. Sessions are discovered
+    # via XDG_DATA_DIRS (pam_env supplies it) — ALWAYS pick the
+    # "Hyprland (UWSM)" entry, the plain one strands graphical-session.target
+    # units. Theming: Stylix has an auto-enabled regreet target that sets the
+    # whole greeter from the shared source of truth — wallpaper background,
+    # base16 GTK CSS, sans font, cursor + icon themes, dark polarity. Setting
+    # any of those here just conflicts with it (found the hard way: dry-run
+    # 2026-07-11).
     programs.regreet.enable = true;
 
     # Secret Service (org.freedesktop.secrets): gnome-keyring stays through

@@ -11,9 +11,8 @@ let
 in
 {
   # Import all Home Manager modules. Desktop-specific home config is NOT
-  # here: modules/desktop/gnome.nix and hyprland.nix each attach their own
-  # (home/gnome.nix / home/hyprland.nix), so a generation's home matches its
-  # system desktop by construction.
+  # here: modules/desktop/hyprland.nix attaches home/hyprland.nix itself, so
+  # a generation's home matches its system desktop by construction.
   imports = [
     ./shell
     ./ghostty.nix

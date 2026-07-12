@@ -260,11 +260,18 @@ These are aesthetic commitments that double as engineering bets:
   (boot menu as changelog), snapshots carry the same names, the journal
   diary keeps a ledger, every agent leaves an audit trail. A system you can
   read is a system you can trust with autonomy.
-- **Desktop environment is a replaceable organ.** GNOME today (chosen
-  2026-06: familiarity and first-class app integration beat Niri, which
-  "felt like fighting it"). Core capabilities must stay DE-agnostic —
+- **Desktop environment is a replaceable organ.** Hyprland + the bespoke
+  Quickshell bar today (chosen 2026-07 after a specialisation trial answered
+  GNOME's "heavy for what little it shows"; GNOME was chosen 2026-06 over
+  Niri, then removed entirely once the trial stuck — the organ-swap thesis
+  proven in practice). "Build what I want, adopt no one's desktop": the
+  session is assembled from small freedesktop-interface implementations
+  (greetd/regreet, gnome-keyring behind org.freedesktop.secrets, portals,
+  hypridle/gammastep) rather than one bundled DE — commit to interfaces,
+  stay loose on implementations. Core capabilities must stay DE-agnostic —
   artifacts are files, openers are URLs, notifications are libnotify.
-  Compositor experiments return as specialisations, not rewrites.
+  Compositor experiments return as specialisations, not rewrites (that
+  mechanism is how this pivot shipped).
 - **Testbed before primary.** transporter (the old Latitude) proves risky
   changes — DE pivots, integration claims, agent autonomy — before gti is
   touched.

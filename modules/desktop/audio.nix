@@ -33,6 +33,6 @@ _:
     };
   };
 
-  # Audio is managed through GNOME Settings/quick-settings and wpctl
-  # For advanced needs: install pavucontrol or helvum per-project via nix shell
+  # Audio is managed through the bar's volume widget, wpctl, and pavucontrol
+  # (installed by modules/desktop/hyprland.nix). For routing: helvum via nix shell.
 }
