@@ -305,6 +305,9 @@ in
   home.packages = [
     pkgs.quickshell
     pkgs.cava
+    # notify-send — the shell owns the daemon, but scripts (and bar testing)
+    # still need the client.
+    pkgs.libnotify
     (pkgs.writeShellScriptBin "qml-preview" (builtins.readFile ./qml-preview.sh))
   ];
   xdg.configFile."quickshell".source = qsConfig;

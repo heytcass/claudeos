@@ -37,7 +37,8 @@ work, per Claude Code best practice (fresh context + the scaffolding below).*
 - **`Spectrum.qml`** — live audio equalizer, fed by **cava** on the default sink
   (reacts to any source incl. Chrome/YouTube); runs only while shown.
 - **`Agent.qml`** — polls "is ClaudeOS working" (nh/nixos-rebuild, or the marker
-  `$XDG_RUNTIME_DIR/claudeos-agent`) → drives the pulse.
+  `$XDG_RUNTIME_DIR/claudeos-agent`) → drives the pulse. The marker's first
+  line is the *activity phrase* shown by the island's agent face.
 - **`Notifications.qml`** — the notification server (Singleton). Island peeks
   every notification; the corner **`Toasts.qml`** fires only for actionable
   (has actions) / Critical ones.
@@ -58,20 +59,42 @@ work, per Claude Code best practice (fresh context + the scaffolding below).*
 - Peek duration (currently 5s) and the clock⇄media cross-fade timing (150ms).
 
 **Media state**
-- Album-art thumbnail *inline* in the island (not just the popup).
-- Scroll long titles instead of eliding.
+- ~~Album-art thumbnail *inline* in the island~~ ✅ shipped (circular disc, MultiEffect mask).
+- ~~Scroll long titles instead of eliding~~ ✅ shipped (pause → drift → snap-back marquee).
 
 **Notification peek**
-- Show the app icon / name; colour the dot by urgency.
+- Show the app icon / name.
+- ~~Colour the dot by urgency~~ ✅ shipped (dot + notif border take `peekColor`).
 
 **Agent pulse**
 - Breathing speed (currently 1.1s each way); maybe an outer glow, not just border.
-- Broaden the signal: also pulse for heal / morning-desk / auto-update units.
+- ~~Broaden the signal~~ ✅ superseded by **Agent state 2.0**: the marker file is
+  now content-bearing — write a phrase into `$XDG_RUNTIME_DIR/claudeos-agent`
+  ("healing", "morning desk") and the island shows an agent face (breathing ✳ +
+  phrase + dim clock) while idle. Units/hooks still need to be wired to *write*
+  the marker — that's the open half.
+- NB: `pgrep -x nixos-rebuild` never matched (nixos-rebuild-ng comm truncates to
+  `.nixos-rebuild-`); fixed with a full-comm regex.
 
 **Bigger swings** (the "what else can we do since it's ours" direction)
-- A floating / detached bar (margins, not full-width) — reads even less GNOME.
-- Animated workspace pills (spring on switch, occupied-glow).
+- ~~A floating / detached bar~~ ✅ shipped (transparent window, three Pill islands).
+- ~~Animated workspace pills~~ ✅ shipped (spring on switch, focus glow, occupied
+  pills sit warmer with brighter numerals).
 - Auto-hide-and-peek bar; or corner segments instead of one strip.
+- CI-status presence in the right island (pulse while Actions run, tick/cross on
+  completion) and a health-conscience dot for failed `claudeos-*` units.
+
+## Testing tricks (learned 2026-07-11)
+- **No media player is installed** on transporter — to exercise the media face,
+  edit the *preview copy* (`/tmp/qs-preview/Island.qml`), replace the `player`
+  property with a mock object (`trackTitle`/`trackArtist`/`trackArtUrl:
+  "file:///…/assets/chicago.jpg"`, `playing: true`), then relaunch with
+  `setsid qs -p /tmp/qs-preview/shell.qml` (a bare background launch dies with
+  the shell). Never mock the repo QML.
+- **Test notifications** with `notify-send` (libnotify is in the Hyprland session
+  packages), e.g. `notify-send -u critical "title" "body"` for the urgent path.
+- **Test the agent face** with
+  `echo "phrase" > $XDG_RUNTIME_DIR/claudeos-agent` (remove to clear).
 
 ## Ground rules (see the rule file)
 - Stylix base16 only — never hardcode hex.

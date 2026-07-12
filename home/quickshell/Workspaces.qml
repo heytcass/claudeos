@@ -15,6 +15,9 @@ RowLayout {
             id: cell
             required property var modelData
             readonly property bool focused: Hyprland.focusedWorkspace?.id === modelData.id
+            // Window count comes from the raw hyprctl IPC payload — the typed
+            // HyprlandWorkspace object doesn't surface it.
+            readonly property bool occupied: (modelData.lastIpcObject?.windows ?? 0) > 0
 
             implicitWidth: pillRect.implicitWidth
             implicitHeight: 20
@@ -64,7 +67,9 @@ RowLayout {
                 width: implicitWidth
                 height: 20
                 radius: 10
-                color: cell.focused ? Theme.accent : Theme.surface
+                // Occupied-but-unfocused pills sit a shade warmer than empty
+                // ones, so the eye can count where windows live.
+                color: cell.focused ? Theme.accent : cell.occupied ? Qt.lighter(Theme.surface, 1.35) : Theme.surface
 
                 Behavior on implicitWidth {
                     NumberAnimation {
@@ -82,7 +87,7 @@ RowLayout {
                 Text {
                     anchors.centerIn: parent
                     text: cell.modelData.name
-                    color: cell.focused ? Theme.bgAlt : Theme.subtext
+                    color: cell.focused ? Theme.bgAlt : cell.occupied ? Theme.text : Theme.muted
                     font.family: Theme.fontMono
                     font.pixelSize: 11
                 }
