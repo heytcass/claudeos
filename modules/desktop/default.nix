@@ -45,10 +45,10 @@ in
     # override in the system profile CANNOT mask a home-managed package —
     # per-user profiles precede /run/current-system/sw in XDG_DATA_DIRS and
     # win. HM-installed hides (btop, zathura, …) live in home/default.nix.
-    # NB: Chrome's entry ID is google-chrome.desktop — the hide targeted
-    # com.google.Chrome for weeks and silently missed (found 2026-07-11).
+    # (A Chrome hide lived here historically — as "com.google.Chrome", a
+    # wrong ID that never matched google-chrome.desktop, so Chrome was always
+    # visible in practice. Tom kept it that way on purpose, 2026-07-11.)
     (hideDesktopEntries [
-      "google-chrome"
       "nm-applet" # tray applet entry; the bar/Shell owns network status
       "vim"
       "gvim"
