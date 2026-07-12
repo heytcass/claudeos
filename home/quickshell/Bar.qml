@@ -76,6 +76,7 @@ PanelWindow {
 
             VolumeWidget {}
             NetworkWidget {}
+            BluetoothWidget {}
             BatteryWidget {}
             TrayWidget {
                 Layout.leftMargin: 4
