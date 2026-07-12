@@ -112,6 +112,15 @@ must own them before it's the daily driver:
 
 ## Phase 2 — burn-in checklist (a week-ish on the inverted default)
 
+**FIRST, once:** log in via the **"Hyprland (UWSM)"** session entry at
+regreet, not plain "Hyprland" — only UWSM activates graphical-session.target,
+which the hyprpaper/hypridle/gammastep home-manager units bind to. The plain
+entry strands all three (found on the first post-inversion login 2026-07-12;
+exec-once duplicates removed the same day, units are the single owner now).
+regreet remembers the pick per user, so this is a one-time selection.
+Hiding the plain entry needs surgery on programs.hyprland.package (it feeds
+the security wrapper), deferred — revisit in Phase 3 if it bites again.
+
 Keyring unlocks at greetd login (Claude/Chrome save logins) · file pickers in
 Claude Desktop · screenshare with picker · suspend on battery + lid ·
 stay-awake on AC (overnight automation actually runs) · night light ramps ·
