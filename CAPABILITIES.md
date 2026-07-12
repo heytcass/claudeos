@@ -29,7 +29,7 @@ Direct access to system diagnostics — 8 tools covering disk, services, journal
 
 **When to use:** Investigating build failures, system issues, disk space, or any diagnostic question. **Proactive:** If the user mentions a build error or system issue, check `failed_services` and `recent_errors` before guessing at the cause.
 
-Note: MCP config is seed-once (`home/claude-code.nix`) — Nix seeds `~/.claude/.mcp.json` on first activation, then the live file is mutable and owned by Claude Code. The old `niri` MCP server was retired with the move to GNOME.
+Note: MCP config is seed-once (`home/claude-code.nix`) — Nix seeds `~/.claude/.mcp.json` on first activation, then the live file is mutable and owned by Claude Code. The old `niri` MCP server was retired when the Niri compositor was dropped (2026-06); GNOME itself was removed 2026-07.
 
 ## Agents
 
@@ -62,13 +62,13 @@ Repo-tracked Claude Code hooks (`.claude/settings.json` + `.claude/hooks/`) — 
 
 ## Desktop Integration
 
-These scripts run outside Claude Code — they're GNOME custom keybindings (`home/gnome.nix`) that invoke Claude via the CLI. Claude Code cannot invoke them directly, but understanding them helps explain user context.
+These scripts run outside Claude Code — they're Hyprland keybindings (generated from `lib/keybindings.nix` in `home/hyprland.nix`) that invoke Claude via the CLI. Claude Code cannot invoke them directly, but understanding them helps explain user context.
 
 | Keybinding | Script | What it does |
 |------------|--------|-------------|
 | `Super+C` | `claude-quick` | Opens Claude Code in a Ghostty terminal |
 | `Super+A` | `claude-ask-desktop` | Zenity popup prompt → Claude answer → desktop notification |
-| `Super+Shift+A` | `claude-screenshot` | gnome-screenshot capture → Claude analysis (Haiku) → notification |
+| `Super+Shift+A` | `claude-screenshot` | grim capture → Claude analysis (Haiku) → notification |
 | `Super+Ctrl+A` | `claude-screenshot-interactive` | Screenshot → Claude analysis (Sonnet) → terminal for follow-up |
 
 ## Shell Commands

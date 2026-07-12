@@ -16,6 +16,17 @@ is not built). #2 (timewarp), #3 (self-merging heal PRs), #4 (morning desk
 phase 2), #5 (Hyprland specialisation — dormant by choice), #6 (below flight
 recorder) remain open backlog.
 
+**Status pass 2026-07-12 (Fable's last day):** #5 SUPERSEDED beyond its
+ambitions — Hyprland didn't return as a specialisation, it became THE desktop
+and GNOME was deleted entirely (docs/plans/2026-07-11-gnome-ripout-plan.md,
+all three phases complete). #4's attention hooks must use Hyprland-world
+signals now (hypridle/`loginctl show-session` for idle, `hyprctl
+activewindow -j` for window class — the GNOME DBus paths in the prompt are
+gone). #8's claudeos-side tray note: the Quickshell bar hosts the tray
+(StatusNotifier), not a GNOME extension. New prompts #10–#12 below were
+written by Fable with full rip-out context for Opus execution — trust their
+reasoning; verify their facts against the tree before acting.
+
 ---
 
 ## 1. The OS that updates itself — VM smoke-test gate — ✅ DONE (2026-06; gate fixed 2026-07-07, PR #29)
@@ -220,3 +231,108 @@ See docs/PHILOSOPHY.md "On Jasper specifically" for the canonical statement.
 >    document, don't fake). Test matrix: launch, login OAuth round-trip,
 >    tray, hotkey, file picker, drag-drop, claude:// — on the transporter
 >    testbed.
+
+## 10. Hyprland burn-in — the week's watchlist (written 2026-07-12)
+
+> Read docs/plans/2026-07-11-gnome-ripout-plan.md (Phase 2) and
+> modules/desktop/hyprland.nix + home/hyprland.nix — their comments carry
+> the WHY for every mechanism below. This prompt is the judge's handbook
+> for the burn-in week on transporter. For each item: how to check, and the
+> fix-shape if it fails. Do NOT redesign anything that fails — the
+> architecture is decided; failures here are wiring bugs.
+>
+> - SESSION ENTRY (the known trap): every regreet login must use
+>   "Hyprland (UWSM)". Symptom of the plain entry: no wallpaper/idle-lock/
+>   night light. Diagnostic FIRST: `systemctl --user is-active
+>   graphical-session.target`. Rescue: `systemctl --user start hyprpaper
+>   hypridle gammastep`. (Memory: uwsm-target-first-diagnostic.)
+> - SUSPEND ON BATTERY: unplug, leave idle 20+ min → suspends. The policy
+>   script is suspendOnBattery in home/hyprland.nix (hypridle listener,
+>   timeout 1200). If it fires on AC or never fires, debug the
+>   /sys/class/power_supply/*/online loop — Dell adapters expose `online`;
+>   log the loop's reads before changing logic.
+> - AC STAYS AWAKE: overnight on AC, auto-update/diary/morning desk must
+>   run. If the machine slept: something ELSE suspended it (logind lid?
+>   check `journalctl -b -u systemd-logind`), not hypridle — it has no
+>   unconditional suspend listener.
+> - NIGHT LIGHT: screen warms after sunset (gammastep, geoclue2 provider).
+>   If not: `journalctl --user -u gammastep`; geoclue needs a WiFi fix —
+>   if geoclue can't locate, the accepted fallback is provider "manual" +
+>   lat/long in home/hyprland.nix services.gammastep (Detroit-ish; ask Tom).
+> - CAFFEINE: Super+I → mug in bar (accent); wait 6 min → NO lock. Agent
+>   run (touch $XDG_RUNTIME_DIR/claudeos-agent) → muted mug, also no lock.
+>   Mechanism: Caffeine.qml (state) + IdleInhibitor in Bar.qml (protocol,
+>   needs the bar window). If lock fires anyway, check Hyprland honors
+>   idle-inhibit from layer-shell surfaces before touching the QML.
+> - KEYRING ROUNDTRIP: reboot → Chrome/Claude Desktop logins persist, no
+>   unlock prompt. Mechanism: greetd PAM (enableGnomeKeyring) unlocks the
+>   login collection. Check: `busctl --user get-property
+>   org.freedesktop.secrets /org/freedesktop/secrets/collection/login
+>   org.freedesktop.Secret.Collection Locked` → `b false`.
+> - SCREENSHARE: a real Meet/Zoom call → picker appears (xdg-desktop-
+>   portal-hyprland). FileChooser in Claude Desktop → GTK dialog (gtk
+>   portal). If either missing, check the THREE portal units are active
+>   and remember the HM portal-var shadowing memory.
+> - GHOSTTY IN NAUTILUS: right-click in Files → "Open in Ghostty".
+>   Chain: nautilus-python loader (NAUTILUS_4_EXTENSION_DIR) + ghostty.py
+>   via XDG_DATA_DIRS — both verified resolvable 2026-07-12; this checks
+>   the runtime load actually happens.
+> - Anything that fails and gets fixed: append the fact to
+>   docs/known-issues.md or the relevant module comment, same commit.
+
+## 11. gti deploy runbook (written 2026-07-12)
+
+> gti (XPS 13 9370, HiDPI 13") is already flipped to
+> `claude-os.hyprland.enable = true` in hosts/gti/default.nix — there is no
+> architecture work left, only deployment. Follow INSTALL.md for the
+> (re)install; this prompt adds only the Hyprland-specific deltas:
+>
+> 1. First login at regreet: pick "Hyprland (UWSM)" (see prompt #10's trap).
+> 2. HiDPI: transporter runs scale 1.5 on 1080p; gti's 3200×1800 panel
+>    wants `monitor = eDP-1, preferred, auto, 2` or 1.6 — set it as a HOST
+>    override (hosts/gti or a host-conditional in home/hyprland.nix),
+>    NOT a shared default. Verify fractional-scale text sharpness in
+>    Ghostty and Chrome (XWayland apps may blur at fractional scales —
+>    check `hyprctl clients` for xwayland flags before blaming Hyprland).
+> 3. Keyboard: gti has the same Colemak-everywhere expectation; it comes
+>    from Hyprland input config + pam_env greeter vars automatically.
+> 4. Run prompt #10's checklist end-to-end on gti before calling it done —
+>    especially suspend/lid (different EC than the Latitude) and the
+>    battery widget (different battery names in sysfs are already handled
+>    by the wildcard loop, but verify).
+> 5. Cross-machine: after deploy, `git pull` on transporter so both track
+>    the same HEAD (CLAUDE.md workflow step 8).
+
+## 12. Deferred desktop projects — context for whoever picks them up
+
+> Three intentional deferrals from the rip-out, each with its trap
+> documented. Read the referenced sources before starting any of them.
+>
+> (a) BESPOKE QML GREETER (the fun one): regreet is deliberately "boring
+> glue"; the aspiration is a login screen in the bar's design language.
+> Two roads: SDDM-Wayland themes are QML (mature ecosystem; but NixOS
+> default greeter-compositor for it pulls Weston, and Stylix has no SDDM
+> target — manual base16 wiring), or watch greetd-world QML greeters
+> mature. Decision context: docs/plans/2026-07-11-gnome-ripout-plan.md
+> "Decisions (locked)" table + the greetd-vs-SDDM rationale paragraph.
+> This is a taste project — do it WITH Tom iterating visually, not solo.
+>
+> (b) HIDE REGREET'S PLAIN "Hyprland" ENTRY: the footgun behind prompt
+> #10's first item. The correct-looking fix (filter
+> services.displayManager.sessionPackages) is blocked: the entry comes
+> from programs.hyprland's own `sessionPackages = [ cfg.package ]`, and
+> replacing cfg.package breaks lib.getExe in security.wrappers.Hyprland
+> (verified in nixpkgs source 2026-07-12). Workable angles: an upstream
+> nixpkgs option to suppress the non-UWSM session; or a low-tech
+> systemd tmpfiles/activation snippet that rewrites the desktops-dir copy
+> with Hidden=true IF regreet honors it (verify against ReGreet source
+> first). Only worth doing if the trap bites again despite regreet's
+> last-session memory.
+>
+> (c) oo7-daemon AS gnome-keyring SUCCESSOR: same D-Bus API
+> (org.freedesktop.secrets), reads the same keyring format, Rust. Blocked
+> 2026-07-12: locked nixpkgs ships only the oo7 CLI (0.6.0), no daemon
+> package, and its PAM-unlock story is younger than pam_gnome_keyring's.
+> Re-check when `nix eval nixpkgs#oo7-daemon` resolves; trial on
+> transporter; the swap is invisible to apps (interface stays, greetd PAM
+> line changes). Context: plan doc "Deferred / future".

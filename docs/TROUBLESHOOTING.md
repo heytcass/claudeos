@@ -84,9 +84,9 @@ PATH is configured in `home/shell/fish.nix` via `fish_add_path ~/.local/bin`.
 
 ### Unwanted Launcher Icons
 
-**Symptom:** CLI tools appear in the GNOME app grid
+**Symptom:** CLI tools appear in the fuzzel launcher
 
-**Fix:** Hide via `hideDesktopEntries` (`NoDisplay=true` desktop entries) — user-level list in `home/default.nix`, system-level list in `modules/desktop/gnome.nix`. Unwanted stock GNOME apps go in `environment.gnome.excludePackages`.
+**Fix:** Hide via `hideDesktopEntries` (`NoDisplay=true` desktop entries) — user-level list in `home/default.nix` (wins for home-managed packages), system-level list in `modules/desktop/default.nix`.
 
 ### Fish Plugin Hash Mismatch
 

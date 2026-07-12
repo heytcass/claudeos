@@ -33,9 +33,9 @@ flake.nix              # Entry point — defines all hosts (see hosts/ directory
 lib/mkSystem.nix       # Host builder — wires common modules + home-manager
 hosts/<hostname>/      # Per-host: default.nix (overrides) + hardware-configuration.nix
 modules/common/        # Shared NixOS config: boot, networking, nix, users, locale, disko
-modules/desktop/       # GNOME, audio, fonts, Stylix theme
+modules/desktop/       # Hyprland + greetd, audio, fonts, Stylix theme
 modules/apps/          # System packages: terminals, claude, jasper
-home/                  # home-manager modules: shell, git, ghostty, vscode, gnome
+home/                  # home-manager modules: shell, git, ghostty, vscode, hyprland, quickshell/
 lib/                   # Helpers: mkSystem, hideDesktopEntries, theme utilities
 assets/                # Static files (wallpapers, etc.)
 ```

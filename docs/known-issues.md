@@ -51,7 +51,7 @@ Ledger edits are committed by the normal rebuild auto-commit flow.
 
 - 2026-07-07 · `profiles/audio/bap.c:bap_adapter_probe() BAP requires ISO Socket which is not enabled` (2 occurrences) · Bluetooth Audio Profile (BAP) codec path logs that ISO socket support is disabled; only relevant if LE Audio pairing is intended. Not a blocker for standard Bluetooth audio.
 
-- 2026-07-06 · D-Bus "Ignoring duplicate name" warnings (org.gnome.keyring, org.freedesktop.secrets, org.gtk.vfs.*, org.gnome.evolution.*, etc., ~200 total occurrences) · Normal in multi-package GNOME setups; D-Bus just logs when multiple packages provide the same service interface. Does not affect functionality.
+- 2026-07-06 · D-Bus "Ignoring duplicate name" warnings (org.gnome.keyring, org.freedesktop.secrets, org.gtk.vfs.*, org.gnome.evolution.*, etc., ~200 total occurrences) · Normal in multi-package setups providing the same D-Bus interface (gnome-keyring remains as the Secret Service); D-Bus just logs when multiple packages provide the same service interface. Does not affect functionality.
 
 - 2026-07-06 · "Activation request for 'org.freedesktop.nm_dispatcher' failed" (39 occurrences) · NetworkManager dispatcher activation failures are transient and common; do not affect network connectivity. Monitor if actual network issues arise.
 
@@ -64,8 +64,6 @@ Ledger edits are committed by the normal rebuild auto-commit flow.
 ## Resolved
 
 <!-- move entries here when fixed, with the fixing commit/PR -->
-
-- 2026-07-07 · VM smoke-test gate never passed — every weekly auto-update since 2026-06-12 silently reverted flake.lock (root cause of the month-stale nixpkgs) · The gate asserted `gdm.service` active, but NixOS runs GDM as `display-manager.service`; the literal unit never exists, so every run reported `gdm=inactive` and reverted. Found 2026-07-07 by the first breadcrumb-instrumented run; diagnosed independently by the self-heal agent, fixed in PR #29. The new `last-update`/`last-update-revert` breadcrumbs + >14-day health-check alert exist precisely so this failure class can't be silent again.
 
 - 2026-07-07 · "Random seed file '/boot/loader/random-seed' is world accessible" · Fixed 2026-07-07: ESP mount masks tightened to fmask/dmask=0077 in `modules/common/disko.nix`. Takes full effect after a reboot remounts /boot; verify with `stat /boot/loader/random-seed`.
 

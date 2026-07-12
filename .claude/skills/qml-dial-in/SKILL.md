@@ -7,7 +7,7 @@ description: Iterate on the bespoke Quickshell/Hyprland bar visually — animati
 
 Tight visual iteration on the bar in `home/quickshell/*.qml` **without** a
 rebuild per change. You must be running **inside the Hyprland session** (grim
-only works under Hyprland, not GNOME — verify with `pgrep -x Hyprland` or that
+needs a live compositor — verify with `pgrep -x Hyprland` or that
 `hyprctl` responds). Read `.claude/rules/quickshell-qml.md` and the API gotchas
 in `docs/plans/2026-07-10-hyprland-handoff.md` first.
 
@@ -50,9 +50,9 @@ rebuild.
 
 ### 5. Bake it in
 When happy: `nix build .#nixosConfigurations.transporter.config.system.build.toplevel`
-(+ `nix fmt`), commit, then **`rebuild` → reboot into the `(hyprland)` boot
-entry** (a `switch` won't deploy the specialisation). Restore the live bar
-meanwhile by relaunching `qs` (or just reboot).
+(+ `nix fmt`), commit, then **`rebuild` → reboot** to restore the real bar
+(Hyprland is the default generation — no specialisation, no `(hyprland)` boot
+entry). After a plain `switch`, relaunching `qs` also picks up the new config.
 
 ## Gotchas (see the rule file for the full set)
 - One broken `.qml` blanks the entire bar — always check the reload log.
