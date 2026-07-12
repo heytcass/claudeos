@@ -198,10 +198,16 @@ in
         "XCURSOR_SIZE,20"
       ];
 
+      # NB: hyprpaper, hypridle, and gammastep are deliberately NOT here —
+      # they run as home-manager systemd units bound to graphical-session
+      # .target, which UWSM activates. That makes the session-entry choice at
+      # regreet LOAD-BEARING: the plain "Hyprland" entry never activates the
+      # target, stranding all three (no wallpaper, no idle-lock, no night
+      # light — observed first post-inversion login 2026-07-12). Always pick
+      # "Hyprland (UWSM)"; regreet remembers the last choice per user in
+      # /var/lib/regreet/state.toml.
       exec-once = [
         "qs" # the bespoke Quickshell bar
-        "hyprpaper"
-        "hypridle"
         # Apply the Adwaita cursor at runtime (belt-and-suspenders with env above).
         "hyprctl setcursor Adwaita 20"
         # Start + unlock the Secret Service (org.freedesktop.secrets) so Claude
