@@ -1,30 +1,26 @@
-// JasperWidget.qml — Jasper's face in the bar: a compact insight pill showing
-// the (elided) one-sentence insight; click reveals the full sentence in a
-// popup. Hidden entirely when the lane has nothing to say — one thing, never a
-// feed. Reads the Jasper singleton; every color comes from Theme.
+// JasperWidget.qml — Jasper's face in the bar: the (elided) one-sentence
+// insight; click reveals the full sentence in a popup. Hidden entirely when the
+// lane has nothing to say — one thing, never a feed. Reads the Jasper singleton;
+// every color comes from Theme.
+//
+// Root is the Text itself (self-sizing, like ActiveWindow.qml) — a wrapper Item
+// with a hand-bound implicitWidth renders zero-width in a RowLayout, so don't.
 import QtQuick
+import QtQuick.Layouts
 import Quickshell
 
-Item {
+Text {
     id: root
-    visible: Jasper.text !== ""
-    implicitWidth: label.width
-    implicitHeight: Theme.barHeight
-
-    Text {
-        id: label
-        anchors.verticalCenter: parent.verticalCenter
-        text: Jasper.text
-        color: Jasper.stale ? Theme.muted : Theme.subtext
-        font.family: Theme.fontSans
-        font.pixelSize: Theme.fontSize
-        elide: Text.ElideRight
-        maximumLineCount: 1
-        // contentWidth is the natural text width (independent of `width`, so no
-        // binding loop); cap it so a long insight elides instead of shoving the
-        // rest of the bar around.
-        width: Math.min(contentWidth, 320)
-    }
+    visible: text !== ""
+    text: Jasper.text
+    color: Jasper.stale ? Theme.muted : Theme.subtext
+    font.family: Theme.fontSans
+    font.pixelSize: Theme.fontSize
+    elide: Text.ElideRight
+    maximumLineCount: 1
+    // Cap the width so a long insight elides instead of shoving the bar around.
+    // Layout.* is honored because Bar.qml places this directly in a RowLayout.
+    Layout.maximumWidth: 360
 
     MouseArea {
         anchors.fill: parent
