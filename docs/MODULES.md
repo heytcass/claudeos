@@ -337,7 +337,7 @@ Jasper, the personal-companion **lane** (`claude-os.jasper`, enabled by default)
 
 - **Poll (every 30 min during waking hours, configurable `schedule`):** a `oneshot` user service runs dumb collectors — weather (wttr.in) and calendar (gcalcli, if connected) — then a bash **significance gate** decides whether anything changed (hash of the day's stable weather + labelled agenda) or a morning/midday/evening heartbeat is due.
 - **One call, one insight:** only when the gate fires does a single `claude -p` **sonnet** call (riding the Claude subscription — **no dedicated API key**) synthesize ONE warm, ownership-aware sentence ("Christen has soccer," never "you have soccer"). Written to `~/.cache/claudeos-monitor/jasper-insight.txt` (the monitor-cache file contract).
-- **Face:** `home/quickshell/Jasper.qml` (singleton) + `JasperWidget.qml` read that file and show the insight in the bar (click to expand). One thing, never a feed.
+- **Face:** the `home/quickshell/Jasper.qml` singleton reads that file; the mood emoji joins the clock in the center island (`Island.qml`), and the sentence rides at the top of the calendar popup (`CalendarPopup.qml`) — one tap, one dropdown. One thing, never a feed.
 - **Never touches `graphical-session.target`** — a plain `timers.target` oneshot, so the retired daemon's greeter-killing boot loop cannot recur.
 - **Calendar bootstrap (one-time, interactive):** `gcalcli init` with the Google OAuth client from sops (`jasper_google_client_id`/`secret`); until then it runs weather-only and never invents events.
 
