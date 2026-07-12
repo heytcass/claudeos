@@ -4,9 +4,11 @@
 // $XDG_RUNTIME_DIR/claudeos-agent — the extension point for automations (or a
 // heal run) to say "I'm doing something." Polled cheaply.
 //
-// Matched by EXACT process name (pgrep -x), not cmdline (-f): -f would also fire
-// on any shell command that merely mentions "nixos-rebuild" (e.g. a monitoring
-// loop), pinning the pulse permanently on.
+// Matched by process name (pgrep -x, full-comm regex), not cmdline (-f): -f
+// would also fire on any shell command that merely mentions "nixos-rebuild"
+// (e.g. a monitoring loop — or this probe itself), pinning the pulse on.
+// NB: comm is kernel-truncated to 15 chars, and nixos-rebuild-ng's wrapper
+// shows as ".nixos-rebuild-" — hence the regex, not a literal name.
 pragma Singleton
 import QtQuick
 import Quickshell
@@ -21,7 +23,7 @@ Singleton {
         command: [
             "sh",
             "-c",
-            "if pgrep -x nh >/dev/null 2>&1 || pgrep -x nixos-rebuild >/dev/null 2>&1 || [ -e \"$XDG_RUNTIME_DIR/claudeos-agent\" ]; then echo 1; else echo 0; fi"
+            "if pgrep -x nh >/dev/null 2>&1 || pgrep -x '[.]?nixos-rebuild.*' >/dev/null 2>&1 || [ -e \"$XDG_RUNTIME_DIR/claudeos-agent\" ]; then echo 1; else echo 0; fi"
         ]
         stdout: SplitParser {
             onRead: line => root.active = (line.trim() === "1")
