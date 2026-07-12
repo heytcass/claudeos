@@ -1,4 +1,4 @@
-{ user, ... }:
+{ lib, ... }:
 
 {
   # Dell Latitude 7280 — TESTBED host for the ClaudeOS return.
@@ -77,16 +77,21 @@
   # profile migration — fresh install anyway).
   networking.networkmanager.wifi.backend = "iwd";
 
-  # Hyprland + bespoke Quickshell bar, as a boot-menu specialisation. This is
-  # the ONLY place claude-os.hyprland.enable is flipped on, and the only place
-  # the Hyprland/Quickshell home config is attached — so nothing leaks onto the
-  # default GNOME generation or onto gti. systemd-boot auto-emits a second boot
-  # entry ("… (hyprland)"); boot into it to try Hyprland, reboot into the
-  # default entry for GNOME. Do NOT `switch-to-configuration` into it — live HM
-  # activation inside a specialisation is unverified (boot-into is the safe
-  # path). See docs/plans/2026-07-10-wm-evaluation-report.md (Part 4).
-  specialisation.hyprland.configuration = {
-    claude-os.hyprland.enable = true;
-    home-manager.users.${user}.imports = [ ../../home/hyprland.nix ];
+  # THE INVERSION (GNOME rip-out Phase 1, 2026-07-11 — see
+  # docs/plans/2026-07-11-gnome-ripout-plan.md): Hyprland + the bespoke
+  # Quickshell bar IS the default generation now; GNOME survives only as the
+  # `gnome` fallback boot entry for the burn-in period, then Phase 3 deletes
+  # it. Each desktop module attaches its own home config, so flipping the
+  # options swaps the whole story. NOTE the old deploy caution INVERTED with
+  # it: `switch-to-configuration` now activates HYPRLAND and would strip a
+  # running GNOME fallback session — boot-into remains the safe path in both
+  # directions.
+  claude-os.hyprland.enable = true;
+  specialisation.gnome.configuration = {
+    claude-os.gnome.enable = true;
+    # Specialisations inherit the parent config, so Hyprland must be forced
+    # back off — two desktops in one generation would collide at the display
+    # manager and portal layers.
+    claude-os.hyprland.enable = lib.mkForce false;
   };
 }

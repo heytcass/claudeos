@@ -1,7 +1,9 @@
 # home/hyprland.nix — Hyprland + a bespoke Quickshell bar, per-user config.
-# Imported ONLY inside hosts/transporter's `hyprland` specialisation, so it is
-# entirely absent on the default GNOME generation and on gti. All colors come
-# from the Stylix base16 palette (never hardcoded hex) — CLAUDE.md mandate.
+# Attached by modules/desktop/hyprland.nix (claude-os.hyprland.enable), the
+# default desktop since the Phase 1 inversion; absent wherever GNOME is the
+# desktop (gti until reinstall, transporter's `gnome` fallback entry). All
+# colors come from the Stylix base16 palette (never hardcoded hex) — CLAUDE.md
+# mandate.
 #
 # The bar is hand-authored QML under ./quickshell (the "build what I want, adopt
 # no one's desktop" choice); it is themed by a Colors.qml singleton generated

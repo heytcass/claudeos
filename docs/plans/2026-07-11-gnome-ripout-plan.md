@@ -29,23 +29,26 @@ lock/idle (hyprlock/hypridle), wallpaper (hyprpaper), media/brightness keys
 session-aware wrapper), polkit agent (soteria), portals (hyprland + gtk
 fallback), tray (Quickshell SystemTray), Qt presence (Quickshell ships Qt6).
 
-## Phase 0 — close the gsd gaps *before* flipping the default
+## Phase 0 — close the gsd gaps *before* flipping the default — DONE 2026-07-11
 
 GNOME's settings-daemon quietly provides these today; the Hyprland session
 must own them before it's the daily driver:
 
-- [ ] **Suspend-on-battery**: gnome.nix policy is "AC: stay awake (overnight
+- [x] **Suspend-on-battery**: gnome.nix policy is "AC: stay awake (overnight
       automation), battery: suspend after 20 min". hypridle currently has NO
       suspend listener. Add one (script the AC check via
       `/sys/class/power_supply/*/online` or upower) + confirm logind lid
       handling matches.
-- [ ] **Night light**: gsd's dies with GNOME → `wlsunset` (simplest, trusted;
+- [x] **Night light**: gsd's dies with GNOME → `wlsunset` (simplest, trusted;
       geoclue stays — it's freedesktop, not GNOME). `hyprsunset` is the
       ecosystem-native alternative if wlsunset disappoints.
-- [ ] **Input parity**: key repeat 250ms/25ms and tap-to-click from
+- [x] **Input parity**: key repeat 250ms/25ms and tap-to-click from
       home/gnome.nix dconf → Hyprland `input { repeat_delay/repeat_rate,
       touchpad { tap-to-click } }`.
-- [ ] **Qt theming** — MOVED TO PHASE 1: home/gnome.nix (co-imported in the
+- [x] **Qt theming** — resolved by the Phase 1 inversion (Stylix Qt target
+      auto-enables in the Hyprland generation, eval-verified true; the
+      adwaita-qt hand-roll now lives only in the GNOME generation and dies
+      with home/gnome.nix in Phase 3). Original note: home/gnome.nix (co-imported in the
       specialisation) hard-sets the adwaita Qt platform theme; overriding it
       with mkForce across co-imported modules is messier than waiting until
       the inversion stops importing gnome.nix into the Hyprland generation.
@@ -57,27 +60,27 @@ must own them before it's the daily driver:
       verified via qml-preview 2026-07-11. Burn-in must still prove the
       inhibitor actually blocks the 5-min hyprlock (protocol registration
       verified, efficacy not yet — leave idle 5 min with a hold on).
-- [ ] **greetd + regreet module**: `programs.regreet.enable` (pulls greetd,
+- [x] **greetd + regreet module**: `programs.regreet.enable` (pulls greetd,
       runs under cage). Colemak at the greeter: set XKB env
       (`XKB_DEFAULT_LAYOUT=us`, `XKB_DEFAULT_VARIANT=colemak`) for the cage
       session — replaces the GDM-specific fix documented in locale.nix.
       Keyring: `security.pam.services.greetd.enableGnomeKeyring = true`
       (replaces the GDM PAM substack ride documented in
       modules/desktop/hyprland.nix).
-- [ ] **Explicit keyring service**: `services.gnome.gnome-keyring.enable =
+- [x] **Explicit keyring service**: `services.gnome.gnome-keyring.enable =
       true` in the Hyprland module (today it's inherited from GNOME).
 
-## Phase 1 — invert the specialisation (transporter)
+## Phase 1 — invert the specialisation (transporter) — DONE 2026-07-11
 
-- [ ] Gate GNOME behind an option like Hyprland already is:
+- [x] Gate GNOME behind an option like Hyprland already is:
       `claude-os.gnome.enable` mirroring `claude-os.hyprland.enable`
       (modules/desktop/gnome.nix currently hard-enables).
-- [ ] transporter default generation: hyprland on, greetd/regreet as DM,
+- [x] transporter default generation: hyprland on, greetd/regreet as DM,
       home/hyprland.nix imported normally.
       `specialisation.gnome` = GDM + GNOME as the fallback boot entry.
-- [ ] gti: keeps GNOME default until reinstall (both modules stay gated, host
+- [x] gti: keeps GNOME default until reinstall (both modules stay gated, host
       picks — flake must keep building for both hosts).
-- [ ] Move the `hideDesktopEntries` package out of gnome.nix into a shared
+- [x] Move the `hideDesktopEntries` package out of gnome.nix into a shared
       spot — fuzzel reads the same .desktop entries. Fix TWO confirmed bugs
       while moving it (verified in-session 2026-07-11 by tracing
       XDG_DATA_DIRS):
@@ -91,18 +94,18 @@ must own them before it's the daily driver:
       2. *ID mismatch*: Chrome's real entry is `google-chrome.desktop`, but
          the hide list targets `com.google.Chrome` — the override hides a
          nonexistent ID and Chrome shows.
-- [ ] Nautilus standalone in the Hyprland generation: `pkgs.nautilus`,
+- [x] Nautilus standalone in the Hyprland generation: `pkgs.nautilus`,
       `services.gvfs`, `nautilus-python` + verify the Ghostty context-menu
       extension still loads outside GNOME (may need the extension dir linked).
-- [ ] Standalone apps: gnome-calculator, loupe, file-roller, zenity (stays —
+- [x] Standalone apps: gnome-calculator, loupe, file-roller, zenity (stays —
       claude-ask-desktop), mpv for video. Optional keepers to decide during
       the flip (all run fine standalone): seahorse (GUI for the gnome-keyring
       we're keeping), GNOME Disks (USB/SMART), simple-scan (if a scanner
       exists). Default: leave them out, add back if missed.
-- [ ] Settings replacements on PATH: pavucontrol, blueman,
+- [x] Settings replacements on PATH: pavucontrol, blueman,
       nm-connection-editor (windowrules already float all three),
       nwg-displays or kanshi for monitors.
-- [ ] Deploy caution: the "rebuild switch breaks Hyprland specialisation"
+- [x] Deploy caution: the "rebuild switch breaks Hyprland specialisation"
       memory INVERTS after this — switch will then activate Hyprland and
       strip a running GNOME fallback session, not vice versa. Boot-into
       remains the safe path during the flip itself.
