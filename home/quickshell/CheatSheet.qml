@@ -43,6 +43,10 @@ Scope {
                         desc: "Lock screen"
                     },
                     {
+                        keys: ["Super", "I"],
+                        desc: "Caffeine — hold off idle/lock"
+                    },
+                    {
                         keys: ["Super", "Shift", "M"],
                         desc: "Exit to login"
                     }

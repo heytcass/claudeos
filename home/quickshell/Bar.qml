@@ -6,9 +6,20 @@
 import QtQuick
 import QtQuick.Layouts
 import Quickshell
+import Quickshell.Wayland
 
 PanelWindow {
     id: bar
+
+    // Wayland idle-inhibit: while Caffeine holds (SUPER+I manual, or agent
+    // activity), Hyprland's idle-notify stays quiet so hypridle never locks,
+    // blanks, or suspends. The protocol needs a window surface — hence here
+    // and not in the Caffeine singleton. One inhibitor per monitor's bar is
+    // fine: the compositor refcounts them.
+    IdleInhibitor {
+        window: bar
+        enabled: Caffeine.inhibited
+    }
     required property var modelData
     screen: modelData
 
@@ -55,6 +66,18 @@ PanelWindow {
 
         RowLayout {
             spacing: 4
+
+            // Caffeine indicator — exists only while idle-inhibit holds.
+            // Accent mug = deliberate SUPER+I hold; muted mug = the agent's
+            // auto-hold (it disappears on its own when the run ends).
+            Text {
+                visible: Caffeine.inhibited
+                text: Icons.coffee
+                font.family: Theme.fontMono
+                font.pixelSize: Theme.iconSize
+                color: Caffeine.manual ? Theme.accent : Theme.subtext
+            }
+
             VolumeWidget {}
             NetworkWidget {}
             BatteryWidget {}
