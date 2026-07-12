@@ -210,7 +210,7 @@ Weekly unattended flake updates with Claude review (`claude-os.autoUpdate`, enab
 
 ### modules/common/generation-label.nix
 
-Claude-named generations. Reads the repo-root `generation-label` file (a short slug written by the fish `rebuild` function and the auto-update service, usually authored by haiku from the pending diff) into `system.nixos.tags` -- so the systemd-boot menu and `nixos-rebuild list-generations` read like a changelog instead of "Generation 213". The charset is sanitized to `[a-zA-Z0-9:_.-]` because `system.nixos.label` rejects anything else at eval time.
+Claude-named generations. Reads the repo-root `generation-label` file (a short slug written by the fish `rebuild` function and the auto-update service, usually authored by haiku from the pending diff) into `system.nixos.tags` -- so the systemd-boot menu and `nixos-rebuild list-generations` read like a changelog instead of "Generation 213". The charset is sanitized to `[a-zA-Z0-9:_.-]` because `system.nixos.label` rejects anything else at eval time. The writer (`claude-name-generation`, claude-helpers.nix) accepts only slug-shaped model output (`[a-z0-9-]`, ≤40 chars) and otherwise falls back to a timestamp slug — CLI/API error text used to get charset-mangled into a "valid" label (`You-ve-hit-your-monthly-spend-limit----r`) instead of rejected.
 
 ### modules/common/self-heal.nix
 
