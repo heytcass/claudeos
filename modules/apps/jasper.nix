@@ -139,7 +139,9 @@ let
       - Do not repeat the previous insight below.
 
       Output: ONE concise, warm sentence, starting with a single emoji that fits the
-      mood (vary it; don't reuse the last one). No preamble, no quotes, no markdown.
+      mood (vary it; don't reuse the last one), then a space, then the sentence — the
+      bar shows only the emoji, the sentence appears on click, so the emoji must
+      carry the mood alone. No preamble, no quotes, no markdown.
 
       Previous insight (do NOT repeat): $last_insight
 
