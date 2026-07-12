@@ -67,12 +67,16 @@ work, per Claude Code best practice (fresh context + the scaffolding below).*
 - ~~Colour the dot by urgency~~ ✅ shipped (dot + notif border take `peekColor`).
 
 **Agent pulse**
-- Breathing speed (currently 1.1s each way); maybe an outer glow, not just border.
-- ~~Broaden the signal~~ ✅ superseded by **Agent state 2.0**: the marker file is
-  now content-bearing — write a phrase into `$XDG_RUNTIME_DIR/claudeos-agent`
-  ("healing", "morning desk") and the island shows an agent face (breathing ✳ +
-  phrase + dim clock) while idle. Units/hooks still need to be wired to *write*
-  the marker — that's the open half.
+- Breathing speed (currently 1.1s each way). ~~Maybe an outer glow~~ ✅ shipped
+  (two z:-1 halo layers swell/fade on the pulse; the ✳ spark turns slowly).
+- ~~Broaden the signal~~ ✅ **Agent state 2.0**, fully wired: writers call
+  `claudeos_agent_begin "phrase"` (lib/claude-script.nix — per-PID file in
+  `$XDG_RUNTIME_DIR/claudeos-agent.d/`, EXIT-trap cleanup, 60-min staleness
+  cutoff in the bar). self-heal → "healing <unit>", morning-desk → "preparing
+  the morning desk". The island shows the newest phrase on its agent face
+  (breathing ✳ + phrase + dim clock). The legacy single marker file still
+  works for manual/one-off use. Remaining candidates: auto-update's eval
+  phase, a Claude Code SessionStart hook.
 - NB: `pgrep -x nixos-rebuild` never matched (nixos-rebuild-ng comm truncates to
   `.nixos-rebuild-`); fixed with a full-comm regex.
 

@@ -63,22 +63,18 @@ let
       elif (( now_hour >= 17 && now_hour < 21 )); then phase="evening";   (( now_hour == 18 )) && heartbeat=1
       fi
 
-      # ---- Collectors (each degrades gracefully; never blocks the gate) ----
+      # ---- Collectors (shared with morning-desk: lib/claude-script.nix) ----
       # Weather: keep only the STABLE fields in the gate (condition + the day's
       # hi/lo), not the live temperature, so a 1°F tick doesn't force a call.
-      weather_json=$(timeout 15 curl -fsSL "wttr.in/?format=j1" 2>/dev/null \
+      weather_json=$(claudeos_wttr_json \
         | jq -c '{desc: .current_condition[0].weatherDesc[0].value, tempF: .current_condition[0].temp_F, maxF: .weather[0].maxtempF, minF: .weather[0].mintempF, rain: [.weather[0].hourly[] | select((.chanceofrain|tonumber) > 40) | .time]}' 2>/dev/null)
       [[ -z "$weather_json" ]] && weather_json='"unavailable"'
       weather_stable=$(printf '%s' "$weather_json" | jq -c '{desc, maxF, minF, rain}' 2>/dev/null || echo "$weather_json")
 
       # Calendar: today + tomorrow, labelled by calendar name so the model can
-      # attribute ownership. gcalcli only runs once OAuth has been bootstrapped.
-      calendar="not connected"
-      if command -v gcalcli >/dev/null && [[ -d "$HOME/.local/share/gcalcli" || -f "$HOME/.gcalcli_oauth" ]]; then
-        calendar=$(timeout 60 gcalcli --nocolor agenda --details calendar --details location \
-          "$(date +%F)" "$(date -d '2 days' +%F)" 2>/dev/null || echo "fetch failed")
-        [[ -z "$calendar" ]] && calendar="nothing on the calendar"
-      fi
+      # attribute ownership. "not connected" before the one-time gcalcli init.
+      calendar=$(claudeos_gcal_agenda "$(date +%F)" "$(date -d '2 days' +%F)" --details calendar --details location)
+      [[ -z "$calendar" ]] && calendar="nothing on the calendar"
 
       # ---- Significance gate ----
       # Hash the STABLE context. Call the model only when it changed OR a
