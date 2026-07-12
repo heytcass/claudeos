@@ -245,14 +245,17 @@ in
 
       general = {
         border_size = 2;
-        gaps_in = 4;
-        gaps_out = 8;
+        # Tightened 2026-07-12 (was 4/8): on the 12.5" 1080p@1.5× panel the
+        # airy gaps read as dead space and windows felt cramped. Dialed in
+        # live via `hyprctl keyword general:gaps_*`.
+        gaps_in = 2;
+        gaps_out = 4;
         # Border colors come from Stylix's Hyprland target (base0D terracotta on
         # the active border, from the same palette) — setting them here conflicts
         # with Stylix's own definitions.
       };
 
-      decoration.rounding = 8;
+      decoration.rounding = 6; # matched to the tighter gaps (was 8)
 
       # dwindle (default layout): keep the split direction when a window closes
       # so the layout doesn't reflow unexpectedly.
