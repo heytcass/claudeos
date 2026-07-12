@@ -1,8 +1,10 @@
 # modules/desktop/hyprland.nix — Hyprland compositor, gated OFF by default.
 # Enabled only inside the `hyprland` specialisation on transporter (see
 # hosts/transporter/default.nix); GNOME (gnome.nix) stays the default GDM
-# session on every host. When on, GDM lists a Hyprland (UWSM) session
-# alongside GNOME, so the specialisation is strictly additive.
+# session on every host. As of Phase 0 of the GNOME rip-out
+# (docs/plans/2026-07-11-gnome-ripout-plan.md) this module is no longer
+# strictly additive: it replaces GDM with greetd + regreet inside the
+# specialisation, so the greeter itself gets proven before the inversion.
 #
 # Chosen 2026-07 to answer GNOME's "heavy for what little it shows"
 # sluggishness with a lean C compositor (no JS shell). See the evaluation
@@ -47,18 +49,57 @@ in
       ];
     };
 
-    environment.sessionVariables.XDG_CURRENT_DESKTOP = "Hyprland";
+    environment.sessionVariables = {
+      XDG_CURRENT_DESKTOP = "Hyprland";
+      # The greeter must be Colemak — passwords get typed there. greetd builds
+      # a clean PAM env for the greeter (env on systemd.services.greetd never
+      # reaches cage), but pam_env exports environment.sessionVariables, and
+      # wlroots/cage read XKB_DEFAULT_*. Harmless in the user session:
+      # Hyprland's own input config overrides these env defaults.
+      XKB_DEFAULT_LAYOUT = "us";
+      XKB_DEFAULT_VARIANT = "colemak";
+    };
 
-    # Secret Service (org.freedesktop.secrets): NO extra PAM config needed.
-    # Verified 2026-07-11 against the built system: GDM's module defines
-    # gdm-password as a full-text override that SUBSTACKS `login`, and `login`
-    # already carries pam_gnome_keyring (auth + session auto_start) via
-    # services.gnome.gnome-keyring — so the login keyring unlocks at GDM
-    # password login in this session too. Setting
-    # `security.pam.services.gdm-password.enableGnomeKeyring` here rendered
-    # NOTHING (text override beats generated rules) — it was a silent no-op,
-    # removed. The exec-once gnome-keyring-daemon --start in home/hyprland.nix
-    # exposes the components in-session.
+    # Login manager: greetd + regreet, replacing GDM (Phase 0 of the GNOME
+    # rip-out — see the plan doc for the greetd-vs-SDDM decision). regreet is
+    # GTK4 under a cage kiosk; enabling it pulls greetd and sets the
+    # default_session command. Sessions are discovered via XDG_DATA_DIRS
+    # (pam_env supplies it), so the GNOME session stays pickable as long as
+    # it's installed. gnome.nix hard-enables GDM, hence the mkForce.
+    # Theming: Stylix has an auto-enabled regreet target that sets the whole
+    # greeter from the shared source of truth — wallpaper background, base16
+    # GTK CSS, sans font, cursor + icon themes, dark polarity. Setting any of
+    # those here just conflicts with it (found the hard way: dry-run 2026-07-11).
+    services.displayManager.gdm.enable = lib.mkForce false;
+    programs.regreet.enable = true;
+
+    # Secret Service (org.freedesktop.secrets): gnome-keyring stays through
+    # the rip-out — apps depend on the freedesktop API, not on GNOME; oo7 is
+    # the eventual successor (plan doc, Deferred). Under GDM the login-keyring
+    # unlock rode gdm-password's substack of `login`; greetd needs it stated:
+    # pam_gnome_keyring on the greetd stack unlocks with the login password.
+    # The exec-once gnome-keyring-daemon --start in home/hyprland.nix exposes
+    # the components in-session.
+    services.gnome.gnome-keyring.enable = true;
+    security.pam.services.greetd.enableGnomeKeyring = true;
+
+    # GNOME's settings-daemon made the power button suspend (home/gnome.nix
+    # power-button-action); logind owns the button in a bare compositor and
+    # defaults to poweroff — keep the suspend behavior. Lid switch already
+    # suspends by logind default.
+    services.logind.settings.Login.HandlePowerKey = "suspend";
+
+    # Location for the night-light sun schedule (home/hyprland.nix gammastep,
+    # geoclue2 provider — the same mechanism GNOME's night-light used). GNOME
+    # enables geoclue itself today; explicit so it survives the rip-out. The
+    # static appConfig entry authorizes gammastep without needing an agent.
+    services.geoclue2 = {
+      enable = true;
+      appConfig.gammastep = {
+        isAllowed = true;
+        isSystem = false;
+      };
+    };
 
     # Polkit authentication agent — soteria (Rust + GTK4). Replaces the
     # unmaintained polkit-gnome; the NixOS module installs and autostarts the
