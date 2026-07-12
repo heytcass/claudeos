@@ -129,6 +129,12 @@ let
 
       $diff_output")
 
+        # CLI/API error text ("You've hit your monthly spend limit", "Not
+        # logged in") must not become the commit message — or, via --local
+        # below, the generation slug
+        if echo "$changelog" | grep -qiE 'spend limit|usage limit|rate limit|not logged in|please run /login|api error|overloaded'; then
+          changelog=""
+        fi
         [[ -z "$changelog" ]] && changelog="Flake inputs updated ($(date -I))"
 
         # Name the generation (shared slug logic → boot-menu label).

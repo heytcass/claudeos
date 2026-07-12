@@ -111,10 +111,14 @@ let
     # nothing (rc 0) when the CLI is missing or the call fails, so callers
     # can just test for empty output.
     claude_text() {
-      local model="$1" prompt="$2"
+      local model="$1" prompt="$2" out
       shift 2
       [[ -x "$CLAUDE_BIN" ]] || return 0
-      "$CLAUDE_BIN" -p "$prompt" --model "$model" "$@" 2>/dev/null || true
+      # Capture before printing: on a non-zero exit the CLI's stdout is error
+      # text ("You've hit your monthly spend limit"), not an answer — piping
+      # it through breaks every caller that tests for empty output.
+      out=$("$CLAUDE_BIN" -p "$prompt" --model "$model" "$@" 2>/dev/null) || return 0
+      printf '%s\n' "$out"
     }
 
     # claudeos_cooldown_ok FILE SECONDS — rate-limit gate: succeeds when at
