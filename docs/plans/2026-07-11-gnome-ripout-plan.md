@@ -45,9 +45,11 @@ must own them before it's the daily driver:
 - [ ] **Input parity**: key repeat 250ms/25ms and tap-to-click from
       home/gnome.nix dconf → Hyprland `input { repeat_delay/repeat_rate,
       touchpad { tap-to-click } }`.
-- [ ] **Qt theming**: home/gnome.nix disables Stylix's Qt target (unsupported
-      on GNOME) and hand-rolls adwaita-qt. In the Hyprland generation, enable
-      the Stylix Qt target instead.
+- [ ] **Qt theming** — MOVED TO PHASE 1: home/gnome.nix (co-imported in the
+      specialisation) hard-sets the adwaita Qt platform theme; overriding it
+      with mkForce across co-imported modules is messier than waiting until
+      the inversion stops importing gnome.nix into the Hyprland generation.
+      Then: enable Stylix's Qt target, delete the adwaita-qt hand-roll.
 - [ ] **Caffeine replacement**: bar toggle for idle-inhibit (Hyprland
       idle-inhibit / systemd-inhibit) — long agent runs must not lock
       mid-flight.

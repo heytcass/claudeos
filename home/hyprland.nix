@@ -17,6 +17,19 @@ let
   # Plain (no-hash) base16 strings for Hyprland's rgba() color syntax.
   c = config.lib.stylix.colors;
 
+  # gsd's sleep-inactive-battery policy, reimplemented for hypridle: suspend
+  # only when NO AC adapter reports online (sysfs `online` exists only on AC
+  # supplies, so a battery-only match set means suspend). On AC the machine
+  # stays awake — overnight automation (auto-update, diary, morning desk)
+  # depends on it, same intent as home/gnome.nix's dconf power settings.
+  suspendOnBattery = pkgs.writeShellScript "suspend-on-battery" ''
+    for ac in /sys/class/power_supply/*/online; do
+      [ -e "$ac" ] || continue
+      [ "$(cat "$ac")" = "1" ] && exit 0
+    done
+    systemctl suspend
+  '';
+
   # Font names for the Quickshell Theme singleton — same source of truth the
   # rest of the system themes from (lib/theme.nix), so the bar matches.
   themeLib = import ../lib/theme.nix;
@@ -166,6 +179,13 @@ in
       input = {
         kb_layout = "us";
         kb_variant = "colemak";
+        # gsd parity (home/gnome.nix dconf): 250ms delay, 25ms interval —
+        # Hyprland expresses the interval as a rate, 1000/25 = 40 repeats/s.
+        repeat_delay = 250;
+        repeat_rate = 40;
+        # GNOME had tap-to-click flipped on for the same laptops; Hyprland's
+        # default agrees, but the papercut is bad enough to pin explicitly.
+        touchpad."tap-to-click" = true;
       };
 
       # Cursor: point Xcursor at the Stylix Adwaita theme (cursor.package +
@@ -213,20 +233,26 @@ in
 
       # Auto-float utility windows + the GTK file picker, so dialogs don't tile
       # awkwardly. Match by app class; add more as they come up.
-      # Hyprland 0.55 `windowrule` grammar is `<rule> <matcher>` — SPACE, not a
-      # comma. `float, class:…` fails to parse ("invalid field float"); the
-      # space form `float class:…` is correct. (windowrulev2 is deprecated.)
+      # Hyprland 0.55 hyprlang-compat grammar (verified against
+      # src/config/legacy/ConfigManager.cpp @ v0.55.4): comma-separated
+      # `<effect> <value>` fields plus at least one `match:<prop> <regex>` —
+      # e.g. `float on, match:class ^(foo)$`. The bare `float class:^(foo)$`
+      # form parses as an effect with a garbage value and NO match prop, i.e.
+      # a rule that matches nothing (it sat here silently inert until
+      # 2026-07-11). Effect names per WindowRuleEffectContainer.cpp
+      # (`dim_around`, not `dimaround`).
       windowrule = [
-        "float class:^(pavucontrol|nm-connection-editor|blueman-manager|org.gnome.Calculator)$"
-        "float class:^(xdg-desktop-portal-gtk)$"
+        "float on, match:class ^(pavucontrol|nm-connection-editor|blueman-manager|org.gnome.Calculator)$"
+        "float on, match:class ^(xdg-desktop-portal-gtk)$"
         # Morning desk (Chrome --app on ~/Desk/today/index.html) presents like
-        # the SUPER+H cheat sheet: floating centered card, everything behind it
-        # dimmed. The class derives from the fixed file path; Super+Q dismisses
-        # (a real window can't do the overlay's click-away).
-        "float class:^(chrome-.*Desk_today_index\\.html-Default)$"
-        "center class:^(chrome-.*Desk_today_index\\.html-Default)$"
-        "size 1150 900 class:^(chrome-.*Desk_today_index\\.html-Default)$"
-        "dimaround class:^(chrome-.*Desk_today_index\\.html-Default)$"
+        # the SUPER+H cheat sheet: floating card, everything behind it dimmed.
+        # The class derives from the fixed file path; Super+Q dismisses (a real
+        # window can't do the overlay's click-away). Size must match
+        # claudeos-desk-open (morning-desk.nix), which also nudges the window
+        # to true center post-map — the rule's own position effects lose a race
+        # with Chrome's first configure, and `center` is fooled by Chrome's CSD
+        # shadow geometry.
+        "float on, size 1150 900, dim_around on, match:class ^(chrome-.*Desk_today_index\\.html-Default)$"
       ];
 
       # Drag to move (SUPER+left), drag to resize (SUPER+right) — the biggest
@@ -330,8 +356,9 @@ in
 
   # Idle → lock, matching GNOME's 5-min lock (home/gnome.nix idle-delay 300).
   # hypridle does nothing without listeners, so define them: lock at 5 min,
-  # screen off at 10, and lock before sleep. On AC the machine stays awake for
-  # overnight automation (no suspend listener here — same intent as gnome.nix).
+  # screen off at 10, suspend at 20 IF on battery (AC stays awake for
+  # overnight automation — the suspendOnBattery script re-implements gsd's
+  # sleep-inactive-battery policy), and lock before sleep.
   services.hypridle = {
     enable = true;
     settings = {
@@ -350,7 +377,24 @@ in
           on-timeout = "hyprctl dispatch dpms off";
           on-resume = "hyprctl dispatch dpms on";
         }
+        {
+          timeout = 1200;
+          on-timeout = "${suspendOnBattery}";
+        }
       ];
+    };
+  };
+
+  # Night light — gsd's dies with GNOME. Same automatic sun schedule via
+  # geoclue (system side wires the service + gammastep's authorization in
+  # modules/desktop/hyprland.nix). Temperatures match GNOME night-light's
+  # defaults: no filtering by day, 2700K at night.
+  services.gammastep = {
+    enable = true;
+    provider = "geoclue2";
+    temperature = {
+      day = 6500;
+      night = 2700;
     };
   };
   # Wallpaper: enable hyprpaper; Stylix's hyprpaper target sets the image from
