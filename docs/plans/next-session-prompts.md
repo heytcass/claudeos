@@ -25,7 +25,9 @@ activewindow -j` for window class — the GNOME DBus paths in the prompt are
 gone). #8's claudeos-side tray note: the Quickshell bar hosts the tray
 (StatusNotifier), not a GNOME extension. New prompts #10–#12 below were
 written by Fable with full rip-out context for Opus execution — trust their
-reasoning; verify their facts against the tree before acting.
+reasoning; verify their facts against the tree before acting. #13–#15 were
+added the same day by the MCP-survey session
+(docs/research/2026-07-12-claude-integration-survey.md).
 
 ---
 
@@ -336,3 +338,43 @@ See docs/PHILOSOPHY.md "On Jasper specifically" for the canonical statement.
 > Re-check when `nix eval nixpkgs#oo7-daemon` resolves; trial on
 > transporter; the swap is invisible to apps (interface stays, greetd PAM
 > line changes). Context: plan doc "Deferred / future".
+
+## 13. nix-sandbox-mcp — sandboxed execution for agent lanes (written 2026-07-12)
+
+> Read docs/PHILOSOPHY.md (constitution) and
+> docs/research/2026-07-12-claude-integration-survey.md §nix-sandbox-mcp.
+> Evaluate SecBear/nix-sandbox-mcp (bubblewrap + Linux namespaces, flake-
+> declared environments, single `run` tool) as a third MCP server in the
+> repo's .mcp.json. The draw: autonomous lanes (self-heal, auto-update)
+> could test commands and scripts in an isolated environment instead of on
+> the host — mechanical safety, the constitution's preferred kind. Assess
+> maturity honestly (it was early-stage as of 2026-07); if it's not ready,
+> prototype the same idea as a ~50-line bash MCP tool wrapping
+> `bwrap`/`nix shell`. Report findings in docs/ either way.
+
+## 14. Cross-machine lane — transporter results gate gti (written 2026-07-12)
+
+> Read docs/PHILOSOPHY.md (earned autonomy) and modules/common/auto-update.nix.
+> Today gti and transporter run the same repo but decide independently. Build
+> the smallest useful coordination: transporter (testbed) runs the weekly
+> auto-update FIRST; only after its VM gate + a real switch + N hours of zero
+> failed units does gti's lane consider the same flake.lock safe to apply.
+> Use the git repo itself as the coordination channel (e.g. a
+> `tested/<lockfile-hash>` tag or a small state file committed by the
+> testbed lane) — no new services, no network listener. The fallback when
+> transporter is asleep for a week: gti proceeds on its own gates, as today.
+> Document the ladder change in PHILOSOPHY.md.
+
+## 15. Predictive maintenance — "what keeps breaking" weekly pass (written 2026-07-12)
+
+> Read docs/PHILOSOPHY.md (proactivity: prepare, don't inform),
+> modules/apps/claude-monitor/default.nix (journal diary, tier 4), and
+> backlog #6 (below/BPF flight recorder — build it first or fold it in).
+> The monitoring stack is reactive; add the pattern layer: a weekly lane
+> (sonnet, one call) that reads the last ~30 days of journal-diary findings
+> + docs/known-issues.md + heal-PR history (gh pr list, heal/* branches)
+> and answers: what failed more than once, what's trending worse, which
+> heal fixes were band-aids. Output: one section in the morning desk +
+> (rung-appropriate) a draft PR or docs/known-issues.md update for the top
+> recurring item. Strictly bounded context (<200 lines of evidence per
+> pattern); no new daemons — a timer, a collector, one model call.

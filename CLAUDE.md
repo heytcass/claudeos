@@ -40,7 +40,7 @@ lib/                   # Helpers: mkSystem, hideDesktopEntries, theme utilities
 assets/                # Static files (wallpapers, etc.)
 ```
 
-**Key inputs:** nixpkgs (unstable), home-manager, nixos-hardware, sops-nix, disko, stylix, claude-desktop-linux, nix-index-database
+**Key inputs:** nixpkgs (unstable), home-manager, nixos-hardware, sops-nix, disko, stylix, claude-desktop-linux, nix-index-database, mcp-nixos
 
 home-manager runs as a NixOS module (not standalone) — configured in `lib/mkSystem.nix`.
 
@@ -63,7 +63,7 @@ All work is done directly on NixOS machines:
 
 `nix build` / `nix flake check` only check Nix **evaluation** — they cannot parse the *contents* of a generated `hyprland.conf` or the Quickshell QML. A config that builds green can still be rejected at runtime: e.g. Hyprland 0.55 changed `windowrule` grammar to space-separated (`float class:^(…)$`), so the old comma form (`float, class:…`) builds fine but throws `invalid field float` and raises Hyprland's on-screen config-error banner. Likewise a single broken QML file blanks the entire bar (Quickshell registers the config dir as one module).
 
-So validate **new Hyprland config values against the running binary** before rebuilding: `hyprctl keyword <field> <value>` must return `ok`, and `hyprctl configerrors` must be empty after `hyprctl reload`. Validate the **Quickshell bar the same way via `qs` fast-reload** — copy `~/.config/quickshell` somewhere writable, run `qs -p <copy>/shell.qml`, and confirm it loads with no errors — before baking the change into a rebuild.
+So validate **new Hyprland config values against the running binary** before rebuilding. The `system-health` MCP server wraps this workflow as tools: `hypr_config_check` (trials a field/value via `hyprctl keyword`, then restores the deployed config), `hypr_config_errors` (empty = green), and `quickshell_check` (overlays repo QML onto the deployed config and load-checks with `qs -p`; pass `qml_dir` from worktrees). Manual fallback: `hyprctl keyword <field> <value>` must return `ok`, `hyprctl configerrors` must be empty after `hyprctl reload`, and `qs -p <writable copy>/shell.qml` must load with no errors.
 
 ## Capabilities
 
@@ -72,6 +72,8 @@ Read `CAPABILITIES.md` for the full system capabilities reference — MCP server
 ## Debugging / NixOS
 
 When diagnosing NixOS build issues, trace the actual dependency chain (e.g., `nix why-depends`, grep for the package in flake inputs and modules) rather than guessing the source. Do not add config options without verifying they exist in the relevant NixOS module.
+
+**Never write option names or package references from memory** — query the `nixos` MCP server first (it covers NixOS options, packages, home-manager/darwin options, Nix functions via noogle, NixOS Wiki, and version history via `nix_versions`).
 
 ## Documentation
 

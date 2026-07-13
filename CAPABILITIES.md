@@ -8,13 +8,13 @@ Run `claudeos` in a terminal to see the user-facing quick reference.
 
 ### nixos (`mcp-nixos`)
 
-Search NixOS options, packages, and home-manager options from within Claude Code.
+Ground truth for everything Nix — two consolidated tools (`nix`, `nix_versions`) covering NixOS options, 130K+ packages, home-manager/darwin/nixvim options, Nix functions (noogle), NixOS Wiki, FlakeHub, and package version history with nixpkgs commit hashes (NixHub). Pinned as the `mcp-nixos` flake input; binary installed by `home/claude-code.nix`.
 
-**When to use:** User asks about a NixOS option, needs to find a package name, or wants to check available module options before adding them to the config.
+**When to use:** Before writing ANY option name or package reference — never from memory. Also for "which nixpkgs commit had version X" questions (`nix_versions`).
 
 ### system-health (`mcp-system-health`)
 
-Direct access to system diagnostics — 8 tools covering disk, services, journal, memory, snapshots, network, Nix store, and btrfs scrub status.
+System diagnostics plus runtime config validation — checks `nix build` cannot do.
 
 | Tool | Purpose |
 |------|---------|
@@ -26,10 +26,13 @@ Direct access to system diagnostics — 8 tools covering disk, services, journal
 | `network_status` | NetworkManager status and connections |
 | `nix_store_size` | Nix store disk usage and GC timer |
 | `scrub_status` | Last btrfs scrub result |
+| `hypr_config_check` | Trial a hyprland.conf field/value against the running compositor, then restore |
+| `hypr_config_errors` | `hyprctl configerrors` (optionally after reload) — empty = green |
+| `quickshell_check` | Load-check repo bar QML against deployed Theme.qml (briefly restarts the bar) |
 
-**When to use:** Investigating build failures, system issues, disk space, or any diagnostic question. **Proactive:** If the user mentions a build error or system issue, check `failed_services` and `recent_errors` before guessing at the cause.
+**When to use:** Investigating build failures, system issues, disk space, or any diagnostic question. **Proactive:** If the user mentions a build error or system issue, check `failed_services` and `recent_errors` before guessing at the cause. The three `hypr_*`/`quickshell_*` tools run the CLAUDE.md "validate against the running binary" workflow — use them before rebuilding any Hyprland/QML change (session-only; they degrade gracefully in headless lanes).
 
-Note: MCP config is seed-once (`home/claude-code.nix`) — Nix seeds `~/.claude/.mcp.json` on first activation, then the live file is mutable and owned by Claude Code. The old `niri` MCP server was retired when the Niri compositor was dropped (2026-06); GNOME itself was removed 2026-07.
+Note: MCP servers are registered in the repo's tracked `.mcp.json` (project scope). The old `~/.claude/.mcp.json` seed was dead config — Claude Code never reads that path (discovered 2026-07-12; both servers had been silently unregistered). The old `niri` MCP server was retired when the Niri compositor was dropped (2026-06); GNOME itself was removed 2026-07.
 
 ## Agents
 
