@@ -30,12 +30,39 @@ Scope {
         id: granter
     }
 
-    Timer {
-        id: closeTimer
-        interval: 1800
-        onTriggered: {
+    // The genie exit: on Enter the card flies up into the island — the wish
+    // visibly enters the machine, which starts shimmering "✨ wishing" a beat
+    // later (claude-wish drops the agent marker). Cause, meet effect.
+    ParallelAnimation {
+        id: flight
+        NumberAnimation {
+            target: card
+            property: "scale"
+            to: 0.06
+            duration: 520
+            easing.type: Easing.InBack
+        }
+        NumberAnimation {
+            target: card
+            property: "anchors.verticalCenterOffset"
+            to: -(win.height / 2) + Theme.barHeight
+            duration: 520
+            easing.type: Easing.InCubic
+        }
+        NumberAnimation {
+            target: card
+            property: "opacity"
+            to: 0.15
+            duration: 520
+            easing.type: Easing.InQuad
+        }
+        onFinished: {
             root.shown = false;
+            root.sent = false;
             input.text = "";
+            card.scale = 1;
+            card.opacity = 1;
+            card.anchors.verticalCenterOffset = 0;
         }
     }
 
@@ -61,6 +88,42 @@ Scope {
             MouseArea {
                 anchors.fill: parent
                 onClicked: root.shown = false
+            }
+        }
+
+        // A night sky on the scrim — you wish on stars. Golden-ratio scatter
+        // (deterministic: no random reflow on reopen), slow asynchronous
+        // twinkle, a few stars are the house asterisks. Above the scrim,
+        // below the card.
+        Repeater {
+            model: 36
+            delegate: Text {
+                required property int index
+                readonly property real fx: (index * 0.618034 + 0.05) % 1
+                readonly property real fy: (index * 0.381966 + 0.17) % 1
+                x: fx * win.width
+                y: fy * win.height
+                text: index % 9 === 0 ? "✳" : index % 5 === 0 ? "✻" : "·"
+                color: Theme.accent
+                font.pixelSize: 9 + (index % 3) * 4
+                opacity: 0.04
+                SequentialAnimation on opacity {
+                    running: root.shown
+                    loops: Animation.Infinite
+                    PauseAnimation {
+                        duration: (index % 7) * 260
+                    }
+                    NumberAnimation {
+                        to: 0.14 + (index % 4) * 0.11
+                        duration: 1200 + (index % 5) * 380
+                        easing.type: Easing.InOutSine
+                    }
+                    NumberAnimation {
+                        to: 0.04
+                        duration: 1500 + (index % 3) * 420
+                        easing.type: Easing.InOutSine
+                    }
+                }
             }
         }
 
@@ -170,7 +233,7 @@ Scope {
                             granter.command = ["claude-wish", w];
                             granter.running = true;
                             root.sent = true;
-                            closeTimer.start();
+                            flight.start();
                         }
 
                         Text {
