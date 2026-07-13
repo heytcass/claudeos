@@ -41,4 +41,11 @@
     display = "Super+W";
     help = "Wish — describe a change in plain words; the OS writes itself a PR";
   }
+  {
+    name = "Semantic clipboard";
+    binding = "<Super><Shift>v";
+    command = "claude-clip";
+    display = "Super+Shift+V";
+    help = "Transform the clipboard — fix, condense, convert, translate; result copied back";
+  }
 ]
