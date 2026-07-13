@@ -20,7 +20,20 @@ if ! hyprctl version >/dev/null 2>&1; then
   echo "qml-preview: not in a Hyprland session (grim/qs need it)." >&2
   exit 1
 fi
+if pgrep -x hyprlock >/dev/null 2>&1; then
+  echo "qml-preview: hyprlock is up — grim would capture the lock screen, not the bar. Unlock first." >&2
+  exit 1
+fi
 [ -d "$deployed" ] || { echo "qml-preview: no deployed config at $deployed" >&2; exit 1; }
+
+# Hold hypridle off while dialing in: a fresh agent marker flips Caffeine's
+# auto idle-inhibit through the bar's IdleInhibitor (and pulses the island),
+# so the 5-minute lock can't interrupt the loop mid-iteration. Refreshed on
+# every run; the bar ignores markers older than 60 min, which is the
+# auto-release once the session goes quiet.
+agentdir="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/claudeos-agent.d"
+mkdir -p "$agentdir"
+printf 'dialing in the bar\n' > "$agentdir/qml-dial-in"
 
 # scratch = deployed (Theme.qml + cava.conf) + repo QML overlaid
 rm -rf "$dest"
