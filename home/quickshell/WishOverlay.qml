@@ -193,7 +193,7 @@ Scope {
                 }
                 Text {
                     visible: root.sent
-                    text: "✨ the machine is working on it — watch the island, then the bar's ✦"
+                    text: "✨ the machine is working on it — watch the island, then the bar's ✻"
                     color: Theme.subtext
                     font.family: Theme.fontSans
                     font.pixelSize: Theme.fontSize - 1

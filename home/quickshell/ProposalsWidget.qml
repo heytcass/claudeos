@@ -63,7 +63,7 @@ Item {
 
         Text {
             anchors.verticalCenter: parent.verticalCenter
-            text: "✦"
+            text: "✻"
             color: Theme.accent
             font.pixelSize: Theme.fontSize
         }
