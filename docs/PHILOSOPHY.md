@@ -222,9 +222,12 @@ single-user):
 
 - **No full-disk encryption.** Nothing confidential lives locally; boot
   friction isn't worth it.
-- **Supply-chain looseness is deliberate.** `curl | bash` for Claude Code,
-  unpinned MCP flakes, tag-pinned actions — freshness of Claude tooling
-  outranks pinning.
+- **Supply-chain looseness is deliberate — for Claude tooling.** `curl | bash`
+  for Claude Code and unpinned MCP servers stay: freshness of Claude tooling
+  outranks pinning. *Narrowed 2026-07-13 (go-public prep):* GitHub Actions are
+  now SHA-pinned — the workflows carry the actor gates and the rung-2 merge
+  gate, which makes them security-load-bearing rather than Claude tooling, and
+  a public repo's workflows are the attack surface strangers can reach.
 - **Claude autonomy over hardening** — passwordless `manage-units` for wheel,
   `@wheel` in nix trusted-users, `skipDangerousModePermissionPrompt` stay.
   The one carve-out: `manage-unit-files` is excluded (silently installing new
