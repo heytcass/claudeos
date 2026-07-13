@@ -233,15 +233,46 @@ Rectangle {
                 duration: 14000
             }
         }
-        Text {
+        // The activity text shimmers — a narrow brightness wave traveling
+        // through the letters, the same "thinking" tell Claude's own UI uses.
+        // Per-character Texts driven by one phase clock; pure QtQuick, no
+        // effects modules (which the gotchas list says not to trust here).
+        Row {
+            id: shimmerRow
             anchors.verticalCenter: parent.verticalCenter
-            text: Agent.activity
-            color: Theme.text
-            font.family: Theme.fontSans
-            font.pixelSize: Theme.fontSize
-            font.italic: true
-            width: Math.min(implicitWidth, 300)
-            elide: Text.ElideRight
+
+            // Cap what we animate; per-char Texts are cheap but not free.
+            readonly property string shown: Agent.activity.length > 42 ? Agent.activity.slice(0, 41) + "…" : Agent.activity
+            readonly property color peak: Qt.lighter(Theme.accent, 1.2)
+
+            property real phase: 0
+            NumberAnimation on phase {
+                running: root.state === "agent"
+                loops: Animation.Infinite
+                from: 0
+                to: 1
+                duration: 2400
+            }
+
+            Repeater {
+                model: shimmerRow.shown.length
+                delegate: Text {
+                    required property int index
+                    // Wrapping distance from the wave crest → narrow highlight
+                    readonly property real wave: {
+                        const n = Math.max(1, shimmerRow.shown.length);
+                        const raw = Math.abs(index / n - shimmerRow.phase);
+                        const d = Math.min(raw, 1 - raw) * 2;
+                        return Math.max(0, 1 - d * 3);
+                    }
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: shimmerRow.shown.charAt(index)
+                    color: Qt.rgba(Theme.text.r + (shimmerRow.peak.r - Theme.text.r) * wave, Theme.text.g + (shimmerRow.peak.g - Theme.text.g) * wave, Theme.text.b + (shimmerRow.peak.b - Theme.text.b) * wave, 1)
+                    font.family: Theme.fontSans
+                    font.pixelSize: Theme.fontSize
+                    font.italic: true
+                }
+            }
         }
         // Time stays legible during long rebuilds, just demoted.
         Text {
