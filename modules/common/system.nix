@@ -68,6 +68,35 @@ in
       '';
     })
 
+    # Grab Text (bound to Super+T) — drag a region, and whatever text is
+    # inside it lands in the clipboard: screenshots in tweets, error dialogs
+    # that won't select, code in videos. Live Text, but it's the OS reading
+    # with its own eyes. The image goes to haiku as data; only the
+    # transcription comes back, and nothing executes it.
+    (claudeLib.mkClaudeScriptBin {
+      name = "claude-grab-text";
+      runtimeInputs = [
+        pkgs.grim
+        pkgs.slurp
+        pkgs.wl-clipboard
+      ];
+      text = ''
+        region=$(slurp 2>/dev/null) || exit 0
+        [[ -z "$region" ]] && exit 0
+        SHOT="/tmp/claudeos-grab-$$.png"
+        grim -g "$region" "$SHOT" || exit 0
+        claudeos_agent_begin "reading the screen"
+        out=$(claude_text haiku "Read the image at $SHOT and transcribe ALL text in it, exactly as written, preserving line breaks. Output ONLY the transcribed text — no commentary, no code fences. If there is no legible text, output exactly NO-TEXT." --allowedTools "Read")
+        rm -f "$SHOT"
+        if [[ -z "$out" || "$out" == "NO-TEXT" ]]; then
+          claudeos_notify "Grab Text" "No legible text found in that region."
+          exit 0
+        fi
+        printf '%s' "$out" | wl-copy
+        claudeos_notify "Text grabbed 📋" "$(head -c 200 <<<"$out")"
+      '';
+    })
+
     # The semantic clipboard (bound to Super+Shift+V) — transform whatever is
     # in the clipboard and put the result straight back: fix grammar, make
     # concise, to shell command, to table, summarize, translate, or free-form.
