@@ -68,6 +68,8 @@ in
         set_color $desc; echo "Explain last command, or pipe any output to understand it"
         set_color $key; printf "    %-22s " "rebuild"
         set_color $desc; echo "Full rebuild: snapshot → nixos-rebuild → auto-commit + push"
+        set_color $key; printf "    %-22s " "usage"
+        set_color $desc; echo "Claude subscription limits (same data as the bar's ring)"
         set_color $key; printf "    %-22s " "claudeos"
         set_color $dim; echo "You're looking at it"
         set_color normal
