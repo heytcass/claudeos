@@ -16,6 +16,27 @@ system's maintainer, narrator, and (increasingly) its hands. It is also,
 deliberately, a vehicle for experimentation: its owner runs it *because*
 trying bleeding-edge plumbing is the fun part.
 
+## The daily-driver rule
+
+*Added 2026-07-13, from an explicit owner correction mid-overnight-run.*
+
+ClaudeOS is not only a showcase. It is the machine its owner actually lives
+on — general surfing, AI workflow, productivity — and **usability outranks
+demonstration**. "Don't make the system unusable just to show off." The
+ambition, in the owner's words: a daily driver *augmented in a way never
+thought of before — elevate over what Copilot PCs are trying to do*. The
+Copilot-PC shape is an assistant summoned in front of the OS; the ClaudeOS
+shape is the assistant behind it, holding the system's own knowledge and
+levers.
+
+In practice: judge every feature by daily utility first. Glanceable beats
+animated; quiet beats noisy; battery-aware beats impressive (the panel is
+12.5"). Proactive behaviors must earn their interruptions — this is the
+proactivity doctrine's "one thing, never a feed," now with teeth against
+showcase-driven regressions. When a showcase idea and usability conflict,
+usability wins; the showcase value of ClaudeOS comes *from* it being a real,
+lived-in system, so degrading the latter spends the former.
+
 ## The founding insight
 
 **NixOS is the only operating system where the entire system state is one git
