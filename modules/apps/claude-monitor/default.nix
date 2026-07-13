@@ -51,6 +51,7 @@ let
 
       # haiku: a 2-3 sentence notification on a 15-min timer path is the
       # cost doctrine's textbook high-frequency lane
+      export CLAUDEOS_AGENT_ACTIVITY="wording an alert"
       notification=$(claude_text haiku "$prompt")
 
       if [[ -n "$notification" ]]; then
@@ -135,6 +136,7 @@ let
       # haiku: 2-4 sentences from pre-collected stats, every single day —
       # high-frequency lane per the cost doctrine (the morning DESK keeps
       # sonnet: it synthesizes a full dashboard)
+      export CLAUDEOS_AGENT_ACTIVITY="writing the daily brief"
       brief=$(claude_text haiku "$prompt")
 
       if [[ -n "$brief" ]]; then
@@ -192,6 +194,7 @@ let
 
       $errors"
 
+      export CLAUDEOS_AGENT_ACTIVITY="reading the overnight journal"
       text=$(claude_headless haiku "$prompt" --allowedTools 'Read,Edit,Grep,Glob,Bash(journalctl*)')
 
       if [[ -n "$text" && "$text" != "OK" ]]; then

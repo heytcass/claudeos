@@ -147,6 +147,7 @@ let
 
       Personal context about $user_title (use to interpret events): $personal_context}"
 
+      export CLAUDEOS_AGENT_ACTIVITY="musing" # island phrase while the call runs
       insight=$(claude_text sonnet "$prompt" | tr -d '\r' | sed '/^[[:space:]]*$/d' | head -1)
 
       # Only overwrite on a real answer — a failed/empty call must never blank the

@@ -56,9 +56,28 @@ let
     claudeos_agent_begin() {
       mkdir -p "$CLAUDEOS_AGENT_DIR"
       printf '%s\n' "$1" > "$CLAUDEOS_AGENT_DIR/$$"
+      # Call-scoped pulses (and Claude Code hooks) inherit the script's
+      # phrase — without this a claude_* call would overwrite "healing …"
+      # with a newer generic "working" marker for its duration.
+      export CLAUDEOS_AGENT_ACTIVITY="$1"
       trap claudeos_agent_end EXIT
     }
     claudeos_agent_end() { rm -f "$CLAUDEOS_AGENT_DIR/$$"; }
+
+    # Call-scoped pulse, written by the claude_* helpers below: the island
+    # breathes for exactly the duration of each CLI call, with no per-script
+    # wiring to forget (that's how the pulse went unseen — every automation
+    # inherited claudeos_agent_begin and only morning-desk called it).
+    # Scripts set CLAUDEOS_AGENT_ACTIVITY for a curated phrase ("musing");
+    # unset, the island says "working". Named call-$BASHPID, not $$: unique
+    # inside command-substitution subshells, and it can never clobber a
+    # script-scoped claudeos_agent_begin marker. No trap — the explicit end
+    # suffices, and a SIGKILLed call ages out via the bar's 60-min backstop.
+    _claudeos_pulse_begin() {
+      mkdir -p "$CLAUDEOS_AGENT_DIR"
+      printf '%s\n' "''${CLAUDEOS_AGENT_ACTIVITY:-working}" > "$CLAUDEOS_AGENT_DIR/call-$BASHPID"
+    }
+    _claudeos_pulse_end() { rm -f "$CLAUDEOS_AGENT_DIR/call-$BASHPID"; }
 
     # Seconds a blocking `-A` notification waits for a click before giving up.
     # Must stay well under the calling unit's TimeoutStartSec: notify-send -A
@@ -111,13 +130,16 @@ let
     # nothing (rc 0) when the CLI is missing or the call fails, so callers
     # can just test for empty output.
     claude_text() {
-      local model="$1" prompt="$2" out
+      local model="$1" prompt="$2" out rc=0
       shift 2
       [[ -x "$CLAUDE_BIN" ]] || return 0
       # Capture before printing: on a non-zero exit the CLI's stdout is error
       # text ("You've hit your monthly spend limit"), not an answer — piping
       # it through breaks every caller that tests for empty output.
-      out=$("$CLAUDE_BIN" -p "$prompt" --model "$model" "$@" 2>/dev/null) || return 0
+      _claudeos_pulse_begin
+      out=$("$CLAUDE_BIN" -p "$prompt" --model "$model" "$@" 2>/dev/null) || rc=$?
+      _claudeos_pulse_end
+      [[ "$rc" -eq 0 ]] || return 0
       printf '%s\n' "$out"
     }
 
@@ -136,7 +158,9 @@ let
     claude_headless() {
       local model="$1" prompt="$2" result session
       shift 2
+      _claudeos_pulse_begin
       result=$("$CLAUDE_BIN" -p "$prompt" --model "$model" --output-format json "$@" 2>/dev/null) || result=""
+      _claudeos_pulse_end
       session=$(echo "$result" | jq -r '.session_id // empty' 2>/dev/null)
       if [[ -n "$session" ]]; then
         mkdir -p "$STATE_DIR"
