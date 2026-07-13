@@ -153,6 +153,17 @@
         end
       '';
 
+      # The wish lane from the terminal: `wish "my machine should ..."` →
+      # an agent writes the Nix, validates both hosts, opens a wish/* PR.
+      # Same command Super+W runs (claude-wish, modules/common/system.nix).
+      wish = ''
+        if test (count $argv) -eq 0
+          echo 'Usage: wish "describe what this machine should do"'
+          return 1
+        end
+        claude-wish $argv
+      '';
+
       # Open today's morning-desk dashboard; --refresh rebuilds it first.
       # claudeos-desk-open (modules/apps/morning-desk.nix) floats + centers it
       # like the SUPER+H cheat sheet under Hyprland.
