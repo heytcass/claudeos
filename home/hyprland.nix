@@ -61,6 +61,12 @@ let
     in
     "${hyprMods}, ${key}, exec, ${b.command}";
 
+  # One shared 4px rhythm: Hyprland's outer window gaps (general.gaps_out) and
+  # the bar islands' screen-edge margins + float gap (Theme.edgeGap) all read
+  # this, so the pills stay aligned with tiled window edges by construction.
+  # Tightened 2026-07-12 for the 12.5" 1080p@1.5× panel.
+  edgeGap = 4;
+
   # Assemble the Quickshell config dir: the static QML from ./quickshell plus a
   # Colors.qml singleton generated from the live Stylix palette. A directory
   # `.source` symlink can't have a file added inside it, so build the dir in a
@@ -116,6 +122,9 @@ let
       readonly property int barHeight: 34
       readonly property int radius: 8
       readonly property int gap: 8
+      // Screen-edge inset + float gap for the islands — the same value as
+      // Hyprland's gaps_out, interpolated from one Nix binding.
+      readonly property int edgeGap: ${toString edgeGap}
     }
     EOF
 
@@ -249,7 +258,7 @@ in
         # airy gaps read as dead space and windows felt cramped. Dialed in
         # live via `hyprctl keyword general:gaps_*`.
         gaps_in = 2;
-        gaps_out = 4;
+        gaps_out = edgeGap; # shared with the bar's Theme.edgeGap (see above)
         # Border colors come from Stylix's Hyprland target (base0D terracotta on
         # the active border, from the same palette) — setting them here conflicts
         # with Stylix's own definitions.
