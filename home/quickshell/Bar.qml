@@ -70,6 +70,10 @@ PanelWindow {
             // The bar's conscience — only exists when a claudeos-* unit failed.
             HealthWidget {}
 
+            // The machine's inbox — only exists when agent-authored PRs
+            // (wish/heal/claude branches) are waiting for human review.
+            ProposalsWidget {}
+
             // Caffeine indicator — exists only while idle-inhibit holds
             // (accent = SUPER+I, muted = agent auto-hold), steam included.
             CaffeineWidget {}
