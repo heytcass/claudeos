@@ -153,6 +153,23 @@
         end
       '';
 
+      # Natural-language system diagnostics: `why "is my fan loud"` → an
+      # agent investigates the RUNNING machine (system-health MCP, journals,
+      # units) and answers with the evidence it found. Same diagnostic tool
+      # set the interactive handoffs use (CLAUDEOS_DIAG_TOOLS in
+      # lib/claude-script.nix). Runs from the repo so the MCP servers load.
+      why = ''
+        if test (count $argv) -eq 0
+          echo 'Usage: why "is my fan loud right now"'
+          return 1
+        end
+        pushd ~/.config/claudeos
+        claude -p "You are ClaudeOS's system diagnostician on host $(hostname). The owner asks: why $argv
+
+        Investigate the RUNNING system with your tools (system-health MCP tools, journalctl, systemctl, /proc). Find the actual cause and cite the evidence — unit names, numbers, timestamps. If nothing is wrong, say so plainly instead of inventing a problem. Be concise: a few sentences of diagnosis, then ONE recommended action if any." --model sonnet --allowedTools "Bash,Read,Grep,Glob,mcp__system-health__*" 2>/dev/null
+        popd
+      '';
+
       # The wish lane from the terminal: `wish "my machine should ..."` →
       # an agent writes the Nix, validates both hosts, opens a wish/* PR.
       # Same command Super+W runs (claude-wish, modules/common/system.nix).
