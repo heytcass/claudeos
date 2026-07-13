@@ -74,6 +74,8 @@ in
         set_color $desc; echo "Describe a change in plain words — the OS writes itself a PR"
         set_color $key; printf "    %-22s " 'why "..."'
         set_color $desc; echo "Ask why the machine is doing something — diagnosis with evidence"
+        set_color $key; printf "    %-22s " "wherewasi"
+        set_color $desc; echo "Reconstruct what you were doing — structured state, no surveillance"
         set_color $key; printf "    %-22s " "claudeos"
         set_color $dim; echo "You're looking at it"
         set_color normal
