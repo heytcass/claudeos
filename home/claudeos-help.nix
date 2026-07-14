@@ -70,6 +70,8 @@ in
         set_color $desc; echo "Full rebuild: snapshot → nixos-rebuild → auto-commit + push"
         set_color $key; printf "    %-22s " "usage"
         set_color $desc; echo "Claude subscription limits (same data as the bar's ring)"
+        set_color $key; printf "    %-22s " 'wish "..."'
+        set_color $desc; echo "Describe a change in plain words — the OS writes itself a PR"
         set_color $key; printf "    %-22s " "claudeos"
         set_color $dim; echo "You're looking at it"
         set_color normal
