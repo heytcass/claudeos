@@ -32,8 +32,17 @@
 # PR-authored code — the classic pwn-request shape. It is safe here only
 # because (a) the fork guard below refuses anything not originating in this
 # repo, and (b) this job NEVER executes code from the PR: it reads the diff
-# and hands it to a read-only Claude. If this repo ever goes public, or this
-# job ever gains a build/install step, revisit that reasoning first.
+# and hands it to a read-only Claude. If this job ever gains a build/install
+# step, revisit that reasoning first.
+#
+# Go-public revisit (2026-07-13): the design holds for a public repo. Fork
+# PRs are excluded by the head_repository guard; heal/* branches require repo
+# write; permissions are job-scoped from a {} baseline; untrusted fields
+# travel via env:, never inline interpolation; the diff is declared untrusted
+# in the Claude prompt; verdict parsing fails closed; .github/ is a forbidden
+# path; --match-head-commit closes the TOCTOU. Residual accepted risk: the
+# machine review rides a SHA-pinned claude-code-action whose continue-on-error
+# is mitigated by fail-closed verdict parsing.
 name: Heal Auto-Merge
 
 on:
@@ -148,7 +157,7 @@ jobs:
 
       - name: Checkout the tested commit
         if: steps.gates.outputs.verdict == 'pass'
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
           ref: ${{ env.HEAD_SHA }}
           fetch-depth: 0
@@ -170,7 +179,7 @@ jobs:
       - name: Machine review
         if: steps.gates.outputs.verdict == 'pass'
         continue-on-error: true
-        uses: anthropics/claude-code-action@v1
+        uses: anthropics/claude-code-action@e90deca47693f9457b72f2b53c17d7c445a87342 # v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           claude_args: >-
@@ -222,6 +231,10 @@ jobs:
           PR: ${{ steps.pr.outputs.number }}
           MECH: ${{ steps.gates.outputs.verdict }}
           MECH_REASON: ${{ steps.gates.outputs.reason }}
+          # path/churn originate from a same-repo PR (write access required),
+          # but they enter a run: block — env: them like every other field.
+          GATE_PATH: ${{ steps.gates.outputs.path }}
+          GATE_CHURN: ${{ steps.gates.outputs.churn }}
         run: |
           set -euo pipefail
 
@@ -265,7 +278,7 @@ jobs:
           gh pr comment "$PR" --repo "$REPO" --body "$marker
           🤖 **Auto-merging** (trust-ladder rung 2).
 
-          One module file (\`${{ steps.gates.outputs.path }}\`, ${{ steps.gates.outputs.churn }} changed lines),
+          One module file (\`$GATE_PATH\`, $GATE_CHURN changed lines),
           no protected paths, CI green on \`${HEAD_SHA:0:7}\`, and the machine review approved.
 
           Reverting: \`git revert\` this squash commit, or roll back to the previous
