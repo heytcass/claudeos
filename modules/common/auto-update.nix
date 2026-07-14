@@ -125,6 +125,7 @@ let
         # Success — generate changelog
         diff_output=$(nix store diff-closures /run/current-system ./result 2>&1 || true)
 
+        export CLAUDEOS_AGENT_ACTIVITY="summarizing the update"
         changelog=$(claude_text haiku "Summarize this NixOS package update diff. List notable version bumps and flag potentially breaking changes. 2-3 sentences max. No markdown.
 
       $diff_output")
@@ -180,6 +181,7 @@ let
         ''}
       else
         # Build failed — diagnose and revert
+        export CLAUDEOS_AGENT_ACTIVITY="diagnosing the failed build"
         diagnosis=$(claude_text sonnet "This NixOS build failed after flake update. Diagnose the issue briefly and suggest a fix. No markdown.
 
       $build_output")
