@@ -19,7 +19,12 @@ Two age public keys can decrypt `secrets/secrets.yaml`:
 | Key | Purpose |
 |-----|---------|
 | `user` | Tom's personal age key (`~/.config/sops/age/keys.txt`) — used to **edit** secrets |
-| `gti_host` | gti's SSH host key converted to age — used by sops-nix to **decrypt at runtime** |
+| `transporter_host` | transporter's SSH host key converted to age — used by sops-nix to **decrypt at runtime** |
+
+> **Known gap (2026-07-13):** gti's host key is **not** currently a recipient in
+> `.sops.yaml`, so gti cannot decrypt secrets at activation time. To fix: derive
+> gti's age key (`ssh-to-age < /etc/ssh/ssh_host_ed25519_key.pub` on gti), add it
+> as a `gti_host` recipient, and run `sops updatekeys secrets/secrets.yaml`.
 
 ### Declared secrets
 
@@ -124,4 +129,4 @@ rebuild                            # redeploys /run/secrets/*
 ---
 
 *Last updated: 2026-06-11*
-*Status: sops-nix decrypts via the gti host SSH key; 6 jasper_* secrets declared*
+*Status: sops-nix decrypts via the transporter host SSH key (gti recipient pending — see Known gap above); 6 jasper_* secrets declared*
