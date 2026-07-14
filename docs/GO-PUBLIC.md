@@ -29,7 +29,7 @@ exploitability, but a live admin credential in a public repo is a hard no.
 ### 2. Check the historical password for reuse
 
 Commits `043864b` / `5402f27` (2026-07-05..07) committed
-`.claude/settings.local.json` containing `SSHPASS='!n$tall!'` — the temporary
+`.claude/settings.local.json` containing an `SSHPASS` value — the temporary
 password of the NixOS *live installer* session during the transporter
 reinstall. The credential itself is dead (that session no longer exists), but
 it is a human-chosen password. **If that password or its pattern is in use
@@ -41,10 +41,12 @@ One `git filter-repo` pass scrubs both leaks (and the unused personal photo,
 if desired). From a **fresh clone** (filter-repo refuses to run in a dirty
 working copy):
 
+Build `replacements.txt` locally (never commit it) with one `literal==>REDACTED`
+line per leaked value. Recover the exact literals from history on a machine
+with the repo: `git show 07eadf2:.mcp.json` for the UniFi key and
+`git show 043864b:.claude/settings.local.json` for the installer password.
+
 ```bash
-# replacements.txt:
-#   nwoao1XA-U0AoIIrcdLF-eKm646R9M9I==>REDACTED-UNIFI-KEY
-#   !n$tall!==>REDACTED-PASSWORD
 git clone git@github.com:heytcass/claudeos.git claudeos-rewrite
 cd claudeos-rewrite
 git filter-repo --replace-text replacements.txt          # scrub the two literals
