@@ -42,7 +42,8 @@ faking it in the QML:
 - **media/spectrum**: play audio (any MPRIS source); or briefly force the island
   `state`/`active` in the `/tmp/qs-preview` copy.
 - **notification peek / toast**: `gdbus call --session --dest org.freedesktop.Notifications --object-path /org/freedesktop/Notifications --method org.freedesktop.Notifications.Notify "App" 0 "" "Summary" "Body" "[]" "{}" 5000`
-- **agent pulse**: `touch "$XDG_RUNTIME_DIR/claudeos-agent"` (remove to clear).
+- **agent pulse**: `echo "any phrase" > "$XDG_RUNTIME_DIR/claudeos-agent.d/manual"`
+  (remove to clear; the island shows the file's first line).
 
 ### 4. Iterate
 Tweak, re-run `qml-preview`, re-review. Keep the loop tight — seconds, not a
@@ -59,3 +60,11 @@ entry). After a plain `switch`, relaunching `qs` also picks up the new config.
 - Stylix base16 only; never hardcode hex.
 - `Theme.qml`/`cava.conf` are generated — that's why the preview copies the
   deployed dir rather than running the repo dir directly.
+- **hyprlock/hypridle**: the 5-min idle lock would interrupt long dial-in
+  stretches, and grim on a locked screen silently captures the lock screen /
+  wallpaper instead of the bar. `qml-preview` handles both: it refuses to run
+  while hyprlock is up, and every run refreshes an agent marker
+  (`claudeos-agent.d/qml-dial-in`) that holds Caffeine's idle-inhibit through
+  the bar — the marker ages out 60 min after the last run. If a screenshot
+  unexpectedly shows only wallpaper, check `pgrep -x hyprlock` and
+  `hyprctl monitors -j | jq '.[0].dpmsStatus'` before debugging QML.

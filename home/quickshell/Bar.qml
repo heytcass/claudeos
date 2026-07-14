@@ -31,8 +31,9 @@ PanelWindow {
 
     // Float gap above/below the pills. The window is taller than a pill so the
     // islands hover clear of the screen edge; the exclusive zone reserves the
-    // whole height, so tiled windows start below the floating bar.
-    readonly property int floatGap: Theme.gap
+    // whole height, so tiled windows start below the floating bar. Same value
+    // as the side margins: one 4px rhythm shared with Hyprland's gaps_out.
+    readonly property int floatGap: Theme.edgeGap
     implicitHeight: (Theme.barHeight - 6) + floatGap * 2
     color: "transparent"
 
@@ -40,7 +41,7 @@ PanelWindow {
     Pill {
         entranceDelay: 0
         anchors.left: parent.left
-        anchors.leftMargin: Theme.gap + 2
+        anchors.leftMargin: Theme.edgeGap
         anchors.verticalCenter: parent.verticalCenter
 
         RowLayout {
@@ -61,11 +62,11 @@ PanelWindow {
     Pill {
         entranceDelay: 180
         anchors.right: parent.right
-        anchors.rightMargin: Theme.gap + 2
+        anchors.rightMargin: Theme.edgeGap
         anchors.verticalCenter: parent.verticalCenter
 
         RowLayout {
-            spacing: 4
+            spacing: 6
 
             // The bar's conscience — only exists when a claudeos-* unit failed.
             HealthWidget {}

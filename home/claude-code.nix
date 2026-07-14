@@ -95,6 +95,74 @@ let
     printf "''${white}''${dir_display}''${reset}''${git_info} ''${purple}''${model_short}''${reset}''${context_info}''${cost}\n"
   '';
 
+  # Agent-pulse hook — the bar island's "✳ working" breath for interactive
+  # Claude Code sessions (headless automations pulse via lib/claude-script.nix
+  # instead, and pass their phrase through CLAUDEOS_AGENT_ACTIVITY, which the
+  # claude CLI's child processes — including this hook — inherit).
+  # begin on UserPromptSubmit, refresh (mtime) on every PostToolUse so turns
+  # longer than the bar's 60-min staleness backstop keep breathing, end on
+  # Stop/SessionEnd. Marker per session id, so concurrent sessions coexist.
+  agentHookScript = pkgs.writeShellScriptBin "claudeos-agent-hook" ''
+    dir="''${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/claudeos-agent.d"
+    sid=$(${pkgs.jq}/bin/jq -r '.session_id // empty' 2>/dev/null)
+    [ -n "$sid" ] || exit 0
+    f="$dir/claude-$sid"
+    case "''${1:-}" in
+      begin) mkdir -p "$dir"; printf '%s\n' "''${CLAUDEOS_AGENT_ACTIVITY:-working with Tom}" > "$f" ;;
+      refresh) [ -f "$f" ] && touch "$f" ;;
+      end) rm -f "$f" ;;
+    esac
+    exit 0
+  '';
+
+  # Hook stanzas shared by the seed below and the live-settings merge in the
+  # activation snippet. `|| true` + stderr drop: a missing command (e.g. a
+  # session running before the rebuild that installs it) must never banner
+  # the user or block a prompt.
+  agentHooks = {
+    UserPromptSubmit = [
+      {
+        hooks = [
+          {
+            type = "command";
+            command = "claudeos-agent-hook begin 2>/dev/null || true";
+          }
+        ];
+      }
+    ];
+    PostToolUse = [
+      {
+        matcher = "*";
+        hooks = [
+          {
+            type = "command";
+            command = "claudeos-agent-hook refresh 2>/dev/null || true";
+          }
+        ];
+      }
+    ];
+    Stop = [
+      {
+        hooks = [
+          {
+            type = "command";
+            command = "claudeos-agent-hook end 2>/dev/null || true";
+          }
+        ];
+      }
+    ];
+    SessionEnd = [
+      {
+        hooks = [
+          {
+            type = "command";
+            command = "claudeos-agent-hook end 2>/dev/null || true";
+          }
+        ];
+      }
+    ];
+  };
+
   # Claude Code global settings
   # Plugins: only list globally-enabled plugins here.
   # All others live in the Discover tab — install per-project via /plugin → Discover → Project scope.
@@ -126,13 +194,16 @@ let
     env = {
       CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS = "1";
     };
+    hooks = agentHooks;
   };
 
   settingsSeed = pkgs.writeText "claude-settings-seed.json" (builtins.toJSON claudeSettings);
+  agentHooksJson = pkgs.writeText "claudeos-agent-hooks.json" (builtins.toJSON agentHooks);
 in
 {
   home.packages = [
     statuslineScript
+    agentHookScript
     # mcp-nixos binary for the repo's .mcp.json "nixos" server entry.
     inputs.mcp-nixos.packages.${pkgs.system}.default
   ];
@@ -144,6 +215,22 @@ in
     if [ ! -e "$HOME/.claude/settings.json" ]; then
       $DRY_RUN_CMD cp ${settingsSeed} "$HOME/.claude/settings.json"
       $DRY_RUN_CMD chmod u+w "$HOME/.claude/settings.json"
+    fi
+  '';
+
+  # Same seed philosophy, per-key: machines whose settings.json predates the
+  # agent-pulse hooks get the "hooks" key merged in once — only when absent,
+  # so the live file keeps owning it afterwards (two-ring rule). Tolerant of
+  # malformed JSON: a failed merge must never abort the whole HM activation.
+  home.activation.seedClaudeHooks = lib.hm.dag.entryAfter [ "seedClaudeConfig" ] ''
+    s="$HOME/.claude/settings.json"
+    if [ -e "$s" ] && ! ${pkgs.jq}/bin/jq -e 'has("hooks")' "$s" >/dev/null 2>&1; then
+      if ${pkgs.jq}/bin/jq --slurpfile h ${agentHooksJson} '.hooks = $h[0]' "$s" > "$s.tmp" 2>/dev/null; then
+        $DRY_RUN_CMD mv "$s.tmp" "$s"
+      else
+        rm -f "$s.tmp"
+        echo "claudeos: could not seed agent-pulse hooks into $s (malformed JSON?)" >&2
+      fi
     fi
   '';
 }
