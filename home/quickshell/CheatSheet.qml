@@ -1,8 +1,9 @@
 // CheatSheet.qml — a floating, Stylix-themed keybinding reference.
 // Toggled by SUPER+H (Hyprland: `bind = $mod, H, global, quickshell:cheatsheet`).
 // Grouped by task, one accent colour per group (base16), keys as keycap chips.
-// NOTE: this is the human-facing mirror of the binds in home/hyprland.nix —
-// keep the two in sync when binds change.
+// NOTE: the Claude section is GENERATED (Keybinds.claude, from
+// lib/keybindings.nix — edit there). The remaining sections hand-mirror the
+// compositor binds in home/hyprland.nix — keep those in sync when binds change.
 import QtQuick
 import QtQuick.Layouts
 import Quickshell
@@ -55,24 +56,9 @@ Scope {
             {
                 title: "Claude",
                 color: Theme.base0E,
-                items: [
-                    {
-                        keys: ["Super", "C"],
-                        desc: "Claude Code — coding & tasks"
-                    },
-                    {
-                        keys: ["Super", "A"],
-                        desc: "Ask — popup, answer as notification"
-                    },
-                    {
-                        keys: ["Super", "Shift", "A"],
-                        desc: "Screenshot analysis"
-                    },
-                    {
-                        keys: ["Super", "Ctrl", "A"],
-                        desc: "Screenshot → terminal follow-up"
-                    }
-                ]
+                // Generated from lib/keybindings.nix via the Keybinds.qml
+                // singleton (home/hyprland.nix) — in sync by construction.
+                items: Keybinds.claude
             }
         ],
         [
