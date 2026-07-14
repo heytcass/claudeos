@@ -90,6 +90,7 @@ Fish shell functions available in any terminal. Defined in `home/shell/fish.nix`
 | `today` | Open the morning desk dashboard in Chrome app mode (`today --refresh` rebuilds it first) |
 | `usage` | Claude subscription limits (session/weekly percent + reset times) — terminal twin of the bar's fuel-gauge ring (`home/quickshell/ClaudeUsageWidget.qml`) |
 | `wish "..."` | The wish lane from the terminal — same agent Super+W runs; wish in, `wish/*` PR out |
+| `why "..."` | Natural-language diagnostics — an agent investigates the running system (system-health MCP, journals, units) and answers with cited evidence |
 | `claudeos` | Show the capability quick reference |
 
 ## Background Services
