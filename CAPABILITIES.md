@@ -91,6 +91,7 @@ Fish shell functions available in any terminal. Defined in `home/shell/fish.nix`
 | `usage` | Claude subscription limits (session/weekly percent + reset times) — terminal twin of the bar's fuel-gauge ring (`home/quickshell/ClaudeUsageWidget.qml`) |
 | `wish "..."` | The wish lane from the terminal — same agent Super+W runs; wish in, `wish/*` PR out |
 | `why "..."` | Natural-language diagnostics — an agent investigates the running system (system-health MCP, journals, units) and answers with cited evidence |
+| `wherewasi` | "Where was I?" from structured state only (windows, repo status, recent commands) — the no-surveillance answer to Copilot Recall |
 | `claudeos` | Show the capability quick reference |
 
 ## Background Services

@@ -153,6 +153,36 @@
         end
       '';
 
+      # "Where was I?" — the anti-Recall. Reconstructs what you were working
+      # on from STRUCTURED state only (window list, repo status via zoxide
+      # frecency, recent commands) — no screenshots, no content surveillance
+      # (PHILOSOPHY doctrine #5). Dumb collectors here, one haiku call to
+      # synthesize; take the thinking, not the daemon.
+      wherewasi = ''
+        set -l windows (hyprctl clients -j 2>/dev/null | jq -r '.[] | "ws\(.workspace.name): \(.class) — \(.title)"' 2>/dev/null | string collect)
+        set -l repos
+        for d in (zoxide query -l 2>/dev/null | head -6)
+          if test -d "$d/.git"
+            set -l b (git -C $d branch --show-current 2>/dev/null)
+            set -l dirty (git -C $d status --porcelain 2>/dev/null | count)
+            set -l last (git -C $d log -1 --format="%cr: %s" 2>/dev/null)
+            set -a repos "$d — branch $b, $dirty uncommitted, last: $last"
+          end
+        end
+        set -l repotext (string join \n $repos | string collect)
+        set -l hist (history | head -15 | string collect)
+        claude -p "You are ClaudeOS answering 'where was I?' for the owner returning to this machine. From the STRUCTURED state below (no file contents were read), reconstruct what they were working on and what looks half-done. One main thing first, then a short ranked list if there is more. A few sentences, no headers, no fluff.
+
+        OPEN WINDOWS:
+        $windows
+
+        ACTIVE REPOS (zoxide frecency order):
+        $repotext
+
+        RECENT SHELL COMMANDS (newest first):
+        $hist" --model haiku 2>/dev/null
+      '';
+
       # Natural-language system diagnostics: `why "is my fan loud"` → an
       # agent investigates the RUNNING machine (system-health MCP, journals,
       # units) and answers with the evidence it found. Same diagnostic tool
