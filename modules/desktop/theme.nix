@@ -143,8 +143,11 @@ in
       base0F = "bd5d3a"; # Deep terracotta — hover state, embedded
     };
 
-    # Chicago skyline wallpaper
-    image = ../../assets/chicago.jpg;
+    # Terracotta dune under a peach moon — minimalist digital art by Justin
+    # Wirtalla (instagram.com/jwirtalla, via wallhaven.cc/w/kxoqdm). Sunlit
+    # dune ≈ base0D/base0F terracotta, moon ≈ base09 peach. Previous:
+    # assets/chicago.jpg (skyline photo).
+    image = ../../assets/dune.jpg;
     imageScalingMode = "fill";
 
     # Terracotta folder icons (see claudeosIconTheme above)
