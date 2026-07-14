@@ -28,6 +28,7 @@
       gd = "git diff";
       gl = "git log --oneline --graph --decorate";
       gp = "git pull";
+      gpo = "git push origin";
       gco = "git checkout";
       gci = "git commit";
       gca = "git commit --amend";
