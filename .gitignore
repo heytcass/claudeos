@@ -26,6 +26,10 @@ secrets/*.age
 # `git add -A` mid-write will otherwise commit one (it did, once).
 .claude/settings.local.json.tmp.*
 
+# Claude Code scheduled-task lockfile — machine-local session id/pid, no value
+# in history and churns on every session
+.claude/scheduled_tasks.lock
+
 # Temporary files
 *.tmp
 *.bak

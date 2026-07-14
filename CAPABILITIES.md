@@ -73,6 +73,9 @@ These scripts run outside Claude Code — they're Hyprland keybindings (generate
 | `Super+A` | `claude-ask-desktop` | Zenity popup prompt → Claude answer → desktop notification |
 | `Super+Shift+A` | `claude-screenshot` | grim capture → Claude analysis (Haiku) → notification |
 | `Super+Ctrl+A` | `claude-screenshot-interactive` | Screenshot → Claude analysis (Sonnet) → terminal for follow-up |
+| `Super+W` | `claude-wish` | Wish lane: plain-language wish → agent writes the Nix, validates both hosts, opens a `wish/*` PR (rung 1: propose-only). Bar island shows "✨ wishing" while it runs; `approve` resumes the session |
+| `Super+Shift+V` | `claude-clip` | Semantic clipboard: transform clipboard content (fix grammar, condense, to shell command, to table, summarize, translate, free-form) and copy the result back — paste anywhere |
+| `Super+T` | `claude-grab-text` | Grab Text: drag a region of the screen; any text inside (images, videos, unselectable dialogs) lands in the clipboard |
 
 ## Shell Commands
 
@@ -86,6 +89,10 @@ Fish shell functions available in any terminal. Defined in `home/shell/fish.nix`
 | `rebuild` | Haiku names the generation (`generation-label`) → snapper pre snapshots → `nh os switch` → post snapshots → Claude-generated commit → push |
 | `approve` | Resume the last background agent session (self-heal, journal diary) and authorize its proposed action |
 | `today` | Open the morning desk dashboard in Chrome app mode (`today --refresh` rebuilds it first) |
+| `usage` | Claude subscription limits (session/weekly percent + reset times) — terminal twin of the bar's fuel-gauge ring (`home/quickshell/ClaudeUsageWidget.qml`) |
+| `wish "..."` | The wish lane from the terminal — same agent Super+W runs; wish in, `wish/*` PR out |
+| `why "..."` | Natural-language diagnostics — an agent investigates the running system (system-health MCP, journals, units) and answers with cited evidence |
+| `wherewasi` | "Where was I?" from structured state only (windows, repo status, recent commands) — the no-surveillance answer to Copilot Recall |
 | `claudeos` | Show the capability quick reference |
 
 ## Background Services
