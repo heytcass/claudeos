@@ -47,7 +47,14 @@
     environment.etc."ssl/cert.pem".source = "/etc/ssl/certs/ca-certificates.crt";
 
     # Sandbox dependencies (bubblewrap is already pulled in by xdg-desktop-portal)
-    environment.systemPackages = with pkgs; [ socat ];
+    # qemu_kvm/OVMF/virtiofsd back Claude Desktop's Cowork VM mode; the user
+    # is already in the kvm group (modules/common/users.nix)
+    environment.systemPackages = with pkgs; [
+      socat
+      qemu_kvm
+      OVMF
+      virtiofsd
+    ];
 
     # PATH configuration for Claude Code CLI is in home/shell/fish.nix
     # (Adds ~/.local/bin to PATH where Claude Code installs itself)
