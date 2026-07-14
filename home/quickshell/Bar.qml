@@ -74,6 +74,10 @@ PanelWindow {
             // (accent = SUPER+I, muted = agent auto-hold), steam included.
             CaffeineWidget {}
 
+            // The brain's fuel gauge — Claude subscription limits, quiet
+            // until ≥70%. Hidden entirely when logged out or offline.
+            ClaudeUsageWidget {}
+
             VolumeWidget {}
             NetworkWidget {}
             BluetoothWidget {}
