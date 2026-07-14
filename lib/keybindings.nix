@@ -34,4 +34,18 @@
     display = "Super+Ctrl+A";
     help = "Screenshot analysis — opens terminal for follow-up";
   }
+  {
+    name = "Semantic clipboard";
+    binding = "<Super><Shift>v";
+    command = "claude-clip";
+    display = "Super+Shift+V";
+    help = "Transform the clipboard — fix, condense, convert, translate; result copied back";
+  }
+  {
+    name = "Grab text";
+    binding = "<Super>t";
+    command = "claude-grab-text";
+    display = "Super+T";
+    help = "Drag a region — any text inside it lands in the clipboard";
+  }
 ]

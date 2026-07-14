@@ -27,4 +27,7 @@ ShellRoot {
 
     // SUPER+H keybinding cheat sheet (its own overlay window).
     CheatSheet {}
+
+    // SUPER+W wish prompt — a sentence in, a wish/* PR out (its own overlay).
+    WishOverlay {}
 }
