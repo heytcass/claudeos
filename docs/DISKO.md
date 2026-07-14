@@ -71,7 +71,7 @@ Boot from a NixOS installation USB.
 ```bash
 # From the installer environment
 nix-shell -p git
-git clone https://github.com/yourusername/claudeos.git
+git clone https://github.com/heytcass/claudeos.git
 cd claudeos
 ```
 

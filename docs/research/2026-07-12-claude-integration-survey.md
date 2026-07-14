@@ -116,8 +116,7 @@ converts a documented-but-manual safety workflow into something every agent
 (including self-heal) can execute and because verification exposed that the
 server hosting it was broken anyway.
 
-**Backlogged with ready-to-paste prompts** (docs/plans/next-session-prompts.md
-#13–15): nix-sandbox-mcp evaluation, cross-machine lane (transporter testbed
+**Backlogged:** nix-sandbox-mcp evaluation, cross-machine lane (transporter testbed
 results gate gti's autoApply), predictive maintenance (weekly "what keeps
 breaking" pattern pass over diary + heal-PR history).
 

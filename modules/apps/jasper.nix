@@ -6,7 +6,7 @@
 # good ideas are ported here and nothing else:
 #   - significance-gating (only call the model when the world changed)
 #   - a single glanceable insight (never a feed)
-#   - family-calendar OWNERSHIP awareness ("Christen has soccer," never "you
+#   - family-calendar OWNERSHIP awareness ("Alex has soccer," never "you
 #     have soccer") — the reason a plain calendar widget isn't enough.
 # Departure nudges are qualitative here (the model reasons from event LOCATIONS
 # via `gcalcli --details location`). Precise Google-Routes travel-time math (the
@@ -126,7 +126,7 @@ let
       - NEVER invent or assume events that are not in the context below. If the
         schedule is empty, say the day looks clear — do not fabricate.
       - Calendars are labelled. Events on a calendar named after another person are
-        THAT person's, shown for awareness only. Frame them as 'Christen has a call at
+        THAT person's, shown for awareness only. Frame them as 'Alex has a call at
         3pm', never 'you have a call at 3pm'. Only $user_title's own/primary calendar
         is theirs.
       - If the calendar is 'not connected', do not mention specific events; give a
