@@ -16,6 +16,27 @@ system's maintainer, narrator, and (increasingly) its hands. It is also,
 deliberately, a vehicle for experimentation: its owner runs it *because*
 trying bleeding-edge plumbing is the fun part.
 
+## The daily-driver rule
+
+*Added 2026-07-13, from an explicit owner correction mid-overnight-run.*
+
+ClaudeOS is not only a showcase. It is the machine its owner actually lives
+on — general surfing, AI workflow, productivity — and **usability outranks
+demonstration**. "Don't make the system unusable just to show off." The
+ambition, in the owner's words: a daily driver *augmented in a way never
+thought of before — elevate over what Copilot PCs are trying to do*. The
+Copilot-PC shape is an assistant summoned in front of the OS; the ClaudeOS
+shape is the assistant behind it, holding the system's own knowledge and
+levers.
+
+In practice: judge every feature by daily utility first. Glanceable beats
+animated; quiet beats noisy; battery-aware beats impressive (the panel is
+12.5"). Proactive behaviors must earn their interruptions — this is the
+proactivity doctrine's "one thing, never a feed," now with teeth against
+showcase-driven regressions. When a showcase idea and usability conflict,
+usability wins; the showcase value of ClaudeOS comes *from* it being a real,
+lived-in system, so degrading the latter spends the former.
+
 ## The founding insight
 
 **NixOS is the only operating system where the entire system state is one git
@@ -222,9 +243,12 @@ single-user):
 
 - **No full-disk encryption.** Nothing confidential lives locally; boot
   friction isn't worth it.
-- **Supply-chain looseness is deliberate.** `curl | bash` for Claude Code,
-  unpinned MCP flakes, tag-pinned actions — freshness of Claude tooling
-  outranks pinning.
+- **Supply-chain looseness is deliberate — for Claude tooling.** `curl | bash`
+  for Claude Code and unpinned MCP servers stay: freshness of Claude tooling
+  outranks pinning. *Narrowed 2026-07-13 (go-public prep):* GitHub Actions are
+  now SHA-pinned — the workflows carry the actor gates and the rung-2 merge
+  gate, which makes them security-load-bearing rather than Claude tooling, and
+  a public repo's workflows are the attack surface strangers can reach.
 - **Claude autonomy over hardening** — passwordless `manage-units` for wheel,
   `@wheel` in nix trusted-users, `skipDangerousModePermissionPrompt` stay.
   The one carve-out: `manage-unit-files` is excluded (silently installing new

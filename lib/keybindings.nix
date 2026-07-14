@@ -34,11 +34,4 @@
     display = "Super+Ctrl+A";
     help = "Screenshot analysis — opens terminal for follow-up";
   }
-  {
-    name = "Wish";
-    binding = "<Super>w";
-    command = "claude-wish";
-    display = "Super+W";
-    help = "Wish — describe a change in plain words; the OS writes itself a PR";
-  }
 ]
