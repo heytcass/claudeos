@@ -71,6 +71,18 @@ Scope {
                     {
                         keys: ["Super", "Ctrl", "A"],
                         desc: "Screenshot → terminal follow-up"
+                    },
+                    {
+                        keys: ["Super", "W"],
+                        desc: "Make a wish — arrives as a PR"
+                    },
+                    {
+                        keys: ["Super", "T"],
+                        desc: "Grab text from a screen region"
+                    },
+                    {
+                        keys: ["Super", "Shift", "V"],
+                        desc: "Transform the clipboard"
                     }
                 ]
             }
