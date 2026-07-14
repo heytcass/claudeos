@@ -302,6 +302,7 @@ in
         "$mod, P, pseudo," # toggle pseudo-tiling for the focused window
         "$mod, H, global, quickshell:cheatsheet" # floating keybind cheat sheet
         "$mod, I, global, quickshell:caffeine" # idle-inhibit hold (Caffeine.qml)
+        "$mod, W, global, quickshell:wish" # make a wish → wish/* PR (WishOverlay.qml)
 
         # Focus with arrows — layout-independent (no vim h/j/k/l: the physical
         # keys don't land on the home row under Colemak, so they're not muscle
