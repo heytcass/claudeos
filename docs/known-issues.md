@@ -83,6 +83,12 @@ Ledger edits are committed by the normal rebuild auto-commit flow.
 
 - 2026-07-06 · `Bluetooth: hci0: Reading supported features failed (-16)` (early boot, transporter) · Transient EBUSY during adapter init; the controller registers fine afterwards (verified with `bluetoothctl show` — hci0 present, unblocked). Only actionable if Bluetooth stops pairing.
 
+- 2026-07-14 · "Bluetooth: hci0: Reading supported features failed (-19)" (1 occurrence) · Variant of -16 error with ENODEV; Bluetooth adapter initialization transient, controller registers afterwards. Part of boot race; monitor only if Bluetooth stops pairing.
+
+- 2026-07-14 · "Bluetooth: hci0: FW download error recovery failed (-19)" (1 occurrence) · Firmware download transient with recovery path during adapter init; adapter functional after boot race settles.
+
+- 2026-07-14 · "Bluetooth: hci0: Failed to send firmware data (-19)" (1 occurrence) · Firmware transmission transient during adapter initialization; adapter recovers and operates normally.
+
 ## Resolved
 
 <!-- move entries here when fixed, with the fixing commit/PR -->
