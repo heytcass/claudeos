@@ -102,13 +102,25 @@ let
   # begin on UserPromptSubmit, refresh (mtime) on every PostToolUse so turns
   # longer than the bar's 60-min staleness backstop keep breathing, end on
   # Stop/SessionEnd. Marker per session id, so concurrent sessions coexist.
+  # begin derives its phrase from the submitted prompt itself (UserPromptSubmit's
+  # JSON payload includes `.prompt`) — first four words, so the pill shows what's
+  # actually being worked on instead of the generic "working with Tom" fallback,
+  # which now only fires when a prompt is unavailable or empty.
   agentHookScript = pkgs.writeShellScriptBin "claudeos-agent-hook" ''
     dir="''${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/claudeos-agent.d"
-    sid=$(${pkgs.jq}/bin/jq -r '.session_id // empty' 2>/dev/null)
+    input=$(cat)
+    sid=$(printf '%s' "$input" | ${pkgs.jq}/bin/jq -r '.session_id // empty' 2>/dev/null)
     [ -n "$sid" ] || exit 0
     f="$dir/claude-$sid"
     case "''${1:-}" in
-      begin) mkdir -p "$dir"; printf '%s\n' "''${CLAUDEOS_AGENT_ACTIVITY:-working with Tom}" > "$f" ;;
+      begin)
+        mkdir -p "$dir"
+        activity="''${CLAUDEOS_AGENT_ACTIVITY:-}"
+        if [ -z "$activity" ]; then
+          activity=$(printf '%s' "$input" | ${pkgs.jq}/bin/jq -r '(.prompt // "") | [scan("\\S+")] | .[0:4] | join(" ")' 2>/dev/null)
+        fi
+        printf '%s\n' "''${activity:-working with Tom}" > "$f"
+        ;;
       refresh) [ -f "$f" ] && touch "$f" ;;
       end) rm -f "$f" ;;
     esac
