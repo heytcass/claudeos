@@ -103,10 +103,16 @@ let
   # longer than the bar's 60-min staleness backstop keep breathing, end on
   # Stop/SessionEnd. Marker per session id, so concurrent sessions coexist.
   # begin derives its phrase from the submitted prompt itself (UserPromptSubmit's
-  # JSON payload includes `.prompt`) — first four words, so the pill shows what's
-  # actually being worked on instead of the generic "working with Tom" fallback,
-  # which now only fires when a prompt is unavailable or empty.
+  # JSON payload includes `.prompt`): the first four words go up instantly as a
+  # placeholder, then a backgrounded haiku call rewrites the marker with a
+  # bespoke 3-4 word summary a moment later. UserPromptSubmit hooks BLOCK the
+  # turn, so the LLM call must never run in the foreground; and the summarizer
+  # is itself a claude session whose hooks would recurse, so it exports
+  # CLAUDEOS_AGENT_SUMMARIZER and the hook mutes itself under that flag.
+  # The generic "working with Tom" fallback only fires when no prompt text is
+  # available at all.
   agentHookScript = pkgs.writeShellScriptBin "claudeos-agent-hook" ''
+    [ -n "''${CLAUDEOS_AGENT_SUMMARIZER:-}" ] && exit 0
     dir="''${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/claudeos-agent.d"
     input=$(cat)
     sid=$(printf '%s' "$input" | ${pkgs.jq}/bin/jq -r '.session_id // empty' 2>/dev/null)
@@ -120,6 +126,24 @@ let
           activity=$(printf '%s' "$input" | ${pkgs.jq}/bin/jq -r '(.prompt // "") | [scan("\\S+")] | .[0:4] | join(" ")' 2>/dev/null)
         fi
         printf '%s\n' "''${activity:-working with Tom}" > "$f"
+        # Sharpen the placeholder asynchronously: a detached haiku call writes
+        # the bespoke phrase over the marker when it returns. Skipped when a
+        # curated phrase came in via CLAUDEOS_AGENT_ACTIVITY (headless lanes).
+        # The [ -f ] re-check keeps a slow summary from resurrecting a marker
+        # the Stop hook already removed (which would pin a ghost pill until
+        # the bar's 60-min backstop). Failures/timeouts leave the placeholder.
+        if [ -z "''${CLAUDEOS_AGENT_ACTIVITY:-}" ] && [ -x "$HOME/.local/bin/claude" ]; then
+          prompt=$(printf '%s' "$input" | ${pkgs.jq}/bin/jq -r '.prompt // empty' 2>/dev/null | head -c 1500)
+          if [ -n "$prompt" ]; then
+            (
+              export CLAUDEOS_AGENT_SUMMARIZER=1
+              summary=$(timeout 30 "$HOME/.local/bin/claude" -p "Summarize this request as a short activity phrase for a status pill: 3-4 words, present-participle verb first (like: fixing login bug / reviewing PR 58 / tuning bar colors). Output ONLY the phrase — no quotes, no punctuation, no markdown.
+
+    Request: $prompt" --model haiku --strict-mcp-config 2>/dev/null | head -n 1)
+              [ -n "$summary" ] && [ -f "$f" ] && printf '%s\n' "$summary" > "$f"
+            ) </dev/null >/dev/null 2>&1 &
+          fi
+        fi
         ;;
       refresh) [ -f "$f" ] && touch "$f" ;;
       end) rm -f "$f" ;;
