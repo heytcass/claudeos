@@ -120,6 +120,40 @@
         claude -p "$argv" --model haiku 2>/dev/null
       '';
 
+      # Claude subscription limits at a glance — the terminal twin of the
+      # bar's fuel-gauge ring (home/quickshell/ClaudeUsageWidget.qml). Reads
+      # the same OAuth endpoint `claude /usage` uses, via the credentials
+      # file Claude Code maintains; the token never enters argv.
+      usage = ''
+        set -l creds ~/.claude/.credentials.json
+        if not test -r $creds
+          echo "Not logged in to Claude Code."
+          return 1
+        end
+        set -l token (jq -r '.claudeAiOauth.accessToken // empty' $creds)
+        if test -z "$token"
+          echo "No access token in credentials file."
+          return 1
+        end
+        set -l json (curl -sf -m 15 \
+          -H "Authorization: Bearer $token" \
+          -H "anthropic-beta: oauth-2025-04-20" \
+          https://api.anthropic.com/api/oauth/usage)
+        if test -z "$json"
+          echo "Could not reach the usage endpoint."
+          return 1
+        end
+        for row in (echo $json | jq -r '.limits[] | "\(.kind)\t\(.percent)\t\(.resets_at // "")"')
+          set -l parts (string split \t $row)
+          set -l label (string replace weekly_scoped "model weekly" (string replace weekly_all weekly (string replace session "session (5h)" $parts[1])))
+          set -l reset ""
+          if test -n "$parts[3]"
+            set reset "resets "(date -d $parts[3] "+%a %-l:%M %p" 2>/dev/null)
+          end
+          printf "%-14s %3d%%  %s\n" $label $parts[2] $reset
+        end
+      '';
+
       # Open today's morning-desk dashboard; --refresh rebuilds it first.
       # claudeos-desk-open (modules/apps/morning-desk.nix) floats + centers it
       # like the SUPER+H cheat sheet under Hyprland.
