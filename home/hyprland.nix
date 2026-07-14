@@ -49,17 +49,29 @@ let
     "Control" = "CTRL";
     "Alt" = "ALT";
   };
+  bindTokens =
+    b: lib.filter (s: s != "") (lib.splitString ">" (lib.replaceStrings [ "<" ] [ "" ] b.binding));
   toHyprBind =
     b:
     let
-      tokens = lib.filter (s: s != "") (
-        lib.splitString ">" (lib.replaceStrings [ "<" ] [ "" ] b.binding)
-      );
+      tokens = bindTokens b;
       mods = lib.init tokens; # everything but the last token is a modifier
       key = lib.toUpper (lib.last tokens);
       hyprMods = lib.concatStringsSep " " (map (m: modMap.${m} or (lib.toUpper m)) mods);
+      # An entry is either an exec bind (command) or a quickshell global.
+      action = if b ? global then "global, ${b.global}" else "exec, ${b.command}";
     in
-    "${hyprMods}, ${key}, exec, ${b.command}";
+    "${hyprMods}, ${key}, ${action}";
+
+  # The cheat sheet's Claude section, as data — CheatSheet.qml reads this from
+  # the generated Keybinds.qml singleton, so Super+H can never drift from the
+  # real binds again. JSON is a valid QML literal; toJSON does the escaping.
+  cheatEntries = builtins.toJSON (
+    map (b: {
+      keys = lib.init (bindTokens b) ++ [ (lib.toUpper (lib.last (bindTokens b))) ];
+      desc = b.short or b.help;
+    }) claudeBinds
+  );
 
   # One shared 4px rhythm: Hyprland's outer window gaps (general.gaps_out) and
   # the bar islands' screen-edge margins + float gap (Theme.edgeGap) all read
@@ -125,6 +137,21 @@ let
       // Screen-edge inset + float gap for the islands — the same value as
       // Hyprland's gaps_out, interpolated from one Nix binding.
       readonly property int edgeGap: ${toString edgeGap}
+    }
+    EOF
+
+    # Keybinds.qml — the Claude keybindings as data, generated from
+    # lib/keybindings.nix (same source that drives the Hyprland binds and the
+    # claudeos help screen). CheatSheet.qml reads Keybinds.claude, so the
+    # Super+H cheat sheet stays in sync by construction. Edit the .nix, never
+    # this file.
+    cat > "$out/Keybinds.qml" <<'EOF'
+    pragma Singleton
+    import Quickshell
+    import QtQuick
+
+    Singleton {
+      readonly property var claude: ${cheatEntries}
     }
     EOF
 
@@ -311,7 +338,8 @@ in
         "$mod, P, pseudo," # toggle pseudo-tiling for the focused window
         "$mod, H, global, quickshell:cheatsheet" # floating keybind cheat sheet
         "$mod, I, global, quickshell:caffeine" # idle-inhibit hold (Caffeine.qml)
-        "$mod, W, global, quickshell:wish" # make a wish → wish/* PR (WishOverlay.qml)
+        # Super+W (wish overlay) now rides lib/keybindings.nix as a `global`
+        # entry, alongside the exec binds — one source of truth for all of them.
 
         # Focus with arrows — layout-independent (no vim h/j/k/l: the physical
         # keys don't land on the home row under Colemak, so they're not muscle
