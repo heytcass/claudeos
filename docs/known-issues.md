@@ -51,6 +51,28 @@ Ledger edits are committed by the normal rebuild auto-commit flow.
 
 - 2026-07-07 · `profiles/audio/bap.c:bap_adapter_probe() BAP requires ISO Socket which is not enabled` (2 occurrences) · Bluetooth Audio Profile (BAP) codec path logs that ISO socket support is disabled; only relevant if LE Audio pairing is intended. Not a blocker for standard Bluetooth audio.
 
+- 2026-07-13 · "Failed to set default system config for hci0" (6 occurrences) · Bluetooth adapter configuration step logs failure but adapter registers and operates normally (verified by user system operation); transient at boot time, similar to observed "Reading supported features failed" pattern.
+
+- 2026-07-13 · "Activation request for 'org.bluez' failed" (6 occurrences) · D-Bus service activation retry on initialization; transient, does not affect Bluetooth functionality once adapter is ready.
+
+- 2026-07-13 · "bap: Operation not supported (95)" (6 occurrences) · Part of Bluetooth Audio Profile initialization chain when ISO Socket is disabled; informational, not blocking standard audio.
+
+- 2026-07-13 · "tpm_tis 00:01: probe with driver tpm_tis failed with error -1" (3 occurrences) · TPM device initialization transient (-1 = EIO); no TPM functionality required for daily use. Monitor if TPM-dependent applications emerge.
+
+- 2026-07-13 · "gkr-pam: unable to locate daemon control file" (3 occurrences) · gnome-keyring PAM module can't find its control socket at startup; keyring functionality unaffected once daemon is ready. Transient at boot.
+
+- 2026-07-13 · "pam_unix(sudo:auth): conversation failed" and "auth could not identify password" (4 occurrences total) · PAM authentication timeouts/delays during boot race; sudo operates normally once session settles. Correlates with gkr-pam initialization window.
+
+- 2026-07-13 · "/nix/store/.../uwsm-0.26.6/libexec/uwsm/signal-handler.sh: line 7: printf: write error: Input/output error" (2 occurrences) · UWSM signal delivery write error during session teardown; transient, session not impacted.
+
+- 2026-07-13 · "i2c_designware i2c_designware.1: spurious STOP detected" (2 occurrences) · I2C bus transient; likely touchpad/sensor enumeration glitch. Does not affect device functionality.
+
+- 2026-07-13 · "Bluetooth: hci0: sending frame failed (-19)" (2 occurrences) · Bluetooth transmission error at adapter level during boot race; adapter recovers and operates normally.
+
+- 2026-07-13 · "xhci_hcd 0000:3b:00.0: PCI post-resume error -19!" and "HC died; cleaning up" (2 occurrences) · xHCI USB controller transient recovery during power-state transitions (post-resume error), self-heals. Monitor if USB peripherals drop; only escalate if devices don't reattach.
+
+- 2026-07-13 · "Stack trace of thread [1632/1563/1557]" (3 occurrences) · Incomplete kernel thread traces (header only, no frames); context unclear but no functional impact reported. Likely from short-lived process/thread that recovered.
+
 - 2026-07-06 · D-Bus "Ignoring duplicate name" warnings (org.gnome.keyring, org.freedesktop.secrets, org.gtk.vfs.*, org.gnome.evolution.*, etc., ~200 total occurrences) · Normal in multi-package setups providing the same D-Bus interface (gnome-keyring remains as the Secret Service); D-Bus just logs when multiple packages provide the same service interface. Does not affect functionality.
 
 - 2026-07-06 · "Activation request for 'org.freedesktop.nm_dispatcher' failed" (39 occurrences) · NetworkManager dispatcher activation failures are transient and common; do not affect network connectivity. Monitor if actual network issues arise.
