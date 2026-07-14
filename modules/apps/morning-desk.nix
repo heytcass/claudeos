@@ -670,9 +670,21 @@ let
       CONTEXT SNAPSHOT:
       $snapshot"
 
+        # Keep ONLY the dashboard itself. The sed drops the tags a stray
+        # generation might wrap around it; the awk then anchors on the known
+        # root, dropping any preamble before it (a learning-style "★ Insight"
+        # block, a "Here is your dashboard:", stray markdown) and any
+        # commentary after it closes. Blacklisting bad tags let leading prose
+        # through and break the layout — anchoring on the real structure is
+        # what actually enforces "a bad generation degrades prose, never design".
         fragment=$(claude_headless sonnet "$prompt" \
           | sed -e 's/^```html$//' -e 's/^```$//' \
-                -e '/<!DOCTYPE/Id' -e '/<\/\?html/Id' -e '/<\/\?body/Id')
+                -e '/<!DOCTYPE/Id' -e '/<\/\?html/Id' -e '/<\/\?body/Id' \
+          | awk '
+              /<div class="dashboard"/ { started = 1 }
+              started { buf[++n] = $0; if ($0 ~ /<\/div>/) last = n }
+              END { for (i = 1; i <= last; i++) print buf[i] }
+            ')
       fi
 
       # A fragment must at minimum carry the hero; otherwise fall back.
