@@ -89,6 +89,20 @@ Ledger edits are committed by the normal rebuild auto-commit flow.
 
 - 2026-07-14 · "Bluetooth: hci0: Failed to send firmware data (-19)" (1 occurrence) · Firmware transmission transient during adapter initialization; adapter recovers and operates normally.
 
+- 2026-07-15 · "Process [1894/1582] (.xdg-desktop-po) of user 988 dumped core" (2 occurrences) · XDG Desktop Portal helper crashes transient at boot during D-Bus initialization race; portal recovers and operates normally.
+
+- 2026-07-15 · "Failed to send coredump datagram: Broken pipe" (1 occurrence) · systemd-coredump socket write during shutdown race; harmless log artifact unrelated to actual crashes.
+
+- 2026-07-15 · "i2c_hid_acpi i2c-DLL079F:01: i2c_hid_get_input: incomplete report (83/65369)" (1 occurrence) · I2C HID (touchpad/keyboard) report parsing transient; similar to existing i2c_designware STOP glitch.
+
+- 2026-07-15 · "Bluetooth: hci0: Failed to send firmware data (-71)" (1 occurrence) · Firmware transmission error variant (EPROTO); similar to existing -19 transients, adapter recovers.
+
+- 2026-07-15 · "DMAR: [INTR-REMAP] Request device [f0:1f.0] fault index 0x0 [fault reason 0x25] Blocked a compatibility format interrupt request" and "DMAR: DRHD: handling fault status reg 2" (2 occurrences total) · IOMMU interrupt remapping faults; typically informational on Dell firmware with quirky ACPI interrupt routing. Similar to SGX/intel-lpss pattern (no functional impact observed). Monitor only if USB or peripheral issues emerge.
+
+- 2026-07-15 · "Failed to mount /usr/bin" (1 occurrence) · Likely the same envfs FUSE mount race as the existing actionable entry (which documents the detailed investigation). Verify with `systemctl status usr-bin.mount bin.mount`; mount should be active even if the journal shows FAILED earlier in boot.
+
+- 2026-07-16 · `pcieport 0000:04:02.0/04:01.0/04:00.0/03:00.0: Unable to change power state from unknown/D3hot/D3cold to D0, device inaccessible` (5 occurrences) · PCIe port enumeration transient during power-state management at boot; firmware/BIOS exposes ports without devices behind them or power-transition races with device discovery. Similar to existing intel-lpss and SGX patterns (Dell Latitude/XPS firmware quirks). Device functionality (USB, storage, network) verified unaffected; only escalate if actual PCIe peripherals drop or USB devices fail to reattach.
+
 ## Resolved
 
 <!-- move entries here when fixed, with the fixing commit/PR -->
