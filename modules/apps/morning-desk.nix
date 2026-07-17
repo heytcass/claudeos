@@ -713,9 +713,9 @@ let
   # (home/hyprland.nix) floats/sizes/dims it like the SUPER+H cheat sheet, but
   # the initial POSITION races Chrome's first configure (and `center`/
   # `centerwindow` are fooled by Chrome's CSD shadow geometry), so once the
-  # window maps we nudge it to true center. 1150x900 here must match the
-  # windowrule's `size`. No-ops gracefully outside Hyprland (GNOME just gets
-  # a normal window).
+  # window maps we nudge it to true center. The windowrule sizes it as a % of
+  # the monitor, so we read the mapped size back rather than assuming fixed
+  # pixels. No-ops gracefully outside Hyprland (GNOME just gets a normal window).
   openScript = pkgs.writeShellScriptBin "claudeos-desk-open" ''
     export PATH="${
       pkgs.lib.makeBinPath [
@@ -742,8 +742,15 @@ let
         # Logical (scale-corrected) monitor size — window coords are logical.
         read -r mw mh < <(hyprctl monitors -j 2>/dev/null \
           | jq -r '[.[] | select(.focused)][0] | "\(.width / .scale | floor) \(.height / .scale | floor)"')
-        [[ -n "$mw" && "$mw" != "null" ]] \
-          && hyprctl dispatch movewindowpixel "exact $(((mw - 1150) / 2)) $(((mh - 900) / 2)),address:$addr" >/dev/null 2>&1 || true
+        # Actual mapped size — the windowrule sizes as a % of the monitor, so
+        # center from what Chrome actually became, not a fixed pixel guess.
+        read -r ww wh < <(hyprctl clients -j 2>/dev/null \
+          | jq -r --arg a "$addr" '[.[] | select(.address == $a)][0] | "\(.size[0]) \(.size[1])"')
+        if [[ -n "$mw" && "$mw" != "null" && -n "$ww" && "$ww" != "null" ]]; then
+          x=$(((mw - ww) / 2)); ((x < 0)) && x=0
+          y=$(((mh - wh) / 2)); ((y < 0)) && y=0
+          hyprctl dispatch movewindowpixel "exact $x $y,address:$addr" >/dev/null 2>&1 || true
+        fi
       fi
     fi
     wait "$chrome"
