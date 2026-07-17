@@ -231,13 +231,33 @@ in
       "$terminal" = "ghostty";
       "$launcher" = "fuzzel";
 
-      # Display scale. Left unset, Hyprland auto-picks a fractional scale from
-      # DPI (1.5 on transporter's 1920x1080 panel). transporter wants native
-      # 1:1 (100%), so pin scale 1 there. Host-gated: gti's panel differs, so
-      # it keeps Hyprland's auto choice rather than inheriting a wrong scale.
-      monitor = lib.mkIf (osConfig.networking.hostName == "transporter") [
-        "eDP-1, preferred, auto, 1"
-      ];
+      # Display scale + dock layout. Left unset, Hyprland auto-picks a
+      # fractional scale from DPI (1.5 on these 1920x1080 panels); both hosts
+      # want native 1:1 (100%) on the built-in panel instead.
+      #
+      # gti's desk dock (dialed in live 2026-07-17, all values validated via
+      # `hyprctl keyword`): Dell | laptop | Dell-portrait, externals at 0.8 to
+      # shrink their UI toward the 13" panel's density. The Dells are keyed by
+      # desc/serial — DP-* port numbers shuffle between dock plug-ins, serials
+      # don't. Physical alignment: left Dell's bottom lands at the laptop's
+      # vertical midpoint; the portrait Dell is raised 201px so top-of-laptop
+      # cursor crossings land level (density mismatch: the same logical span
+      # covers ~9.4" of the portrait Dell vs 6.5" of laptop edge, so only one
+      # crossing height can be physically true — we picked where Tom crosses).
+      # Undocked, eDP-1's fixed offset is harmless (sole monitor, origin moot).
+      monitor =
+        if osConfig.networking.hostName == "gti" then
+          [
+            "eDP-1, 1920x1080@60, 2400x1320, 1"
+            "desc:Dell Inc. DELL P2419H FXP0RB3, 1920x1080@60, 0x510, 0.8"
+            "desc:Dell Inc. DELL P2419H 9HYLVF3, 1920x1080@60, 4320x-201, 0.8, transform, 3"
+            # Anything else (projectors, other docks): sane default, no 1.5 auto.
+            ", preferred, auto, 1"
+          ]
+        else
+          [
+            "eDP-1, preferred, auto, 1"
+          ];
 
       # Keyboard: Hyprland owns the in-session Wayland layout (it does NOT
       # inherit GNOME's dconf input-sources), so mirror the Colemak setup from

@@ -6,6 +6,8 @@
   xdg.configFile."git/allowed-signers".text = ''
     # transporter (enrolled 2026-07-07)
     heytcass@gmail.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIC2ymFZpbiPjS7gcbJIf3DmHK1KLbCjqGVXRuKP3joXo
+    # gti (enrolled 2026-07-17)
+    heytcass@gmail.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIEtQY3Iv7cPD3N9Tw/GVyb7yVsr8RJB10nEBEEniEYeX
   '';
 
   programs.git = {
