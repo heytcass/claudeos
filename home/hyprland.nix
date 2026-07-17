@@ -13,6 +13,7 @@
   lib,
   pkgs,
   config,
+  osConfig,
   ...
 }:
 let
@@ -230,6 +231,14 @@ in
       "$terminal" = "ghostty";
       "$launcher" = "fuzzel";
 
+      # Display scale. Left unset, Hyprland auto-picks a fractional scale from
+      # DPI (1.5 on transporter's 1920x1080 panel). transporter wants native
+      # 1:1 (100%), so pin scale 1 there. Host-gated: gti's panel differs, so
+      # it keeps Hyprland's auto choice rather than inheriting a wrong scale.
+      monitor = lib.mkIf (osConfig.networking.hostName == "transporter") [
+        "eDP-1, preferred, auto, 1"
+      ];
+
       # Keyboard: Hyprland owns the in-session Wayland layout (it does NOT
       # inherit GNOME's dconf input-sources), so mirror the Colemak setup from
       # home/gnome.nix here. The console keymap lives in modules/common/locale.nix.
@@ -313,12 +322,13 @@ in
         # Morning desk (Chrome --app on ~/Desk/today/index.html) presents like
         # the SUPER+H cheat sheet: floating card, everything behind it dimmed.
         # The class derives from the fixed file path; Super+Q dismisses (a real
-        # window can't do the overlay's click-away). Size must match
-        # claudeos-desk-open (morning-desk.nix), which also nudges the window
-        # to true center post-map — the rule's own position effects lose a race
-        # with Chrome's first configure, and `center` is fooled by Chrome's CSD
-        # shadow geometry.
-        "float on, size 1150 900, dim_around on, match:class ^(chrome-.*Desk_today_index\\.html-Default)$"
+        # window can't do the overlay's click-away). Size is a % of the monitor
+        # so it fits every host (a fixed 900px ran off a 720px-logical laptop);
+        # claudeos-desk-open (morning-desk.nix) reads the mapped size back and
+        # nudges the window to true center post-map — the rule's own position
+        # effects lose a race with Chrome's first configure, and `center` is
+        # fooled by Chrome's CSD shadow geometry.
+        "float on, size 85% 90%, dim_around on, match:class ^(chrome-.*Desk_today_index\\.html-Default)$"
       ];
 
       # Drag to move (SUPER+left), drag to resize (SUPER+right) — the biggest
