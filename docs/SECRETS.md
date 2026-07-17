@@ -20,11 +20,12 @@ Two age public keys can decrypt `secrets/secrets.yaml`:
 |-----|---------|
 | `user` | Tom's personal age key (`~/.config/sops/age/keys.txt`) — used to **edit** secrets |
 | `transporter_host` | transporter's SSH host key converted to age — used by sops-nix to **decrypt at runtime** |
+| `gti_host` | gti's SSH host key converted to age — added 2026-07-17 during the Ubuntu → ClaudeOS install |
 
-> **Known gap (2026-07-13):** gti's host key is **not** currently a recipient in
-> `.sops.yaml`, so gti cannot decrypt secrets at activation time. To fix: derive
-> gti's age key (`ssh-to-age < /etc/ssh/ssh_host_ed25519_key.pub` on gti), add it
-> as a `gti_host` recipient, and run `sops updatekeys secrets/secrets.yaml`.
+> **Resolved (2026-07-17):** gti's host key is now a `gti_host` recipient in
+> `.sops.yaml` (added during gti's fresh install). Both hosts decrypt secrets
+> from their own SSH host key at activation. The derive-and-`updatekeys` recipe
+> above is the general procedure for any future host.
 
 ### Declared secrets
 
@@ -129,4 +130,4 @@ rebuild                            # redeploys /run/secrets/*
 ---
 
 *Last updated: 2026-06-11*
-*Status: sops-nix decrypts via the transporter host SSH key (gti recipient pending — see Known gap above); 6 jasper_* secrets declared*
+*Status: sops-nix decrypts via each host's own SSH host key (transporter + gti both recipients as of 2026-07-17); jasper_* + unifi + github_automation secrets declared*
