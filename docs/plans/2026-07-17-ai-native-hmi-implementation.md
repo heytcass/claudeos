@@ -99,35 +99,89 @@ both; panel lists both live, then shows the wish PR under *waiting*, then
 under *recent* after merge. `quickshell_check` green; bar survives with the
 ledger file absent, empty, or truncated mid-line.
 
-## Phase 1b — Interruption arbitration
+## Phase 1b — Notification routing & arbitration
 
-**Goal:** interruptions earn their moment ("one thing, never a feed" applied
-to toasts). Deterministic logic only.
+**Goal:** every notification renders in **exactly one live surface** (plus
+the history center, always), the surface matches the need, and
+interruptions earn their moment ("one thing, never a feed" applied to
+toasts). Deterministic logic only.
 
-**Changes in `Toasts.qml` / `Notifications.qml`:**
+**Why this is tractable:** since the mako rip-out the shell *is* the
+notification daemon — `Notifications.qml` owns
+`org.freedesktop.Notifications`, so every notification already flows
+through one function (`onNotification`). Today that function makes an
+overlapping split: `tracked = actionable` sends action/Critical
+notifications to the corner toasts, while `posted` fires for *everything*
+and the island peeks everything posted — so actionable notifications render
+twice. The dispatch point is right; it just needs to become a real router.
+
+**Step 0 — kill the duplication (one-line-class fix, can land ahead of
+everything else):** emit `posted` only for notifications that are *not*
+tracked. Ambient notifications peek on the island; actionable ones own the
+corner; nothing renders twice. (Alternative with the same effect: pass
+`tracked` through `posted` and let the island ignore tracked ones.)
+
+**The router.** `onNotification` resolves each notification to one
+destination:
+
+| Destination | Meant for | Today's signal |
+|---|---|---|
+| **Island peek** | ambient/FYI — glance and gone | default (no actions, urgency ≤ normal) |
+| **Corner toast** | needs a decision *now* — buttons, Critical | `actions.length > 0` or Critical |
+| **Quiet queue** | FYI that shouldn't interrupt — flushed at idle/unlock as one summary | `urgency = low`, or lane-hinted |
+| **Presence ledger (1a)** | lane work product — the panel is its home | `x-claudeos-lane` hint + done-class |
+| **History center** | memory | everything, unconditionally (as now) |
+
+Routing inputs, in priority order: explicit ClaudeOS hints (`claudeos_notify`
+grows `-h string:x-claudeos-lane:$LANE` and an optional
+`x-claudeos-dest` for lanes that know where they belong), then urgency +
+actions, then per-app rules. The per-app rules live as a small **declarative
+routing table generated from Nix** (a `Routes.qml` singleton or routes JSON
+emitted by `home/hyprland.nix`, defaults mirroring today's heuristic) — the
+routing policy becomes ring-1, reviewable config rather than logic buried in
+QML, and adjusting where an app's notifications land becomes a one-line
+diff (or a wish).
+
+**Arbitration (per-destination timing, after routing):**
 
 - **Defer, don't drop:** while any window on the focused monitor is
-  fullscreen (Hyprland IPC already exposes this via
-  `Quickshell.Hyprland`), queue non-critical toasts (urgency < critical and
-  app ∉ small allowlist). Flush the queue when fullscreen ends, collapsed
-  into one summary toast if >2 queued ("3 quiet notifications while you were
-  focused" → opens the notification center).
-- **Lane-aware ranking:** notifications from `app-name=ClaudeOS` carry their
-  lane in a hint (writer helper already centralised in `claudeos_notify` —
-  add `-h string:x-claudeos-lane:$LANE`). Lane completions never toast at
-  all when the PresencePanel *recent* section will show them — the panel is
-  the feed, the toast budget is reserved for things needing action. This
-  retires a class of "the machine narrating at you" noise the moment 1a
-  lands.
-- **Boundary delivery (cheap v1):** a "quiet until idle" queue class flushed
-  when hypridle reports idleness or on unlock — used by lanes for FYI-grade
-  output. Full task-boundary detection (window-switch heuristics) is
-  deliberately *not* attempted: structured state exists, but the simple
-  version must prove daily-driver value first.
+  fullscreen (Hyprland IPC via `Quickshell.Hyprland`), corner toasts below
+  Critical divert to the quiet queue; flushed when fullscreen ends,
+  collapsed into one summary toast if >2 queued ("3 quiet notifications
+  while you were focused" → opens the notification center).
+- **Lane completions never toast** once 1a lands — the PresencePanel
+  *recent* section is their home, and the toast budget is reserved for
+  things needing action. This retires a class of "the machine narrating at
+  you" noise.
+- **Boundary delivery (cheap v1):** the quiet queue flushes on hypridle
+  idleness or unlock. Full task-boundary detection (window-switch
+  heuristics) is deliberately *not* attempted yet: the simple version must
+  prove daily-driver value first.
 
-**Acceptance:** play a fullscreen video, fire a test notification → arrives
-after leaving fullscreen as a summary; critical notifications punch through
-immediately. No lane completion double-reports (toast + panel).
+**Acceptance:** an actionable notification toasts and does *not* peek the
+island; an ambient one peeks and does not toast; both appear in history
+exactly once. Play a fullscreen video, fire a normal notification → arrives
+after leaving fullscreen as a summary; Critical punches through
+immediately. A lane completion appears in the panel only. Re-routing an
+app's notifications requires only a routes-table edit.
+
+### Where notifications go long-term
+
+The end state (Phases 1b + 4 together) is that "notification" stops being a
+popup category and becomes **routing metadata on a state change**. The
+D-Bus notification stays the universal ingress — every app already speaks
+it, and the shell owning the server means we classify at the door — but
+what renders diverges into species: *ambient narration* (island peek, the
+machine's murmur), *action requests* (corner toasts, which Phase 4 upgrades
+from text+buttons to schema-validated **cards** when the payload carries
+one — a real diff to review, a form to fill, not four truncated lines),
+*work product* (the presence ledger and cards — never interrupts, always
+waiting), and *memory* (the history center, which inherits everything). The
+proactivity doctrine's hierarchy — one thing, ranked below, minutiae
+smallest — becomes literally spatial: the island is the one thing, the
+corner is the ranked actionable set, the panel is everything below. Voice
+or remote surfaces later slot in as just another destination in the same
+routes table.
 
 ## Phase 2 — The intent line
 
