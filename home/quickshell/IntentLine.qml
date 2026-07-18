@@ -42,16 +42,24 @@ Scope {
 
     readonly property string qt: input.text.trim()
 
-    // Best desktop-entry match for the current text: an exact name/id wins, else
-    // the first prefix match. Deliberately conservative — no loose fuzzy — so a
-    // real sentence falls through to the wish route instead of launching
-    // something that merely shares a few letters.
+    // Best desktop-entry match for the current text, ranked best-first:
+    //   exact name/id  >  full-string prefix  >  interior word prefix
+    //   >  keyword / generic-name word  >  loose substring
+    // Interior words matter: "chrome" must find "Google Chrome", "code" →
+    // "Visual Studio Code". Still deliberately conservative — every tier is
+    // anchored at a WORD boundary (or a substring of a single token), so a
+    // real multi-word sentence matches nothing here and falls through to the
+    // wish route instead of launching something that merely shares letters.
+    // Within a tier the shortest name is the most specific, so it wins.
     function bestApp(text) {
         const q = text.trim().toLowerCase();
         if (q.length < 2)
             return null;
+        function words(s) {
+            return (s || "").toLowerCase().split(/[\s._\-]+/).filter(Boolean);
+        }
         const apps = DesktopEntries.applications.values;
-        var prefix = null;
+        var tiers = [[], [], [], []];   // 0 prefix · 1 word-prefix · 2 keyword · 3 substring
         for (var i = 0; i < apps.length; i++) {
             const e = apps[i];
             if (!e || e.noDisplay)
@@ -59,11 +67,30 @@ Scope {
             const n = (e.name || "").toLowerCase();
             const id = (e.id || "").toLowerCase();
             if (n === q || id === q)
-                return e;                 // exact — launch this
-            if (prefix === null && (n.startsWith(q) || id.startsWith(q)))
-                prefix = e;
+                return e;                                  // exact — launch this
+            if (n.startsWith(q) || id.startsWith(q)) {
+                tiers[0].push(e);
+                continue;
+            }
+            if (words(n).some(w => w.startsWith(q)) || words(id).some(w => w.startsWith(q))) {
+                tiers[1].push(e);                          // "chrome" → "Google Chrome"
+                continue;
+            }
+            const extra = (e.keywords || []).concat([e.genericName || ""]);
+            if (extra.some(k => words(k).some(w => w.startsWith(q)))) {
+                tiers[2].push(e);                          // "browser" → generic name
+                continue;
+            }
+            if (n.includes(q)) {
+                tiers[3].push(e);
+                continue;
+            }
         }
-        return prefix;
+        for (var t = 0; t < tiers.length; t++) {
+            if (tiers[t].length)
+                return tiers[t].reduce((a, b) => ((b.name || "").length < (a.name || "").length ? b : a));
+        }
+        return null;
     }
     readonly property var appMatch: bestApp(qt)
 
