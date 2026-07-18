@@ -71,6 +71,10 @@ PanelWindow {
             // The bar's conscience — only exists when a claudeos-* unit failed.
             HealthWidget {}
 
+            // status.claude.com at a glance — dim-green dot while operational,
+            // breathes amber/red on any incident. Click for the service list.
+            StatusWidget {}
+
             // The machine's inbox — only exists when agent-authored PRs
             // (wish/heal/claude branches) are waiting for human review.
             ProposalsWidget {}
