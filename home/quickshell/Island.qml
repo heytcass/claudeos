@@ -198,7 +198,7 @@ Rectangle {
         Text {
             id: clockLabel
             anchors.verticalCenter: parent.verticalCenter
-            text: Qt.formatDateTime(clock.date, "ddd d MMM   HH:mm")
+            text: Qt.formatDateTime(clock.date, "ddd, MMM d   h:mm AP")
             color: Theme.text
             font.family: Theme.fontSans
             font.pixelSize: Theme.fontSize
@@ -277,7 +277,7 @@ Rectangle {
         // Time stays legible during long rebuilds, just demoted.
         Text {
             anchors.verticalCenter: parent.verticalCenter
-            text: Qt.formatDateTime(clock.date, "HH:mm")
+            text: Qt.formatDateTime(clock.date, "h:mm AP")
             color: Theme.subtext
             font.family: Theme.fontSans
             font.pixelSize: Theme.fontSize - 2
