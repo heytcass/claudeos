@@ -35,6 +35,10 @@ ShellRoot {
     // SUPER+W wish prompt — a sentence in, a wish/* PR out (its own overlay).
     WishOverlay {}
 
+    // SUPER+R intent line — one input that routes itself (app / $command /
+    // question? / wish), deterministically, with the route shown before commit.
+    IntentLine {}
+
     // The second-operator surface — working / waiting / recently finished.
     // Opened from the island (agent mode) or the proposals glyph via
     // Presence.panelOpen; its own overlay window.
