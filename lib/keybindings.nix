@@ -50,6 +50,14 @@
     short = "Make a wish — arrives as a PR";
   }
   {
+    name = "Intent line";
+    binding = "<Super>r";
+    global = "quickshell:intent";
+    display = "Super+R";
+    help = "Intent line — type an app, a $command, a question?, or a wish; it routes itself";
+    short = "Intent line — one input, routes itself";
+  }
+  {
     name = "Grab text";
     binding = "<Super>t";
     command = "claude-grab-text";
