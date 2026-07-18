@@ -10,6 +10,8 @@ Ledger edits are committed by the normal rebuild auto-commit flow.
 
 <!-- new-actionable entries land here: date · signature · next step -->
 
+- 2026-07-10 · xhci_hcd USB host controller PCI post-resume error -19 + "HC died; cleaning up" + pcieport D3hot→D0 power state failure (same suspend/resume cycle) · USB and PCIe power state management issue after resume. Next step: verify USB connectivity; test suspend/resume cycle (`systemctl suspend`) to confirm reproducibility; if repeats, investigate firmware/driver updates or BIOS sleep state settings (transporter).
+
 - 2026-07-05 · `usr-bin.mount: Failed with result 'protocol'` / "Mount process
   finished, but there is no mount" (envfs FUSE on /usr/bin, intermittent —
   transporter, recurred 2026-07-06) · Investigated 2026-07-06: this is the
@@ -32,6 +34,14 @@ Ledger edits are committed by the normal rebuild auto-commit flow.
 - 2026-07-11 · health-check exit 1 triggered solely by `kernel: watchdog: watchdog0: watchdog did not stop!` (single crit line caught by the "Critical Log Entries" 15-min lookback) · Reboot artifact, not a live fault: the Intel iTCO hardware watchdog can't be halted cleanly on shutdown, so the kernel logs this at crit priority as the last line before the next boot (observed 14:12:39, fresh kernel up 14:13:08). The first post-boot health check's 15-min window swept it up and exited 1 — expected on any reboot, and unavoidable on a day with many rebuilds (7 boots on 2026-07-11). `alert-context.txt` held only this line; no failed services, disk, memory, OOM, or stale-update issues. Distinct from the by-design "health-check failed" entry (2026-07-08) — this documents the specific benign *trigger content*. Only escalate if the watchdog line appears mid-session (not adjacent to a reboot) or the new kernel fails to come up.
 
 - 2026-07-11 · "Module [libstdc++.so.6, libgcc_s.so.1, libgbm.so.1, libdrm.so.2, libzstd.so.1, libxml2.so.16, libX11.so.6, libpango-1.0.so.0, libreadline.so.8, etc.] without build-id" (100+ occurrences) · Debugger-metadata warnings: libraries lack ELF build-id sections used for symbol matching. Informational only and does not affect runtime. Normal in NixOS where build-id inclusion varies by package; no action needed.
+
+- 2026-07-10 · pam_unix sudo auth failures: "conversation failed" and "auth could not identify password for [tom]" (4 each) · Transient sudo authentication hiccups; if `sudo` works normally when needed, these are harmless glitches (possibly password-echo races or stale TTY state). Escalate only if sudo becomes unusable.
+
+- 2026-07-10 · i915 GPU *ERROR* "Atomic update failure on pipe A" (scanline timing, 1 occurrence) · Transient GPU display timing glitch during vertical sync update; does not affect display output or functionality. One-off event, benign if display remains stable.
+
+- 2026-07-10 · connman/iwd "operation failed" on device config (.Set failed) · Transient WiFi configuration operation failure; if network connectivity works, the device recovered. Monitor if pattern repeats; only escalate if WiFi stops connecting.
+
+- 2026-07-10 · iwlwifi 0000:02:00.0 "transaction failed, dumping registers" (1 occurrence, followed by memory dumps) · WiFi adapter transient firmware/hardware glitch with state dump for diagnostic purposes; adapter likely recovered if connectivity remains stable. One-off event, benign if WiFi functional.
 
 - 2026-07-09 · "Failed to start ClaudeOS Claude-authored notification handler" (35 occurrences) · Expected: the notifier is triggered by health-check `OnFailure=`, so it runs once per health-check failure. The notifier "failing" in the journal is the normal exit; the actual notification (if any) is the only actionable part.
 
