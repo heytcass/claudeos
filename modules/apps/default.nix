@@ -8,6 +8,7 @@
     ./mcp-system-health
     ./claude-monitor
     ./morning-desk.nix
+    ./cards.nix
   ];
 
   # Enable Claude and Jasper by default (override per-host with `false`)

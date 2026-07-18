@@ -562,6 +562,7 @@ let
     runtimeInputs = [
       pkgs.curl
       pkgs.gcalcli
+      pkgs.check-jsonschema # validator for the bar card (claudeos_card)
     ];
     text = ''
       DESK_DIR="$HOME/Desk/today"
@@ -711,6 +712,37 @@ let
       # finished" row opens it (claudeos-desk-open handles the Chrome app window;
       # xdg-open falls back to the file for the panel's generic opener).
       claudeos_agent_done "morning desk ready" "file://$DESK_DIR/index.html"
+
+      # Phase 4 adopter: also drop a compact bar card — the brief at a glance,
+      # the full desk one click away. Built deterministically from the collectors
+      # above (no extra model call); the "open-desk" run action is in the closed
+      # card registry (lib/card-actions.nix). Degrades to a notification if the
+      # card ever fails validation, never blocking the desk build.
+      sysline="all systems green"
+      [[ -n "$failed_units" && "$failed_units" != "none" ]] && sysline="failed units: $failed_units"
+      sysline="$sysline · disk ''${disk_pct:-?}% · updated ''${update_age:-?}d ago"
+      cardfile=$(mktemp)
+      jq -n \
+        --arg today "$today" \
+        --arg sys "$sysline" \
+        --arg url "file://$DESK_DIR/index.html" \
+        '{
+          title: "Morning desk",
+          icon: "☀",
+          sections: [
+            { type: "kv", rows: [
+              { label: "Today", value: $today },
+              { label: "System", value: $sys }
+            ] },
+            { type: "links", links: [ { label: "Open the full desk", url: $url } ] },
+            { type: "actions", actions: [
+              { type: "run", label: "Open in Chrome", name: "open-desk" },
+              { type: "dismiss", label: "Dismiss" }
+            ] }
+          ]
+        }' > "$cardfile"
+      claudeos_card "$cardfile" morning-desk
+      rm -f "$cardfile"
     '';
   };
 
