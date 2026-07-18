@@ -34,6 +34,12 @@ Rectangle {
     // Face priority: a peek always wins (transient); media outranks agent —
     // while music plays the agent keeps the breathing border but not the stage.
     state: peeking ? "notif" : (playing ? "media" : Agent.active ? "agent" : "clock")
+
+    // Agent-face phrase. One lane → its own phrase (Agent.activity, the newest
+    // marker). More than one → "N lanes" with that newest phrase riding along,
+    // so the island tells you the second operator is doing several things at
+    // once; the PresencePanel (tap) breaks them out.
+    readonly property string agentPhrase: Presence.laneCount > 1 ? (Presence.laneCount + " lanes · " + Agent.activity) : Agent.activity
     states: [
         State {
             name: "clock"
@@ -242,7 +248,7 @@ Rectangle {
             anchors.verticalCenter: parent.verticalCenter
 
             // Cap what we animate; per-char Texts are cheap but not free.
-            readonly property string shown: Agent.activity.length > 42 ? Agent.activity.slice(0, 41) + "…" : Agent.activity
+            readonly property string shown: root.agentPhrase.length > 42 ? root.agentPhrase.slice(0, 41) + "…" : root.agentPhrase
             readonly property color peak: Qt.lighter(Theme.accent, 1.2)
 
             property real phase: 0
@@ -453,6 +459,8 @@ Rectangle {
         onTapped: {
             if (root.state === "notif")
                 root.peeking = false;          // tap dismisses the peek
+            else if (root.state === "agent")
+                Presence.togglePanel();         // second-operator surface
             else if (root.state === "media")
                 mediaPopup.visible = !mediaPopup.visible;
             else

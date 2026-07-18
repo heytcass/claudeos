@@ -186,6 +186,7 @@ in
         [[ -z "$wish" ]] && exit 0
 
         claudeos_export_gh_token
+        CLAUDEOS_LANE=wish
         claudeos_agent_begin "✨ wishing: $wish"
         claudeos_notify "Wish received" "Working on it — a PR will arrive when it's ready."
 
@@ -213,12 +214,14 @@ in
         url=$(grep -oE 'WISH-PR: \S+' <<<"$text" | tail -1 | cut -d' ' -f2)
         declined=$(grep -oE 'WISH-DECLINED: .*' <<<"$text" | tail -1)
         if [[ -n "$url" ]]; then
+          claudeos_agent_done "wish granted: $wish" "$url"
           choice=$(claudeos_notify_action --urgency=critical -A open="Open PR" \
             "Wish granted ✨" "$url")
           if [[ "$choice" == open ]]; then
             xdg-open "$url" >/dev/null 2>&1 || true
           fi
         elif [[ -n "$declined" ]]; then
+          claudeos_agent_done "wish declined: ''${declined#WISH-DECLINED: }"
           claudeos_notify "Wish declined" "''${declined#WISH-DECLINED: }"
         elif [[ -z "$text" ]]; then
           claudeos_notify --urgency=critical "Wish" \
