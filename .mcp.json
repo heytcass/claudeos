@@ -1,5 +1,13 @@
 {
   "mcpServers": {
+    "nixos": {
+      "command": "mcp-nixos",
+      "args": []
+    },
+    "system-health": {
+      "command": "mcp-system-health",
+      "args": []
+    },
     "context7": {
       "command": "nix",
       "args": ["shell", "nixpkgs#nodejs_22", "-c", "npx", "-y", "@upstash/context7-mcp@latest"]

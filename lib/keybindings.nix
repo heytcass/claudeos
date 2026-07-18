@@ -1,10 +1,13 @@
 # lib/keybindings.nix — THE source of truth for Claude desktop keybindings.
-# home/gnome.nix generates the dconf custom-keybinding entries from this list
-# and home/claudeos-help.nix generates the help screen's desktop rows from it.
-# Add a binding here; both stay in sync by construction.
+# Three consumers generate from this list, so everything stays in sync by
+# construction:
+#   home/hyprland.nix       → the actual Hyprland binds (exec or global)
+#   home/claudeos-help.nix  → the `claudeos` help screen's desktop rows
+#   home/hyprland.nix       → Keybinds.qml, read by CheatSheet.qml (Super+H)
 #
-# Fields: name (dconf), binding (GTK accelerator, dconf), command (dconf),
-#         display (human-readable key), help (one-line description)
+# Fields: name, binding (GTK accelerator), display (human-readable key),
+#         help (one-line description), short (compact cheat-sheet text),
+#         and EITHER command (exec bind) OR global (quickshell global name).
 [
   {
     name = "Claude quick terminal";
@@ -12,6 +15,7 @@
     command = "claude-quick";
     display = "Super+C";
     help = "Claude Code — coding, config, multi-step tasks";
+    short = "Claude Code — coding & tasks";
   }
   {
     name = "Ask Claude";
@@ -19,6 +23,7 @@
     command = "claude-ask-desktop";
     display = "Super+A";
     help = "Quick question — popup prompt, answer as notification";
+    short = "Ask — popup, answer as notification";
   }
   {
     name = "Claude screenshot analysis";
@@ -26,6 +31,7 @@
     command = "claude-screenshot";
     display = "Super+Shift+A";
     help = "Screenshot analysis — Claude reads your screen, notifies you";
+    short = "Screenshot analysis";
   }
   {
     name = "Claude screenshot analysis (interactive)";
@@ -33,5 +39,30 @@
     command = "claude-screenshot-interactive";
     display = "Super+Ctrl+A";
     help = "Screenshot analysis — opens terminal for follow-up";
+    short = "Screenshot → terminal follow-up";
+  }
+  {
+    name = "Wish";
+    binding = "<Super>w";
+    global = "quickshell:wish";
+    display = "Super+W";
+    help = "Make a wish — describe a change in plain words; it arrives as a PR";
+    short = "Make a wish — arrives as a PR";
+  }
+  {
+    name = "Grab text";
+    binding = "<Super>t";
+    command = "claude-grab-text";
+    display = "Super+T";
+    help = "Drag a region — any text inside it lands in the clipboard";
+    short = "Grab text from a screen region";
+  }
+  {
+    name = "Semantic clipboard";
+    binding = "<Super><Shift>v";
+    command = "claude-clip";
+    display = "Super+Shift+V";
+    help = "Transform the clipboard — fix, condense, convert, translate; result copied back";
+    short = "Transform the clipboard";
   }
 ]

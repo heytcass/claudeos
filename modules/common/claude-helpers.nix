@@ -1,8 +1,9 @@
 # modules/common/claude-helpers.nix — shared Claude CLI commands.
 #
 # claude-name-generation: haiku turns a diff/summary (stdin) into the
-#   generation-label slug. The charset rule lives here (and is enforced
-#   again at eval time by generation-label.nix). Used by the fish `rebuild`
+#   generation-label slug. Only slug-shaped output ([a-z0-9-]) is accepted —
+#   anything else falls back to a timestamp slug; the charset is enforced
+#   again at eval time by generation-label.nix. Used by the fish `rebuild`
 #   function and the auto-update service.
 # claude-commit: haiku writes a conventional-commit message for the dirty
 #   tree, then commits and pushes. Used by the fish `rebuild` function.
@@ -50,10 +51,15 @@ in
 
         $input")
           fi
-          # system.nixos.label only accepts [a-zA-Z0-9:_.-] (generation-label.nix)
-          slug=$(echo "$slug" | tr -c 'a-zA-Z0-9:_.-' '-' | cut -c1-40 | sed 's/-*$//')
+          # Only slug-shaped output may name a generation — anything else is
+          # rejected in favor of the fallback. The old charset pass (tr -c)
+          # MANGLED instead of rejecting: a spend-limit API error became the
+          # booted label "You-ve-hit-your-monthly-spend-limit----r". Same
+          # doctrine as claude-commit's message shape guard below.
+          slug=$(echo "$slug" | cut -c1-40 | sed 's/-*$//')
+          [[ "$slug" =~ ^[a-z0-9]+(-[a-z0-9]+)*$ ]] || slug=""
         fi
-        [[ -z "$slug" || "$slug" =~ ^-*$ ]] && slug="$fallback"
+        [[ -z "$slug" ]] && slug="$fallback"
 
         echo "$slug" > "$CLAUDEOS_DIR/generation-label"
         echo "$slug"

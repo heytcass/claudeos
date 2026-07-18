@@ -76,4 +76,10 @@
   # holds. Note: wifi passphrases are entered fresh (no wpa_supplicant
   # profile migration — fresh install anyway).
   networking.networkmanager.wifi.backend = "iwd";
+
+  # Hyprland + the bespoke Quickshell bar (the sole desktop since the GNOME
+  # rip-out completed 2026-07-12 — see docs/plans/2026-07-11-gnome-ripout-plan.md).
+  # GNOME's fallback specialisation is gone from NEW generations; pre-Phase-3
+  # boot generations still carry it if a GNOME session is ever needed again.
+  claude-os.hyprland.enable = true;
 }

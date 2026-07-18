@@ -47,7 +47,26 @@
     environment.etc."ssl/cert.pem".source = "/etc/ssl/certs/ca-certificates.crt";
 
     # Sandbox dependencies (bubblewrap is already pulled in by xdg-desktop-portal)
-    environment.systemPackages = with pkgs; [ socat ];
+    # qemu_kvm/virtiofsd back Claude Desktop's Cowork VM mode; the user is
+    # already in the kvm group (modules/common/users.nix)
+    environment.systemPackages = with pkgs; [
+      socat
+      qemu_kvm
+      virtiofsd
+    ];
+
+    # Cowork resolves qemu-system-x86_64 via PATH, but hardcodes FHS paths for
+    # the UEFI firmware (/usr/share/OVMF/OVMF_CODE.fd) and virtiofsd
+    # (/usr/libexec/virtiofsd, /usr/bin/virtiofsd) — verified against the
+    # app.asar candidate lists in claude-desktop 1.18286.0. OVMF's firmware
+    # lives in its `fd` output (FV/OVMF_{CODE,VARS}.fd), which systemPackages
+    # would not link anyway, so shim both with symlinks.
+    systemd.tmpfiles.rules = [
+      "d /usr/share 0755 root root -"
+      "L+ /usr/share/OVMF - - - - ${pkgs.OVMF.fd}/FV"
+      "d /usr/libexec 0755 root root -"
+      "L+ /usr/libexec/virtiofsd - - - - ${pkgs.virtiofsd}/bin/virtiofsd"
+    ];
 
     # PATH configuration for Claude Code CLI is in home/shell/fish.nix
     # (Adds ~/.local/bin to PATH where Claude Code installs itself)

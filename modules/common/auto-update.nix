@@ -125,10 +125,17 @@ let
         # Success — generate changelog
         diff_output=$(nix store diff-closures /run/current-system ./result 2>&1 || true)
 
+        export CLAUDEOS_AGENT_ACTIVITY="summarizing the update"
         changelog=$(claude_text haiku "Summarize this NixOS package update diff. List notable version bumps and flag potentially breaking changes. 2-3 sentences max. No markdown.
 
       $diff_output")
 
+        # CLI/API error text ("You've hit your monthly spend limit", "Not
+        # logged in") must not become the commit message — or, via --local
+        # below, the generation slug
+        if echo "$changelog" | grep -qiE 'spend limit|usage limit|rate limit|not logged in|please run /login|api error|overloaded'; then
+          changelog=""
+        fi
         [[ -z "$changelog" ]] && changelog="Flake inputs updated ($(date -I))"
 
         # Name the generation (shared slug logic → boot-menu label).
@@ -174,6 +181,7 @@ let
         ''}
       else
         # Build failed — diagnose and revert
+        export CLAUDEOS_AGENT_ACTIVITY="diagnosing the failed build"
         diagnosis=$(claude_text sonnet "This NixOS build failed after flake update. Diagnose the issue briefly and suggest a fix. No markdown.
 
       $build_output")
@@ -291,9 +299,10 @@ in
           # Wait for the startup transaction to settle ("running"/"degraded")
           status=$(systemctl is-system-running --wait || true)
           multiuser=$(systemctl is-active multi-user.target || true)
-          # NixOS's gdm module disables the literal gdm.service unit (the gdm
-          # package ships its own conflicting unit file — nixpkgs#108672) and
-          # runs the greeter under display-manager.service instead.
+          # The login manager (greetd since the GNOME rip-out; GDM before)
+          # runs as display-manager.service — never assert a literal
+          # gdm/greetd unit name (that literal-unit assumption caused the
+          # month-long silent-revert bug, PR #29).
           displaymgr=$(systemctl is-active display-manager.service || true)
           failed=$(systemctl --failed --no-legend --plain | awk '{print $1}' | xargs || true)
           if [ "$multiuser" = "active" ] && [ "$displaymgr" = "active" ] && [ -z "$failed" ]; then

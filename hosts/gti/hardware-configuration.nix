@@ -17,6 +17,7 @@
     "xhci_pci"
     "nvme"
     "usb_storage"
+    "usbhid"
     "sd_mod"
     "rtsx_pci_sdmmc"
   ];
@@ -24,6 +25,6 @@
   boot.kernelModules = [ "kvm-intel" ];
   boot.extraModulePackages = [ ];
 
-  # nixpkgs.hostPlatform is set by lib/mkSystem.nix
+  nixpkgs.hostPlatform = lib.mkDefault "x86_64-linux";
   hardware.cpu.intel.updateMicrocode = lib.mkDefault config.hardware.enableRedistributableFirmware;
 }

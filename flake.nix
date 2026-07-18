@@ -31,11 +31,6 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
-    jasper = {
-      url = "github:heytcass/jasper";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
-
     treefmt-nix = {
       url = "github:numtide/treefmt-nix";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -45,6 +40,12 @@
       url = "github:nix-community/nix-index-database";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+
+    # NixOS/nixpkgs ground truth for agents: options, packages, home-manager/
+    # darwin options, NixOS Wiki, noogle, NixHub version history — as MCP tools.
+    # Pinned as an input (updated by the weekly auto-update lane) instead of
+    # `nix run github:...` so MCP server startup needs no network or eval.
+    mcp-nixos.url = "github:utensils/mcp-nixos";
   };
 
   outputs =

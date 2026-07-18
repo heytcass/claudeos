@@ -8,13 +8,13 @@ Run `claudeos` in a terminal to see the user-facing quick reference.
 
 ### nixos (`mcp-nixos`)
 
-Search NixOS options, packages, and home-manager options from within Claude Code.
+Ground truth for everything Nix — two consolidated tools (`nix`, `nix_versions`) covering NixOS options, 130K+ packages, home-manager/darwin/nixvim options, Nix functions (noogle), NixOS Wiki, FlakeHub, and package version history with nixpkgs commit hashes (NixHub). Pinned as the `mcp-nixos` flake input; binary installed by `home/claude-code.nix`.
 
-**When to use:** User asks about a NixOS option, needs to find a package name, or wants to check available module options before adding them to the config.
+**When to use:** Before writing ANY option name or package reference — never from memory. Also for "which nixpkgs commit had version X" questions (`nix_versions`).
 
 ### system-health (`mcp-system-health`)
 
-Direct access to system diagnostics — 8 tools covering disk, services, journal, memory, snapshots, network, Nix store, and btrfs scrub status.
+System diagnostics plus runtime config validation — checks `nix build` cannot do.
 
 | Tool | Purpose |
 |------|---------|
@@ -26,10 +26,13 @@ Direct access to system diagnostics — 8 tools covering disk, services, journal
 | `network_status` | NetworkManager status and connections |
 | `nix_store_size` | Nix store disk usage and GC timer |
 | `scrub_status` | Last btrfs scrub result |
+| `hypr_config_check` | Trial a hyprland.conf field/value against the running compositor, then restore |
+| `hypr_config_errors` | `hyprctl configerrors` (optionally after reload) — empty = green |
+| `quickshell_check` | Load-check repo bar QML against deployed Theme.qml (briefly restarts the bar) |
 
-**When to use:** Investigating build failures, system issues, disk space, or any diagnostic question. **Proactive:** If the user mentions a build error or system issue, check `failed_services` and `recent_errors` before guessing at the cause.
+**When to use:** Investigating build failures, system issues, disk space, or any diagnostic question. **Proactive:** If the user mentions a build error or system issue, check `failed_services` and `recent_errors` before guessing at the cause. The three `hypr_*`/`quickshell_*` tools run the CLAUDE.md "validate against the running binary" workflow — use them before rebuilding any Hyprland/QML change (session-only; they degrade gracefully in headless lanes).
 
-Note: MCP config is seed-once (`home/claude-code.nix`) — Nix seeds `~/.claude/.mcp.json` on first activation, then the live file is mutable and owned by Claude Code. The old `niri` MCP server was retired with the move to GNOME.
+Note: MCP servers are registered in the repo's tracked `.mcp.json` (project scope). The old `~/.claude/.mcp.json` seed was dead config — Claude Code never reads that path (discovered 2026-07-12; both servers had been silently unregistered). The old `niri` MCP server was retired when the Niri compositor was dropped (2026-06); GNOME itself was removed 2026-07.
 
 ## Agents
 
@@ -62,14 +65,17 @@ Repo-tracked Claude Code hooks (`.claude/settings.json` + `.claude/hooks/`) — 
 
 ## Desktop Integration
 
-These scripts run outside Claude Code — they're GNOME custom keybindings (`home/gnome.nix`) that invoke Claude via the CLI. Claude Code cannot invoke them directly, but understanding them helps explain user context.
+These scripts run outside Claude Code — they're Hyprland keybindings (generated from `lib/keybindings.nix` in `home/hyprland.nix`) that invoke Claude via the CLI. Claude Code cannot invoke them directly, but understanding them helps explain user context.
 
 | Keybinding | Script | What it does |
 |------------|--------|-------------|
 | `Super+C` | `claude-quick` | Opens Claude Code in a Ghostty terminal |
 | `Super+A` | `claude-ask-desktop` | Zenity popup prompt → Claude answer → desktop notification |
-| `Super+Shift+A` | `claude-screenshot` | gnome-screenshot capture → Claude analysis (Haiku) → notification |
+| `Super+Shift+A` | `claude-screenshot` | grim capture → Claude analysis (Haiku) → notification |
 | `Super+Ctrl+A` | `claude-screenshot-interactive` | Screenshot → Claude analysis (Sonnet) → terminal for follow-up |
+| `Super+W` | `claude-wish` | Wish lane: plain-language wish → agent writes the Nix, validates both hosts, opens a `wish/*` PR (rung 1: propose-only). Bar island shows "✨ wishing" while it runs; `approve` resumes the session |
+| `Super+Shift+V` | `claude-clip` | Semantic clipboard: transform clipboard content (fix grammar, condense, to shell command, to table, summarize, translate, free-form) and copy the result back — paste anywhere |
+| `Super+T` | `claude-grab-text` | Grab Text: drag a region of the screen; any text inside (images, videos, unselectable dialogs) lands in the clipboard |
 
 ## Shell Commands
 
@@ -83,6 +89,10 @@ Fish shell functions available in any terminal. Defined in `home/shell/fish.nix`
 | `rebuild` | Haiku names the generation (`generation-label`) → snapper pre snapshots → `nh os switch` → post snapshots → Claude-generated commit → push |
 | `approve` | Resume the last background agent session (self-heal, journal diary) and authorize its proposed action |
 | `today` | Open the morning desk dashboard in Chrome app mode (`today --refresh` rebuilds it first) |
+| `usage` | Claude subscription limits (session/weekly percent + reset times) — terminal twin of the bar's fuel-gauge ring (`home/quickshell/ClaudeUsageWidget.qml`) |
+| `wish "..."` | The wish lane from the terminal — same agent Super+W runs; wish in, `wish/*` PR out |
+| `why "..."` | Natural-language diagnostics — an agent investigates the running system (system-health MCP, journals, units) and answers with cited evidence |
+| `wherewasi` | "Where was I?" from structured state only (windows, repo status, recent commands) — the no-surveillance answer to Copilot Recall |
 | `claudeos` | Show the capability quick reference |
 
 ## Background Services
@@ -95,7 +105,7 @@ Fish shell functions available in any terminal. Defined in `home/shell/fish.nix`
 | **Daily brief** | 9 AM daily | Gathers system stats (uptime, disk, generations, flake age, git status, diary findings), sends to Claude (Sonnet) for a concise briefing. Displayed in the first terminal of the day — deliberately the only first-shell output (the macchina system fetch was dropped; no spec-sheet feed above the brief). |
 | **Self-heal** | On unit failure | `claude-heal@.service` OnFailure template (`modules/common/self-heal.nix`). When a watched unit fails, a headless agent reads its journal, and if the failure is config-rooted, fixes it on a `heal/*` branch, validates with a dry-run build, and opens a PR. Never touches main; per-unit 6h cooldown. `approve` resumes the session. |
 | **Auto-update** | Sat 3 AM weekly | `nix flake update` → test build → Claude-reviewed changelog → haiku-named generation slug → commit and push. Reverts flake.lock on build failure. |
-| **Jasper** | Always running | AI companion daemon (systemd user service, `modules/apps/jasper.nix`). Has its own Anthropic API key, Google integrations for weather/calendar/routes. |
+| **Jasper** | Every 30 min (waking hours) | Personal-companion lane (`modules/apps/jasper.nix`) — dumb collectors (wttr.in, gcalcli) + a bash significance gate + ONE `claude -p` sonnet call for a warm, ownership-aware insight. Rides the Claude subscription (no dedicated API key); writes `jasper-insight.txt`; the mood emoji lives beside the clock in the bar's center island, the sentence at the top of its calendar popup (`home/quickshell/Jasper.qml` singleton). |
 
 ## Proactive Behaviors
 

@@ -68,6 +68,14 @@ in
         set_color $desc; echo "Explain last command, or pipe any output to understand it"
         set_color $key; printf "    %-22s " "rebuild"
         set_color $desc; echo "Full rebuild: snapshot → nixos-rebuild → auto-commit + push"
+        set_color $key; printf "    %-22s " "usage"
+        set_color $desc; echo "Claude subscription limits (same data as the bar's ring)"
+        set_color $key; printf "    %-22s " 'wish "..."'
+        set_color $desc; echo "Describe a change in plain words — the OS writes itself a PR"
+        set_color $key; printf "    %-22s " 'why "..."'
+        set_color $desc; echo "Ask why the machine is doing something — diagnosis with evidence"
+        set_color $key; printf "    %-22s " "wherewasi"
+        set_color $desc; echo "Reconstruct what you were doing — structured state, no surveillance"
         set_color $key; printf "    %-22s " "claudeos"
         set_color $dim; echo "You're looking at it"
         set_color normal
@@ -101,7 +109,7 @@ in
         set_color $key; printf "    %-22s " "Daily brief"
         set_color $desc; echo "System summary at 9 AM, shown in first terminal"
         set_color $key; printf "    %-22s " "Jasper"
-        set_color $desc; echo "AI companion in the system bar"
+        set_color $desc; echo "Personal companion lane — in progress (bar face pending)"
         set_color normal
         echo ""
   '';

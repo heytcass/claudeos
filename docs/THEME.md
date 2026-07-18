@@ -27,21 +27,21 @@ The theme system is split across two layers following NixOS best practices:
 - Configures cursor theme (Adwaita, size 20)
 - Configures font families (Inter, JetBrains Mono Nerd Font, Noto Serif, Noto Color Emoji)
 - Sets polarity (dark mode)
-- Configures Qt theming (adwaita-dark via gtk2 platform)
+- Qt theming via Stylix's auto-enabled qt target (the GNOME-era adwaita-qt hand-roll died with `home/gnome.nix` in the Phase 3 rip-out)
 
-XDG portals are provided and configured by GNOME itself (xdg-desktop-portal-gnome + gtk fallback) — no manual wiring.
+XDG portals are wired in `modules/desktop/hyprland.nix`: xdg-desktop-portal-hyprland (screencast/screenshot) with the gtk portal as fallback (file pickers, Settings).
 
 **Why system-level:** Color schemes and Stylix foundation need to be available at boot and for system services. Because home-manager runs as a NixOS module, Stylix's home-manager targets (Ghostty, VS Code, fzf, bat, lazygit, GTK, ...) follow automatically from the system-level config — there is no separate per-target enable file anymore.
 
-### 2. `home/gnome.nix` (Home Manager)
+### 2. `home/hyprland.nix` (Home Manager)
 
-**Purpose:** GNOME user preferences via dconf
+**Purpose:** Hyprland session + the bespoke Quickshell bar, themed from the same palette
 
 **Responsibilities:**
-- Sets `color-scheme = "prefer-dark"` so GNOME and libadwaita apps follow the dark polarity
-- Input sources (Colemak), idle/lock policy, Claude keybindings
+- Generates the bar's `Theme.qml` singleton from `config.lib.stylix.colors` + `lib/theme.nix` — the bar never hardcodes hex
+- Input (Colemak), idle/lock policy (hypridle/hyprlock), Claude keybindings (from `lib/keybindings.nix`)
 
-GNOME's own shell handles wallpaper rendering, lock screen, and notifications — the old Noctalia Material-token mapping is gone.
+Wallpaper (hyprpaper), lock screen (hyprlock), and notifications (Quickshell's own server) all read the same Stylix palette. (`home/gnome.nix` and its dconf tree were deleted in the GNOME rip-out, 2026-07-12; GTK apps get the dark preference and icon theme via the gtk portal's Settings iface, backed by dconf keys set in `modules/desktop/theme.nix`.)
 
 Several consumers read the generated Stylix palette at runtime instead of being themed at build time: `claude-statusline` and the `claudeos` help command read `~/.config/stylix/palette.json`, and the morning-desk agent receives the palette JSON in its prompt.
 
@@ -79,11 +79,9 @@ base16Scheme = {
 
 ## Icon Theme
 
-**Package:** `pkgs.adwaita-icon-theme`
+**Theme:** `ClaudeOS` — a tiny theme built in `modules/desktop/theme.nix` that inherits Adwaita and overrides only the places (folder) icons, recolored onto the terracotta accent (Adwaita hardcodes a blue ramp with no accent-color integration). Wired via `stylix.icons`, plus a dconf `icon-theme` key so GTK apps reading gsettings through the gtk portal pick it up.
 
-**Variant:** Adwaita (standard icon theme for GTK/libadwaita)
-
-Adwaita is GNOME's native icon theme, so no extra configuration is needed — GNOME ships and uses it by default. `lib/theme.nix` keeps the icon name (`icons.name = "Adwaita"`) centralized as data. `modules/desktop/gnome.nix` adds two custom hicolor SVGs that the stock theme lacks: `tab-new-symbolic` (for Ghostty's libadwaita tab bar, removed from adwaita-icon-theme in GNOME 46+) and `folder-development` (for ~/Projects).
+`modules/desktop/default.nix` adds two custom hicolor SVGs the stock theme lacks: `tab-new-symbolic` (for Ghostty's libadwaita tab bar, removed from adwaita-icon-theme in GNOME 46+) and `folder-development` (for ~/Projects).
 
 ## Cursor Theme
 
@@ -91,7 +89,7 @@ Adwaita is GNOME's native icon theme, so no extra configuration is needed — GN
 **Name:** `Adwaita`
 **Size:** `20`
 
-Stylix manages the cursor theme via `stylix.cursor` in `modules/desktop/theme.nix`. Setting all three properties (package, name, size) causes Stylix to configure `home.pointerCursor`, which sets `XCURSOR_SIZE` and `XCURSOR_THEME` environment variables. These are picked up by GNOME and all Wayland/X11 applications.
+Stylix manages the cursor theme via `stylix.cursor` in `modules/desktop/theme.nix`. Setting all three properties (package, name, size) causes Stylix to configure `home.pointerCursor`, which sets `XCURSOR_SIZE` and `XCURSOR_THEME` environment variables. These are picked up by Hyprland and all Wayland/X11 applications.
 
 ### Implementation Details
 
@@ -104,7 +102,7 @@ stylix.cursor = {
 };
 ```
 
-This single declaration drives cursor theming across the entire desktop -- GNOME, GTK apps, Qt apps, and Electron apps all inherit the cursor settings.
+This single declaration drives cursor theming across the entire desktop -- Hyprland, GTK apps, Qt apps, and Electron apps all inherit the cursor settings.
 
 ## Configuration Layers
 
@@ -119,11 +117,12 @@ The theme system builds up in three distinct layers:
 - Font configuration (Inter, JetBrains Mono, Noto Serif, Noto Color Emoji)
 
 ### Layer 2: Icon Theme
-- Adwaita (GNOME default) plus custom hicolor SVG additions
+- ClaudeOS (inherits Adwaita, terracotta folder icons) plus custom hicolor SVG additions
 - Symbolic icon support for modern applications
 
-### Layer 3: GNOME Desktop Integration
-- `color-scheme = "prefer-dark"` in dconf (`home/gnome.nix`) so GNOME Shell and libadwaita apps follow the dark polarity
+### Layer 3: Desktop Integration
+- Dark preference and icon theme reach GTK/libadwaita apps via the gtk portal's Settings iface (dconf keys set in `modules/desktop/theme.nix`; `programs.dconf.enable` in `modules/desktop/default.nix`)
+- The Quickshell bar's `Theme.qml` is generated from the palette in `home/hyprland.nix`
 - Runtime palette consumers: `claude-statusline`, `claudeos`, morning-desk dashboard
 
 ## Testing
@@ -137,7 +136,7 @@ The theme system builds up in three distinct layers:
 - [ ] Check syntax highlighting in terminal and editors
 
 **Desktop settings:**
-- [ ] Dark mode active system-wide (GNOME Shell + libadwaita apps)
+- [ ] Dark mode active system-wide (libadwaita apps + Quickshell bar)
 - [ ] Wallpaper set from `assets/chicago.jpg`
 - [ ] Icon consistency across applications
 - [ ] Cursor theme (Adwaita) consistent across apps
@@ -165,7 +164,7 @@ Rebuild and log out/in to apply changes. Anything that reads `config.lib.stylix.
 
 ### Changing Icon Theme
 
-GNOME uses Adwaita by default. To switch, set the icon theme via dconf (`org/gnome/desktop/interface` `icon-theme`) in `home/gnome.nix` and install the theme package. Also update `lib/theme.nix` to keep the icon name centralized:
+The ClaudeOS icon theme (and its dconf `icon-theme` key) is defined in `modules/desktop/theme.nix` via `stylix.icons`. To switch, change the package/name there. Also update `lib/theme.nix` to keep the icon name centralized:
 
 ```nix
 icons = {
@@ -184,11 +183,8 @@ With home-manager running as a NixOS module, Stylix auto-enables its supported t
 **Symptom:** Some GTK applications ignore Stylix theming
 
 **Solution:**
-1. Check that the app is supported by Stylix (libadwaita apps follow the GNOME dark preference, not base16 CSS)
-2. Verify dark mode is set in dconf (configured in `home/gnome.nix`):
-```nix
-dconf.settings."org/gnome/desktop/interface".color-scheme = "prefer-dark";
-```
+1. Check that the app is supported by Stylix (libadwaita apps follow the system dark preference via the gtk portal's Settings iface, not base16 CSS)
+2. Verify `programs.dconf.enable` is on (`modules/desktop/default.nix`) and the gtk portal is running — without them GTK apps can't read the dark/icon-theme settings
 
 ### Icons Not Appearing Correctly
 
@@ -241,7 +237,7 @@ rebuild
 
 ```nix
 imports = [
-  ./gnome.nix
+  ./hyprland.nix
   ./audio.nix
   ./fonts.nix
   ./theme.nix
@@ -254,10 +250,9 @@ In `home/default.nix`:
 
 ```nix
 imports = [
-  ./gnome.nix     # dconf: dark mode, input, keybindings
   ./ghostty.nix
   ./vscode.nix
-  # other modules
+  # other modules — home/hyprland.nix is pulled in by the hyprland module
 ];
 ```
 

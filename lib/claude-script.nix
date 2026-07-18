@@ -47,6 +47,38 @@ let
 
     claudeos_notify() { notify-send --app-name=ClaudeOS "$@"; }
 
+    # Agent presence: the bar's island shows what the machine is doing to
+    # itself (Agent.qml reads the newest fresh file in this dir and displays
+    # its first line — the "agent face"). One file per process, so concurrent
+    # agents coexist; the EXIT trap clears it however the script ends, and the
+    # bar ignores files older than 60 min as a stuck-marker backstop.
+    CLAUDEOS_AGENT_DIR="''${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/claudeos-agent.d"
+    claudeos_agent_begin() {
+      mkdir -p "$CLAUDEOS_AGENT_DIR"
+      printf '%s\n' "$1" > "$CLAUDEOS_AGENT_DIR/$$"
+      # Call-scoped pulses (and Claude Code hooks) inherit the script's
+      # phrase — without this a claude_* call would overwrite "healing …"
+      # with a newer generic "working" marker for its duration.
+      export CLAUDEOS_AGENT_ACTIVITY="$1"
+      trap claudeos_agent_end EXIT
+    }
+    claudeos_agent_end() { rm -f "$CLAUDEOS_AGENT_DIR/$$"; }
+
+    # Call-scoped pulse, written by the claude_* helpers below: the island
+    # breathes for exactly the duration of each CLI call, with no per-script
+    # wiring to forget (that's how the pulse went unseen — every automation
+    # inherited claudeos_agent_begin and only morning-desk called it).
+    # Scripts set CLAUDEOS_AGENT_ACTIVITY for a curated phrase ("musing");
+    # unset, the island says "working". Named call-$BASHPID, not $$: unique
+    # inside command-substitution subshells, and it can never clobber a
+    # script-scoped claudeos_agent_begin marker. No trap — the explicit end
+    # suffices, and a SIGKILLed call ages out via the bar's 60-min backstop.
+    _claudeos_pulse_begin() {
+      mkdir -p "$CLAUDEOS_AGENT_DIR"
+      printf '%s\n' "''${CLAUDEOS_AGENT_ACTIVITY:-working}" > "$CLAUDEOS_AGENT_DIR/call-$BASHPID"
+    }
+    _claudeos_pulse_end() { rm -f "$CLAUDEOS_AGENT_DIR/call-$BASHPID"; }
+
     # Seconds a blocking `-A` notification waits for a click before giving up.
     # Must stay well under the calling unit's TimeoutStartSec: notify-send -A
     # blocks until someone clicks, and when nobody does, systemd SIGTERMs the
@@ -98,10 +130,17 @@ let
     # nothing (rc 0) when the CLI is missing or the call fails, so callers
     # can just test for empty output.
     claude_text() {
-      local model="$1" prompt="$2"
+      local model="$1" prompt="$2" out rc=0
       shift 2
       [[ -x "$CLAUDE_BIN" ]] || return 0
-      "$CLAUDE_BIN" -p "$prompt" --model "$model" "$@" 2>/dev/null || true
+      # Capture before printing: on a non-zero exit the CLI's stdout is error
+      # text ("You've hit your monthly spend limit"), not an answer — piping
+      # it through breaks every caller that tests for empty output.
+      _claudeos_pulse_begin
+      out=$("$CLAUDE_BIN" -p "$prompt" --model "$model" "$@" 2>/dev/null) || rc=$?
+      _claudeos_pulse_end
+      [[ "$rc" -eq 0 ]] || return 0
+      printf '%s\n' "$out"
     }
 
     # claudeos_cooldown_ok FILE SECONDS — rate-limit gate: succeeds when at
@@ -119,7 +158,9 @@ let
     claude_headless() {
       local model="$1" prompt="$2" result session
       shift 2
+      _claudeos_pulse_begin
       result=$("$CLAUDE_BIN" -p "$prompt" --model "$model" --output-format json "$@" 2>/dev/null) || result=""
+      _claudeos_pulse_end
       session=$(echo "$result" | jq -r '.session_id // empty' 2>/dev/null)
       if [[ -n "$session" ]]; then
         mkdir -p "$STATE_DIR"
@@ -139,6 +180,43 @@ let
     echo
     echo 'Press Enter to close...'
     read"
+    }
+
+    # Shared personal-world collectors (morning desk, jasper lane) — one
+    # implementation of the wttr.in fetch and the gcalcli guard; consumers jq
+    # their own shape out of the raw JSON.
+
+    # Raw wttr.in j1 JSON, cached 15 min so co-scheduled lanes share a fetch.
+    # Prints nothing when the fetch fails and no cache exists; a stale cache
+    # beats an empty answer. Needs curl in runtimeInputs.
+    claudeos_wttr_json() {
+      local cache="$MONITOR_CACHE_DIR/wttr-j1.json" out
+      mkdir -p "$MONITOR_CACHE_DIR"
+      if [[ -s "$cache" ]] && (( $(date +%s) - $(stat -c %Y "$cache") < 900 )); then
+        cat "$cache"
+        return 0
+      fi
+      out=$(timeout 15 curl -fsSL "wttr.in/?format=j1" 2>/dev/null) || out=""
+      if [[ -n "$out" ]]; then
+        printf '%s' "$out" > "$cache"
+        printf '%s' "$out"
+      elif [[ -s "$cache" ]]; then
+        cat "$cache"
+      fi
+    }
+
+    # claudeos_gcal_agenda START END [extra gcalcli agenda args...] — guarded
+    # calendar fetch. Prints the agenda, "not connected" before the one-time
+    # `gcalcli init` (OAuth client in sops: jasper_google_client_id/secret),
+    # or "fetch failed". Needs gcalcli in runtimeInputs.
+    claudeos_gcal_agenda() {
+      local start="$1" end="$2"
+      shift 2
+      if ! command -v gcalcli >/dev/null || [[ ! -d "$HOME/.local/share/gcalcli" && ! -f "$HOME/.gcalcli_oauth" ]]; then
+        echo "not connected"
+        return 0
+      fi
+      timeout 60 gcalcli --nocolor agenda "$@" "$start" "$end" 2>/dev/null || echo "fetch failed"
     }
 
     # Shared system-state collectors (daily brief, morning desk)

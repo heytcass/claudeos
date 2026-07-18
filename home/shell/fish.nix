@@ -119,15 +119,108 @@
         claude -p "$argv" --model haiku 2>/dev/null
       '';
 
-      # Open today's morning-desk dashboard; --refresh rebuilds it first
+      # Claude subscription limits at a glance — the terminal twin of the
+      # bar's fuel-gauge ring (home/quickshell/ClaudeUsageWidget.qml). Reads
+      # the same OAuth endpoint `claude /usage` uses, via the credentials
+      # file Claude Code maintains; the token never enters argv.
+      usage = ''
+        set -l creds ~/.claude/.credentials.json
+        if not test -r $creds
+          echo "Not logged in to Claude Code."
+          return 1
+        end
+        set -l token (jq -r '.claudeAiOauth.accessToken // empty' $creds)
+        if test -z "$token"
+          echo "No access token in credentials file."
+          return 1
+        end
+        set -l json (curl -sf -m 15 \
+          -H "Authorization: Bearer $token" \
+          -H "anthropic-beta: oauth-2025-04-20" \
+          https://api.anthropic.com/api/oauth/usage)
+        if test -z "$json"
+          echo "Could not reach the usage endpoint."
+          return 1
+        end
+        for row in (echo $json | jq -r '.limits[] | "\(.kind)\t\(.percent)\t\(.resets_at // "")"')
+          set -l parts (string split \t $row)
+          set -l label (string replace weekly_scoped "model weekly" (string replace weekly_all weekly (string replace session "session (5h)" $parts[1])))
+          set -l reset ""
+          if test -n "$parts[3]"
+            set reset "resets "(date -d $parts[3] "+%a %-l:%M %p" 2>/dev/null)
+          end
+          printf "%-14s %3d%%  %s\n" $label $parts[2] $reset
+        end
+      '';
+
+      # "Where was I?" — the anti-Recall. Reconstructs what you were working
+      # on from STRUCTURED state only (window list, repo status via zoxide
+      # frecency, recent commands) — no screenshots, no content surveillance
+      # (PHILOSOPHY doctrine #5). Dumb collectors here, one haiku call to
+      # synthesize; take the thinking, not the daemon.
+      wherewasi = ''
+        set -l windows (hyprctl clients -j 2>/dev/null | jq -r '.[] | "ws\(.workspace.name): \(.class) — \(.title)"' 2>/dev/null | string collect)
+        set -l repos
+        for d in (zoxide query -l 2>/dev/null | head -6)
+          if test -d "$d/.git"
+            set -l b (git -C $d branch --show-current 2>/dev/null)
+            set -l dirty (git -C $d status --porcelain 2>/dev/null | count)
+            set -l last (git -C $d log -1 --format="%cr: %s" 2>/dev/null)
+            set -a repos "$d — branch $b, $dirty uncommitted, last: $last"
+          end
+        end
+        set -l repotext (string join \n $repos | string collect)
+        set -l hist (history | head -15 | string collect)
+        claude -p "You are ClaudeOS answering 'where was I?' for the owner returning to this machine. From the STRUCTURED state below (no file contents were read), reconstruct what they were working on and what looks half-done. One main thing first, then a short ranked list if there is more. A few sentences, no headers, no fluff.
+
+        OPEN WINDOWS:
+        $windows
+
+        ACTIVE REPOS (zoxide frecency order):
+        $repotext
+
+        RECENT SHELL COMMANDS (newest first):
+        $hist" --model haiku 2>/dev/null
+      '';
+
+      # Natural-language system diagnostics: `why "is my fan loud"` → an
+      # agent investigates the RUNNING machine (system-health MCP, journals,
+      # units) and answers with the evidence it found. Same diagnostic tool
+      # set the interactive handoffs use (CLAUDEOS_DIAG_TOOLS in
+      # lib/claude-script.nix). Runs from the repo so the MCP servers load.
+      why = ''
+        if test (count $argv) -eq 0
+          echo 'Usage: why "is my fan loud right now"'
+          return 1
+        end
+        pushd ~/.config/claudeos
+        claude -p "You are ClaudeOS's system diagnostician on host $(hostname). The owner asks: why $argv
+
+        Investigate the RUNNING system with your tools (system-health MCP tools, journalctl, systemctl, /proc). Find the actual cause and cite the evidence — unit names, numbers, timestamps. If nothing is wrong, say so plainly instead of inventing a problem. Be concise: a few sentences of diagnosis, then ONE recommended action if any." --model sonnet --allowedTools "Bash,Read,Grep,Glob,mcp__system-health__*" 2>/dev/null
+        popd
+      '';
+
+      # The wish lane from the terminal: `wish "my machine should ..."` →
+      # an agent writes the Nix, validates both hosts, opens a wish/* PR.
+      # Same command Super+W runs (claude-wish, modules/common/system.nix).
+      wish = ''
+        if test (count $argv) -eq 0
+          echo 'Usage: wish "describe what this machine should do"'
+          return 1
+        end
+        claude-wish $argv
+      '';
+
+      # Open today's morning-desk dashboard; --refresh rebuilds it first.
+      # claudeos-desk-open (modules/apps/morning-desk.nix) floats + centers it
+      # like the SUPER+H cheat sheet under Hyprland.
       today = ''
         if contains -- --refresh $argv
           echo "Rebuilding today's dashboard..."
           systemctl --user start claudeos-morning-desk
         end
-        set -l desk ~/Desk/today/index.html
-        if test -f $desk
-          google-chrome-stable --app="file://$desk" &>/dev/null &
+        if test -f ~/Desk/today/index.html
+          claudeos-desk-open &>/dev/null &
           disown
         else
           echo "No dashboard yet — run: today --refresh"

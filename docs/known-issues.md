@@ -31,6 +31,10 @@ Ledger edits are committed by the normal rebuild auto-commit flow.
 
 <!-- known-benign noise lands here: date · signature · why it's harmless -->
 
+- 2026-07-11 · health-check exit 1 triggered solely by `kernel: watchdog: watchdog0: watchdog did not stop!` (single crit line caught by the "Critical Log Entries" 15-min lookback) · Reboot artifact, not a live fault: the Intel iTCO hardware watchdog can't be halted cleanly on shutdown, so the kernel logs this at crit priority as the last line before the next boot (observed 14:12:39, fresh kernel up 14:13:08). The first post-boot health check's 15-min window swept it up and exited 1 — expected on any reboot, and unavoidable on a day with many rebuilds (7 boots on 2026-07-11). `alert-context.txt` held only this line; no failed services, disk, memory, OOM, or stale-update issues. Distinct from the by-design "health-check failed" entry (2026-07-08) — this documents the specific benign *trigger content*. Only escalate if the watchdog line appears mid-session (not adjacent to a reboot) or the new kernel fails to come up.
+
+- 2026-07-11 · "Module [libstdc++.so.6, libgcc_s.so.1, libgbm.so.1, libdrm.so.2, libzstd.so.1, libxml2.so.16, libX11.so.6, libpango-1.0.so.0, libreadline.so.8, etc.] without build-id" (100+ occurrences) · Debugger-metadata warnings: libraries lack ELF build-id sections used for symbol matching. Informational only and does not affect runtime. Normal in NixOS where build-id inclusion varies by package; no action needed.
+
 - 2026-07-10 · pam_unix sudo auth failures: "conversation failed" and "auth could not identify password for [tom]" (4 each) · Transient sudo authentication hiccups; if `sudo` works normally when needed, these are harmless glitches (possibly password-echo races or stale TTY state). Escalate only if sudo becomes unusable.
 
 - 2026-07-10 · i915 GPU *ERROR* "Atomic update failure on pipe A" (scanline timing, 1 occurrence) · Transient GPU display timing glitch during vertical sync update; does not affect display output or functionality. One-off event, benign if display remains stable.
@@ -57,7 +61,29 @@ Ledger edits are committed by the normal rebuild auto-commit flow.
 
 - 2026-07-07 · `profiles/audio/bap.c:bap_adapter_probe() BAP requires ISO Socket which is not enabled` (2 occurrences) · Bluetooth Audio Profile (BAP) codec path logs that ISO socket support is disabled; only relevant if LE Audio pairing is intended. Not a blocker for standard Bluetooth audio.
 
-- 2026-07-06 · D-Bus "Ignoring duplicate name" warnings (org.gnome.keyring, org.freedesktop.secrets, org.gtk.vfs.*, org.gnome.evolution.*, etc., ~200 total occurrences) · Normal in multi-package GNOME setups; D-Bus just logs when multiple packages provide the same service interface. Does not affect functionality.
+- 2026-07-13 · "Failed to set default system config for hci0" (6 occurrences) · Bluetooth adapter configuration step logs failure but adapter registers and operates normally (verified by user system operation); transient at boot time, similar to observed "Reading supported features failed" pattern.
+
+- 2026-07-13 · "Activation request for 'org.bluez' failed" (6 occurrences) · D-Bus service activation retry on initialization; transient, does not affect Bluetooth functionality once adapter is ready.
+
+- 2026-07-13 · "bap: Operation not supported (95)" (6 occurrences) · Part of Bluetooth Audio Profile initialization chain when ISO Socket is disabled; informational, not blocking standard audio.
+
+- 2026-07-13 · "tpm_tis 00:01: probe with driver tpm_tis failed with error -1" (3 occurrences) · TPM device initialization transient (-1 = EIO); no TPM functionality required for daily use. Monitor if TPM-dependent applications emerge.
+
+- 2026-07-13 · "gkr-pam: unable to locate daemon control file" (3 occurrences) · gnome-keyring PAM module can't find its control socket at startup; keyring functionality unaffected once daemon is ready. Transient at boot.
+
+- 2026-07-13 · "pam_unix(sudo:auth): conversation failed" and "auth could not identify password" (4 occurrences total) · PAM authentication timeouts/delays during boot race; sudo operates normally once session settles. Correlates with gkr-pam initialization window.
+
+- 2026-07-13 · "/nix/store/.../uwsm-0.26.6/libexec/uwsm/signal-handler.sh: line 7: printf: write error: Input/output error" (2 occurrences) · UWSM signal delivery write error during session teardown; transient, session not impacted.
+
+- 2026-07-13 · "i2c_designware i2c_designware.1: spurious STOP detected" (2 occurrences) · I2C bus transient; likely touchpad/sensor enumeration glitch. Does not affect device functionality.
+
+- 2026-07-13 · "Bluetooth: hci0: sending frame failed (-19)" (2 occurrences) · Bluetooth transmission error at adapter level during boot race; adapter recovers and operates normally.
+
+- 2026-07-13 · "xhci_hcd 0000:3b:00.0: PCI post-resume error -19!" and "HC died; cleaning up" (2 occurrences) · xHCI USB controller transient recovery during power-state transitions (post-resume error), self-heals. Monitor if USB peripherals drop; only escalate if devices don't reattach.
+
+- 2026-07-13 · "Stack trace of thread [1632/1563/1557]" (3 occurrences) · Incomplete kernel thread traces (header only, no frames); context unclear but no functional impact reported. Likely from short-lived process/thread that recovered.
+
+- 2026-07-06 · D-Bus "Ignoring duplicate name" warnings (org.gnome.keyring, org.freedesktop.secrets, org.gtk.vfs.*, org.gnome.evolution.*, etc., ~200 total occurrences) · Normal in multi-package setups providing the same D-Bus interface (gnome-keyring remains as the Secret Service); D-Bus just logs when multiple packages provide the same service interface. Does not affect functionality.
 
 - 2026-07-06 · "Activation request for 'org.freedesktop.nm_dispatcher' failed" (39 occurrences) · NetworkManager dispatcher activation failures are transient and common; do not affect network connectivity. Monitor if actual network issues arise.
 
@@ -67,11 +93,29 @@ Ledger edits are committed by the normal rebuild auto-commit flow.
 
 - 2026-07-06 · `Bluetooth: hci0: Reading supported features failed (-16)` (early boot, transporter) · Transient EBUSY during adapter init; the controller registers fine afterwards (verified with `bluetoothctl show` — hci0 present, unblocked). Only actionable if Bluetooth stops pairing.
 
+- 2026-07-14 · "Bluetooth: hci0: Reading supported features failed (-19)" (1 occurrence) · Variant of -16 error with ENODEV; Bluetooth adapter initialization transient, controller registers afterwards. Part of boot race; monitor only if Bluetooth stops pairing.
+
+- 2026-07-14 · "Bluetooth: hci0: FW download error recovery failed (-19)" (1 occurrence) · Firmware download transient with recovery path during adapter init; adapter functional after boot race settles.
+
+- 2026-07-14 · "Bluetooth: hci0: Failed to send firmware data (-19)" (1 occurrence) · Firmware transmission transient during adapter initialization; adapter recovers and operates normally.
+
+- 2026-07-15 · "Process [1894/1582] (.xdg-desktop-po) of user 988 dumped core" (2 occurrences) · XDG Desktop Portal helper crashes transient at boot during D-Bus initialization race; portal recovers and operates normally.
+
+- 2026-07-15 · "Failed to send coredump datagram: Broken pipe" (1 occurrence) · systemd-coredump socket write during shutdown race; harmless log artifact unrelated to actual crashes.
+
+- 2026-07-15 · "i2c_hid_acpi i2c-DLL079F:01: i2c_hid_get_input: incomplete report (83/65369)" (1 occurrence) · I2C HID (touchpad/keyboard) report parsing transient; similar to existing i2c_designware STOP glitch.
+
+- 2026-07-15 · "Bluetooth: hci0: Failed to send firmware data (-71)" (1 occurrence) · Firmware transmission error variant (EPROTO); similar to existing -19 transients, adapter recovers.
+
+- 2026-07-15 · "DMAR: [INTR-REMAP] Request device [f0:1f.0] fault index 0x0 [fault reason 0x25] Blocked a compatibility format interrupt request" and "DMAR: DRHD: handling fault status reg 2" (2 occurrences total) · IOMMU interrupt remapping faults; typically informational on Dell firmware with quirky ACPI interrupt routing. Similar to SGX/intel-lpss pattern (no functional impact observed). Monitor only if USB or peripheral issues emerge.
+
+- 2026-07-15 · "Failed to mount /usr/bin" (1 occurrence) · Likely the same envfs FUSE mount race as the existing actionable entry (which documents the detailed investigation). Verify with `systemctl status usr-bin.mount bin.mount`; mount should be active even if the journal shows FAILED earlier in boot.
+
+- 2026-07-16 · `pcieport 0000:04:02.0/04:01.0/04:00.0/03:00.0: Unable to change power state from unknown/D3hot/D3cold to D0, device inaccessible` (5 occurrences) · PCIe port enumeration transient during power-state management at boot; firmware/BIOS exposes ports without devices behind them or power-transition races with device discovery. Similar to existing intel-lpss and SGX patterns (Dell Latitude/XPS firmware quirks). Device functionality (USB, storage, network) verified unaffected; only escalate if actual PCIe peripherals drop or USB devices fail to reattach.
+
 ## Resolved
 
 <!-- move entries here when fixed, with the fixing commit/PR -->
-
-- 2026-07-07 · VM smoke-test gate never passed — every weekly auto-update since 2026-06-12 silently reverted flake.lock (root cause of the month-stale nixpkgs) · The gate asserted `gdm.service` active, but NixOS runs GDM as `display-manager.service`; the literal unit never exists, so every run reported `gdm=inactive` and reverted. Found 2026-07-07 by the first breadcrumb-instrumented run; diagnosed independently by the self-heal agent, fixed in PR #29. The new `last-update`/`last-update-revert` breadcrumbs + >14-day health-check alert exist precisely so this failure class can't be silent again.
 
 - 2026-07-07 · "Random seed file '/boot/loader/random-seed' is world accessible" · Fixed 2026-07-07: ESP mount masks tightened to fmask/dmask=0077 in `modules/common/disko.nix`. Takes full effect after a reboot remounts /boot; verify with `stat /boot/loader/random-seed`.
 

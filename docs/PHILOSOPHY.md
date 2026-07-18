@@ -16,6 +16,27 @@ system's maintainer, narrator, and (increasingly) its hands. It is also,
 deliberately, a vehicle for experimentation: its owner runs it *because*
 trying bleeding-edge plumbing is the fun part.
 
+## The daily-driver rule
+
+*Added 2026-07-13, from an explicit owner correction mid-overnight-run.*
+
+ClaudeOS is not only a showcase. It is the machine its owner actually lives
+on — general surfing, AI workflow, productivity — and **usability outranks
+demonstration**. "Don't make the system unusable just to show off." The
+ambition, in the owner's words: a daily driver *augmented in a way never
+thought of before — elevate over what Copilot PCs are trying to do*. The
+Copilot-PC shape is an assistant summoned in front of the OS; the ClaudeOS
+shape is the assistant behind it, holding the system's own knowledge and
+levers.
+
+In practice: judge every feature by daily utility first. Glanceable beats
+animated; quiet beats noisy; battery-aware beats impressive (the panel is
+12.5"). Proactive behaviors must earn their interruptions — this is the
+proactivity doctrine's "one thing, never a feed," now with teeth against
+showcase-driven regressions. When a showcase idea and usability conflict,
+usability wins; the showcase value of ClaudeOS comes *from* it being a real,
+lived-in system, so degrading the latter spends the former.
+
 ## The founding insight
 
 **NixOS is the only operating system where the entire system state is one git
@@ -132,6 +153,16 @@ it would create a second brain with separate auth, memory, and voice. The
 rule generalizes: **take the thinking, not the daemon.** Port doctrines into
 prompts; let collectors be dumb scripts; let Claude Code be the only brain.
 
+The *name* survives, though. "Jasper" is the voice of the **personal** lane —
+the household/family-calendar companion, as distinct from ClaudeOS's *system*
+automations (ClaudeOS is the system's agent; Jasper is Tom's). But it is a
+lane, not a process: dumb collectors (gcalcli, weather, routes) → one
+`claude -p` call carrying Jasper's persona and ownership-aware, one-insight
+prompt → the Quickshell bar as its face. So both things are true at once —
+Jasper is not retired, and the daemon is not revived. *(Resolved 2026-07-11,
+superseding the 2026-07-08 "daemon revival" sketch in
+docs/plans/next-session-prompts.md #9.)*
+
 ## The constitution
 
 Autonomous agents editing the OS are made safe by *mechanical* rules, not
@@ -212,9 +243,12 @@ single-user):
 
 - **No full-disk encryption.** Nothing confidential lives locally; boot
   friction isn't worth it.
-- **Supply-chain looseness is deliberate.** `curl | bash` for Claude Code,
-  unpinned MCP flakes, tag-pinned actions — freshness of Claude tooling
-  outranks pinning.
+- **Supply-chain looseness is deliberate — for Claude tooling.** `curl | bash`
+  for Claude Code and unpinned MCP servers stay: freshness of Claude tooling
+  outranks pinning. *Narrowed 2026-07-13 (go-public prep):* GitHub Actions are
+  now SHA-pinned — the workflows carry the actor gates and the rung-2 merge
+  gate, which makes them security-load-bearing rather than Claude tooling, and
+  a public repo's workflows are the attack surface strangers can reach.
 - **Claude autonomy over hardening** — passwordless `manage-units` for wheel,
   `@wheel` in nix trusted-users, `skipDangerousModePermissionPrompt` stay.
   The one carve-out: `manage-unit-files` is excluded (silently installing new
@@ -250,11 +284,18 @@ These are aesthetic commitments that double as engineering bets:
   (boot menu as changelog), snapshots carry the same names, the journal
   diary keeps a ledger, every agent leaves an audit trail. A system you can
   read is a system you can trust with autonomy.
-- **Desktop environment is a replaceable organ.** GNOME today (chosen
-  2026-06: familiarity and first-class app integration beat Niri, which
-  "felt like fighting it"). Core capabilities must stay DE-agnostic —
+- **Desktop environment is a replaceable organ.** Hyprland + the bespoke
+  Quickshell bar today (chosen 2026-07 after a specialisation trial answered
+  GNOME's "heavy for what little it shows"; GNOME was chosen 2026-06 over
+  Niri, then removed entirely once the trial stuck — the organ-swap thesis
+  proven in practice). "Build what I want, adopt no one's desktop": the
+  session is assembled from small freedesktop-interface implementations
+  (greetd/regreet, gnome-keyring behind org.freedesktop.secrets, portals,
+  hypridle/gammastep) rather than one bundled DE — commit to interfaces,
+  stay loose on implementations. Core capabilities must stay DE-agnostic —
   artifacts are files, openers are URLs, notifications are libnotify.
-  Compositor experiments return as specialisations, not rewrites.
+  Compositor experiments return as specialisations, not rewrites (that
+  mechanism is how this pivot shipped).
 - **Testbed before primary.** transporter (the old Latitude) proves risky
   changes — DE pivots, integration claims, agent autonomy — before gti is
   touched.

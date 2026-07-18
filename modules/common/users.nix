@@ -33,6 +33,9 @@
       "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFqJcKOf70muwJzsxYzNf988D7uJty0rtS7cCquQWBsl tom@ubuntu-dev"
       # gti (Ubuntu era) — used to drive transporter installs/admin remotely
       "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIGUt1Q2bElRhISBmkOz3iR4wkW4I7yFFTd3x0qLQTBhb gti-claudeos-install"
+      # transporter — declarative cross-host access (seeded into gti's
+      # ~/.ssh/authorized_keys during its 2026-07-17 install; tracked here now)
+      "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIC2ymFZpbiPjS7gcbJIf3DmHK1KLbCjqGVXRuKP3joXo tom@transporter"
     ];
   };
 

@@ -67,7 +67,7 @@ sudo nixos-rebuild switch --rollback
 After applying a new configuration:
 
 - [ ] System boots / services running
-- [ ] GDM greets and the GNOME session loads
+- [ ] regreet greets and the "Hyprland (UWSM)" session loads (pick the UWSM entry — the plain one strands session services)
 - [ ] Wayland session active (`echo $XDG_SESSION_TYPE`)
 - [ ] Claude keybindings work (Super+C, Super+A)
 - [ ] Audio works

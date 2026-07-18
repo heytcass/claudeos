@@ -11,6 +11,9 @@ keys:
   # transporter host key — derived from its ssh_host_ed25519_key after the
   # 2026-07-05 fresh install (fresh install ⇒ new host keys ⇒ new age key)
   - &transporter_host age14pjus99w6dkk5rlsz4jtme7jjhgf7ypd896p29dlch0ue8t3pqdq9vu4lk
+  # gti host key — derived from its ssh_host_ed25519_key after the
+  # 2026-07-17 fresh install (Ubuntu → ClaudeOS conversion)
+  - &gti_host age1fnnz3daptgfmqdqgrlnqk4vfzvtve3y26rwsdrccpwukylckaq7q2q65u3
 
 creation_rules:
   - path_regex: secrets/.*\.yaml$
@@ -18,3 +21,4 @@ creation_rules:
       - age:
           - *user
           - *transporter_host
+          - *gti_host

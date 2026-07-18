@@ -25,7 +25,6 @@ The formatter is `nixfmt` via treefmt-nix (set in `flake.nix`).
 | disko | nix-community | Declarative disk partitioning |
 | stylix | danth | Unified theming (base16) |
 | claude-desktop-linux | heytcass | Claude Desktop Electron app (follows main nixpkgs) |
-| jasper | heytcass | Jasper AI companion daemon |
 | treefmt-nix | numtide | Formatter wiring for `nix fmt` |
 | nix-index-database | nix-community | Prebuilt nix-index DB for comma (`, foo`) |
 
@@ -56,7 +55,7 @@ Key behavior:
 
 Utility function that generates a derivation to hide `.desktop` entries from the application launcher. Takes `{ pkgs, lib }` and returns a function accepting a list of app names. Each name gets a `.desktop` file with `NoDisplay=true`, wrapped in `lib.hiPrio` so it takes precedence over real entries.
 
-Used in both `modules/desktop/gnome.nix` (system-level) and `home/default.nix` (user-level).
+Used in both `modules/desktop/default.nix` (system-level) and `home/default.nix` (user-level).
 
 ### lib/theme.nix
 
@@ -147,7 +146,7 @@ Timezone, locale, and keyboard.
 - **Timezone:** `America/New_York` (via `lib.mkDefault`)
 - **Locale:** `en_US.UTF-8` for all `LC_*` categories
 - **Console:** font `Lat2-Terminus16`, keymap `colemak`
-- No `services.xserver.xkb` -- GNOME reads its keyboard layout from dconf (`home/gnome.nix` input-sources)
+- No `services.xserver.xkb` -- Hyprland sets Colemak in its own input config (`home/hyprland.nix`), and the regreet greeter gets it via `XKB_DEFAULT_LAYOUT`/`XKB_DEFAULT_VARIANT` (`modules/desktop/hyprland.nix`)
 
 ### modules/common/system.nix
 
@@ -157,7 +156,7 @@ System packages, hardware, and kernel tuning.
 - Basic: `vim`, `micro`, `wget`, `curl`, `htop`, `tree`, `file`, `unzip`, `zip`, `pciutils`, `usbutils`
 - Network: `dig`, `traceroute`
 - Nix dev: `nixfmt`, `statix`, `deadnix`, `nixd` (flake-aware Nix LSP; replaced unmaintained `nil`), `nvd` (closure diffs), `nix-output-monitor` (nom)
-- Scripts: `claude-quick` (Super+C), `claude-ask-desktop` (Super+A, zenity prompt), `claude-screenshot` (Super+Shift+A), `claude-screenshot-interactive` (Super+Ctrl+A) — bound via GNOME custom keybindings in `home/gnome.nix`
+- Scripts: `claude-quick` (Super+C), `claude-ask-desktop` (Super+A, zenity prompt), `claude-screenshot` (Super+Shift+A), `claude-screenshot-interactive` (Super+Ctrl+A) — bound via Hyprland keybindings (generated from `lib/keybindings.nix` in `home/hyprland.nix`)
 - `supabase-cli` (Open Brain deployments)
 
 **System configuration:**
@@ -211,13 +210,13 @@ Weekly unattended flake updates with Claude review (`claude-os.autoUpdate`, enab
 
 ### modules/common/generation-label.nix
 
-Claude-named generations. Reads the repo-root `generation-label` file (a short slug written by the fish `rebuild` function and the auto-update service, usually authored by haiku from the pending diff) into `system.nixos.tags` -- so the systemd-boot menu and `nixos-rebuild list-generations` read like a changelog instead of "Generation 213". The charset is sanitized to `[a-zA-Z0-9:_.-]` because `system.nixos.label` rejects anything else at eval time.
+Claude-named generations. Reads the repo-root `generation-label` file (a short slug written by the fish `rebuild` function and the auto-update service, usually authored by haiku from the pending diff) into `system.nixos.tags` -- so the systemd-boot menu and `nixos-rebuild list-generations` read like a changelog instead of "Generation 213". The charset is sanitized to `[a-zA-Z0-9:_.-]` because `system.nixos.label` rejects anything else at eval time. The writer (`claude-name-generation`, claude-helpers.nix) accepts only slug-shaped model output (`[a-z0-9-]`, ≤40 chars) and otherwise falls back to a timestamp slug — CLI/API error text used to get charset-mangled into a "valid" label (`You-ve-hit-your-monthly-spend-limit----r`) instead of rejected.
 
 ### modules/common/self-heal.nix
 
 The OS files its own fix PRs (`claude-os.selfHeal`, enabled by default).
 
-- **Mechanism:** systemd user template `claude-heal@.service` attached via `OnFailure=` to opted-in units (option `claude-os.selfHeal.units`; defaults: `claudeos-auto-update`, `claudeos-journal-diary`, `jasper-companion`)
+- **Mechanism:** systemd user template `claude-heal@.service` attached via `OnFailure=` to opted-in units (option `claude-os.selfHeal.units`; defaults: `claudeos-auto-update`, `claudeos-journal-diary`)
 - **On failure:** a headless Claude agent (sonnet) receives the unit's journal + systemctl state, investigates the owning module, and -- only if the failure is config-rooted -- fixes it on a `heal/*` branch, validates with a dry-run build, and opens a PR via `gh pr create`. Transient failures get a `SKIP: <reason>` and no edits
 - **Safety:** never touches main (human merge is the approval gate), per-unit 6h cooldown, restricted allowed tools; never watches `claude-heal@` itself or `claudeos-health-check` (loop prevention); skips upfront (with a notification) when no GitHub credential is reachable — keyring in-session, `github_automation_token` sops secret headless — rather than spending an agent session that cannot open a PR
 - **Follow-up:** the agent session id is saved so the fish `approve` function can resume it
@@ -226,30 +225,11 @@ The OS files its own fix PRs (`claude-os.selfHeal`, enabled by default).
 
 ## modules/desktop/ -- Desktop Environment
 
-GNOME on Wayland, audio, fonts, and theming. Imported via `modules/desktop/default.nix` which pulls in: `gnome.nix`, `audio.nix`, `fonts.nix`, `theme.nix`.
+Hyprland + Quickshell bar, greetd/regreet, audio, fonts, theming. Imported via `modules/desktop/default.nix` which pulls in: `hyprland.nix`, `audio.nix`, `fonts.nix`, `theme.nix`.
 
-### modules/desktop/gnome.nix
+### modules/desktop/gnome.nix (deleted)
 
-GNOME desktop at the system level. Chosen June 2026 over Niri: familiar, best app integration (portals, file pickers, drag-and-drop, Chrome extension native messaging all first-class). Compositor experiments (Hyprland, etc.) can return later as specialisations.
-
-**Display manager + desktop:**
-- `services.displayManager.gdm.enable = true` (GDM, Wayland by default)
-- `services.desktopManager.gnome.enable = true`
-
-**Trimmed default apps** (`environment.gnome.excludePackages`): `gnome-tour`, `epiphany` (browser → Chrome), `geary` (mail → web), `gnome-music`, `totem`
-
-**Services:**
-- `services.openssh.settings.X11Forwarding = false` (`lib.mkDefault`)
-
-**Session variables:**
-- `NIXOS_OZONE_WL = "1"` (Electron apps use native Wayland)
-
-**System packages:**
-- `gnome-tweaks`, `wl-clipboard`, `zenity` (dialog prompts for `claude-ask-desktop`), `gnome-screenshot` (CLI capture for the screenshot scripts)
-- Custom inline derivations: `tab-new-symbolic` SVG icon (for Ghostty's libadwaita tab bar, removed from adwaita-icon-theme in GNOME 46+), `folder-development` SVG icon (for ~/Projects)
-
-**Hidden desktop entries** (via `hideDesktopEntries`):
-`com.google.Chrome`, `vim`, `gvim`, `htop`, `micro`, `xterm`, `uxterm`, `nixos-manual`, `nm-applet`, `nm-connection-editor`, `org.freedesktop.Xwayland`
+Deleted in the GNOME rip-out, Phase 3 (2026-07-12) — see `docs/plans/2026-07-11-gnome-ripout-plan.md`. Hyprland (`modules/desktop/hyprland.nix`, with greetd/regreet as the login manager) is the sole desktop module.
 
 ### modules/desktop/audio.nix
 
@@ -259,7 +239,7 @@ PipeWire audio and Bluetooth.
 - **rtkit:** enabled (real-time scheduling for audio)
 - **PipeWire:** enabled with `alsa.enable`, `pulse.enable`, `wireplumber.enable`
 - **Bluetooth:** enabled, `powerOnBoot = false`, experimental features on, `Source,Sink,Media,Socket` enabled
-- Audio managed through GNOME's own controls and `wpctl`; `pavucontrol`/`helvum` suggested via `nix shell` for advanced use
+- Audio managed through `wpctl` (bar volume keys) and `pavucontrol` (installed by `modules/desktop/hyprland.nix`, floated by windowrule)
 
 ### modules/desktop/fonts.nix
 
@@ -296,7 +276,7 @@ Stylix theming, Qt, and XDG portals. References `lib/theme.nix` for font names.
 
 **Qt:** enabled, platform theme forced to `gtk2`, style forced to `adwaita-dark`.
 
-**XDG portals:** provided and configured by GNOME itself (`xdg-desktop-portal-gnome` + gtk fallback) -- no manual wiring.
+**XDG portals:** wired in `modules/desktop/hyprland.nix` -- `xdg-desktop-portal-hyprland` (screencast/screenshot/global shortcuts) with the gtk portal as fallback (file pickers, Settings).
 
 ---
 
@@ -334,16 +314,15 @@ Claude Code CLI and Claude Desktop.
 
 ### modules/apps/jasper.nix
 
-Jasper AI companion daemon.
+Jasper, the personal-companion **lane** (`claude-os.jasper`, enabled by default). Formerly a standalone Rust daemon; now a ClaudeOS lane per `docs/PHILOSOPHY.md` "On Jasper specifically" — take the thinking, not the daemon. Built on `lib/claude-script.nix`, modeled on `morning-desk.nix`.
 
-**System packages:** `jasperPkgs.daemon` (from `inputs.jasper`). A desktop surface (e.g. GNOME shell integration) is a follow-up task.
+- **Poll (every 30 min during waking hours, configurable `schedule`):** a `oneshot` user service runs dumb collectors — weather (wttr.in) and calendar (gcalcli, if connected) — then a bash **significance gate** decides whether anything changed (hash of the day's stable weather + labelled agenda) or a morning/midday/evening heartbeat is due.
+- **One call, one insight:** only when the gate fires does a single `claude -p` **sonnet** call (riding the Claude subscription — **no dedicated API key**) synthesize ONE warm, ownership-aware sentence ("Christen has soccer," never "you have soccer"). Written to `~/.cache/claudeos-monitor/jasper-insight.txt` (the monitor-cache file contract).
+- **Face:** the `home/quickshell/Jasper.qml` singleton reads that file; the mood emoji joins the clock in the center island (`Island.qml`), and the sentence rides at the top of the calendar popup (`CalendarPopup.qml`) — one tap, one dropdown. One thing, never a feed.
+- **Never touches `graphical-session.target`** — a plain `timers.target` oneshot, so the retired daemon's greeter-killing boot loop cannot recur.
+- **Calendar bootstrap (one-time, interactive):** `gcalcli init` with the Google OAuth client from sops (`jasper_google_client_id`/`secret`); until then it runs weather-only and never invents events.
 
-**Systemd user service** (`jasper-companion`):
-- Starts after `graphical-session.target`
-- Reads `ANTHROPIC_API_KEY` from sops secret (`jasper_anthropic_api_key`) at runtime
-- Restarts on failure (5 second delay)
-
-**Dependency:** `modules/common/secrets.nix` (provides the sops secret)
+**Dependency:** `modules/common/secrets.nix` (Jasper's Google/home-address sops secrets). The `jasper_anthropic_api_key` secret is no longer consumed by this module.
 
 ### modules/apps/mcp-system-health/
 
@@ -377,7 +356,7 @@ Overnight-built HTML morning dashboard (`claude-os.morningDesk`, enabled by defa
 
 ## home/ -- Home Manager Modules
 
-User-level configuration. Imported from `home/default.nix` which pulls in: `shell/`, `ghostty.nix`, `git.nix`, `vscode.nix`, `gnome.nix`, `claude-code.nix`, `claudeos-help.nix`, `zathura.nix`.
+User-level configuration. Imported from `home/default.nix` which pulls in: `shell/`, `ghostty.nix`, `git.nix`, `vscode.nix`, `claude-code.nix`, `claudeos-help.nix`, `zathura.nix`.
 
 ### home/default.nix
 
@@ -461,22 +440,9 @@ VS Code with declarative settings and Marketplace-managed extensions.
 - Keybinding: `Ctrl+Shift+T` for new terminal
 - Theme/fonts managed by Stylix
 
-### home/gnome.nix
+### home/gnome.nix (deleted)
 
-GNOME user configuration via dconf. Ports the Claude keybindings that lived in the old Niri config; everything else (idle, lock, displays, clipboard) is GNOME's own machinery.
-
-**dconf settings:**
-- Input sources: Colemak everywhere (`xkb us+colemak`; console keymap lives in `modules/common/locale.nix`)
-- Interface: `color-scheme = "prefer-dark"`, battery percentage shown
-- Idle + lock policy: blank at 5 min (`idle-delay = 300`), lock immediately on blank (`lock-enabled`, `lock-delay = 0`)
-
-**Custom keybindings** (media-keys custom0-3):
-- `Super+C` = `claude-quick` (Claude Code in Ghostty)
-- `Super+A` = `claude-ask-desktop` (zenity prompt → notification)
-- `Super+Shift+A` = `claude-screenshot` (gnome-screenshot → haiku analysis → notification)
-- `Super+Ctrl+A` = `claude-screenshot-interactive` (screenshot → sonnet analysis in a terminal)
-
-The scripts themselves are defined in `modules/common/system.nix`.
+Deleted in the GNOME rip-out, Phase 3 (2026-07-12) — the dconf tree died with it. Its Claude keybindings and idle/lock policy live on in `home/hyprland.nix` (keybindings generated from `lib/keybindings.nix`; hypridle/hyprlock).
 
 ### home/claude-code.nix
 
@@ -590,7 +556,7 @@ Generated by `nixos-generate-config`.
 flake.nix
   +-- lib/mkSystem.nix          (builds each host)
   |     +-- modules/common/     (foundation for all hosts)
-  |     +-- modules/desktop/    (GNOME, audio, fonts, Stylix)
+  |     +-- modules/desktop/    (Hyprland, audio, fonts, Stylix)
   |     +-- modules/apps/       (applications, Claude, Jasper, monitor, morning desk)
   |     +-- home/               (home-manager user config)
   +-- hosts/<hostname>/         (per-host hardware + overrides)
@@ -599,7 +565,7 @@ flake.nix
 Notable dependency chains:
 - `modules/apps/jasper.nix` reads secrets from `modules/common/secrets.nix` (sops)
 - `modules/apps/claude.nix` uses `inputs.claude-desktop-linux`
-- `home/gnome.nix` binds the Claude desktop scripts defined in `modules/common/system.nix`
+- `home/hyprland.nix` binds the Claude desktop scripts defined in `modules/common/system.nix` (keybindings from `lib/keybindings.nix`)
 - `home/shell/fish.nix` relies on tools configured in `home/shell/cli-tools.nix` (eza, bat, batman, zoxide) and on `nh` (`modules/common/nix.nix`), snapper (`modules/common/snapshots.nix`), and `generation-label` (`modules/common/generation-label.nix`) in the `rebuild` function
 - `lib/theme.nix` is imported as pure data by `modules/desktop/fonts.nix`, `modules/desktop/theme.nix`, and `home/ghostty.nix`
 - `home/claude-code.nix` seeds Claude Code settings; the statusline ships as the stable `claude-statusline` command
@@ -609,4 +575,4 @@ Notable dependency chains:
 
 ---
 
-*Last updated: 2026-06-12*
+*Last updated: 2026-07-12*

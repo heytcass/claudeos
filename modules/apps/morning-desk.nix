@@ -568,6 +568,9 @@ let
       ARCHIVE_DIR="$HOME/Desk/archive"
       mkdir -p "$DESK_DIR" "$ARCHIVE_DIR"
 
+      # Tell the bar's island what we're up to for the duration of the build.
+      claudeos_agent_begin "preparing the morning desk"
+
       # Archive a previous day's dashboard before overwriting
       if [[ -f "$DESK_DIR/index.html" ]]; then
         prev_day=$(date -r "$DESK_DIR/index.html" +%F 2>/dev/null)
@@ -579,14 +582,15 @@ let
       today=$(date "+%A, %B %-d, %Y")
       now_hour=$(date +%-H)
 
-      weather=$(timeout 15 curl -fsSL "wttr.in/?format=j1" 2>/dev/null \
+      # Shared collectors (lib/claude-script.nix) — same sources as the jasper
+      # lane; this script only owns its jq shape and the setup hint.
+      weather=$(claudeos_wttr_json \
         | jq -c '{now: .current_condition[0] | {tempF: .temp_F, feelsF: .FeelsLikeF, desc: .weatherDesc[0].value}, today: .weather[0] | {maxF: .maxtempF, minF: .mintempF, hourly: [.hourly[] | {time, tempF, chanceofrain, desc: .weatherDesc[0].value}]}}' 2>/dev/null)
       [[ -z "$weather" ]] && weather="unavailable"
 
-      calendar="not connected — run: gcalcli init (OAuth client in sops as jasper_google_client_id/secret)"
-      if command -v gcalcli >/dev/null && [[ -d "$HOME/.local/share/gcalcli" || -f "$HOME/.gcalcli_oauth" ]]; then
-        calendar=$(timeout 60 gcalcli --nocolor agenda "$(date +%F)" "$(date -d tomorrow +%F)" 2>/dev/null || echo "fetch failed")
-      fi
+      calendar=$(claudeos_gcal_agenda "$(date +%F)" "$(date -d tomorrow +%F)")
+      [[ "$calendar" == "not connected" ]] \
+        && calendar="not connected — run: gcalcli init (OAuth client in sops as jasper_google_client_id/secret)"
 
       diary=""
       [[ -s "$DIARY_ACTIONABLE_FILE" ]] && diary=$(cat "$DIARY_ACTIONABLE_FILE")
@@ -666,9 +670,21 @@ let
       CONTEXT SNAPSHOT:
       $snapshot"
 
+        # Keep ONLY the dashboard itself. The sed drops the tags a stray
+        # generation might wrap around it; the awk then anchors on the known
+        # root, dropping any preamble before it (a learning-style "★ Insight"
+        # block, a "Here is your dashboard:", stray markdown) and any
+        # commentary after it closes. Blacklisting bad tags let leading prose
+        # through and break the layout — anchoring on the real structure is
+        # what actually enforces "a bad generation degrades prose, never design".
         fragment=$(claude_headless sonnet "$prompt" \
           | sed -e 's/^```html$//' -e 's/^```$//' \
-                -e '/<!DOCTYPE/Id' -e '/<\/\?html/Id' -e '/<\/\?body/Id')
+                -e '/<!DOCTYPE/Id' -e '/<\/\?html/Id' -e '/<\/\?body/Id' \
+          | awk '
+              /<div class="dashboard"/ { started = 1 }
+              started { buf[++n] = $0; if ($0 ~ /<\/div>/) last = n }
+              END { for (i = 1; i <= last; i++) print buf[i] }
+            ')
       fi
 
       # A fragment must at minimum carry the hero; otherwise fall back.
@@ -692,11 +708,58 @@ let
     '';
   };
 
-  showScript = pkgs.writeShellScript "claudeos-morning-desk-show" ''
+  # The one way the desk opens — used by the show service below AND the fish
+  # `today` function. Chrome app window; under Hyprland the windowrule
+  # (home/hyprland.nix) floats/sizes/dims it like the SUPER+H cheat sheet, but
+  # the initial POSITION races Chrome's first configure (and `center`/
+  # `centerwindow` are fooled by Chrome's CSD shadow geometry), so once the
+  # window maps we nudge it to true center. The windowrule sizes it as a % of
+  # the monitor, so we read the mapped size back rather than assuming fixed
+  # pixels. No-ops gracefully outside Hyprland (GNOME just gets a normal window).
+  openScript = pkgs.writeShellScriptBin "claudeos-desk-open" ''
     export PATH="${
       pkgs.lib.makeBinPath [
         pkgs.coreutils
         pkgs.google-chrome
+        pkgs.jq
+      ]
+    }:$PATH"
+    DESK="$HOME/Desk/today/index.html"
+    [[ -f "$DESK" ]] || {
+      echo "no dashboard at $DESK (build with: systemctl --user start claudeos-morning-desk)" >&2
+      exit 1
+    }
+    google-chrome-stable --app="file://$DESK" >/dev/null 2>&1 &
+    chrome=$!
+    if hyprctl monitors -j >/dev/null 2>&1; then
+      addr=""
+      for _ in $(seq 40); do
+        addr=$(hyprctl clients -j 2>/dev/null | jq -r '[.[] | select(.class | test("Desk_today_index"))][0].address // empty')
+        [[ -n "$addr" ]] && break
+        sleep 0.25
+      done
+      if [[ -n "$addr" ]]; then
+        # Logical (scale-corrected) monitor size — window coords are logical.
+        read -r mw mh < <(hyprctl monitors -j 2>/dev/null \
+          | jq -r '[.[] | select(.focused)][0] | "\(.width / .scale | floor) \(.height / .scale | floor)"')
+        # Actual mapped size — the windowrule sizes as a % of the monitor, so
+        # center from what Chrome actually became, not a fixed pixel guess.
+        read -r ww wh < <(hyprctl clients -j 2>/dev/null \
+          | jq -r --arg a "$addr" '[.[] | select(.address == $a)][0] | "\(.size[0]) \(.size[1])"')
+        if [[ -n "$mw" && "$mw" != "null" && -n "$ww" && "$ww" != "null" ]]; then
+          x=$(((mw - ww) / 2)); ((x < 0)) && x=0
+          y=$(((mh - wh) / 2)); ((y < 0)) && y=0
+          hyprctl dispatch movewindowpixel "exact $x $y,address:$addr" >/dev/null 2>&1 || true
+        fi
+      fi
+    fi
+    wait "$chrome"
+  '';
+
+  showScript = pkgs.writeShellScript "claudeos-morning-desk-show" ''
+    export PATH="${
+      pkgs.lib.makeBinPath [
+        pkgs.coreutils
         pkgs.systemd # loginctl
       ]
     }:$PATH"
@@ -730,7 +793,7 @@ let
     # Atomic claim: the login trigger and the daily timer can both reach here.
     # noclobber makes exactly one of them win; the loser exits quietly.
     (set -o noclobber; : > "$STAMP") 2>/dev/null || exit 0
-    exec google-chrome-stable --app="file://$DESK"
+    exec ${openScript}/bin/claudeos-desk-open
   '';
 in
 {
@@ -755,6 +818,9 @@ in
   };
 
   config = lib.mkIf cfg.enable {
+    # `claudeos-desk-open` on PATH — the fish `today` function calls it.
+    environment.systemPackages = [ openScript ];
+
     systemd.user.services.claudeos-morning-desk = {
       description = "ClaudeOS morning desk dashboard build";
       serviceConfig = {

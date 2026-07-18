@@ -19,18 +19,21 @@ Two age public keys can decrypt `secrets/secrets.yaml`:
 | Key | Purpose |
 |-----|---------|
 | `user` | Tom's personal age key (`~/.config/sops/age/keys.txt`) — used to **edit** secrets |
-| `gti_host` | gti's SSH host key converted to age — used by sops-nix to **decrypt at runtime** |
+| `transporter_host` | transporter's SSH host key converted to age — used by sops-nix to **decrypt at runtime** |
+| `gti_host` | gti's SSH host key converted to age — added 2026-07-17 during the Ubuntu → ClaudeOS install |
+
+> **Resolved (2026-07-17):** gti's host key is now a `gti_host` recipient in
+> `.sops.yaml` (added during gti's fresh install). Both hosts decrypt secrets
+> from their own SSH host key at activation. The derive-and-`updatekeys` recipe
+> above is the general procedure for any future host.
 
 ### Declared secrets
 
-`modules/common/secrets.nix` declares seven secrets, all owned by the user with mode `0400`. Six are consumed by the Jasper daemon (`modules/apps/jasper.nix`):
+`modules/common/secrets.nix` declares seven secrets, all owned by the user with mode `0400`. Five are Jasper's personal-world credentials (`jasper_anthropic_api_key` was retired with the daemon — removed from both the declaration and the yaml on 2026-07-11; the lane rides the Claude subscription):
 
-- `jasper_anthropic_api_key`
-- `jasper_google_client_id`
-- `jasper_google_client_secret`
-- `jasper_google_weather_api_key`
-- `jasper_google_routes_api_key`
-- `jasper_home_address`
+- `jasper_google_client_id` / `jasper_google_client_secret` — the Google OAuth app for the one-time `gcalcli init` (calendar); also reused by `morning-desk.nix`
+- `jasper_google_weather_api_key` — reserved (the lane currently uses keyless wttr.in)
+- `jasper_google_routes_api_key` / `jasper_home_address` — reserved for the future Routes travel-time enhancement (see `modules/apps/jasper.nix`)
 
 plus `unifi_api_key` (fish exports `UNIFI_API_KEY` from its path for the UniFi MCP server).
 
@@ -127,4 +130,4 @@ rebuild                            # redeploys /run/secrets/*
 ---
 
 *Last updated: 2026-06-11*
-*Status: sops-nix decrypts via the gti host SSH key; 6 jasper_* secrets declared*
+*Status: sops-nix decrypts via each host's own SSH host key (transporter + gti both recipients as of 2026-07-17); jasper_* + unifi + github_automation secrets declared*
