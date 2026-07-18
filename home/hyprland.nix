@@ -397,6 +397,11 @@ in
         "$mod SHIFT, S, movetoworkspace, special:magic"
 
         "$mod SHIFT, M, exit," # graceful exit back to GDM
+
+        # Plain screenshot — grim only, no Claude hand-off (contrast with
+        # Super+Shift+A / Super+Ctrl+A in lib/keybindings.nix, which analyze
+        # the capture). Whole screen straight to a file; no region picker.
+        ",Print, exec, grim \"$HOME/Pictures/Screenshot_$(date +%Y%m%d-%H%M%S).png\" && notify-send 'Screenshot saved' \"$HOME/Pictures\""
       ]
       ++ (lib.concatMap (n: [
         "$mod, ${toString n}, workspace, ${toString n}"
