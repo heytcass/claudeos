@@ -79,6 +79,7 @@ let
       touch "$COOLDOWN_FILE"
 
       # Tell the bar's island what we're up to for the duration of the run.
+      CLAUDEOS_LANE=self-heal
       claudeos_agent_begin "healing ''${UNIT%.service}"
 
       journal=$(journalctl --user -u "$UNIT" -n 200 --no-pager 2>/dev/null)
@@ -113,9 +114,17 @@ let
         claudeos_notify --urgency=critical \
           "Self-Heal" "$UNIT failed; heal agent produced no result. Check journalctl --user -u claude-heal@*."
       elif [[ "$text" == SKIP:* ]]; then
+        claudeos_agent_done "$UNIT: transient, no fix"
         claudeos_notify \
           "Self-Heal: $UNIT" "Failure judged transient — no fix attempted. ''${text#SKIP:}"
       else
+        # The heal agent's final output is the PR URL — carry it as the artifact
+        # link when it looks like one, else just the result text.
+        if [[ "$text" == http* ]]; then
+          claudeos_agent_done "proposed fix for $UNIT" "$text"
+        else
+          claudeos_agent_done "proposed fix for $UNIT"
+        fi
         claudeos_notify --urgency=critical \
           "Self-Heal: $UNIT" "Fix proposed: $text"
       fi

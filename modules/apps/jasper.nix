@@ -43,6 +43,7 @@ let
       pkgs.gcalcli
     ];
     text = ''
+      CLAUDEOS_LANE=jasper
       INSIGHT_FILE="$MONITOR_CACHE_DIR/jasper-insight.txt"
       META_FILE="$MONITOR_CACHE_DIR/jasper-insight.json"
       HASH_FILE="$MONITOR_CACHE_DIR/jasper-context.hash"
@@ -159,6 +160,10 @@ let
           "$(jq -Rn --arg s "$phase" '$s')" \
           "$(date +%s)" > "$META_FILE"
         printf '%s' "$context_hash" > "$HASH_FILE"
+        # A fresh musing is finished lane work — the insight itself is the
+        # artifact (it also rides the bar's emoji + calendar popup). No url:
+        # the ledger row is a non-clickable memory of what Jasper noticed.
+        claudeos_agent_done "$insight"
       fi
     '';
   };

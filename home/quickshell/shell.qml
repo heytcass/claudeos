@@ -13,8 +13,12 @@ ShellRoot {
     // Force the Notifications singleton to instantiate at startup so the
     // NotificationServer claims org.freedesktop.Notifications immediately,
     // rather than lazily when a popup first reads it (which would drop any
-    // notifications fired before then).
-    Component.onCompleted: Notifications.list
+    // notifications fired before then). Touch Presence too so its polls start
+    // now rather than when the panel is first opened.
+    Component.onCompleted: {
+        Notifications.list;
+        Presence.live;
+    }
 
     // One bar per monitor.
     Variants {
@@ -30,4 +34,9 @@ ShellRoot {
 
     // SUPER+W wish prompt — a sentence in, a wish/* PR out (its own overlay).
     WishOverlay {}
+
+    // The second-operator surface — working / waiting / recently finished.
+    // Opened from the island (agent mode) or the proposals glyph via
+    // Presence.panelOpen; its own overlay window.
+    PresencePanel {}
 }

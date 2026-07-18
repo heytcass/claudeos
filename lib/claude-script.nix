@@ -53,16 +53,59 @@ let
     # agents coexist; the EXIT trap clears it however the script ends, and the
     # bar ignores files older than 60 min as a stuck-marker backstop.
     CLAUDEOS_AGENT_DIR="''${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/claudeos-agent.d"
+
+    # JSON-encode one string as a bare JSON value (used for the presence
+    # sidecar and ledger below). jq is always in baseInputs.
+    _claudeos_json() { jq -Rn --arg s "$1" '$s'; }
+
+    # The lane's short name for presence surfaces. A lane may set CLAUDEOS_LANE
+    # ("wish", "self-heal", …); unset, we fall back to the script's basename
+    # with the leading /nix/store hash stripped (writeShellScript names the file
+    # <hash>-<name>), so a lane that forgets still reads sensibly.
+    _claudeos_lane() {
+      if [[ -n "''${CLAUDEOS_LANE:-}" ]]; then
+        printf '%s' "$CLAUDEOS_LANE"
+      else
+        printf '%s' "''${0##*/}" | sed -E 's/^[a-z0-9]{32}-//'
+      fi
+    }
+
     claudeos_agent_begin() {
       mkdir -p "$CLAUDEOS_AGENT_DIR"
       printf '%s\n' "$1" > "$CLAUDEOS_AGENT_DIR/$$"
+      # Structured sidecar for the Presence surface (home/quickshell/Presence.qml):
+      # lane name + the same phrase (line 1) + start epoch. This is purely
+      # additive — the plain <pid> file above stays byte-identical, so Agent.qml
+      # keeps working unmodified as the always-present fallback.
+      printf '{"lane":%s,"phrase":%s,"started":%s}\n' \
+        "$(_claudeos_json "$(_claudeos_lane)")" \
+        "$(_claudeos_json "$1")" \
+        "$(date +%s)" > "$CLAUDEOS_AGENT_DIR/$$.json"
       # Call-scoped pulses (and Claude Code hooks) inherit the script's
       # phrase — without this a claude_* call would overwrite "healing …"
       # with a newer generic "working" marker for its duration.
       export CLAUDEOS_AGENT_ACTIVITY="$1"
       trap claudeos_agent_end EXIT
     }
-    claudeos_agent_end() { rm -f "$CLAUDEOS_AGENT_DIR/$$"; }
+    claudeos_agent_end() { rm -f "$CLAUDEOS_AGENT_DIR/$$" "$CLAUDEOS_AGENT_DIR/$$.json"; }
+
+    # claudeos_agent_done RESULT [URL] — record one line of finished lane work
+    # in the presence ledger (PresencePanel's "recently finished" section).
+    # Append-then-tail-rewrite keeps the last 20 lines; the atomic mv means a
+    # concurrent reader never sees a half-truncated file. Call this just before
+    # the script exits (while the live marker is still up); the EXIT trap clears
+    # the live marker immediately after. URL is optional — an empty url renders
+    # as a non-clickable row.
+    claudeos_agent_done() {
+      local result="$1" url="''${2:-}" ledger="$MONITOR_CACHE_DIR/presence-done.jsonl"
+      mkdir -p "$MONITOR_CACHE_DIR"
+      printf '{"lane":%s,"result":%s,"url":%s,"ts":%s}\n' \
+        "$(_claudeos_json "$(_claudeos_lane)")" \
+        "$(_claudeos_json "$result")" \
+        "$(_claudeos_json "$url")" \
+        "$(date +%s)" >> "$ledger"
+      tail -n 20 "$ledger" > "$ledger.tmp" 2>/dev/null && mv "$ledger.tmp" "$ledger"
+    }
 
     # Call-scoped pulse, written by the claude_* helpers below: the island
     # breathes for exactly the duration of each CLI call, with no per-script

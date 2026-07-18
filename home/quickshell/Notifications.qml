@@ -35,11 +35,13 @@ Singleton {
         keepOnReload: false
 
         onNotification: notif => {
-            // The center island peeks EVERY notification (Island.qml listens to
-            // `posted`), so the corner toast is reserved for ones you might need
-            // to act on or that must persist: those with action buttons or
-            // Critical urgency. Simple notifications peek-and-vanish on the island
-            // only. `tracked` controls whether a toast is kept alive at all.
+            // Each notification renders in EXACTLY ONE live surface (plus the
+            // history center, always). Actionable ones — action buttons or
+            // Critical urgency — own the corner toast, kept alive via `tracked`.
+            // Everything else is ambient: it peeks-and-vanishes on the island
+            // via `posted`. The two are mutually exclusive, so nothing renders
+            // twice (WO-0 of the notification-routing plan; the full router
+            // that fans `posted` into more destinations lands in Phase 1b).
             const actionable = notif.actions.length > 0 || notif.urgency === NotificationUrgency.Critical;
             notif.tracked = actionable;
 
@@ -53,7 +55,10 @@ Singleton {
             while (historyModel.count > 100)
                 historyModel.remove(historyModel.count - 1);
 
-            root.posted(notif.summary, notif.body, notif.appName, notif.urgency);
+            // Ambient only: an actionable notification already owns the corner,
+            // so it must not also peek the island.
+            if (!actionable)
+                root.posted(notif.summary, notif.body, notif.appName, notif.urgency);
         }
     }
 }

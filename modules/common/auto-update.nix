@@ -40,6 +40,8 @@ let
 
       cd "$CLAUDEOS_DIR" || exit 1
 
+      CLAUDEOS_LANE=auto-update
+
       # Durable run breadcrumbs — a dead updater must be visible days later
       # (morning brief + health check read these), not just in a vanished
       # notification. last-update is only stamped on a fully successful run.
@@ -155,6 +157,7 @@ let
         fi
 
         date -Iseconds > "$STATE_DIR/last-update"
+        claudeos_agent_done "flake updated: $changelog"
         claudeos_notify "Flake Updated" "$changelog"
 
         ${lib.optionalString cfg.autoApply ''

@@ -569,6 +569,7 @@ let
       mkdir -p "$DESK_DIR" "$ARCHIVE_DIR"
 
       # Tell the bar's island what we're up to for the duration of the build.
+      CLAUDEOS_LANE=morning-desk
       claudeos_agent_begin "preparing the morning desk"
 
       # Archive a previous day's dashboard before overwriting
@@ -705,6 +706,11 @@ let
         printf '%s\n' "$fragment"
         cat ${tailHtml}
       } > "$DESK_DIR/index.html"
+
+      # The desk is the artifact — link it so the PresencePanel "recently
+      # finished" row opens it (claudeos-desk-open handles the Chrome app window;
+      # xdg-open falls back to the file for the panel's generic opener).
+      claudeos_agent_done "morning desk ready" "file://$DESK_DIR/index.html"
     '';
   };
 
