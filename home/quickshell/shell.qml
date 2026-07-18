@@ -18,6 +18,7 @@ ShellRoot {
     Component.onCompleted: {
         Notifications.list;
         Presence.live;
+        Cards.count;
     }
 
     // One bar per monitor.
@@ -43,4 +44,9 @@ ShellRoot {
     // Opened from the island (agent mode) or the proposals glyph via
     // Presence.panelOpen; its own overlay window.
     PresencePanel {}
+
+    // Generated surfaces (cards) — the long tail of single-use UI, rendered
+    // deterministically from schema-validated data. Opened from the CardsWidget
+    // bar glyph / the island via Cards.surfaceOpen; its own overlay window.
+    CardSurface {}
 }

@@ -37,6 +37,12 @@ let
   # rest of the system themes from (lib/theme.nix), so the bar matches.
   themeLib = import ../lib/theme.nix;
 
+  # Card action registry (lib/card-actions.nix — same single source the card
+  # writer validates against) → CardActions.qml, the closed name→argv map
+  # CardRenderer.qml execDetaches. A card `run` can only ever name a key here.
+  cardActions = import ../lib/card-actions.nix;
+  cardActionCommands = builtins.toJSON (lib.mapAttrs (_n: v: v.command) cardActions);
+
   # Reuse THE keybinding source of truth — lib/keybindings.nix drives the GNOME
   # dconf binds AND the claudeos help screen, so converting it here keeps
   # Hyprland in sync by construction rather than duplicating the list.
@@ -153,6 +159,22 @@ let
 
     Singleton {
       readonly property var claude: ${cheatEntries}
+    }
+    EOF
+
+    # CardActions.qml — the closed name→argv registry for card `run` actions,
+    # generated from lib/card-actions.nix (the same source the card writer
+    # validates against). CardRenderer.qml looks up commands[name]; a card can
+    # never introduce a command that isn't declared here. Edit the .nix.
+    cat > "$out/CardActions.qml" <<'EOF'
+    pragma Singleton
+    import Quickshell
+    import QtQuick
+
+    Singleton {
+      // Parens: a var binding that starts with `{` is otherwise parsed as a JS
+      // block, not an object literal (same reason Routes.qml wraps its map).
+      readonly property var commands: (${cardActionCommands})
     }
     EOF
 
