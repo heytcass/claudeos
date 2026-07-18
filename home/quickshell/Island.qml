@@ -394,6 +394,10 @@ Rectangle {
     }
 
     // ---- notification peek face ----
+    // A glanceable one-liner — pulsing urgency dot · bold title · muted body —
+    // on a single baseline, so it sits centred in the pill like the clock and
+    // agent faces instead of squeezing two lines into a single-line-tall island.
+    // The full text lives in the notification centre; the peek is just the tell.
     Row {
         id: notifContent
         anchors.centerIn: parent
@@ -409,9 +413,9 @@ Rectangle {
         // pulsing dot marks it as a live alert, coloured by urgency
         Rectangle {
             anchors.verticalCenter: parent.verticalCenter
-            width: 8
-            height: 8
-            radius: 4
+            width: 7
+            height: 7
+            radius: 3.5
             color: root.peekColor
             SequentialAnimation on opacity {
                 running: root.state === "notif"
@@ -428,27 +432,25 @@ Rectangle {
                 }
             }
         }
-        Column {
+        Text {
             anchors.verticalCenter: parent.verticalCenter
-            spacing: 0
-            Text {
-                text: root.peekTitle
-                color: Theme.text
-                font.family: Theme.fontSans
-                font.pixelSize: Theme.fontSize
-                font.bold: true
-                width: Math.min(implicitWidth, 320)
-                elide: Text.ElideRight
-            }
-            Text {
-                text: root.peekBody
-                color: Theme.subtext
-                font.family: Theme.fontSans
-                font.pixelSize: Theme.fontSize - 2
-                width: Math.min(implicitWidth, 320)
-                elide: Text.ElideRight
-                visible: text.length > 0
-            }
+            text: root.peekTitle
+            color: Theme.text
+            font.family: Theme.fontSans
+            font.pixelSize: Theme.fontSize
+            font.bold: true
+            elide: Text.ElideRight
+            width: Math.min(implicitWidth, 220)
+        }
+        Text {
+            anchors.verticalCenter: parent.verticalCenter
+            visible: text.length > 0
+            text: root.peekBody
+            color: Theme.subtext
+            font.family: Theme.fontSans
+            font.pixelSize: Theme.fontSize - 1
+            elide: Text.ElideRight
+            width: Math.min(implicitWidth, 300)
         }
     }
 
