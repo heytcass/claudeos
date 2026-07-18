@@ -271,7 +271,11 @@ in
 
       # Hardware the VM does not have: disko's fileSystems point at real
       # partitions (the qemu-vm module supplies its own), snapper and scrub
-      # need real btrfs, scx/thermald/fwupd need real hardware.
+      # need real btrfs, scx/thermald/fwupd need real hardware. throttled
+      # (Intel CPU throttling fix, pulled in transitively by gti's
+      # nixos-hardware dell-xps-13-9370 profile) reads real Intel MSRs and
+      # crashes under QEMU — caught the auto-update VM gate red (throttled.service
+      # in the failed-units list) on 2026-07-18.
       disko.enableConfig = lib.mkVMOverride false;
       services.snapper.configs = lib.mkVMOverride { };
       system.activationScripts.snapperSubvolumes.text = lib.mkVMOverride "";
@@ -279,6 +283,7 @@ in
       services.scx.enable = lib.mkVMOverride false;
       services.thermald.enable = lib.mkVMOverride false;
       services.fwupd.enable = lib.mkVMOverride false;
+      services.throttled.enable = lib.mkVMOverride false;
       boot.plymouth.enable = lib.mkVMOverride false;
 
       systemd.services.claudeos-vm-smoke = {
