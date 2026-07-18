@@ -242,18 +242,21 @@ in
       # they clamp their surface to the physical resolution and paint only 80%
       # of a tile — so externals run native 1.0 (2026-07-18). The Dells are
       # keyed by desc/serial — DP-* port numbers shuffle between dock plug-ins,
-      # serials don't. Physical alignment: left Dell's bottom lands at the
-      # laptop's vertical midpoint; the portrait Dell is raised so top-of-laptop
-      # cursor crossings land level (density mismatch: the same logical span
-      # covers ~9.4" of the portrait Dell vs 6.5" of laptop edge, so only one
-      # crossing height can be physically true — we picked where Tom crosses).
+      # serials don't. Physical alignment: left Dell's bottom sits at the
+      # laptop's vertical midpoint on the desk; the laptop's logical offset is
+      # then biased 150px down so the density mismatch (92 px/in on the Dell vs
+      # 165 on the 13" panel) splits its crossing error across the shared edge
+      # instead of piling up at the top. The portrait Dell is offset so
+      # top-of-laptop cursor crossings land level (same mismatch story: only
+      # one crossing height can be physically true — we picked where Tom
+      # crosses).
       # Undocked, eDP-1's fixed offset is harmless (sole monitor, origin moot).
       monitor =
         if osConfig.networking.hostName == "gti" then
           [
-            "eDP-1, 1920x1080@60, 1920x1320, 1"
+            "eDP-1, 1920x1080@60, 1920x1470, 1"
             "desc:Dell Inc. DELL P2419H FXP0RB3, 1920x1080@60, 0x780, 1.0"
-            "desc:Dell Inc. DELL P2419H 9HYLVF3, 1920x1080@60, 3840x103, 1.0, transform, 3"
+            "desc:Dell Inc. DELL P2419H 9HYLVF3, 1920x1080@60, 3840x253, 1.0, transform, 3"
             # Anything else (projectors, other docks): sane default, no 1.5 auto.
             ", preferred, auto, 1"
           ]
