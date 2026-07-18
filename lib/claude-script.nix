@@ -45,7 +45,18 @@ let
     # Diagnostic tool set for interactive "open in Claude" handoffs
     CLAUDEOS_DIAG_TOOLS='Bash,Read,Grep,Glob,mcp__system-health__*'
 
-    claudeos_notify() { notify-send --app-name=ClaudeOS "$@"; }
+    # Tag lane notifications with x-claudeos-lane so the shell's router (Phase
+    # 1b, home/quickshell/Notifications.qml) can route by lane if a rule wants
+    # to; harmless metadata otherwise. Only genuine lanes (CLAUDEOS_LANE set)
+    # are tagged. _claudeos_lane is defined below in the preamble — resolved at
+    # call time, so definition order doesn't matter.
+    claudeos_notify() {
+      if [[ -n "''${CLAUDEOS_LANE:-}" ]]; then
+        notify-send --app-name=ClaudeOS -h "string:x-claudeos-lane:$(_claudeos_lane)" "$@"
+      else
+        notify-send --app-name=ClaudeOS "$@"
+      fi
+    }
 
     # Agent presence: the bar's island shows what the machine is doing to
     # itself (Agent.qml reads the newest fresh file in this dir and displays
@@ -133,7 +144,11 @@ let
     # Prints the chosen action id, or nothing once the wait expires. Never
     # fails: a notification nobody answered is not an error.
     claudeos_notify_action() {
-      timeout "$CLAUDEOS_NOTIFY_WAIT" notify-send --app-name=ClaudeOS "$@" || true
+      if [[ -n "''${CLAUDEOS_LANE:-}" ]]; then
+        timeout "$CLAUDEOS_NOTIFY_WAIT" notify-send --app-name=ClaudeOS -h "string:x-claudeos-lane:$(_claudeos_lane)" "$@" || true
+      else
+        timeout "$CLAUDEOS_NOTIFY_WAIT" notify-send --app-name=ClaudeOS "$@" || true
+      fi
     }
 
     # Headless GitHub credential: with lingering, agent scripts can run with
