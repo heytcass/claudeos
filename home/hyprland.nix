@@ -236,11 +236,14 @@ in
       # want native 1:1 (100%) on the built-in panel instead.
       #
       # gti's desk dock (dialed in live 2026-07-17, all values validated via
-      # `hyprctl keyword`): Dell | laptop | Dell-portrait, externals at 0.8 to
-      # shrink their UI toward the 13" panel's density. The Dells are keyed by
-      # desc/serial — DP-* port numbers shuffle between dock plug-ins, serials
-      # don't. Physical alignment: left Dell's bottom lands at the laptop's
-      # vertical midpoint; the portrait Dell is raised 201px so top-of-laptop
+      # `hyprctl keyword`): Dell | laptop | Dell-portrait. Externals were
+      # briefly at 0.8 to shrink their UI toward the 13" panel's density, but
+      # scale < 1.0 breaks Chromium/Electron apps (Claude Desktop, VS Code):
+      # they clamp their surface to the physical resolution and paint only 80%
+      # of a tile — so externals run native 1.0 (2026-07-18). The Dells are
+      # keyed by desc/serial — DP-* port numbers shuffle between dock plug-ins,
+      # serials don't. Physical alignment: left Dell's bottom lands at the
+      # laptop's vertical midpoint; the portrait Dell is raised so top-of-laptop
       # cursor crossings land level (density mismatch: the same logical span
       # covers ~9.4" of the portrait Dell vs 6.5" of laptop edge, so only one
       # crossing height can be physically true — we picked where Tom crosses).
@@ -248,9 +251,9 @@ in
       monitor =
         if osConfig.networking.hostName == "gti" then
           [
-            "eDP-1, 1920x1080@60, 2400x1320, 1"
-            "desc:Dell Inc. DELL P2419H FXP0RB3, 1920x1080@60, 0x510, 0.8"
-            "desc:Dell Inc. DELL P2419H 9HYLVF3, 1920x1080@60, 4320x-201, 0.8, transform, 3"
+            "eDP-1, 1920x1080@60, 1920x1320, 1"
+            "desc:Dell Inc. DELL P2419H FXP0RB3, 1920x1080@60, 0x780, 1.0"
+            "desc:Dell Inc. DELL P2419H 9HYLVF3, 1920x1080@60, 3840x103, 1.0, transform, 3"
             # Anything else (projectors, other docks): sane default, no 1.5 auto.
             ", preferred, auto, 1"
           ]
