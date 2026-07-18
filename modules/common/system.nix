@@ -152,12 +152,18 @@ in
       '';
     })
 
-    # Claude-powered desktop search (bound to Super+A)
+    # Claude-powered desktop search (bound to Super+A). Takes an optional query
+    # as arguments: the intent line's ask route (home/quickshell/IntentLine.qml)
+    # passes the sentence straight through, so it isn't re-prompted; with no
+    # arguments (Super+A) it opens its own zenity entry, unchanged.
     (claudeLib.mkClaudeScriptBin {
       name = "claude-ask-desktop";
       runtimeInputs = [ pkgs.zenity ];
       text = ''
-        query=$(zenity --entry --title "Ask Claude" --text "Ask Claude ❯" 2>/dev/null)
+        query="$*"
+        if [[ -z "$query" ]]; then
+          query=$(zenity --entry --title "Ask Claude" --text "Ask Claude ❯" 2>/dev/null)
+        fi
         [[ -z "$query" ]] && exit 0
         response=$(claude_text haiku "$query")
         [[ -n "$response" ]] && claudeos_notify "Claude" "$response"
