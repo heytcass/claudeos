@@ -12,6 +12,14 @@
 { pkgs, lib }:
 
 let
+  # Card infrastructure (Phase 4). The action registry (lib/card-actions.nix) is
+  # the closed set of commands a card `run` action may name — claudeos_card below
+  # rejects any `run` name outside it. The schema file is the repo-tracked card
+  # contract check-jsonschema enforces. Both are referenced in the preamble.
+  cardActions = import ./card-actions.nix;
+  cardNames = lib.concatStringsSep " " (lib.attrNames cardActions);
+  cardSchema = ../home/quickshell/cards/card.schema.json;
+
   # Tools every agent script gets for free — all tiny and already in the
   # system closure. Task-specific extras go in runtimeInputs.
   baseInputs = with pkgs; [
@@ -295,6 +303,51 @@ let
       [[ $dirty -gt 0 ]] && out="$out, $dirty uncommitted changes"
       [[ $unpushed -gt 0 ]] && out="$out, $unpushed unpushed commits"
       echo "$out"
+    }
+
+    # ---- Generated surfaces (cards) — Phase 4 -------------------------------
+    # Cards are ephemeral, schema-validated DATA surfaces rendered
+    # deterministically by CardSurface.qml. They live in $XDG_RUNTIME_DIR
+    # (tmpfs) so they die on reboot for free, and the bar only ever renders a
+    # card that PASSED validation — an invalid card degrades to a plain
+    # notification carrying the reason (the lane hears about its own malformed
+    # output; the bar never renders junk).
+    CLAUDEOS_CARDS_DIR="''${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/claudeos-cards.d"
+    CLAUDEOS_CARD_SCHEMA="${cardSchema}"
+    # Space-padded list of valid `run` action names (lib/card-actions.nix).
+    _CLAUDEOS_CARD_RUNS=" ${cardNames} "
+
+    # claudeos_card FILE [ID] — validate a card against the schema + the closed
+    # action registry, then atomically install it as <ID>.json (default ID: the
+    # lane name, so re-emitting a card REPLACES rather than stacks). Cards.qml
+    # polls this dir for the card files directly (like Presence polls agent.d);
+    # there is no index file. On ANY failure the card is not installed; a
+    # notification carries the reason.
+    claudeos_card() {
+      local src="$1" id="''${2:-$(_claudeos_lane)}" err bad safe dir="$CLAUDEOS_CARDS_DIR"
+      [[ -f "$src" ]] || { claudeos_notify "Card error" "no such card file: $src"; return 1; }
+      if ! command -v check-jsonschema >/dev/null 2>&1; then
+        claudeos_notify "Card error" "check-jsonschema not on PATH — add pkgs.check-jsonschema to this lane's runtimeInputs"
+        return 1
+      fi
+      # 1. structural validation against the repo-tracked schema
+      if ! err=$(check-jsonschema --schemafile "$CLAUDEOS_CARD_SCHEMA" "$src" 2>&1); then
+        claudeos_notify "Card rejected" "schema: $(printf '%s' "$err" | tr '\n' ' ' | tail -c 260)"
+        return 1
+      fi
+      # 2. every `run` action name must be in the closed registry
+      bad=$(jq -r --arg reg "$_CLAUDEOS_CARD_RUNS" '
+        [ .sections[]? | select(.type=="actions") | .actions[]? | select(.type=="run") | .name ]
+        | map(select(. as $n | ($reg | index(" " + $n + " ")) == null)) | .[0] // empty' "$src" 2>/dev/null)
+      if [[ -n "$bad" ]]; then
+        claudeos_notify "Card rejected" "action run '$bad' is not in the card action registry"
+        return 1
+      fi
+      # 3. atomic install under the stable id, then refresh the watched index
+      safe=$(printf '%s' "$id" | tr -c 'a-zA-Z0-9._-' '-' | tr -s '-' | sed 's/^-//; s/-$//')
+      [[ -z "$safe" ]] && safe=card
+      mkdir -p "$dir"
+      jq -c '.' "$src" > "$dir/$safe.json.tmp" 2>/dev/null && mv "$dir/$safe.json.tmp" "$dir/$safe.json"
     }
   '';
 

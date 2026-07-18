@@ -1,0 +1,165 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://claudeos/card.schema.json",
+  "title": "ClaudeOS card",
+  "description": "A generated, single-use surface rendered deterministically by CardRenderer.qml. The model (or a lane) emits DATA on this contract; the bar never evaluates it. Written by claudeos_card (lib/claude-script.nix), which validates against this file and installs into $XDG_RUNTIME_DIR/claudeos-cards.d/. An invalid card degrades to a plain notification — the bar never renders junk.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["title", "sections"],
+  "properties": {
+    "title": { "type": "string", "minLength": 1, "maxLength": 120 },
+    "icon": { "type": "string", "maxLength": 8, "description": "One emoji or Nerd Font glyph." },
+    "urgency": { "enum": ["low", "normal", "critical"], "description": "Tints the accent and feeds the 1b arbitration rules." },
+    "sections": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 12,
+      "items": { "$ref": "#/$defs/section" }
+    }
+  },
+  "$defs": {
+    "section": {
+      "type": "object",
+      "required": ["type"],
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "required": ["type", "text"],
+          "properties": {
+            "type": { "const": "text" },
+            "text": { "type": "string", "maxLength": 2000 }
+          }
+        },
+        {
+          "additionalProperties": false,
+          "required": ["type", "rows"],
+          "properties": {
+            "type": { "const": "kv" },
+            "rows": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 24,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["label", "value"],
+                "properties": {
+                  "label": { "type": "string", "maxLength": 80 },
+                  "value": { "type": "string", "maxLength": 400 }
+                }
+              }
+            }
+          }
+        },
+        {
+          "additionalProperties": false,
+          "required": ["type", "columns", "rows"],
+          "properties": {
+            "type": { "const": "table" },
+            "columns": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 6,
+              "items": { "type": "string", "maxLength": 40 }
+            },
+            "rows": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 30,
+              "items": {
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 6,
+                "items": { "type": "string", "maxLength": 200 }
+              }
+            }
+          }
+        },
+        {
+          "additionalProperties": false,
+          "required": ["type", "links"],
+          "properties": {
+            "type": { "const": "links" },
+            "links": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 12,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["label", "url"],
+                "properties": {
+                  "label": { "type": "string", "maxLength": 100 },
+                  "url": { "type": "string", "maxLength": 2000 }
+                }
+              }
+            }
+          }
+        },
+        {
+          "additionalProperties": false,
+          "required": ["type", "value"],
+          "properties": {
+            "type": { "const": "progress" },
+            "label": { "type": "string", "maxLength": 100 },
+            "value": { "type": "number", "minimum": 0, "maximum": 1 }
+          }
+        },
+        {
+          "additionalProperties": false,
+          "required": ["type", "actions"],
+          "properties": {
+            "type": { "const": "actions" },
+            "actions": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 6,
+              "items": { "$ref": "#/$defs/action" }
+            }
+          }
+        }
+      ]
+    },
+    "action": {
+      "type": "object",
+      "required": ["type"],
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "required": ["type", "label", "url"],
+          "properties": {
+            "type": { "const": "open" },
+            "label": { "type": "string", "maxLength": 60 },
+            "url": { "type": "string", "maxLength": 2000 }
+          }
+        },
+        {
+          "additionalProperties": false,
+          "required": ["type", "label", "text"],
+          "properties": {
+            "type": { "const": "copy" },
+            "label": { "type": "string", "maxLength": 60 },
+            "text": { "type": "string", "maxLength": 4000 }
+          }
+        },
+        {
+          "additionalProperties": false,
+          "required": ["type"],
+          "properties": {
+            "type": { "const": "dismiss" },
+            "label": { "type": "string", "maxLength": 60 }
+          }
+        },
+        {
+          "additionalProperties": false,
+          "required": ["type", "label", "name"],
+          "properties": {
+            "type": { "const": "run" },
+            "label": { "type": "string", "maxLength": 60 },
+            "name": { "type": "string", "maxLength": 60, "description": "Must exist in lib/card-actions.nix; enforced by the writer, not this schema (the registry is generated)." }
+          }
+        }
+      ]
+    }
+  }
+}

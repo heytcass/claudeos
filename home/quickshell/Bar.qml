@@ -79,6 +79,10 @@ PanelWindow {
             // (wish/heal/claude branches) are waiting for human review.
             ProposalsWidget {}
 
+            // Generated surfaces — only exists while a card is live; opens the
+            // CardSurface stack. Quiet until the machine has a surface waiting.
+            CardsWidget {}
+
             // Caffeine indicator — exists only while idle-inhibit holds
             // (accent = SUPER+I, muted = agent auto-hold), steam included.
             CaffeineWidget {}
