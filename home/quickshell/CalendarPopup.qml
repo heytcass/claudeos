@@ -20,6 +20,12 @@ PopupWindow {
     grabFocus: true
     color: "transparent"
 
+    // Opening the centre means the user is now looking at notifications, so any
+    // held (quiet) FYIs are already visible in the history list below — drop
+    // them from the queue without a redundant summary peek (Phase 1b).
+    onVisibleChanged: if (visible)
+        Notifications.markQuietSeen()
+
     Rectangle {
         id: card
         anchors.fill: parent
