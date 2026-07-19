@@ -119,6 +119,16 @@ Ledger edits are committed by the normal rebuild auto-commit flow.
 
 - 2026-07-16 · `pcieport 0000:04:02.0/04:01.0/04:00.0/03:00.0: Unable to change power state from unknown/D3hot/D3cold to D0, device inaccessible` (5 occurrences) · PCIe port enumeration transient during power-state management at boot; firmware/BIOS exposes ports without devices behind them or power-transition races with device discovery. Similar to existing intel-lpss and SGX patterns (Dell Latitude/XPS firmware quirks). Device functionality (USB, storage, network) verified unaffected; only escalate if actual PCIe peripherals drop or USB devices fail to reattach.
 
+- 2026-07-19 · `profiles/ranging/rap.c:rap_accept() RAP unable to attach` and `src/service.c:service_accept() rap profile accept failed` (2 occurrences each) · Bluetooth Radio Access Profile (RAP) controller initialization transients during adapter boot; similar to existing BAP/ISO Socket pattern when LE Audio/Rapid pairing features are disabled. Not blocking standard Bluetooth audio. Benign if LE Audio not in use.
+
+- 2026-07-19 · `uvcvideo 3-2.3.3.3:1.1: Failed to set UVC probe control : -32 (exp. 26)` · USB camera device enumeration error; transient likely if no USB camera attached to system. Monitor only if user has camera attachment and reports non-functionality.
+
+- 2026-07-19 · `ucsi_acpi USBC000:00: ucsi_handle_connector_change: GET_CONNECTOR_STATUS failed (-5)` and `ucsi_acpi USBC000:00: ucsi_acpi_dsm: failed to evaluate _DSM 1` · USB-C port controller transient boot errors during connector initialization; similar to existing intel-lpss/PCIe firmware quirks on Dell hardware. USB-C connectivity unaffected if devices enumerate properly; only escalate if user reports USB-C attachment or charging failures.
+
+- 2026-07-19 · `hub 4-2:1.0: hub_ext_port_status failed (err = -71)` · USB hub port status read transient (EPROTO — protocol error); likely recovered by hub firmware or port enumeration race. Monitor only if user reports USB device hotplug failures or peripherals fail to reattach.
+
+- 2026-07-19 · `ACPI Error: Timeout from EC hardware or EC device driver` (cascade: `AE_TIME, Returned by Handler for [EmbeddedControl]`, `Aborting method \_SB.UBTC._DSM`, `\_SB.PCI0.LPCB.ECDV.ECW1`, `\ECWB`) · Embedded Controller timeout transient during boot, likely firmware/BIOS timing race with EC device driver during initialization. Single cascade occurrence suggests transient. Monitor if system instability, power anomalies, or USB-C issues emerge; only escalate if pattern repeats or correlates with functional failures.
+
 ## Resolved
 
 <!-- move entries here when fixed, with the fixing commit/PR -->
