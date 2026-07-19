@@ -34,6 +34,7 @@ let
     runtimeInputs = [
       pkgs.nix
       pkgs.diffutils
+      pkgs.curl
     ];
     text = ''
       HOST=$(hostname) || exit 1
@@ -41,6 +42,17 @@ let
       cd "$CLAUDEOS_DIR" || exit 1
 
       CLAUDEOS_LANE=auto-update
+
+      # Persistent=true on the timer fires a missed weekly run immediately on
+      # next boot, which can race the network coming up — user units can't
+      # order after the system network-online.target, and
+      # NetworkManager-wait-online is disabled repo-wide for faster boot
+      # (modules/common/networking.nix). Same constraint already hit by
+      # claude-code-installer (modules/apps/claude.nix); same bounded-wait fix.
+      for i in $(seq 1 60); do
+        curl -fsIm 5 https://github.com >/dev/null 2>&1 && break
+        sleep 5
+      done
 
       # Durable run breadcrumbs — a dead updater must be visible days later
       # (morning brief + health check read these), not just in a vanished
