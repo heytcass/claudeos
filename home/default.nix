@@ -106,6 +106,12 @@ in
   # Let home-manager manage itself
   programs.home-manager.enable = true;
 
+  # Stylix drives the cursor via home.pointerCursor.* (see
+  # modules/desktop/theme.nix `stylix.cursor`), but never sets `.enable`.
+  # home-manager now warns when pointerCursor is defined without an explicit
+  # enable — make the intent explicit here to silence it.
+  home.pointerCursor.enable = true;
+
   # Hide unwanted apps from launcher. ONLY home-managed packages belong in
   # this list: hides win by hiPrio collision within one profile, and per-user
   # profiles precede the system profile in XDG_DATA_DIRS — a system-level

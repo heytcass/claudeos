@@ -241,7 +241,9 @@ in
     statuslineScript
     agentHookScript
     # mcp-nixos binary for the repo's .mcp.json "nixos" server entry.
-    inputs.mcp-nixos.packages.${pkgs.system}.default
+    # stdenv.hostPlatform.system, not pkgs.system: the latter is a deprecated
+    # alias that warns on every eval.
+    inputs.mcp-nixos.packages.${pkgs.stdenv.hostPlatform.system}.default
   ];
 
   # Seed ~/.claude/settings.json only if it doesn't exist — the live file is
