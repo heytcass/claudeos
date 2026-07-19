@@ -5,17 +5,19 @@
 //   $command   → run it in a terminal
 //   app name   → launch the matching desktop entry (exact / prefix match)
 //   question?  → claude-ask-desktop (the answer returns as a notification)
-//   otherwise  → the wish lane (claude-wish → a reviewed wish/* PR)
+//   otherwise  → the intent router (claudeos-intent, Phase 2b): one haiku call
+//                picks wish (→ a reviewed PR) vs task (→ a reviewable artifact)
 // Tab reroutes to any other route; every route is visible before Enter. Carries
 // the island's agent-glow language (breathing accent, soft halo) and, for the
-// async routes (ask / wish), the genie exit into the island. Esc or click-away
-// dismisses.
+// async routes (ask / otherwise), the genie exit into the island. Esc or
+// click-away dismisses.
 //
 // This is "a better fuzzel, honestly assessed": app/$cmd resolve at launcher
-// speed with no model in the loop. 2b adds the haiku router + a dedicated task
-// lane behind the "otherwise" arm; 2a keeps that arm pointed at the proven wish
-// lane, so the surface earns its keep on day one. fuzzel keeps SUPER+Space and
-// the wish overlay keeps SUPER+W until this earns those binds (daily-driver rule).
+// speed with no model in the loop. The "otherwise" arm is the only one that
+// spends a model call, and only after deterministic classification declined —
+// it hands off to claudeos-intent (haiku router + task lane). fuzzel keeps
+// SUPER+Space and the wish overlay keeps SUPER+W until this earns those binds
+// (daily-driver rule).
 import QtQuick
 import Quickshell
 import Quickshell.Hyprland
@@ -138,7 +140,7 @@ Scope {
         if (r === "ask")
             return Theme.base0C;          // cyan — a question
         if (r === "task")
-            return Theme.accentAlt;       // the wish accent
+            return Theme.accentAlt;       // the wish/task accent
         return Theme.accent;              // app + none
     }
     function routeGlyph(r) {
@@ -147,18 +149,18 @@ Scope {
         if (r === "ask")
             return "?";
         if (r === "task")
-            return "✳";              // ✳ — the house wish asterisk
+            return "✳";              // ✳ — the house asterisk; the machine takes it from here
         return "→";                  // → — app fallback when it has no icon
     }
     function routeLabel(r) {
         if (r === "none")
-            return "an app  ·  a $command  ·  a question?  ·  or a wish";
+            return "an app  ·  a $command  ·  a question?  ·  or a task";
         if (r === "cmd")
             return "run in a terminal";
         if (r === "ask")
             return "ask Claude — the answer returns as a notification";
         if (r === "task")
-            return "make a wish — it arrives as a pull request";
+            return "hand it to Claude — a wish becomes a PR, a task an artifact";
         return "launch " + (appMatch ? appMatch.name : "app");
     }
     function routeVerb(r) {
@@ -167,7 +169,7 @@ Scope {
         if (r === "ask")
             return "ask";
         if (r === "task")
-            return "wish";
+            return "send";
         return "launch";
     }
     // App icon for the leading indicator (existence-checked; "" → fall back to a glyph).
@@ -206,9 +208,12 @@ Scope {
             root.sent = true;
             flight.start();               // the question flies into the island; the answer returns as a notification
         } else {
-            // task → the wish lane. 2b splits wish vs task via a haiku router;
-            // in 2a every unrouted sentence lands in the proven wish lane.
-            Quickshell.execDetached(["claude-wish", t]);
+            // task → the intent router (Phase 2b). A real sentence that matched
+            // no deterministic route hands off to claudeos-intent, which spends
+            // one haiku call to decide wish (→ a PR) vs task (→ an artifact) —
+            // or, if it's really an app/cmd/ask the QML pass missed, dispatches
+            // that. An unroutable intent fails open into an interactive Claude.
+            Quickshell.execDetached(["claudeos-intent", t]);
             root.sent = true;
             flight.start();
         }
@@ -367,7 +372,7 @@ Scope {
 
                     Text {
                         anchors.verticalCenter: parent.verticalCenter
-                        text: root.sent ? (root.route === "ask" ? "asking Claude…" : "wishing…") : "intent"
+                        text: root.sent ? (root.route === "ask" ? "asking Claude…" : "routing…") : "intent"
                         color: Theme.text
                         font.family: Theme.fontSans
                         font.pixelSize: Theme.fontSize + 5
@@ -412,7 +417,7 @@ Scope {
                         Text {
                             anchors.verticalCenter: parent.verticalCenter
                             visible: input.text === ""
-                            text: "app, $command, a question?, or a wish"
+                            text: "app, $command, a question?, or a task"
                             color: Theme.subtext
                             font.family: Theme.fontSans
                             font.pixelSize: Theme.fontSize + 2

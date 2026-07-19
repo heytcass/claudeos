@@ -54,7 +54,7 @@
     binding = "<Super>r";
     global = "quickshell:intent";
     display = "Super+R";
-    help = "Intent line — type an app, a $command, a question?, or a wish; it routes itself";
+    help = "Intent line — type an app, a $command, a question?, a wish, or a task; it routes itself";
     short = "Intent line — one input, routes itself";
   }
   {

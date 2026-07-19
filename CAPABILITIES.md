@@ -74,6 +74,7 @@ These scripts run outside Claude Code — they're Hyprland keybindings (generate
 | `Super+Shift+A` | `claude-screenshot` | grim capture → Claude analysis (Haiku) → notification |
 | `Super+Ctrl+A` | `claude-screenshot-interactive` | Screenshot → Claude analysis (Sonnet) → terminal for follow-up |
 | `Super+W` | `claude-wish` | Wish lane: plain-language wish → agent writes the Nix, validates both hosts, opens a `wish/*` PR (rung 1: propose-only). Bar island shows "✨ wishing" while it runs; `approve` resumes the session |
+| `Super+R` | intent line → `claudeos-intent` | One input that routes itself (`home/quickshell/IntentLine.qml`). Deterministic first, zero model calls: an app name launches, `$cmd` opens a terminal, a `question?` answers as a notification. Anything else hands to the haiku router (`claudeos-intent`), which picks **wish** (→ `claude-wish`, a `wish/*` PR) vs **task** (→ the task lane: one scoped Sonnet call producing a reviewable artifact under `~/.local/state/claudeos/tasks/`, never a sent message or pushed commit — rung 1); unroutable input fails open into an interactive Claude with the text preloaded |
 | `Super+Shift+V` | `claude-clip` | Semantic clipboard: transform clipboard content (fix grammar, condense, to shell command, to table, summarize, translate, free-form) and copy the result back — paste anywhere |
 | `Super+T` | `claude-grab-text` | Grab Text: drag a region of the screen; any text inside (images, videos, unselectable dialogs) lands in the clipboard |
 
