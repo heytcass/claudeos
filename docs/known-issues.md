@@ -12,6 +12,10 @@ Ledger edits are committed by the normal rebuild auto-commit flow.
 
 - 2026-07-10 · xhci_hcd USB host controller PCI post-resume error -19 + "HC died; cleaning up" + pcieport D3hot→D0 power state failure (same suspend/resume cycle) · USB and PCIe power state management issue after resume. Next step: verify USB connectivity; test suspend/resume cycle (`systemctl suspend`) to confirm reproducibility; if repeats, investigate firmware/driver updates or BIOS sleep state settings (transporter).
 
+- 2026-07-17 · `iwlwifi 0000:02:00.0: iwlwifi transaction failed, dumping registers` (1 occurrence) followed by register state dumps · WiFi card (Intel AX200) signaled a transaction failure and kernel dumped hardware state, suggesting a device error condition. Requires verification: check `iwctl` and `nmcli` to confirm WiFi connectivity is operational; if connectivity works, this is a transient hardware glitch. If WiFi is degraded/broken, escalate to driver/firmware investigation.
+
+- 2026-07-17 · `<error> [1784248116.8247] device (/net/connman/iwd/0): .Set failed: GDBus.Error:net.connman.iwd.Failed: Operation failed` (1 occurrence) · iwd (iNet Wireless Daemon) D-Bus operation failure; likely related to the concurrent iwlwifi transaction failure. Verify WiFi connectivity; if broken, investigate alongside iwlwifi error.
+
 - 2026-07-05 · `usr-bin.mount: Failed with result 'protocol'` / "Mount process
   finished, but there is no mount" (envfs FUSE on /usr/bin, intermittent —
   transporter, recurred 2026-07-06) · Investigated 2026-07-06: this is the
