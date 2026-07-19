@@ -9,6 +9,7 @@
     ./claude-monitor
     ./morning-desk.nix
     ./cards.nix
+    ./intent.nix
   ];
 
   # Enable Claude and Jasper by default (override per-host with `false`)
