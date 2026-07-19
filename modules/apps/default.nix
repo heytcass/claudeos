@@ -10,6 +10,7 @@
     ./morning-desk.nix
     ./cards.nix
     ./intent.nix
+    ./contexts
   ];
 
   # Enable Claude and Jasper by default (override per-host with `false`)

@@ -209,6 +209,18 @@ Rectangle {
             font.family: Theme.fontSans
             font.pixelSize: Theme.fontSize
         }
+        // The context you're in (Phase 3), at low emphasis — the focused
+        // workspace is named after a saved context. Absent on numbered/scratch
+        // workspaces, so it only shows when you're actually inside one.
+        Text {
+            anchors.verticalCenter: parent.verticalCenter
+            visible: Contexts.activeName !== ""
+            text: "· " + Contexts.activeName
+            color: Theme.muted
+            font.family: Theme.fontSans
+            font.pixelSize: Theme.fontSize
+            font.italic: true
+        }
     }
 
     // ---- agent face: the machine says what it's doing to itself ----

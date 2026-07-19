@@ -19,6 +19,7 @@ ShellRoot {
         Notifications.list;
         Presence.live;
         Cards.count;
+        Contexts.contexts;
     }
 
     // One bar per monitor.
