@@ -20,6 +20,12 @@ let
   cardNames = lib.concatStringsSep " " (lib.attrNames cardActions);
   cardSchema = ../home/quickshell/cards/card.schema.json;
 
+  # Context infrastructure (Phase 3). The manifest schema (repo-tracked) is the
+  # contract both the claudeos-context CLI and the claudeos_context_emit lane
+  # helper validate against — a malformed manifest is rejected before it can
+  # half-restore a workspace.
+  contextSchema = ../modules/apps/contexts/context.schema.json;
+
   # Tools every agent script gets for free — all tiny and already in the
   # system closure. Task-specific extras go in runtimeInputs.
   baseInputs = with pkgs; [
@@ -348,6 +354,82 @@ let
       [[ -z "$safe" ]] && safe=card
       mkdir -p "$dir"
       jq -c '.' "$src" > "$dir/$safe.json.tmp" 2>/dev/null && mv "$dir/$safe.json.tmp" "$dir/$safe.json"
+    }
+
+    # ---- Task contexts — Phase 3 --------------------------------------------
+    # A context is a named, git-tracked text manifest of a workspace's TOOLS and
+    # PLACES (schema: modules/apps/contexts/context.schema.json). The dir is its
+    # OWN standalone git repo — history and diffability without polluting the
+    # system repo or declaring ring-2 state in Nix. The claudeos-context CLI
+    # (save/restore/list/rm) and the claudeos_context_emit lane helper below both
+    # install through claudeos_context_install, so validation + commit are one
+    # implementation.
+    CLAUDEOS_CONTEXTS_DIR="$STATE_DIR/contexts"
+    CLAUDEOS_CONTEXT_SCHEMA="${contextSchema}"
+
+    # Filesystem slug for a context name: lowercase, non-alnum → single hyphen,
+    # trimmed. The slug is both the manifest filename and the Hyprland workspace
+    # name, so restore/focus/idempotency all key off one stable string.
+    _claudeos_context_slug() {
+      printf '%s' "$1" | tr '[:upper:]' '[:lower:]' | tr -c 'a-z0-9' '-' | tr -s '-' | sed 's/^-*//; s/-*$//'
+    }
+
+    # Commit the contexts dir (auto-init on first use). Local identity only —
+    # these commits are machine-local and never pushed.
+    _claudeos_context_commit() {
+      local msg="$1" dir="$CLAUDEOS_CONTEXTS_DIR"
+      if [[ ! -d "$dir/.git" ]]; then
+        git -C "$dir" init -q 2>/dev/null || return 0
+        git -C "$dir" config user.name "ClaudeOS" 2>/dev/null || true
+        git -C "$dir" config user.email "claudeos@localhost" 2>/dev/null || true
+      fi
+      git -C "$dir" add -A 2>/dev/null || true
+      git -C "$dir" diff --cached --quiet 2>/dev/null || git -C "$dir" commit -q -m "$msg" 2>/dev/null || true
+    }
+
+    # claudeos_context_install FILE NAME — validate a manifest against the schema,
+    # then atomically install it as <slug>.json and commit. Preserves an existing
+    # context's `created` timestamp and forces `name`/`updated`, so a re-save
+    # never drifts the name or loses provenance. Prints the slug on success;
+    # returns non-zero WITHOUT writing on any validation failure.
+    claudeos_context_install() {
+      local src="$1" name="$2" slug err created merged dir="$CLAUDEOS_CONTEXTS_DIR"
+      [[ -f "$src" ]] || { echo "no such manifest: $src" >&2; return 1; }
+      slug=$(_claudeos_context_slug "$name")
+      [[ -z "$slug" ]] && { echo "empty context name" >&2; return 1; }
+      if ! command -v check-jsonschema >/dev/null 2>&1; then
+        echo "check-jsonschema not on PATH — add pkgs.check-jsonschema to runtimeInputs" >&2
+        return 1
+      fi
+      if ! err=$(check-jsonschema --schemafile "$CLAUDEOS_CONTEXT_SCHEMA" "$src" 2>&1); then
+        echo "manifest rejected: $(printf '%s' "$err" | tr '\n' ' ' | tail -c 300)" >&2
+        return 1
+      fi
+      mkdir -p "$dir"
+      created=$(jq -r '.created // empty' "$dir/$slug.json" 2>/dev/null)
+      [[ -z "$created" ]] && created=$(date +%s)
+      merged=$(jq -c --arg name "$name" --argjson created "$created" --argjson updated "$(date +%s)" \
+        '.name=$name | .created=$created | .updated=$updated' "$src") || return 1
+      printf '%s\n' "$merged" > "$dir/$slug.json.tmp" && mv "$dir/$slug.json.tmp" "$dir/$slug.json"
+      _claudeos_context_commit "save $slug"
+      printf '%s\n' "$slug"
+    }
+
+    # claudeos_context_emit FILE [NAME] — the lane-facing writer (agent
+    # preparation: a lane leaves a context pointing at what it gathered). NAME
+    # defaults to the manifest's own `.name`. On any failure the context is not
+    # installed and a notification carries the reason — the lane hears about its
+    # own malformed output; the bar never reads a broken manifest.
+    claudeos_context_emit() {
+      local src="$1" name="''${2:-}" out
+      [[ -f "$src" ]] || { claudeos_notify "Context error" "no such manifest: $src"; return 1; }
+      [[ -z "$name" ]] && name=$(jq -r '.name // empty' "$src" 2>/dev/null)
+      [[ -z "$name" ]] && { claudeos_notify "Context rejected" "manifest has no name"; return 1; }
+      if ! out=$(claudeos_context_install "$src" "$name" 2>&1); then
+        claudeos_notify "Context rejected" "$(printf '%s' "$out" | tail -c 200)"
+        return 1
+      fi
+      return 0
     }
   '';
 

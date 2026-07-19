@@ -1,0 +1,87 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "ClaudeOS task-context manifest",
+  "description": "A named, durable, git-tracked working context (Phase 3). A manifest describes the TOOLS and PLACES of a workspace — not pixel-perfect app state. Written by `claudeos-context save` (snapshotting the live workspace) or by a lane via `claudeos_context_emit` (agent preparation). Read back by `claudeos-context restore`, which reassembles it into a named Hyprland workspace.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["name", "items"],
+  "properties": {
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Human-readable context name (e.g. \"refinance\"). The filesystem slug is derived from it."
+    },
+    "created": {
+      "type": "integer",
+      "description": "Unix epoch of first save; preserved across re-saves."
+    },
+    "updated": {
+      "type": "integer",
+      "description": "Unix epoch of the most recent save."
+    },
+    "notes": {
+      "type": "string",
+      "description": "Free-form note carried with the context (\"waiting on payoff letter\")."
+    },
+    "items": {
+      "type": "array",
+      "description": "The tools and places to reassemble. Order is preserved on restore.",
+      "items": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": ["kind", "argv"],
+            "properties": {
+              "kind": { "const": "app" },
+              "class": {
+                "type": "string",
+                "description": "Hyprland window class — used to skip an app already present on restore (idempotency)."
+              },
+              "argv": {
+                "type": "array",
+                "minItems": 1,
+                "items": { "type": "string" },
+                "description": "The relaunch vector. argv[0] is a bare command name (basenamed off any /nix/store path, so it survives rebuilds); /nix/store path arguments are stripped, durable flags (URLs, --app=…) are kept."
+              },
+              "title": {
+                "type": "string",
+                "description": "The window title at save time — best-effort provenance only, never used to relaunch."
+              },
+              "urls": {
+                "type": "array",
+                "items": { "type": "string" },
+                "description": "Best-effort browser URLs (v1: window titles only; a real tab integration is out of scope)."
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": ["kind", "cwd"],
+            "properties": {
+              "kind": { "const": "term" },
+              "cwd": {
+                "type": "string",
+                "description": "The working directory of a shell that was running in a terminal on the workspace."
+              },
+              "cmd": {
+                "type": ["string", "null"],
+                "description": "Optional command to run in the restored terminal instead of an interactive shell."
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": ["kind", "path"],
+            "properties": {
+              "kind": { "const": "file" },
+              "path": {
+                "type": "string",
+                "description": "A file to xdg-open on restore. Not auto-detected by save in v1 — added by a lane or by hand (the manifest is editable git-tracked text)."
+              }
+            }
+          }
+        ]
+      }
+    }
+  }
+}

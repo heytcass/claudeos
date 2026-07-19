@@ -2,11 +2,13 @@
 // SUPER+R summons a centered capsule (Hyprland: `bind = $mod, R, global,
 // quickshell:intent`). As you type it classifies the text with ZERO model calls
 // and shows the predicted route BEFORE you commit — predictable, auditable:
-//   $command   → run it in a terminal
-//   app name   → launch the matching desktop entry (exact / prefix match)
-//   question?  → claude-ask-desktop (the answer returns as a notification)
-//   otherwise  → the intent router (claudeos-intent, Phase 2b): one haiku call
-//                picks wish (→ a reviewed PR) vs task (→ a reviewable artifact)
+//   $command    → run it in a terminal
+//   app name    → launch the matching desktop entry (exact / prefix match)
+//   question?   → claude-ask-desktop (the answer returns as a notification)
+//   save as <n> → snapshot this workspace as a task context (Phase 3)
+//   resume <n>  → reassemble a saved context onto its named workspace (Phase 3)
+//   otherwise   → the intent router (claudeos-intent, Phase 2b): one haiku call
+//                 picks wish (→ a reviewed PR) vs task (→ a reviewable artifact)
 // Tab reroutes to any other route; every route is visible before Enter. Carries
 // the island's agent-glow language (breathing accent, soft halo) and, for the
 // async routes (ask / otherwise), the genie exit into the island. Esc or
@@ -96,6 +98,23 @@ Scope {
     }
     readonly property var appMatch: bestApp(qt)
 
+    // ---- context routes (Phase 3): "save as <name>" / "resume <name>" ----
+    // Deterministic, zero model calls. `save as` always matches (it NAMES a new
+    // context); `resume` matches only when <name> resolves to a KNOWN context
+    // (Contexts.resolveResume), so "resume normal life" stays a task rather than
+    // hijacking a legitimate sentence.
+    readonly property var saveMatch: qt.match(/^save as\s+(.+)$/i)
+    readonly property string saveName: saveMatch ? saveMatch[1].trim() : ""
+    readonly property var resumeMatch: qt.match(/^resume\s+(.+)$/i)
+    readonly property string resumeSlug: resumeMatch ? Contexts.resolveResume(resumeMatch[1]) : ""
+    readonly property string resumeName: {
+        const list = Contexts.contexts || [];
+        for (var i = 0; i < list.length; i++)
+            if (list[i].slug === resumeSlug)
+                return list[i].name;
+        return resumeSlug;
+    }
+
     // A leading interrogative (or aux verb) reads as a question even without "?".
     // The \b guards app names: "dolphin"/"docker" don't match "do\b".
     function isQuestion(t) {
@@ -109,6 +128,10 @@ Scope {
             return "none";
         if (t.charAt(0) === "$")
             return "cmd";
+        if (saveName !== "")
+            return "save";                // "save as <name>" — snapshot this workspace
+        if (resumeSlug !== "")
+            return "resume";              // "resume <known context>" — reassemble it
         if (t.charAt(t.length - 1) === "?")
             return "ask";                 // an explicit question wins over an app name
         if (appMatch)
@@ -124,6 +147,9 @@ Scope {
     readonly property var routeRing: (appMatch ? ["app"] : []).concat(["cmd", "ask", "task"])
     function cycleForced(dir) {
         if (qt === "")
+            return;
+        // The explicit context prefixes aren't part of the Tab ring — leave them.
+        if (autoRoute === "save" || autoRoute === "resume")
             return;
         const ring = routeRing;
         var i = ring.indexOf(route);
@@ -141,6 +167,10 @@ Scope {
             return Theme.base0C;          // cyan — a question
         if (r === "task")
             return Theme.accentAlt;       // the wish/task accent
+        if (r === "save")
+            return Theme.base0A;          // amber — capturing this workspace
+        if (r === "resume")
+            return Theme.base0E;          // violet — reassembling a saved context
         return Theme.accent;              // app + none
     }
     function routeGlyph(r) {
@@ -150,6 +180,10 @@ Scope {
             return "?";
         if (r === "task")
             return "✳";              // ✳ — the house asterisk; the machine takes it from here
+        if (r === "save")
+            return "⊕";              // ⊕ — capture the current workspace
+        if (r === "resume")
+            return "⟳";              // ⟳ — reassemble a saved one
         return "→";                  // → — app fallback when it has no icon
     }
     function routeLabel(r) {
@@ -161,6 +195,10 @@ Scope {
             return "ask Claude — the answer returns as a notification";
         if (r === "task")
             return "hand it to Claude — a wish becomes a PR, a task an artifact";
+        if (r === "save")
+            return "save this workspace as the '" + saveName + "' context";
+        if (r === "resume")
+            return "resume '" + resumeName + "' — reassemble its windows on a named workspace";
         return "launch " + (appMatch ? appMatch.name : "app");
     }
     function routeVerb(r) {
@@ -170,6 +208,10 @@ Scope {
             return "ask";
         if (r === "task")
             return "send";
+        if (r === "save")
+            return "save";
+        if (r === "resume")
+            return "resume";
         return "launch";
     }
     // App icon for the leading indicator (existence-checked; "" → fall back to a glyph).
@@ -207,6 +249,20 @@ Scope {
             Quickshell.execDetached(["claude-ask-desktop", t]);
             root.sent = true;
             flight.start();               // the question flies into the island; the answer returns as a notification
+        } else if (r === "save") {
+            // Snapshot the current workspace into a named context. Deterministic,
+            // no model call — dismiss like the app/$cmd routes; the CLI toasts.
+            if (saveName === "")
+                return;
+            Quickshell.execDetached(["claudeos-context", "save", saveName]);
+            reset();
+        } else if (r === "resume") {
+            // Reassemble a saved context onto its named workspace. Deterministic
+            // window action (hyprctl), so it also just dismisses the overlay.
+            if (resumeSlug === "")
+                return;
+            Quickshell.execDetached(["claudeos-context", "restore", resumeSlug]);
+            reset();
         } else {
             // task → the intent router (Phase 2b). A real sentence that matched
             // no deterministic route hands off to claudeos-intent, which spends
