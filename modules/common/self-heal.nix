@@ -53,7 +53,10 @@ let
 
   healScript = claudeLib.mkClaudeScript {
     name = "claude-heal";
-    runtimeInputs = [ pkgs.nix ];
+    runtimeInputs = [
+      pkgs.nix
+      pkgs.check-jsonschema # validator for the bar card (claudeos_lane_card)
+    ];
     text = ''
       UNIT="$1"
       CACHE_DIR="''${XDG_CACHE_HOME:-$HOME/.cache}/claudeos-heal"
@@ -120,10 +123,18 @@ let
       else
         # The heal agent's final output is the PR URL — carry it as the artifact
         # link when it looks like one, else just the result text.
+        # Per-unit card id: two units healing in the same window must not
+        # clobber each other's record. The PR link is the thing that must
+        # outlive the notification — a heal PR unreviewed is a heal undone.
         if [[ "$text" == http* ]]; then
           claudeos_agent_done "proposed fix for $UNIT" "$text"
+          claudeos_lane_card "self-heal-$UNIT" "Fix proposed: ''${UNIT%.service}" "🩹" critical \
+            "$UNIT failed on $(hostname) — a heal PR is ready for review." \
+            "$text" "Open the PR"
         else
           claudeos_agent_done "proposed fix for $UNIT"
+          claudeos_lane_card "self-heal-$UNIT" "Fix proposed: ''${UNIT%.service}" "🩹" critical \
+            "$UNIT failed on $(hostname)."$'\n\n'"$text"
         fi
         claudeos_notify --urgency=critical \
           "Self-Heal: $UNIT" "Fix proposed: $text"
