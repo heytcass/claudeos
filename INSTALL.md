@@ -40,7 +40,7 @@ Boot from NixOS installation USB (UEFI mode).
 nix-shell -p git
 
 # Clone repository
-git clone https://github.com/yourusername/claudeos.git
+git clone https://github.com/heytcass/claudeos.git
 cd claudeos
 ```
 
@@ -257,7 +257,7 @@ nh clean all --keep 5 --keep-since 14d
 
 ## Getting Help
 
-- Issues: https://github.com/yourusername/claudeos/issues
+- Issues: https://github.com/heytcass/claudeos/issues
 - Documentation: [docs/](docs/)
 - CLAUDE.md: Project-specific instructions for Claude Code
 

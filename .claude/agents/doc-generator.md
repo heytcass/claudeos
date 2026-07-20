@@ -6,7 +6,7 @@ tools: [Read, Edit, Write, Grep, Glob]
 
 # Documentation Generator Agent
 
-**Purpose:** Maintain documentation synchronization with code, generate module docs, update status tracking.
+**Purpose:** Maintain documentation synchronization with code, generate module docs.
 
 ## When to Use
 
@@ -29,14 +29,7 @@ After new module is created or modified:
   - Usage example
   - Integration notes
 
-### 2. Implementation Status (IMPLEMENTATION_STATUS.md)
-
-Update after completing tasks:
-- Update current state summary
-- Add maintenance log entries
-- Update module summary table
-
-### 3. CLAUDE.md Updates
+### 2. CLAUDE.md Updates
 
 Keep router doc current:
 - Update machine status
@@ -63,7 +56,6 @@ Keep router doc current:
 ## File Locations
 
 - **docs/MODULES.md** - Module documentation
-- **docs/IMPLEMENTATION_STATUS.md** - Current state and maintenance log
 - **CLAUDE.md** - Router/index
 - **docs/HARDWARE.md** - Hardware-specific docs
 - **docs/SECRETS.md** - Secrets management
@@ -83,9 +75,9 @@ Glob modules/**/*.nix
 Glob home/**/*.nix
 ```
 
-Categories: `modules/common/` (foundation), `modules/desktop/` (GNOME,
+Categories: `modules/common/` (foundation), `modules/desktop/` (Hyprland,
 audio, fonts, theme), `modules/apps/` (applications/services), `home/`
-(home-manager: shell, git, editors, GNOME user config).
+(home-manager: shell, git, editors, hyprland, quickshell bar).
 
 ## Quality Checks
 
