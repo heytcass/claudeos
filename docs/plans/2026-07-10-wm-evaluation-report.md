@@ -104,9 +104,9 @@ every option below is graded against:
    ring 1 (declarative, rebuilt), so a compositor swap does **not** reopen that
    wound. Good — it means we only have to clear bar #1 (integration), not #2.
 
-The repo also already anticipated this exact session. `docs/plans/next-session-prompts.md`
-lists, as open backlog item **#5, "Hyprland specialisation — dormant by
-choice."** This report is that item waking up.
+The repo also already anticipated this exact session: the session backlog
+listed **"Hyprland specialisation — dormant by choice"** as an open item.
+This report is that item waking up.
 
 **Implication for grading:** an option passes only if its **portal/XWayland
 integration is materially better than Niri-in-March**. That's the whole ball

@@ -146,7 +146,7 @@ keeps half-finished things from dying. Hence:
 Jasper (the Rust daemon) is the philosophy's reference implementation from
 the pre-agentic era, and it got the doctrine right: significance-gated
 thinking (only call the model when the world changed), single-insight
-output, ownership awareness ("Christen has soccer," never "you have soccer").
+output, ownership awareness ("Alex has soccer," never "you have soccer").
 **We deliberately did not revive the daemon.** It hand-rolls what Claude Code
 now provides natively (tools, sessions, memory, rate limiting), and reviving
 it would create a second brain with separate auth, memory, and voice. The
@@ -160,8 +160,7 @@ lane, not a process: dumb collectors (gcalcli, weather, routes) → one
 `claude -p` call carrying Jasper's persona and ownership-aware, one-insight
 prompt → the Quickshell bar as its face. So both things are true at once —
 Jasper is not retired, and the daemon is not revived. *(Resolved 2026-07-11,
-superseding the 2026-07-08 "daemon revival" sketch in
-docs/plans/next-session-prompts.md #9.)*
+superseding an earlier "daemon revival" sketch.)*
 
 ## The constitution
 
