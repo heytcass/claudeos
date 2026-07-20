@@ -79,6 +79,38 @@ These scripts run outside Claude Code — they're Hyprland keybindings (generate
 | `Super+Shift+V` | `claude-clip` | Semantic clipboard: transform clipboard content (fix grammar, condense, to shell command, to table, summarize, translate, free-form) and copy the result back — paste anywhere |
 | `Super+T` | `claude-grab-text` | Grab Text: drag a region of the screen; any text inside (images, videos, unselectable dialogs) lands in the clipboard |
 
+## Cards (Generated Surfaces)
+
+Ephemeral, schema-validated DATA surfaces rendered deterministically by the bar
+(`home/quickshell/Card*.qml`) — Phase 4 of the AI-native HMI plan. A card is a
+JSON file in `$XDG_RUNTIME_DIR/claudeos-cards.d/` (tmpfs — dies on reboot)
+matching `home/quickshell/cards/card.schema.json`; the writer
+(`claudeos_card` / `claudeos_lane_card` in `lib/claude-script.nix`) validates
+with check-jsonschema before install, so the bar only ever renders known-good
+data. An invalid card degrades to a plain notification carrying the reason.
+Card `run` actions resolve only through the closed registry in
+`lib/card-actions.nix` — there is no free-form exec. CLI:
+`claudeos-card {add <file> [id]|rm <id>|clear|list}`.
+
+Doctrine (locked 2026-07-20): cards are **receipts first** — durable records of
+finished lane work. Ambient/live-state cards (a Jasper insight, a health gauge)
+are case-by-case exceptions that need their own design pass, so the surface
+never drifts into a feed. Notifications stay alongside as the immediate ping;
+the card is what survives it after the banner vanishes or the blocking wait
+times out. Declined/negative outcomes still card, at `low` urgency — a declined
+wish whose notification expired unseen must not be lost. Each lane re-emits
+under a stable id, so it replaces its previous card instead of stacking, and
+the tmpfs dir means cards die on reboot by construction (no `expires` field in
+the schema — deliberate).
+
+| Producer | Card | When |
+|----------|------|------|
+| Morning desk | Today's brief at a glance (kv + link + `open-desk` run action) | 05:30 daily, with the dashboard build |
+| Wish lane | Wish granted (PR link) / declined (reason), id `wish` | When a wish run ends |
+| Task lane | Task ready (artifact link) / declined (reason), id `task` | When an intent-line task ends |
+| Self-heal | Fix proposed — heal PR link, id `self-heal-<unit>` (per-unit) | When a heal agent proposes a fix |
+| Auto-update | Flake updated / applied / build failed / VM-gate blocked, id `auto-update` | Sat 3 AM weekly, at each terminal state |
+
 ## Shell Commands
 
 Fish shell functions available in any terminal. Defined in `home/shell/fish.nix` (`claudeos` lives in `home/claudeos-help.nix`).
