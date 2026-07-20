@@ -182,6 +182,7 @@ in
       runtimeInputs = [
         pkgs.zenity
         pkgs.xdg-utils
+        pkgs.check-jsonschema # validator for the bar card (claudeos_lane_card)
       ];
       text = ''
         wish="$*"
@@ -221,6 +222,10 @@ in
         declined=$(grep -oE 'WISH-DECLINED: .*' <<<"$text" | tail -1)
         if [[ -n "$url" ]]; then
           claudeos_agent_done "wish granted: $wish" "$url"
+          # Durable record first (Phase 4): the PR link outlives the
+          # notification below, which blocks and then evaporates unclicked.
+          claudeos_lane_card wish "Wish granted" "✨" normal \
+            "$wish" "$url" "Open the PR"
           choice=$(claudeos_notify_action --urgency=critical -A open="Open PR" \
             "Wish granted ✨" "$url")
           if [[ "$choice" == open ]]; then
@@ -228,6 +233,8 @@ in
           fi
         elif [[ -n "$declined" ]]; then
           claudeos_agent_done "wish declined: ''${declined#WISH-DECLINED: }"
+          claudeos_lane_card wish "Wish declined" "✨" low \
+            "$wish"$'\n\n'"Declined: ''${declined#WISH-DECLINED: }"
           claudeos_notify "Wish declined" "''${declined#WISH-DECLINED: }"
         elif [[ -z "$text" ]]; then
           claudeos_notify --urgency=critical "Wish" \

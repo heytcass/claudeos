@@ -356,6 +356,32 @@ let
       jq -c '.' "$src" > "$dir/$safe.json.tmp" 2>/dev/null && mv "$dir/$safe.json.tmp" "$dir/$safe.json"
     }
 
+    # claudeos_lane_card ID TITLE ICON URGENCY TEXT [URL [LABEL]] — the one-call
+    # lane-end card: TEXT as a text section, an optional link chip, a Dismiss
+    # action. This is the standard "the lane finished — here's the durable
+    # record" surface: notifications vanish (or block waiting for a click), a
+    # card stays until dismissed. Re-emitting under the same stable ID REPLACES
+    # the lane's previous card rather than stacking. Same degradation contract
+    # as claudeos_card: an invalid card is never installed, a notification
+    # carries the reason. Empty ICON/URGENCY/URL are simply omitted.
+    claudeos_lane_card() {
+      local id="$1" title="$2" icon="$3" urgency="$4" body="$5" url="''${6:-}" label="''${7:-Open}" tmp rc=0
+      tmp=$(mktemp)
+      # Truncation mirrors the schema's limits (title 120, text 2000, url 2000,
+      # label 100) so a long changelog degrades to a clipped card, not a reject.
+      jq -n --arg title "''${title:0:120}" --arg icon "$icon" --arg urgency "$urgency" \
+            --arg body "''${body:0:1900}" --arg url "''${url:0:2000}" --arg label "''${label:0:100}" '
+        {title: $title, sections: [{type: "text", text: $body}]}
+        | if $icon != "" then .icon = $icon else . end
+        | if $urgency != "" then .urgency = $urgency else . end
+        | if $url != "" then .sections += [{type: "links", links: [{label: $label, url: $url}]}] else . end
+        | .sections += [{type: "actions", actions: [{type: "dismiss", label: "Dismiss"}]}]
+      ' > "$tmp" || { rm -f "$tmp"; return 1; }
+      claudeos_card "$tmp" "$id" || rc=1
+      rm -f "$tmp"
+      return $rc
+    }
+
     # ---- Task contexts — Phase 3 --------------------------------------------
     # A context is a named, git-tracked text manifest of a workspace's TOOLS and
     # PLACES (schema: modules/apps/contexts/context.schema.json). The dir is its

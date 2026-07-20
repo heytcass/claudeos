@@ -31,6 +31,7 @@ in
       runtimeInputs = [
         pkgs.ghostty # the cmd route's terminal + the fail-open interactive brain
         pkgs.xdg-utils # xdg-open, to open a finished task's artifact
+        pkgs.check-jsonschema # validator for the bar card (claudeos_lane_card)
       ];
       text = ''
         text="$*"
@@ -79,6 +80,10 @@ in
           declined=$(grep -oE 'TASK-DECLINED: .*' <<<"$result" | tail -1)
           if [[ -n "$done_line" ]]; then
             claudeos_agent_done "task: ''${done_line#TASK-DONE: }" "file://$dir"
+            # Durable record first (Phase 4): the artifact link outlives the
+            # notification below, which blocks and then evaporates unclicked.
+            claudeos_lane_card task "Task ready" "✳" normal \
+              "''${done_line#TASK-DONE: }" "file://$dir" "Open the artifact"
             choice=$(claudeos_notify_action -A open="Open" \
               "Task ready ✳" "''${done_line#TASK-DONE: }")
             if [[ "$choice" == open ]]; then
@@ -87,6 +92,8 @@ in
           elif [[ -n "$declined" ]]; then
             rmdir "$dir" 2>/dev/null || true
             claudeos_agent_done "task declined: ''${declined#TASK-DECLINED: }"
+            claudeos_lane_card task "Task declined" "✳" low \
+              "$task"$'\n\n'"Declined: ''${declined#TASK-DECLINED: }"
             claudeos_notify "Task declined" "''${declined#TASK-DECLINED: }"
           elif [[ -z "$result" ]]; then
             claudeos_notify --urgency=critical "Task" \

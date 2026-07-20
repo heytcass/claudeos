@@ -35,6 +35,7 @@ let
       pkgs.nix
       pkgs.diffutils
       pkgs.curl
+      pkgs.check-jsonschema # validator for the bar card (claudeos_lane_card)
     ];
     text = ''
       HOST=$(hostname) || exit 1
@@ -128,6 +129,8 @@ let
           tail -n 120 "$vm_log" || true
           claudeos_notify --urgency=critical \
             "Update Blocked: VM Smoke Test" "$fail_line"
+          claudeos_lane_card auto-update "Update blocked: VM smoke test" "📦" critical \
+            "$fail_line"$'\n\n'"flake.lock reverted; the self-heal agent has the serial-log excerpt."
           git checkout flake.lock
           date -Iseconds > "$STATE_DIR/last-update-revert"
           rm -f ./result ./result-vm "$vm_log"
@@ -171,6 +174,11 @@ let
         date -Iseconds > "$STATE_DIR/last-update"
         claudeos_agent_done "flake updated: $changelog"
         claudeos_notify "Flake Updated" "$changelog"
+        # Durable record (Phase 4). Emitted under the stable "auto-update" id,
+        # so the autoApply branch below can REPLACE it with the applied state
+        # rather than stack a second card.
+        claudeos_lane_card auto-update "Flake updated" "📦" normal \
+          "$changelog"$'\n\n'"VM gate: $vm_gate — built and pushed; apply with 'rebuild'."
 
         ${lib.optionalString cfg.autoApply ''
           if [[ "$vm_gate" == "passed" ]]; then
@@ -182,9 +190,13 @@ let
             if /run/wrappers/bin/sudo /run/current-system/sw/bin/nixos-rebuild switch --flake "$CLAUDEOS_DIR#$HOST" 2>&1; then
               claudeos_notify \
                 "System Rebuilt" "VM smoke test green — auto-update applied."
+              claudeos_lane_card auto-update "Flake updated & applied" "📦" normal \
+                "$changelog"$'\n\n'"VM gate passed — applied to $HOST."
             else
               claudeos_notify --urgency=critical \
                 "Rebuild Failed" "VM gate was green but the switch failed. Run 'rebuild' manually."
+              claudeos_lane_card auto-update "Update built, switch failed" "📦" critical \
+                "$changelog"$'\n\n'"VM gate was green but nixos-rebuild switch failed — run 'rebuild' manually."
               rm -f ./result ./result-vm
               exit 1
             fi
@@ -205,6 +217,8 @@ let
 
         claudeos_notify --urgency=critical \
           "Update Build Failed" "$diagnosis"
+        claudeos_lane_card auto-update "Update build failed" "📦" critical \
+          "$diagnosis"$'\n\n'"flake.lock reverted."
 
         # Revert flake.lock
         git checkout flake.lock
