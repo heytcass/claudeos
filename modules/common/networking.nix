@@ -1,5 +1,18 @@
 { pkgs, ... }:
 
+let
+  # Reconcile the wifi radio to the current wired-carrier state: enable it
+  # whenever no Ethernet link is connected. The wired-wifi-toggle dispatcher
+  # below persists `radio wifi off` (both in NetworkManager.state and via
+  # systemd-rfkill), so powering off or suspending while docked and then
+  # starting up *undocked* would otherwise strand the radio off — no Ethernet
+  # "down" event ever fires in that path to turn it back on. This only ever
+  # turns the radio *on* (never off), so it cannot reintroduce dual-homing.
+  wifiUndockReconcile = pkgs.writeShellScript "wifi-undock-reconcile" ''
+    ${pkgs.networkmanager}/bin/nmcli -t -f TYPE,STATE device | grep -q '^ethernet:connected' \
+      || ${pkgs.networkmanager}/bin/nmcli radio wifi on
+  '';
+in
 {
   # Enable NetworkManager for easy network management
   networking.networkmanager.enable = true;
@@ -47,6 +60,23 @@
       '';
     }
   ];
+
+  # Heal the persisted `radio wifi off` from wired-wifi-toggle. That toggle only
+  # re-enables wifi on an Ethernet "down" event, which never fires if the machine
+  # powers off or suspends while docked and then starts up undocked. Reconcile
+  # once on boot (after NetworkManager) and again on resume from suspend.
+  systemd.services.wifi-undock-reconcile = {
+    description = "Re-enable wifi when undocked (heals wired-wifi-toggle persistence)";
+    after = [ "NetworkManager.service" ];
+    wants = [ "NetworkManager.service" ];
+    wantedBy = [ "multi-user.target" ];
+    serviceConfig = {
+      Type = "oneshot";
+      ExecStart = "${wifiUndockReconcile}";
+    };
+  };
+
+  powerManagement.resumeCommands = "${wifiUndockReconcile}";
 
   # Use systemd-resolved for DNS (caching, DNSSEC validation, DNS-over-TLS)
   # NetworkManager delegates DNS resolution to resolved automatically
