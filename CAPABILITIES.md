@@ -92,10 +92,16 @@ Card `run` actions resolve only through the closed registry in
 `lib/card-actions.nix` — there is no free-form exec. CLI:
 `claudeos-card {add <file> [id]|rm <id>|clear|list}`.
 
-Doctrine: **a lane that finishes work leaves a card, not just a notification.**
-Notifications vanish (or block waiting for a click); the card is the durable,
-dismissible record — each lane re-emits under a stable id, so it replaces its
-previous card instead of stacking.
+Doctrine (locked 2026-07-20): cards are **receipts first** — durable records of
+finished lane work. Ambient/live-state cards (a Jasper insight, a health gauge)
+are case-by-case exceptions that need their own design pass, so the surface
+never drifts into a feed. Notifications stay alongside as the immediate ping;
+the card is what survives it after the banner vanishes or the blocking wait
+times out. Declined/negative outcomes still card, at `low` urgency — a declined
+wish whose notification expired unseen must not be lost. Each lane re-emits
+under a stable id, so it replaces its previous card instead of stacking, and
+the tmpfs dir means cards die on reboot by construction (no `expires` field in
+the schema — deliberate).
 
 | Producer | Card | When |
 |----------|------|------|
