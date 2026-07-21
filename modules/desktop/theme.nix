@@ -143,10 +143,17 @@ in
       base0F = "bd5d3a"; # Deep terracotta — hover state, embedded
     };
 
-    # Terracotta dune under a peach moon — minimalist digital art by Justin
-    # Wirtalla (instagram.com/jwirtalla, via wallhaven.cc/w/kxoqdm). Sunlit
-    # dune ≈ base0D/base0F terracotta, moon ≈ base09 peach. Previous:
-    # assets/chicago.jpg (skyline photo).
+    # Terracotta dune under a peach moon — ORIGINAL ClaudeOS artwork
+    # (AI-generated 2026-07, sky rebuilt + upscaled to 3840² in-session; no
+    # third-party rights, metadata-clean, safe to redistribute under MIT).
+    # Composition: many windswept paths converging into one luminous ridgeline
+    # walked by a tiny caretaker — branches merging to main, tended by lanes.
+    # Sunlit dune ≈ base0D/base0F terracotta, moon ≈ base09 peach. Square 1:1
+    # canvas: with imageScalingMode "fill", landscape monitors show the middle
+    # horizontal band and portrait monitors the middle vertical band, both at
+    # native res — key elements live in the center-safe square by design.
+    # Previous: same scene by Justin Wirtalla (replaced pre-go-public — its
+    # EXIF carried a third-party copyright); before that assets/chicago.jpg.
     image = ../../assets/dune.jpg;
     imageScalingMode = "fill";
 
