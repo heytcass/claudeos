@@ -2,13 +2,18 @@ name: Claude Code Review
 
 on:
   pull_request:
-    types: [opened, synchronize, ready_for_review, reopened]
-    # Optional: Only run on specific file changes
-    # paths:
-    #   - "src/**/*.ts"
-    #   - "src/**/*.tsx"
-    #   - "src/**/*.js"
-    #   - "src/**/*.jsx"
+    # No `synchronize` — deliberately. This review costs Claude subscription
+    # tokens per run (~$2.33 and 38 turns on one PR #28 run), and going public
+    # made GitHub-hosted minutes free but did nothing about that. Reviewing on
+    # every push meant paying N+1 times per PR for prose nobody blocks on:
+    # nothing consumes this job's result (heal-automerge.yml makes its own
+    # Claude call with a strict verdict contract), and per issue #32 it has
+    # posted zero reviews on every PR it has ever run against. Ask for a
+    # re-review on demand by mentioning @claude instead.
+    #
+    # `reopened` is kept: it is rare, and a PR resurrected after months is
+    # exactly when a fresh read is worth one run.
+    types: [opened, ready_for_review, reopened]
 
 jobs:
   claude-review:
