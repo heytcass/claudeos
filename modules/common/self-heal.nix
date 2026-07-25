@@ -27,8 +27,11 @@
 # — `git revert` the squash commit, or boot the previous generation.
 #
 # Cost profile: event-driven (unit failures only), per-unit 6h cooldown,
-# sonnet-class model, runs on the Claude subscription. The merge gate adds one
-# more sonnet call per heal PR.
+# opus-class model, runs on the Claude subscription. Opus here is deliberate:
+# the healer edits NixOS config and opens auto-mergeable PRs, so this is a
+# rare, high-stakes call where diagnosis quality matters more than cost
+# (PHILOSOPHY cost doctrine). The merge gate adds one more opus call per
+# heal PR.
 {
   lib,
   config,
@@ -110,7 +113,7 @@ let
 
       A PR that changes exactly one *.nix file under modules/ or home/, by 40 lines or fewer, touching none of flake.nix / flake.lock / .sops.yaml / secrets/ / .github/ / .claude/, may be auto-merged once CI is green and a machine review approves it (trust ladder rung 2 — see the header of modules/common/self-heal.nix). Prefer the minimal, single-file fix when that IS the correct fix. Never contort a fix to fit the window: if the right change spans several files or exceeds 40 lines, make the right change and let a human review it. Widening a diff to dodge review, or narrowing one to court auto-merge, are the same failure."
 
-      text=$(claude_headless sonnet "$prompt" \
+      text=$(claude_headless opus "$prompt" \
         --allowedTools 'Read,Grep,Glob,Edit,Bash(git status*),Bash(git diff*),Bash(git log*),Bash(git checkout -b *),Bash(git add *),Bash(git commit *),Bash(git push *),Bash(gh pr create*),Bash(nix build*--dry-run*),Bash(journalctl*),Bash(systemctl status*),Bash(systemctl --user status*),Bash(hostname)')
 
       if [[ -z "$text" ]]; then

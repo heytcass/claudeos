@@ -207,9 +207,12 @@ let
           fi
         ''}
       else
-        # Build failed — diagnose and revert
+        # Build failed — diagnose and revert. Opus: fires at most weekly and
+        # only on failure, and post-update eval errors are exactly the gnarly
+        # diagnosis work the stronger model is better at (cost doctrine: rare
+        # high-stakes calls get opus).
         export CLAUDEOS_AGENT_ACTIVITY="diagnosing the failed build"
-        diagnosis=$(claude_text sonnet "This NixOS build failed after flake update. Diagnose the issue briefly and suggest a fix. No markdown.
+        diagnosis=$(claude_text opus "This NixOS build failed after flake update. Diagnose the issue briefly and suggest a fix. No markdown.
 
       $build_output")
 

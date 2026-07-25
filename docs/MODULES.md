@@ -206,7 +206,7 @@ Weekly unattended flake updates with Claude review (`claude-os.autoUpdate`, enab
 - **vmVariant strips hardware-specific config:** disko fileSystems (`disko.enableConfig`), snapper configs + subvolume activation script, btrfs autoScrub, scx, thermald, fwupd, Plymouth — all via `lib.mkVMOverride`. sops secrets can't decrypt in the VM (host SSH key never leaves the host) but install via an activation script, which logs and continues rather than failing a unit
 - **Gate outcomes:** green → commit, push, switch; **no usable `/dev/kvm`** (or `vmTest = false`) → gate skipped, degrades to build-only (commit + push, never switch); red → `flake.lock` reverted, notification with the failing unit list, VM journal excerpt echoed into the unit's own journal, exit 1 → `OnFailure=claude-heal@claudeos-auto-update` hands it to the self-heal agent
 - **autoApply plumbing:** scoped passwordless `sudo /run/current-system/sw/bin/nixos-rebuild` for wheel (`security.sudo-rs.extraRules`, only when `autoApply`); the user is in the `kvm` group (users.nix) so the timer-driven user unit can reach `/dev/kvm`
-- **On build failure:** Claude (sonnet) diagnoses, `flake.lock` is reverted, user notified
+- **On build failure:** Claude (opus — rare, high-stakes diagnosis per the cost doctrine) diagnoses, `flake.lock` is reverted, user notified
 
 ### modules/common/generation-label.nix
 
@@ -217,7 +217,7 @@ Claude-named generations. Reads the repo-root `generation-label` file (a short s
 The OS files its own fix PRs (`claude-os.selfHeal`, enabled by default).
 
 - **Mechanism:** systemd user template `claude-heal@.service` attached via `OnFailure=` to opted-in units (option `claude-os.selfHeal.units`; defaults: `claudeos-auto-update`, `claudeos-journal-diary`)
-- **On failure:** a headless Claude agent (sonnet) receives the unit's journal + systemctl state, investigates the owning module, and -- only if the failure is config-rooted -- fixes it on a `heal/*` branch, validates with a dry-run build, and opens a PR via `gh pr create`. Transient failures get a `SKIP: <reason>` and no edits
+- **On failure:** a headless Claude agent (opus — it edits config and its PRs can auto-merge, so this rare call gets the strongest standard model) receives the unit's journal + systemctl state, investigates the owning module, and -- only if the failure is config-rooted -- fixes it on a `heal/*` branch, validates with a dry-run build, and opens a PR via `gh pr create`. Transient failures get a `SKIP: <reason>` and no edits
 - **Safety:** never touches main (human merge is the approval gate), per-unit 6h cooldown, restricted allowed tools; never watches `claude-heal@` itself or `claudeos-health-check` (loop prevention); skips upfront (with a notification) when no GitHub credential is reachable — keyring in-session, `github_automation_token` sops secret headless — rather than spending an agent session that cannot open a PR
 - **Follow-up:** the agent session id is saved so the fish `approve` function can resume it
 
