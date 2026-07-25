@@ -262,9 +262,12 @@ single-user):
 - Up to **$10–20/month API** is acceptable as headroom (reliability lane for
   background units, quality bumps) — the constraint is "no sticker shock,"
   enforced by spend caps, not abstinence.
-- haiku for high-frequency paths (slugs, triage), sonnet-class for rare
-  agentic work (heal PRs, the daily dashboard). Everything event-driven or
-  scheduled; nothing polls an LLM.
+- haiku for high-frequency paths (slugs, triage), sonnet-class for routine
+  agentic work (the daily dashboard, the intent task lane), opus for rare
+  high-stakes self-modification (the heal agent, the heal merge gate,
+  update-failure triage — calls that edit or approve config changes and fire
+  at most weekly). Everything event-driven or scheduled; nothing polls an
+  LLM.
 - **Nothing may require a frontier-of-frontier model to run.** Design with
   the best model available; run on the standard ones.
 
