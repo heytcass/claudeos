@@ -128,10 +128,13 @@ For convenience, use the provided installation script:
 chmod +x install-with-disko.sh
 
 # Run installation (DESTRUCTIVE!)
-sudo ./install-with-disko.sh <hostname> [device]
+sudo ./install-with-disko.sh <hostname>
 
 # Example:
-sudo ./install-with-disko.sh gti /dev/nvme0n1
+sudo ./install-with-disko.sh gti
+
+# The target disk is not an argument — each host pins its own device in
+# hosts/<hostname>/default.nix (disko.devices.disk.main.device).
 ```
 
 The script:

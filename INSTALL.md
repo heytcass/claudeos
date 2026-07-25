@@ -51,13 +51,15 @@ cd claudeos
 chmod +x install-with-disko.sh
 
 # Install (DESTRUCTIVE! Wipes target disk)
-sudo ./install-with-disko.sh <hostname> [device]
+sudo ./install-with-disko.sh <hostname>
 
 # Example:
-sudo ./install-with-disko.sh gti /dev/nvme0n1 # Install on NVMe
+sudo ./install-with-disko.sh gti
 
-# Note: there is no default disk device — each host pins its own in
-# hosts/<hostname>/default.nix (gti uses /dev/nvme0n1)
+# Note: the script takes the hostname only — the target disk is not an
+# argument. Each host pins its own device in hosts/<hostname>/default.nix
+# via disko.devices.disk.main.device (gti uses /dev/nvme0n1). Change the
+# device there, not on the command line.
 ```
 
 The script will:
