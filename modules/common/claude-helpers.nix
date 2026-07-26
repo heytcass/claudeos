@@ -94,8 +94,38 @@ in
 
         git -C "$dir" add -A \
           && git -C "$dir" commit -m "$msg" \
-          && git -C "$dir" push \
-          && echo "Auto-committed: $msg"
+          || exit 1
+        echo "Auto-committed: $msg"
+
+        # The remote moves on its own — auto-update.nix opens PRs that the
+        # heal-auto-merge workflow lands — so any rebuild that follows a merge
+        # is rejected non-fast-forward. The local commits are near-always
+        # generation-label/flake.lock chores, so replay them on top and retry
+        # once. Never leave a committed-but-unpushed tree silently: remotes
+        # rebuild by pulling this repo.
+        git -C "$dir" push && exit 0
+
+        upstream=$(git -C "$dir" rev-parse --abbrev-ref --symbolic-full-name '@{u}' 2>/dev/null)
+        if [[ -z "$upstream" ]]; then
+          echo "Push failed and no upstream is set — push by hand." >&2
+          exit 1
+        fi
+        echo "Push rejected — replaying onto $upstream…"
+
+        if ! git -C "$dir" fetch "''${upstream%%/*}"; then
+          echo "Fetch failed — commit is local only, push by hand." >&2
+          exit 1
+        fi
+        if ! git -C "$dir" rebase "$upstream"; then
+          git -C "$dir" rebase --abort
+          echo "Rebase onto $upstream conflicts — resolve by hand, then: git push" >&2
+          exit 1
+        fi
+        if ! git -C "$dir" push; then
+          echo "Push still rejected after rebase — commit is local only." >&2
+          exit 1
+        fi
+        echo "Rebased onto $upstream and pushed."
       '';
     })
 
