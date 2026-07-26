@@ -123,7 +123,7 @@ Fish shell functions available in any terminal. Defined in `home/shell/fish.nix`
 | `rebuild` | Haiku names the generation (`generation-label`) → snapper pre snapshots → `nh os switch` → post snapshots → Claude-generated commit → push |
 | `approve` | Resume the last background agent session (self-heal, journal diary) and authorize its proposed action |
 | `today` | Open the morning desk dashboard in Chrome app mode (`today --refresh` rebuilds it first) |
-| `usage` | Claude subscription limits (session/weekly percent + reset times) — terminal twin of the bar's fuel-gauge ring (`home/quickshell/ClaudeUsageWidget.qml`) |
+| `usage` | Claude subscription limits (session/weekly percent + reset times) — terminal twin of the bar's fuel-gauge ring (`home/quickshell/ClaudeWidget.qml`) |
 | `wish "..."` | The wish lane from the terminal — same agent Super+W runs; wish in, `wish/*` PR out |
 | `why "..."` | Natural-language diagnostics — an agent investigates the running system (system-health MCP, journals, units) and answers with cited evidence |
 | `wherewasi` | "Where was I?" from structured state only (windows, repo status, recent commands) — the no-surveillance answer to Copilot Recall |

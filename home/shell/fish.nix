@@ -120,7 +120,7 @@
       '';
 
       # Claude subscription limits at a glance — the terminal twin of the
-      # bar's fuel-gauge ring (home/quickshell/ClaudeUsageWidget.qml). Reads
+      # bar's fuel-gauge ring (home/quickshell/ClaudeWidget.qml). Reads
       # the same OAuth endpoint `claude /usage` uses, via the credentials
       # file Claude Code maintains; the token never enters argv.
       usage = ''
