@@ -1,11 +1,19 @@
 // ClaudeWidget.qml — one bar element for "how is Claude doing right now",
 // merging what used to be two: status.claude.com's dot (StatusWidget) and the
 // subscription usage ring (ClaudeUsageWidget). Same two independent
-// Process+Timer probes as before, just sharing one visual slot and one popup
-// instead of two — less right-island clutter for two things the owner reads
-// together anyway. Each half still hides itself with the "@"-alone sentinel
-// (offline/no data), and the whole widget disappears only when *both* are
-// silent.
+// Process+Timer probes as before, but now one *mark* rather than two adjacent
+// ones: a usage ring wrapped around a Claude spark.
+//
+// The two variables are orthogonal, so they get orthogonal channels of a single
+// glyph — arc extent + arc colour say how much of *your* budget is gone, the
+// core's colour says how *their* service is doing. Tempting as it is to tint the
+// whole ring by service status, that would overload one channel: a red ring
+// would mean either "you're nearly capped" or "Anthropic is down", and you'd
+// have to open the popup to find out which.
+//
+// Each half still hides itself with the "@"-alone sentinel (offline/no data) —
+// ring alone, spark alone, or nothing at all — and the whole widget disappears
+// only when *both* are silent.
 import QtQuick
 import Quickshell
 import Quickshell.Io
@@ -51,6 +59,10 @@ Item {
     property string scopedReset: ""
 
     readonly property bool hasUsage: session >= 0 || weekly >= 0
+    // The binding constraint — whichever limit runs out first. The ring and the
+    // number both read from this, so they can never disagree (they used to: the
+    // ring drew `session` while the label printed the max, so a hot weekly cap
+    // showed as a nearly-empty ring next to a loud "85%").
     readonly property int maxPct: Math.max(session, weekly, scoped)
     readonly property color gaugeColor: maxPct >= 90 ? Theme.warn : maxPct >= 70 ? Theme.accent : Theme.subtext
 
@@ -128,7 +140,7 @@ Item {
                     root.sessionReset = d.sr;
                     root.weeklyReset = d.wr;
                     root.scopedReset = d.fr;
-                    ring.requestPaint();
+                    ringCanvas.requestPaint();
                 } catch (e) {
                     root.session = -1;
                     root.weekly = -1;
@@ -150,64 +162,118 @@ Item {
         anchors.centerIn: parent
         spacing: 5
 
-        Rectangle {
-            id: dot
-            visible: root.hasStatus
+        // ---- the merged glyph: usage ring wrapped around a Claude spark ----
+        // Two concentric layers rather than two siblings, so the pair reads as
+        // one object. The spark also makes the widget self-identifying: in a row
+        // of drawn gauges, an anonymous ring needs decoding, a spark doesn't.
+        Item {
+            id: glyph
+            width: 18
+            height: 18
             anchors.verticalCenter: parent.verticalCenter
-            width: 8
-            height: 8
-            radius: 4
-            color: root.statusColor
-            // Quiet when operational (steady, dimmed); breathe to catch the
-            // eye the moment anything is degraded.
-            opacity: root.operational ? 0.55 : 1
-            SequentialAnimation on opacity {
-                running: dot.visible && !root.operational
-                loops: Animation.Infinite
-                NumberAnimation {
-                    to: 0.35
-                    duration: 900
-                    easing.type: Easing.InOutSine
-                }
-                NumberAnimation {
-                    to: 1
-                    duration: 900
-                    easing.type: Easing.InOutSine
-                }
-            }
-        }
 
-        Canvas {
-            id: ring
-            visible: root.hasUsage
-            width: 14
-            height: 14
-            anchors.verticalCenter: parent.verticalCenter
-            onPaint: {
-                const ctx = getContext("2d");
-                ctx.reset();
-                const c = width / 2;
-                const r = c - 1.5;
-                const pct = Math.max(0, root.session) / 100;
-                ctx.lineWidth = 2.5;
-                ctx.lineCap = "round";
-                // track
-                ctx.beginPath();
-                ctx.arc(c, c, r, 0, 2 * Math.PI);
-                ctx.strokeStyle = Qt.rgba(Theme.muted.r, Theme.muted.g, Theme.muted.b, 0.3);
-                ctx.stroke();
-                // session fill, from 12 o'clock
-                if (pct > 0) {
-                    ctx.beginPath();
-                    ctx.arc(c, c, r, -Math.PI / 2, -Math.PI / 2 + pct * 2 * Math.PI);
-                    ctx.strokeStyle = root.gaugeColor;
-                    ctx.stroke();
+            // Sweep the arc instead of snapping it. The probe is a 5-minute
+            // poll, so an 8-point jump appears all at once — animated it reads
+            // as a measurement settling, unanimated it reads as a glitch.
+            property real arcPct: root.hasUsage ? Math.max(0, root.maxPct) : 0
+            Behavior on arcPct {
+                NumberAnimation {
+                    duration: 450
+                    easing.type: Easing.InOutCubic
                 }
             }
+            onArcPctChanged: ringCanvas.requestPaint()
+
+            Canvas {
+                id: ringCanvas
+                anchors.fill: parent
+                visible: root.hasUsage
+                onPaint: {
+                    const ctx = getContext("2d");
+                    ctx.reset();
+                    const c = width / 2;
+                    const r = c - 2.25; // leaves the outer stroke a 1px margin
+                    ctx.lineWidth = 2.5;
+                    ctx.lineCap = "round";
+                    // Track — the unspent remainder, and the arc's reference
+                    // frame: without a visible track you can't judge what
+                    // fraction the arc covers. 0.35 alpha is a deliberate
+                    // balance — it puts the track ~1.8:1 against the bar (present
+                    // but recessive) while the calm arc (Theme.subtext) still
+                    // clears it by ~4.5:1. Dropping it further makes the arc pop
+                    // but costs the gauge its baseline.
+                    ctx.beginPath();
+                    ctx.arc(c, c, r, 0, 2 * Math.PI);
+                    ctx.strokeStyle = Qt.rgba(Theme.muted.r, Theme.muted.g, Theme.muted.b, 0.35);
+                    ctx.stroke();
+                    // spent fill, from 12 o'clock
+                    const pct = glyph.arcPct / 100;
+                    if (pct > 0) {
+                        ctx.beginPath();
+                        ctx.arc(c, c, r, -Math.PI / 2, -Math.PI / 2 + pct * 2 * Math.PI);
+                        ctx.strokeStyle = root.gaugeColor;
+                        ctx.stroke();
+                    }
+                }
+            }
+
+            Canvas {
+                id: sparkCanvas
+                anchors.centerIn: parent
+                width: 10
+                height: 10
+                visible: root.hasStatus
+                // Quiet when operational (steady, dimmed); breathe to catch the
+                // eye the moment anything is degraded.
+                opacity: root.operational ? 0.7 : 1
+                onPaint: {
+                    const ctx = getContext("2d");
+                    ctx.reset();
+                    const c = width / 2;
+                    ctx.strokeStyle = root.statusColor;
+                    ctx.lineWidth = 1.1;
+                    ctx.lineCap = "round";
+                    // Six rays: enough to read as the Claude spark, few enough
+                    // that they stay distinct at 10px inside the ring.
+                    for (let i = 0; i < 6; i++) {
+                        const a = (i * 60 - 90) * Math.PI / 180;
+                        ctx.beginPath();
+                        ctx.moveTo(c + Math.cos(a) * 0.6, c + Math.sin(a) * 0.6);
+                        ctx.lineTo(c + Math.cos(a) * 3.4, c + Math.sin(a) * 3.4);
+                        ctx.stroke();
+                    }
+                }
+                SequentialAnimation on opacity {
+                    running: sparkCanvas.visible && !root.operational
+                    loops: Animation.Infinite
+                    NumberAnimation {
+                        to: 0.4
+                        duration: 900
+                        easing.type: Easing.InOutSine
+                    }
+                    NumberAnimation {
+                        to: 1
+                        duration: 900
+                        easing.type: Easing.InOutSine
+                    }
+                }
+            }
+
+            // One listener for both canvases. The `operational` restore matters:
+            // `SequentialAnimation on opacity` destroys the declarative binding
+            // when it takes the property, so recovery from an incident would
+            // otherwise leave the spark stuck at whatever opacity it stopped on.
             Connections {
                 target: root
                 function onGaugeColorChanged() {
-                    ring.requestPaint();
+                    ringCanvas.requestPaint();
+                }
+                function onStatusColorChanged() {
+                    sparkCanvas.requestPaint();
+                }
+                function onOperationalChanged() {
+                    if (root.operational)
+                        sparkCanvas.opacity = 0.7;
                 }
             }
         }
