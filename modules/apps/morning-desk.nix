@@ -580,6 +580,13 @@ let
           && cp "$DESK_DIR/index.html" "$ARCHIVE_DIR/$prev_day.html" 2>/dev/null
       fi
 
+      # The 05:30 build normally runs on a long-settled machine, but a missed
+      # run catches up at boot (Persistent=true) — ahead of the network. Wait
+      # before the collectors so the desk reports the day, not the boot race.
+      # TimeoutStartSec here is 15min, so a 120s budget is comfortably safe.
+      network_up=1
+      claudeos_wait_for_network 120 || network_up=0
+
       # ---- Collectors (each degrades gracefully) ----
       today=$(date "+%A, %B %-d, %Y")
       now_hour=$(date +%-H)
@@ -591,6 +598,22 @@ let
       [[ -z "$weather" ]] && weather="unavailable"
 
       calendar=$(claudeos_gcal_agenda "$(date +%F)" "$(date -d tomorrow +%F)")
+
+      # Three distinct states reach here and they need three distinct answers:
+      #   "not connected" — gcalcli was never initialised. Actionable: run init.
+      #   "fetch failed"  — gcalcli is configured and the call still failed.
+      #                     If $network_up is 0 this is just the boot race and
+      #                     there is nothing for the user to do; if the network
+      #                     IS up, something real is wrong with the token.
+      #   anything else   — a real agenda.
+      #
+      # Collapsing the middle case into the first is what put "run gcalcli init"
+      # on the 2026-07-26 desk while the token was perfectly valid.
+      #
+      # TODO(tom): write the branch. Set $calendar to the string the agent
+      # should render for each state — it flows straight into the prompt, so
+      # phrase it as the fact you want stated, and only name a remedy when
+      # there genuinely is one.
       [[ "$calendar" == "not connected" ]] \
         && calendar="not connected — run: gcalcli init (OAuth client in sops as jasper_google_client_id/secret)"
 

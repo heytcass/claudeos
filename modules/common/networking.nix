@@ -8,19 +8,40 @@
   # wired + wifi on one subnet makes source-address selection and the strict
   # rp_filter hardening (system.nix) drop asymmetric flows — seen 2026-07-09
   # as intermittent "dial tcp i/o timeout" to GitHub while pushes worked.
-  # Ethernet carrier turns wifi off; unplugging turns it back on.
+  # Ethernet carrier disconnects wifi; unplugging reconnects it.
+  #
+  # Disconnect the device — never `nmcli radio wifi off`. The radio-off form
+  # writes an rfkill *soft block*, which systemd-rfkill persists to
+  # /var/lib/systemd/rfkill and restores on every subsequent boot. That turned
+  # a live "we are docked" decision into sticky state: boot undocked and the
+  # radio came up already blocked, and only an ethernet-down event could clear
+  # it — with no ethernet present to ever produce one. Seen 2026-07-26 on
+  # transporter, which booted with no usable network for 2m17s (wlan0 was ready
+  # 86s before the wired link came up) and took every boot-time agent lane down
+  # with it. Disconnecting drops the address and route, which is the whole
+  # point of the dual-homing fix, and leaves no state behind to restore.
+  #
+  # -w 0 on every nmcli call: these run inside NM's dispatcher, which blocks
+  # NM's state machine, so a call that waits on the very state machine it is
+  # blocking would deadlock.
   networking.networkmanager.dispatcherScripts = [
     {
       type = "basic";
       source = pkgs.writeText "wired-wifi-toggle" ''
         nmcli=${pkgs.networkmanager}/bin/nmcli
         [ "$("$nmcli" -g GENERAL.TYPE device show "$1" 2>/dev/null)" = "ethernet" ] || exit 0
+
+        # ':wifi$' deliberately excludes ':wifi-p2p' companion devices.
+        wifi_devs() { "$nmcli" -t -f DEVICE,TYPE device | grep ':wifi$' | cut -d: -f1; }
+
         case "$2" in
-          up) "$nmcli" radio wifi off ;;
+          up)
+            for d in $(wifi_devs); do "$nmcli" -w 0 device disconnect "$d" || true; done
+            ;;
           down)
-            # Re-enable only when no other wired link remains connected
-            "$nmcli" -t -f TYPE,STATE device | grep -q "^ethernet:connected" \
-              || "$nmcli" radio wifi on
+            # Reconnect only when no other wired link remains connected
+            "$nmcli" -t -f TYPE,STATE device | grep -q "^ethernet:connected" && exit 0
+            for d in $(wifi_devs); do "$nmcli" -w 0 device connect "$d" || true; done
             ;;
         esac
       '';

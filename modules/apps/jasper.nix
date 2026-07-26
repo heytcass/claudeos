@@ -64,6 +64,13 @@ let
       elif (( now_hour >= 17 && now_hour < 21 )); then phase="evening";   (( now_hour == 18 )) && heartbeat=1
       fi
 
+      # A boot-time catch-up run (Persistent=true) starts before the network
+      # does; without this the collectors below all miss and jasper spends its
+      # whole 3-minute TimeoutStartSec failing. Budget is kept well inside that
+      # timeout so a genuinely offline machine exits cleanly instead of being
+      # SIGTERMed into `failed` and alerting the health check.
+      claudeos_wait_for_network 90 || true
+
       # ---- Collectors (shared with morning-desk: lib/claude-script.nix) ----
       # Weather: keep only the STABLE fields in the gate (condition + the day's
       # hi/lo), not the live temperature, so a 1°F tick doesn't force a call.
