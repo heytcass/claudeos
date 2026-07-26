@@ -26,12 +26,13 @@ in
     dig
     traceroute
 
-    # Claude Code quick-launch (bound to Super+C — lib/keybindings.nix drives
-    # the Hyprland binds and the help screen)
+    # Claude quick-launch (bound to Super+C — lib/keybindings.nix drives the
+    # Hyprland binds and the help screen). claude-desktop is installed via
+    # modules/apps/claude.nix (claude-desktop-linux flake); its claude://code/new
+    # URL scheme opens a Claude Code session inside the Desktop app itself,
+    # replacing the old ghostty-terminal-running-the-CLI handoff.
     (pkgs.writeShellScriptBin "claude-quick" ''
-      exec ghostty \
-        --class=claude-quick \
-        -e claude
+      exec claude-desktop claude://code/new
     '')
 
     # Screenshot → Claude analysis (notification, bound to Super+Shift+A)

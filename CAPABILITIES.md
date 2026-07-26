@@ -69,7 +69,7 @@ These scripts run outside Claude Code — they're Hyprland keybindings (generate
 
 | Keybinding | Script | What it does |
 |------------|--------|-------------|
-| `Super+C` | `claude-quick` | Opens Claude Code in a Ghostty terminal |
+| `Super+C` | `claude-quick` | Opens a Claude Code session in Claude Desktop |
 | `Super+A` | `claude-ask-desktop` | Zenity popup prompt → Claude answer → desktop notification |
 | `Super+Shift+A` | `claude-screenshot` | grim capture → Claude analysis (Haiku) → notification |
 | `Super+Ctrl+A` | `claude-screenshot-interactive` | Screenshot → Claude analysis (Sonnet) → terminal for follow-up |
