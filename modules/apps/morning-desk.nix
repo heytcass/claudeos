@@ -573,19 +573,35 @@ let
       CLAUDEOS_LANE=morning-desk
       claudeos_agent_begin "preparing the morning desk"
 
+      # Defer, do not degrade. The 05:30 build normally runs on a long-settled
+      # machine, but a missed run catches up at boot (Persistent=true) ahead of
+      # the network — on 2026-07-26 the wired link took 2m17s while every timer
+      # fired at 12s. A desk built in that hole is not merely thinner, it is
+      # *wrong*: every collector fails independently and the agent, seeing five
+      # unrelated distress signals, picks one and states it as fact (it blamed
+      # an unconfigured calendar while the gcalcli token was perfectly valid).
+      #
+      # So wait, and if the network never arrives, build nothing at all. That is
+      # safe because claudeos-morning-desk-show only opens a dashboard whose
+      # mtime is today — a day with no build opens no desk rather than
+      # presenting yesterday's page as today's.
+      #
+      # Budget math: TimeoutStartSec is 15min and an observed build takes ~3m30s
+      # (dominated by the sonnet call), so 8min of waiting leaves a comfortable
+      # margin. Returning before the archive below means a deferred run leaves
+      # the previous desk and the archive completely untouched.
+      if ! claudeos_wait_for_network 480; then
+        echo "morning desk deferred: no network after 8min — building nothing rather than a desk that misreports the day"
+        claudeos_agent_done "deferred — offline"
+        exit 0
+      fi
+
       # Archive a previous day's dashboard before overwriting
       if [[ -f "$DESK_DIR/index.html" ]]; then
         prev_day=$(date -r "$DESK_DIR/index.html" +%F 2>/dev/null)
         [[ "$prev_day" != "$(date +%F)" && -n "$prev_day" ]] \
           && cp "$DESK_DIR/index.html" "$ARCHIVE_DIR/$prev_day.html" 2>/dev/null
       fi
-
-      # The 05:30 build normally runs on a long-settled machine, but a missed
-      # run catches up at boot (Persistent=true) — ahead of the network. Wait
-      # before the collectors so the desk reports the day, not the boot race.
-      # TimeoutStartSec here is 15min, so a 120s budget is comfortably safe.
-      network_up=1
-      claudeos_wait_for_network 120 || network_up=0
 
       # ---- Collectors (each degrades gracefully) ----
       today=$(date "+%A, %B %-d, %Y")
@@ -599,23 +615,30 @@ let
 
       calendar=$(claudeos_gcal_agenda "$(date +%F)" "$(date -d tomorrow +%F)")
 
-      # Three distinct states reach here and they need three distinct answers:
-      #   "not connected" — gcalcli was never initialised. Actionable: run init.
-      #   "fetch failed"  — gcalcli is configured and the call still failed.
-      #                     If $network_up is 0 this is just the boot race and
-      #                     there is nothing for the user to do; if the network
-      #                     IS up, something real is wrong with the token.
+      # Two failure states reach here and they take opposite remedies. The
+      # network deferral above is what makes them separable: this code only ever
+      # runs with a working network, so "fetch failed" can no longer mean "the
+      # boot race ate the request" — it can only mean the calendar itself is
+      # broken while everything around it works.
+      #
+      #   "not connected" — gcalcli was never initialised. `gcalcli init` fixes it.
+      #   "fetch failed"  — configured, network fine, call still failed: an
+      #                     expired/revoked token or a Google-side error. Running
+      #                     `init` here is the WRONG advice; re-auth is a
+      #                     different act from first-time setup, and on
+      #                     2026-07-26 that misdirection cost a morning.
       #   anything else   — a real agenda.
       #
-      # Collapsing the middle case into the first is what put "run gcalcli init"
-      # on the 2026-07-26 desk while the token was perfectly valid.
-      #
-      # TODO(tom): write the branch. Set $calendar to the string the agent
-      # should render for each state — it flows straight into the prompt, so
-      # phrase it as the fact you want stated, and only name a remedy when
-      # there genuinely is one.
-      [[ "$calendar" == "not connected" ]] \
-        && calendar="not connected — run: gcalcli init (OAuth client in sops as jasper_google_client_id/secret)"
+      # These strings are consumed by the agent, so each states the fact and
+      # names a remedy only where one genuinely exists.
+      case "$calendar" in
+        "not connected")
+          calendar="not set up on this machine — run: gcalcli init (OAuth client in sops as jasper_google_client_id/secret)"
+          ;;
+        "fetch failed")
+          calendar="configured but the fetch failed while the network was up — likely an expired or revoked OAuth token, NOT first-time setup. Check with: gcalcli list"
+          ;;
+      esac
 
       diary=""
       [[ -s "$DIARY_ACTIONABLE_FILE" ]] && diary=$(cat "$DIARY_ACTIONABLE_FILE")
@@ -648,8 +671,13 @@ let
         first meeting, a deliberate 'clear morning — protect it'). Never a feed.
       - Then the weather chart; then anything actionable from the overnight journal
         triage; then, smallest, system state in the footer (only if something is wrong).
-      - Don't restate raw data; synthesize. Don't invent events. If the calendar isn't
-        connected, emit the setup-hint card, not an error.
+      - Don't restate raw data; synthesize. Don't invent events.
+      - If the CALENDAR line describes a problem instead of an agenda, emit the
+        setup-hint card rather than an error — but carry that line's own remedy
+        into the card verbatim. Never substitute a remedy of your own, and never
+        assume the fix is first-time setup: an already-configured calendar that
+        failed needs re-authentication, which is a different act. Restating the
+        given remedy is the whole job of that card.
 
       Required skeleton — copy this structure, fill in the prose:
 
@@ -662,10 +690,12 @@ let
           <div class=\"hero-sub\">Two or three sentences of synthesis.</div>
         </section>
 
-        <!-- Only if the calendar is not connected: -->
+        <!-- Only if the CALENDAR line describes a problem. State that line's
+             situation and its remedy — the command below is a placeholder for
+             whichever one that line actually names, not a fixed answer. -->
         <div class=\"setup-hint card\" style=\"--i:1\">
           <div class=\"dot\"></div>
-          <div>Calendar isn't connected... Run <code>gcalcli init</code>.</div>
+          <div>What the CALENDAR line said, then its remedy in <code>a code span</code>.</div>
         </div>
 
         <section class=\"card\" style=\"--i:2\">
