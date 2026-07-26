@@ -39,6 +39,10 @@ let
     libnotify
     hostname
     procps
+    # curl is base, not per-lane: claudeos_wait_for_network below is the first
+    # thing a boot-time lane runs, so it cannot depend on the lane having
+    # remembered to list curl in runtimeInputs.
+    curl
   ];
 
   preamble = runtimeInputs: ''
@@ -252,6 +256,36 @@ let
     echo
     echo 'Press Enter to close...'
     read"
+    }
+
+    # claudeos_wait_for_network [BUDGET_SECONDS] — block until the network can
+    # actually resolve and reach the internet. Returns 0 on the first
+    # successful probe, 1 when the budget (default 120s) expires.
+    #
+    # Every lane that can run at boot must call this before its first network
+    # collector. User units cannot order after the system network-online.target,
+    # and NetworkManager-wait-online is disabled repo-wide for boot speed
+    # (modules/common/networking.nix) — so a timer's Persistent=true catch-up
+    # fires ~12s after boot, long before there is any DNS.
+    #
+    # Observed on transporter 2026-07-26: boot 09:38:02, every user timer fired
+    # 09:38:14, the ethernet link did not come up until 09:40:19 and DNS landed
+    # 09:40:27. In that 2m17s hole the morning desk reported "Calendar isn't
+    # connected (fetch failed)" against a perfectly valid gcalcli token (and
+    # told the user to re-run `gcalcli init`, which was the wrong remedy), and
+    # jasper burned its entire 3-minute TimeoutStartSec and was SIGTERMed.
+    #
+    # Probe hits a DNS name, not a bare IP: a resolver that is not up yet is
+    # exactly the failure being waited out, so name resolution has to be part
+    # of the test.
+    claudeos_wait_for_network() {
+      local budget="''${1:-120}" waited=0
+      while (( waited < budget )); do
+        curl -fsIm 5 https://www.google.com >/dev/null 2>&1 && return 0
+        sleep 5
+        waited=$(( waited + 5 ))
+      done
+      return 1
     }
 
     # Shared personal-world collectors (morning desk, jasper lane) — one
