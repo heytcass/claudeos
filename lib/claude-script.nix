@@ -278,12 +278,17 @@ let
     # Probe hits a DNS name, not a bare IP: a resolver that is not up yet is
     # exactly the failure being waited out, so name resolution has to be part
     # of the test.
+    # BUDGET is wall-clock, enforced against a deadline rather than by summing
+    # the sleeps: each iteration also burns up to `curl -m 5`, so a naive
+    # counter overshoots by ~2x. That gap is not cosmetic — jasper's budget sits
+    # inside a 3-minute TimeoutStartSec, and a 2x overshoot would put it right
+    # back at the SIGTERM this helper exists to prevent.
     claudeos_wait_for_network() {
-      local budget="''${1:-120}" waited=0
-      while (( waited < budget )); do
+      local budget="''${1:-120}" deadline
+      deadline=$(( $(date +%s) + budget ))
+      while (( $(date +%s) < deadline )); do
         curl -fsIm 5 https://www.google.com >/dev/null 2>&1 && return 0
         sleep 5
-        waited=$(( waited + 5 ))
       done
       return 1
     }
