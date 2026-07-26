@@ -358,6 +358,16 @@ in
 
     systemd.user.services.claudeos-auto-update = {
       description = "ClaudeOS automated flake update with Claude review";
+      # This unit's own script content (opus/sonnet swap, notify wording, …)
+      # changes with the very generation switch it runs (autoApply branch,
+      # sudo nixos-rebuild switch above). switch-to-configuration restarts
+      # changed user units by default, which SIGTERMs this instance out from
+      # under itself mid-switch — observed 2026-07-11 and 2026-07-26 as a
+      # `code=killed, status=15/TERM` a few minutes into the switch. Disable
+      # the self-restart; the next timer firing already picks up the new
+      # script.
+      restartIfChanged = false;
+      stopIfChanged = false;
       serviceConfig = {
         Type = "oneshot";
         ExecStart = toString updateScript;
