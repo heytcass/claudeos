@@ -71,10 +71,6 @@ PanelWindow {
             // The bar's conscience — only exists when a claudeos-* unit failed.
             HealthWidget {}
 
-            // status.claude.com at a glance — dim-green dot while operational,
-            // breathes amber/red on any incident. Click for the service list.
-            StatusWidget {}
-
             // The machine's inbox — only exists when agent-authored PRs
             // (wish/heal/claude branches) are waiting for human review.
             ProposalsWidget {}
@@ -87,9 +83,11 @@ PanelWindow {
             // (accent = SUPER+I, muted = agent auto-hold), steam included.
             CaffeineWidget {}
 
-            // The brain's fuel gauge — Claude subscription limits, quiet
-            // until ≥70%. Hidden entirely when logged out or offline.
-            ClaudeUsageWidget {}
+            // Claude, at a glance — status.claude.com's dot (dim-green while
+            // operational, breathes amber/red on incident) plus the
+            // subscription usage ring (quiet until ≥70%). Click for both
+            // breakdowns. Hidden entirely when both are offline/no-data.
+            ClaudeWidget {}
 
             VolumeWidget {}
             NetworkWidget {}
