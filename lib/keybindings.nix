@@ -10,12 +10,12 @@
 #         and EITHER command (exec bind) OR global (quickshell global name).
 [
   {
-    name = "Claude quick terminal";
+    name = "Claude quick launch";
     binding = "<Super>c";
     command = "claude-quick";
     display = "Super+C";
-    help = "Claude Code — coding, config, multi-step tasks";
-    short = "Claude Code — coding & tasks";
+    help = "Claude Desktop — coding, config, multi-step tasks";
+    short = "Claude Desktop — coding & tasks";
   }
   {
     name = "Ask Claude";
