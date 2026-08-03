@@ -28,7 +28,13 @@ jobs:
           extra_nix_config: |
             experimental-features = nix-command flakes
 
-      - uses: DeterminateSystems/update-flake-lock@c5930b397a673a70ca70be06020e943aeac310a1 # v27
+      # v27 nested damianreeves/write-file-action@v1.3 and
+      # juliangruber/read-file-action@v1 — tag pins. This repo requires
+      # full-SHA pins and that rule is *transitive*, so every scheduled run
+      # since at least 2026-07-13 died at "Set up job" before a step ran,
+      # despite this line itself being correctly pinned. v28 SHA-pins all five
+      # of its nested actions, which is the actual fix.
+      - uses: DeterminateSystems/update-flake-lock@834c491b2ece4de0bbd00d85214bb5e83b4da5c6 # v28
         with:
           pr-title: "chore: weekly flake.lock update (cloud fallback)"
           commit-msg: "chore: weekly flake.lock update (cloud fallback)"
