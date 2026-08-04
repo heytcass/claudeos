@@ -27,8 +27,19 @@
   # (~60-90MB/generation on the ESP) — trading rollback depth for a splash
   # screen on a machine that boots in seconds via systemd-initrd
 
-  # Silent boot
-  boot.kernelParams = [ "quiet" ];
+  # Silent boot; PSR disabled fleet-wide. Panel Self Refresh freezes the eDP
+  # panel on both hosts' gen9 Intel displays when the screen goes fully static
+  # — the greeter is the only such screen (no idle daemon, no clock in the
+  # framebuffer), so it presented as "greetd locks up if you don't log in
+  # within a couple minutes" (3 boots on transporter, 1 on gti, all silent in
+  # the journal while logind kept answering the power key). gti's freeze was
+  # nixos-hardware's kaby-lake profile forcing i915.enable_psr=2; transporter's
+  # was the PSR1-on driver default. mkAfter sorts our param after the profile's,
+  # and the kernel takes the last occurrence of a duplicated module param.
+  boot.kernelParams = lib.mkMerge [
+    [ "quiet" ]
+    (lib.mkAfter [ "i915.enable_psr=0" ])
+  ];
 
   # Latest kernel for best hardware support
   boot.kernelPackages = lib.mkDefault pkgs.linuxPackages_latest;
