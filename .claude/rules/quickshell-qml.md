@@ -37,6 +37,12 @@ themed by `home/hyprland.nix`. When editing it:
   has its own hazards (dry-activate first; commit+push before switching — see
   memory "switch on host kills session").
 
+- **`pragma Singleton` goes on line 1, above all comments.** Quickshell's
+  singleton scan stops at the first `{` in the file *even inside a comment*;
+  a missed pragma is silent — the file registers as a plain type, `qs -p`
+  loads clean, and every property read off the name yields `undefined`
+  (the center-island "· undefined" bug, 2026-08-03).
+
 **Quickshell 0.3.x API gotchas** (UPower percentage is 0..1 not 0..100, MPRIS
 `trackArtist` singular + non-reactive `position`, Pipewire volume needs
 `PwObjectTracker`, `notif.tracked = true` or notifications are freed,
