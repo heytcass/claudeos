@@ -1,3 +1,8 @@
+pragma Singleton
+// The pragma must stay on line 1, above every comment: Quickshell 0.3's
+// singleton scan stops at the first opening brace in the file EVEN INSIDE A
+// COMMENT, and the comment below has one. A missed pragma doesn't error —
+// the bar just reads undefined off the type reference.
 // Contexts.qml — the task-contexts model (Phase 3). One small singleton the bar
 // reads two ways:
 //   · activeName → the context you're currently IN, shown at low emphasis in the
@@ -11,7 +16,6 @@
 //     only on save/rm, so a lazy 12s cadence is plenty.
 // No model calls: pure file/IPC reads, same discipline as Presence.qml. jq is
 // not assumed on the shell's PATH (the probe only concatenates; QML parses).
-pragma Singleton
 import QtQuick
 import Quickshell
 import Quickshell.Io
