@@ -78,8 +78,26 @@ fi
 # --- Critical journal entries in last 15 min ---
 # Exclude systemd-coredump: transient boot crashes are handled by Restart=on-failure
 # and real service failures are caught by the "failed services" check above.
-crit=$(journalctl --since "15 min ago" -p crit --no-pager -q 2>/dev/null \
-  | grep -v "systemd-coredump" | head -20 || true)
+#
+# Filter the ENTRY on SYSLOG_IDENTIFIER, not the rendered text. journalctl emits
+# records, not lines: a coredump is ONE record whose MESSAGE carries a module
+# list and a stack trace, and only its first rendered line contains the string
+# "systemd-coredump". The old line-oriented `grep -v` therefore dropped that one
+# line and kept the other 41, leaving $crit non-empty — so the first run after
+# every boot failed on a crash this check means to ignore, fired OnFailure, and
+# popped a notifier window in the user's face at sign-in; 15 min later the entry
+# aged out of the window and the check went green again (gti, 2026-08-06).
+#
+# Collapsing MESSAGE to its first line also makes `head -20` mean "20 entries"
+# rather than "20 lines of one stack trace", so a single noisy record can no
+# longer crowd every other entry out of the alert context Claude reads.
+crit=$(journalctl --since "15 min ago" -p crit --no-pager -q -o json 2>/dev/null \
+  | jq -r 'select((.SYSLOG_IDENTIFIER // "") != "systemd-coredump")
+           | ((.MESSAGE // "") | if type == "array" then "<binary>" else . end
+              | split("\n") | .[0] // "") as $line
+           | select($line != "")
+           | "\(.__REALTIME_TIMESTAMP // "0" | tonumber / 1000000 | strflocaltime("%H:%M:%S")) \(.SYSLOG_IDENTIFIER // "?"): \($line)"' \
+  | head -20 || true)
 if [[ -n "$crit" ]]; then
   printf '=== Critical Log Entries ===\n%s\n\n' "$crit" >> "$CONTEXT_FILE"
   issues=1

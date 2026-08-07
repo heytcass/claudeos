@@ -6,8 +6,12 @@
   xdg.configFile."git/allowed-signers".text = ''
     # transporter (enrolled 2026-07-07)
     heytcass@gmail.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIC2ymFZpbiPjS7gcbJIf3DmHK1KLbCjqGVXRuKP3joXo
-    # gti (enrolled 2026-07-17)
-    heytcass@gmail.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIEtQY3Iv7cPD3N9Tw/GVyb7yVsr8RJB10nEBEEniEYeX
+    # gti (re-enrolled 2026-08-06 — the 2026-07-17 key died with ~/.ssh in the
+    # reinstall; its private half is unrecoverable, so the old line is replaced
+    # rather than kept. Signing had been silently broken here since: every local
+    # `git commit` failed on the missing key, which went unnoticed because the
+    # recent history is all PR merges that GitHub signs server-side.)
+    heytcass@gmail.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIBco4NYTlK39na4D16TbWOadzdGxB+UGndVvduicfMT5
   '';
 
   programs.git = {

@@ -1,4 +1,9 @@
-{ ... }:
+{
+  lib,
+  pkgs,
+  config,
+  ...
+}:
 
 {
   # Dell Latitude 7280 — TESTBED host for the ClaudeOS return.
@@ -82,4 +87,69 @@
   # GNOME's fallback specialisation is gone from NEW generations; pre-Phase-3
   # boot generations still carry it if a GNOME session is ever needed again.
   claude-os.hyprland.enable = true;
+
+  # TESTBED TRIAL (2026-08-06): give the GREETER its own portal routing, so
+  # xdg-desktop-portal-hyprland never starts in the greeter session.
+  #
+  # Observed on gti 2026-08-06: every boot, the greeter's portal segfaulted at
+  # teardown — SIGSEGV in ~CCZxdgOutputV1 → wl_proxy_marshal_flags, from
+  # __run_exit_handlers, as the greeter session ended (an upstream
+  # xdg-desktop-portal-hyprland 1.4.1 shutdown bug: it destroys a Wayland proxy
+  # after the display connection is gone). Harmless in itself — the process was
+  # already exiting — but it writes a coredump every boot.
+  #
+  # Why it starts there at all: regreet is GTK4 and asks for a portal
+  # (Settings), which activates xdg-desktop-portal; xdp then EAGERLY starts
+  # EVERY backend in the config's `default` list, not just the one that
+  # implements the requested interface (proven in the journal: "Starting Portal
+  # service (GTK/GNOME implementation)" then "(Hyprland implementation)", both
+  # before any request). modules/desktop/hyprland.nix sets
+  # common.default = [ "hyprland" "gtk" ], so the greeter gets the hyprland
+  # backend under cage — a compositor it was never meant to drive.
+  #
+  # xdp picks its config file by XDG_CURRENT_DESKTOP (portals.conf(5)), and the
+  # greeter inherits "Hyprland" from pam_env — so greeter and user session read
+  # the SAME portals.conf and CANNOT be told apart until the greeter has its own
+  # desktop name. Hence the two halves below. Note per-interface routing alone
+  # would NOT work, for the same shared-file reason.
+  #
+  # Rejected alternatives: security.pam.services.greetd.setEnvironment = false
+  # also drops XKB_DEFAULT_* and breaks Colemak at the password prompt (see
+  # modules/desktop/hyprland.nix); systemd.services.greetd.environment never
+  # reaches cage; a ConditionUser on the portal unit does nothing because the
+  # greeter activates it via dbus-run-session, not systemd (the crash landed in
+  # session-2.scope, not a unit).
+  #
+  # EXPECTED NOISE: `nix flake check` warns "stylix: regreet: custom
+  # services.greetd.settings.default_session.command value may not work". It is
+  # a false positive here and must NOT be taken as a reason to revert. Stylix's
+  # regreet target (stylix/modules/regreet/nixos.nix) never wraps or reads the
+  # command — it only string-compares it against the upstream default to emit
+  # that advisory, and applies its theming through
+  # services.displayManager.regreet.{theme,extraCss,font,cursorTheme,iconTheme},
+  # which land in regreet's own config + CSS. The chain below execs the very
+  # same dbus-run-session → cage → regreet binaries, so greeter theming is
+  # untouched; only the env differs.
+  #
+  # RISK: this restates the regreet module's own default_session.command
+  # (upstream sets it with mkDefault, so a plain definition wins) — if nixpkgs
+  # changes that command's shape, this copy silently goes stale. `nix build`
+  # cannot catch either that or a runtime greeter failure, which is why this
+  # lands on the testbed first. PROMOTE to modules/desktop/hyprland.nix only
+  # after a reboot here shows: regreet appears, the password field is Colemak,
+  # and `coredumpctl list` is clean for the boot. If the greeter fails to come
+  # up, pick the previous generation at the systemd-boot menu.
+  services.greetd.settings.default_session.command =
+    "${pkgs.coreutils}/bin/env XDG_CURRENT_DESKTOP=Greeter "
+    + "${pkgs.dbus}/bin/dbus-run-session "
+    + "${lib.getExe pkgs.cage} ${lib.escapeShellArgs config.services.displayManager.regreet.cageArgs} "
+    + "-- ${lib.getExe config.services.displayManager.regreet.package}";
+
+  # Written to /etc/xdg/xdg-desktop-portal/greeter-portals.conf, matched by the
+  # lower-cased XDG_CURRENT_DESKTOP above. The user session is untouched: it
+  # sets XDG_CURRENT_DESKTOP=Hyprland (uwsm, via `-D Hyprland`), finds no
+  # hyprland-portals.conf, and falls back to the shared portals.conf exactly as
+  # before — so screencast/screenshot/global-shortcuts still route to hyprland.
+  # gtk (not "none") because regreet does want Settings answered.
+  xdg.portal.config.greeter.default = [ "gtk" ];
 }
