@@ -72,7 +72,7 @@ in
     # base16 GTK CSS, sans font, cursor + icon themes, dark polarity. Setting
     # any of those here just conflicts with it (found the hard way: dry-run
     # 2026-07-11).
-    programs.regreet.enable = true;
+    services.displayManager.regreet.enable = true;
 
     # Secret Service (org.freedesktop.secrets): gnome-keyring stays through
     # the rip-out — apps depend on the freedesktop API, not on GNOME; oo7 is
