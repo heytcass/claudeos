@@ -56,9 +56,12 @@
   # on 7.0.x specifically.
 
   # Walk-up complete (2026-07-05): kernel params back to the shared defaults
-  # ("quiet" from boot.nix). PSR/DC/FBC run driver defaults, scx_lavd is on,
+  # ("quiet" from boot.nix). DC/FBC run driver defaults, scx_lavd is on,
   # early KMS is on, latest kernel — every bring-up carve-out retested clean
   # after the real culprit (jasper's greeter-killing user unit) was fixed.
+  # AMENDED 2026-08-03: PSR is no longer at driver default — the PSR1-on
+  # default froze the panel at the static greeter ("greetd lockup" boots
+  # 2026-07-12/-26/-08-03); boot.nix now sets i915.enable_psr=0 fleet-wide.
 
   # Walk-up step 5 (2026-07-05): scx_lavd re-enabled (shared setting from
   # modules/common/system.nix applies again). It was disabled as a possible
