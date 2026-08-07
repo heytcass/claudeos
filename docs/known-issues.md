@@ -129,9 +129,50 @@ Ledger edits are committed by the normal rebuild auto-commit flow.
 
 - 2026-07-19 · `ACPI Error: Timeout from EC hardware or EC device driver` (cascade: `AE_TIME, Returned by Handler for [EmbeddedControl]`, `Aborting method \_SB.UBTC._DSM`, `\_SB.PCI0.LPCB.ECDV.ECW1`, `\ECWB`) · Embedded Controller timeout transient during boot, likely firmware/BIOS timing race with EC device driver during initialization. Single cascade occurrence suggests transient. Monitor if system instability, power anomalies, or USB-C issues emerge; only escalate if pattern repeats or correlates with functional failures.
 
+- 2026-08-07 · `ucsi_acpi USBC000:00: error -ETIMEDOUT: PPM init failed` · USB-C Power Delivery Manager initialization timeout at boot during Embedded Controller handshake; variant of existing line 130 ACPI EC timeout pattern. Dell firmware timing transient; benign if USB-C devices enumerate and charge normally.
+
+- 2026-08-07 · `ucsi_acpi USBC000:00: con2: failed to register alt modes` · USB-C alternate mode registration transient as consequence of PPM init timeout; related to above. Benign if USB-C peripherals (dock, display, charging) function normally; only escalate if user reports USB-C failures.
+
 ## Resolved
 
 <!-- move entries here when fixed, with the fixing commit/PR -->
+
+- 2026-08-07 · Undocking on gti left no usable network for 18 minutes · Three
+  compounding faults, all fixed in `modules/common/networking.nix` +
+  `home/quickshell/NetworkWidget.qml`:
+  1. **Nothing healed the radio on undock-while-awake.** `wifi-undock-reconcile`
+     was `wantedBy=multi-user.target` + `resumeCommands` — boot and resume only.
+     NM emits no dispatcher "down" event when a dock's wired interface is
+     *removed* rather than losing carrier (verified: no nm-dispatcher run at the
+     08:28:14 teardown; `nmcli device status` has no ethernet entry at all once
+     undocked), so the wired-wifi-toggle never fired either. Now triggered by a
+     `SUBSYSTEM=="net", ACTION=="remove"` udev rule.
+  2. **The reconcile raced the undock and couldn't clear the block anyway.** The
+     dock's Ethernet lingers `connected` for ~5s after teardown starts, so the
+     single carrier check concluded "still docked". Now re-checks across ~15s,
+     exiting early when no carrier is seen. It also now calls `rfkill unblock
+     wlan` before `nmcli radio wifi on`: the 08:28:09 block was set from outside
+     NM — WLAN *and* Bluetooth flipped in the same instant with no
+     `op=radio-control` audit record, 5s ahead of the PCIe teardown — so NM did
+     not treat it as its own to lift. **Origin confirmed: the Fn+Home airplane
+     key.** `/proc/bus/input/devices` shows the kernel `rfkill` input handler
+     bound to both "Dell WMI hotkeys" (event11) and "Intel HID events" (event9),
+     i.e. `CONFIG_RFKILL_INPUT` — the kernel blocks *every* radio itself on
+     `KEY_RFKILL`, which is why both flipped at once with nothing in userspace
+     logging it. The key was never broken; it had no feedback. GNOME's
+     airplane-mode OSD went out with the rip-out, Hyprland binds no
+     `XF86RFKill`, and NetworkWidget hid itself when disconnected — so the one
+     indicator vanished at the moment it went off. See fault 3.
+  3. **No way to pick a network even with the radio up.** 08:21:46–08:27:20 the
+     radio was enabled but every scan died as "Reject scan trigger since one is
+     already pending" — six minutes, zero completed scans. Per-scan MAC
+     randomization is a known way to wedge the QCA6174/ath10k scan state
+     machine, so `networking.networkmanager.wifi.scanRandMacAddress = false`
+     (narrow loss: it randomized probe requests only; the associated MAC was
+     already pinned by `wifi.cloned-mac-address=preserve`). Separately,
+     `NetworkWidget.qml` was a read-only indicator that *hid itself* on
+     `conName === ""` — it vanished exactly when needed, leaving only
+     nm-connection-editor, which cannot scan. It now scans, lists, and joins.
 
 - 2026-07-07 · "Random seed file '/boot/loader/random-seed' is world accessible" · Fixed 2026-07-07: ESP mount masks tightened to fmask/dmask=0077 in `modules/common/disko.nix`. Takes full effect after a reboot remounts /boot; verify with `stat /boot/loader/random-seed`.
 

@@ -18,6 +18,8 @@ Singleton {
 
     readonly property string wifi: String.fromCharCode(0xf1eb)
     readonly property string ethernet: String.fromCharCode(0xf0e8)
+    readonly property string lock: String.fromCharCode(0xf023)
+    readonly property string refresh: String.fromCharCode(0xf021)
 
     readonly property string batFull: String.fromCharCode(0xf240)
     readonly property string batThreeQuarter: String.fromCharCode(0xf241)

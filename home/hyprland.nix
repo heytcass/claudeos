@@ -450,6 +450,20 @@ in
         ",XF86AudioPlay, exec, playerctl play-pause"
         ",XF86AudioNext, exec, playerctl next"
         ",XF86AudioPrev, exec, playerctl previous"
+
+        # Fn+Home (airplane mode) reports only — it does NOT toggle. The kernel
+        # already does that itself: CONFIG_RFKILL_INPUT binds an rfkill handler
+        # straight to "Dell WMI hotkeys" and "Intel HID events" (see
+        # /proc/bus/input/devices), so KEY_RFKILL blocks every radio in kernel
+        # space with nothing in userspace involved. Toggling here too would
+        # double-fire and cancel itself out.
+        #
+        # What was missing is feedback, and that is the whole bug: on
+        # 2026-08-07 this key silently killed wifi + bluetooth mid-undock and
+        # nothing said so — GNOME's airplane OSD left with the rip-out and the
+        # bar widget hid itself when disconnected. Read the state back after a
+        # beat (the kernel flips it on keypress, so an immediate read races).
+        ",XF86RFKill, exec, sleep 0.3 && (rfkill list wlan | grep -q 'Soft blocked: yes' && notify-send -u low 'Airplane mode on' 'Radios blocked — Fn+Home again to restore' || notify-send -u low 'Radios on' 'Wifi and Bluetooth unblocked')"
       ];
     };
   };
