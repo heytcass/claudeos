@@ -10,6 +10,10 @@ Ledger edits are committed by the normal rebuild auto-commit flow.
 
 <!-- new-actionable entries land here: date · signature · next step -->
 
+- 2026-08-08 · ath10k_pci 0000:02:00.0 (Qualcomm QCA6174 WiFi) multiple failures: "failed to read firmware dump area: -16" (3x), "failed to receive initialized event from target" (2x), "firmware crashed! (guid ...)" (3x different GUIDs) · WiFi adapter firmware instability across multiple boot cycles. Next step: verify WiFi connectivity is operational; if working normally, treat as transient boot-race glitches; if degraded/broken, check full ath10k dmesg output and consider firmware rollback or driver reload.
+
+- 2026-08-08 · xhci_hcd 0000:39:00.0 "xHCI host controller not responding, assume dead" + "HC died; cleaning up" · USB controller on new PCI address (0x39, distinct from existing 0x3b transient) reporting severe failure. Next step: verify USB device connectivity on all ports; if all USB devices enumerate and function normally, likely a transient power-state glitch (similar to existing 0x3b pattern); if USB on this controller is unresponsive or devices fail to reattach, escalate to BIOS USB settings or firmware investigation.
+
 - 2026-07-10 · xhci_hcd USB host controller PCI post-resume error -19 + "HC died; cleaning up" + pcieport D3hot→D0 power state failure (same suspend/resume cycle) · USB and PCIe power state management issue after resume. Next step: verify USB connectivity; test suspend/resume cycle (`systemctl suspend`) to confirm reproducibility; if repeats, investigate firmware/driver updates or BIOS sleep state settings (transporter).
 
 - 2026-07-17 · `iwlwifi 0000:02:00.0: iwlwifi transaction failed, dumping registers` (1 occurrence) followed by register state dumps · WiFi card (Intel AX200) signaled a transaction failure and kernel dumped hardware state, suggesting a device error condition. Requires verification: check `iwctl` and `nmcli` to confirm WiFi connectivity is operational; if connectivity works, this is a transient hardware glitch. If WiFi is degraded/broken, escalate to driver/firmware investigation.
@@ -132,6 +136,10 @@ Ledger edits are committed by the normal rebuild auto-commit flow.
 - 2026-08-07 · `ucsi_acpi USBC000:00: error -ETIMEDOUT: PPM init failed` · USB-C Power Delivery Manager initialization timeout at boot during Embedded Controller handshake; variant of existing line 130 ACPI EC timeout pattern. Dell firmware timing transient; benign if USB-C devices enumerate and charge normally.
 
 - 2026-08-07 · `ucsi_acpi USBC000:00: con2: failed to register alt modes` · USB-C alternate mode registration transient as consequence of PPM init timeout; related to above. Benign if USB-C peripherals (dock, display, charging) function normally; only escalate if user reports USB-C failures.
+
+- 2026-08-08 · `pcieport 0000:04:00.0: Unable to change power state from D3hot to D0, device inaccessible` (2x) · PCIe power state enumeration transient on new address; variant of existing 2026-07-16 pattern. Dell firmware quirk during boot; benign if PCIe peripherals (storage, networking, USB) enumerate and function normally.
+
+- 2026-08-08 · `ucsi_acpi USBC000:00: ucsi_handle_connector_change: GET_CONNECTOR_STATUS failed (-110)` · USB-C port controller timeout variant (ETIMEDOUT); similar to existing -5 error pattern (line 126). Benign if USB-C devices charge and attach normally; only escalate if user reports USB-C failures.
 
 ## Resolved
 
