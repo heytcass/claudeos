@@ -1,4 +1,4 @@
-{ pkgs, ... }:
+{ pkgs, user, ... }:
 
 {
   # Dell XPS 13 9370 specific configuration
@@ -63,4 +63,69 @@
   # The shared list in modules/common/users.nix already carries "dialout" for
   # serial access, which is the part that still matters here.
   environment.systemPackages = [ pkgs.android-tools ];
+
+  # home-ops infrastructure health check — weekly, Sunday morning.
+  #
+  # Host-scoped for the same reason as the EDL rules above: the script lives in
+  # ~/Projects/home-ops, which only exists on gti. transporter must not get a
+  # timer pointing at a path it does not have.
+  #
+  # A *user* unit, defined the way every other user unit in this repo is
+  # defined — `systemd.user.*` at the NixOS level (modules/apps/*,
+  # modules/common/*), not home-manager. home/ carries no systemd units at all.
+  #
+  # Two-ring rule: the script itself stays in home-ops and is deliberately NOT
+  # vendored into the store. Nix owns the *schedule and the environment* (ring
+  # 1); the checks themselves are someone else's fast-moving repo (ring 2).
+  #
+  # THE FAILED UNIT IS THE SIGNAL. health-check.sh exits 0 when everything is
+  # fine and 1 when it finds something, so `failed` means "go look" — silence is
+  # the success case. Nothing here masks that: no `|| true`, no
+  # SuccessExitStatus, no Restart=. Two consequences, both wanted:
+  #   - claudeos-health-check's "failed user services" sweep picks it up within
+  #     15 min and routes it through the normal notify path.
+  #   - it is deliberately NOT added to `claude-os.selfHeal.units`. A finding
+  #     here is infrastructure drift out in home-ops, never a bug in this repo's
+  #     Nix — pointing the heal agent at it would have it hunt for a config
+  #     cause that does not exist, and open a PR against the wrong thing.
+  #
+  # View results:  journalctl --user -u home-ops-health -n 50
+  # Run on demand: systemctl --user start home-ops-health
+  systemd.user.services.home-ops-health = {
+    description = "home-ops infrastructure health check";
+    # openssl is on the path explicitly so the script's nix-build fallback for
+    # it never has to fire under systemd, where network and nix access are more
+    # constrained than in an interactive shell.
+    path = with pkgs; [
+      bash
+      curl
+      jq
+      openssl
+      android-tools
+      iputils
+      nix
+      coreutils
+      gnugrep
+      gnused
+    ];
+    serviceConfig = {
+      Type = "oneshot";
+      ExecStart = "/home/${user}/Projects/home-ops/scripts/health-check.sh";
+      # Backstop so a hung network call cannot wedge the timer.
+      TimeoutStartSec = "10m";
+      SyslogIdentifier = "home-ops-health";
+    };
+  };
+
+  systemd.user.timers.home-ops-health = {
+    description = "Weekly home-ops health check";
+    wantedBy = [ "timers.target" ];
+    timerConfig = {
+      OnCalendar = "Sun 09:00";
+      # The laptop is off or asleep most Sunday mornings — catch up on the next
+      # login rather than silently skipping the week.
+      Persistent = true;
+      RandomizedDelaySec = "15m";
+    };
+  };
 }
