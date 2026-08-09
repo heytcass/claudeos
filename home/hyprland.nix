@@ -300,7 +300,46 @@ in
         # GNOME had tap-to-click flipped on for the same laptops; Hyprland's
         # default agrees, but the papercut is bad enough to pin explicitly.
         touchpad."tap-to-click" = true;
+        # Right-click by finger count, not by pad region (2026-08-08). libinput
+        # defaults clickpads to "button areas": a physical press only registers
+        # as right-click in the bottom-right *corner*, so a two-finger press
+        # anywhere else silently left-clicks — which reads as "right click is
+        # broken" on both Dells (single-button clickpads, no discrete buttons).
+        # clickfinger counts fingers instead: 1 = left, 2 = right, 3 = middle,
+        # anywhere on the surface. Trade-off: this RETIRES the bottom-right
+        # corner press — under clickfinger the corner is just a left click.
+        # Two-finger *tap* was already right-click via tap-to-click above; this
+        # makes the physical press agree with it.
+        touchpad.clickfinger_behavior = true;
       };
+
+      # Touchpad gestures (2026-08-08). NOTE THE SYNTAX: Hyprland 0.51 deleted
+      # the old `gestures { workspace_swipe = true; }` block in favour of this
+      # `gesture = <fingers>, <direction>, [mod], <action>, [args]` keyword.
+      # The old form is the trap here — it evaluates fine in Nix, builds green,
+      # and does nothing at runtime; `hyprctl getoption gestures:workspace_swipe`
+      # answers "no such option" on 0.56.1. Every value below was trialled with
+      # `hyprctl keyword gesture ...` against the running binary first (see
+      # CLAUDE.md "Compositor config isn't validated by the build").
+      #
+      # Directions are axes or sides, and an axis SHADOWS its sides at the same
+      # finger count — `3, horizontal` makes a later `3, left` unreachable, which
+      # the binary reports as "Gesture will be overshadowed by a previous
+      # gesture". So keep one granularity per finger count per axis.
+      # Valid actions: workspace, move, resize, special, fullscreen, close,
+      # dispatcher. (`scroll` is not one — the binary rejects it.)
+      gesture = [
+        # Three fingers sideways = the workspaces 1-5 already on $mod+<n>.
+        "3, horizontal, workspace"
+        # Three fingers up = fullscreen, mirroring $mod+F. Safe next to the
+        # horizontal bind above: different axis, so no overshadowing.
+        "3, up, fullscreen"
+        # Four fingers up = the "magic" scratchpad ($mod+S / $mod+SHIFT+S, in
+        # `bind` below). Deliberately a different finger count from the
+        # workspace swipe — the scratchpad is not part of the 1-5 rotation and
+        # shouldn't feel like it is.
+        "4, up, special, magic"
+      ];
 
       # Cursor: point Xcursor at the Stylix Adwaita theme (cursor.package +
       # size from modules/desktop/theme.nix) so the built-in Hyprland cursor
