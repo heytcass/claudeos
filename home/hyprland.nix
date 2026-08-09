@@ -297,20 +297,38 @@ in
         # Hyprland expresses the interval as a rate, 1000/25 = 40 repeats/s.
         repeat_delay = 250;
         repeat_rate = 40;
-        # GNOME had tap-to-click flipped on for the same laptops; Hyprland's
-        # default agrees, but the papercut is bad enough to pin explicitly.
-        touchpad."tap-to-click" = true;
-        # Right-click by finger count, not by pad region (2026-08-08). libinput
-        # defaults clickpads to "button areas": a physical press only registers
-        # as right-click in the bottom-right *corner*, so a two-finger press
-        # anywhere else silently left-clicks — which reads as "right click is
-        # broken" on both Dells (single-button clickpads, no discrete buttons).
+        # Touchpad. The tap setting is fleet-wide, but the click METHOD is not:
+        # the two hosts are physically different pointing devices, so anything
+        # about buttons has to be host-conditional. See below.
+        touchpad = {
+          # Tap-to-click OFF fleet-wide (2026-08-09, was true). Every click is
+          # now a real physical press. Taps fire on contact, so resting a
+          # thumb or brushing the pad mid-sentence lands a click wherever the
+          # cursor happens to be — the cost of that is silent and occasionally
+          # destructive, whereas the cost of pressing is a gram of force.
+          # KNOCK-ON: this also retires two-finger *tap* as right-click, so
+          # right-click is now exclusively a physical press on both hosts —
+          # via clickfinger on gti, via the real button on transporter.
+          "tap-to-click" = false;
+        }
+        # gti (XPS 13 9370) is a buttonless clickpad: the entire surface is one
+        # button, so right-click has to be synthesised. libinput's default is
+        # "button areas", where the press only counts as right-click in the
+        # bottom-right *corner* — press with two fingers anywhere else and you
+        # silently get a left click, which reads as "right click is broken".
         # clickfinger counts fingers instead: 1 = left, 2 = right, 3 = middle,
-        # anywhere on the surface. Trade-off: this RETIRES the bottom-right
-        # corner press — under clickfinger the corner is just a left click.
-        # Two-finger *tap* was already right-click via tap-to-click above; this
-        # makes the physical press agree with it.
-        touchpad.clickfinger_behavior = true;
+        # anywhere on the surface. Trade-off: it RETIRES the bottom-right
+        # corner press, which becomes a plain left click.
+        #
+        # transporter (Latitude 7280) is deliberately excluded — it has
+        # discrete physical buttons below the pad, so right-click is already a
+        # real button and needs no synthesising. libinput only offers the
+        # clickfinger method on clickpads in the first place, so setting it
+        # there would be a no-op that misleads the next reader into thinking
+        # the fleet is uniform. It isn't.
+        // lib.optionalAttrs (osConfig.networking.hostName == "gti") {
+          clickfinger_behavior = true;
+        };
       };
 
       # Touchpad gestures (2026-08-08). NOTE THE SYNTAX: Hyprland 0.51 deleted
