@@ -141,6 +141,18 @@ Ledger edits are committed by the normal rebuild auto-commit flow.
 
 - 2026-08-08 · `ucsi_acpi USBC000:00: ucsi_handle_connector_change: GET_CONNECTOR_STATUS failed (-110)` · USB-C port controller timeout variant (ETIMEDOUT); similar to existing -5 error pattern (line 126). Benign if USB-C devices charge and attach normally; only escalate if user reports USB-C failures.
 
+- 2026-08-09 · `nl80211: kernel reports: key not allowed` (1 occurrence) · WiFi regulatory or encryption key validation transient during connection setup; likely a driver-firmware timing race or regional restriction check. Benign if WiFi connectivity remains stable; only escalate if pattern repeats with failed connections.
+
+- 2026-08-09 · `Failed to start Open today's dashboard once the session is unlocked` (1 occurrence) · Dashboard initialization service startup race at session unlock; service likely succeeds on retry (typical systemd timer transient). Benign if dashboard is accessible via application launcher or appears on next login; only escalate if dashboard remains unavailable.
+
+- 2026-08-09 · `atkbd serio0: Failed to deactivate keyboard on isa0060/serio0` (1 occurrence) · Keyboard controller deactivation transient at shutdown or resume; standard i8042 driver behavior when EC handshake races with device state change. Benign if keyboard remains responsive during session; only escalate if keyboard becomes unresponsive.
+
+- 2026-08-11 · `ucsi_acpi USBC000:00: failed to re-enable notifications (-110)` (1 occurrence) · USB-C port controller notification re-enable timeout (ETIMEDOUT); variant of existing line 142 GET_CONNECTOR_STATUS error. Benign if USB-C devices charge and attach normally; likely transient at boot during Embedded Controller handshake with PPM driver.
+
+- 2026-08-11 · `Process 2255159 (chrome) of user 1000 dumped core` (1 occurrence) · Chrome crash dump transient; similar to existing XDG Desktop Portal pattern at line 112. Benign if Chrome restarts and functions normally; only escalate if crashes recur or session stability degrades.
+
+- 2026-08-13 · `dhcp4 (enp57s0u1u4): error -19 dispatching events` · DHCP on USB network interface (enp57s0u1u4 is a USB device path) failed because the interface is not present (-19 ENODEV); expected if adapter was physically disconnected or had a transient USB enumeration race. Benign if interface recovers on device reconnection or is not normally used.
+
 ## Resolved
 
 <!-- move entries here when fixed, with the fixing commit/PR -->
