@@ -83,26 +83,84 @@ handle_tool() {
       btrfs scrub status / 2>/dev/null || echo "scrub status not available"
       ;;
     hypr_config_check)
-      # Validates a hyprland.conf field/value against the RUNNING compositor —
-      # the check `nix build` cannot do (see CLAUDE.md "Compositor config isn't
-      # validated by the build"). The trial value is applied live, then
-      # `hyprctl reload` restores the deployed config.
-      if ! hypr_available; then
-        echo "Not in a Hyprland session (hyprctl unreachable) — this tool only works from the live session."
-        return
-      fi
-      local field value out errs
+      # Validates config against the Hyprland BINARY via `--verify-config`,
+      # which is the check `nix build` cannot do (see CLAUDE.md "Compositor
+      # config isn't validated by the build").
+      #
+      # This used to trial the value live with `hyprctl keyword` + `hyprctl
+      # reload`. That was rebuilt 2026-08-15 because `keyword` is gated on
+      # CONFIG_LEGACY and `eval` on CONFIG_LUA in src/debug/HyprCtl.cpp —
+      # exact mirror images — so a tool built on `keyword` stops working the
+      # moment the config migrates to Lua. `--verify-config` is
+      # format-agnostic, mutates nothing, needs no reload, and does not
+      # require a running session.
+      local field value snippet cfg fmt trial tmp out rc
       field=$(printf '%s' "$args" | jq -r '.field // ""')
       value=$(printf '%s' "$args" | jq -r '.value // ""')
-      if [[ -z "$field" || -z "$value" ]]; then
-        echo "Both 'field' and 'value' are required, e.g. field=windowrule value='float class:^(foo)$'"
+      snippet=$(printf '%s' "$args" | jq -r '.snippet // ""')
+
+      # Which config is deployed. Hyprland picks by extension and .lua WINS
+      # whenever it exists (src/config/ConfigManager.cpp), so check it first.
+      if [[ -f "$HOME/.config/hypr/hyprland.lua" ]]; then
+        cfg="$HOME/.config/hypr/hyprland.lua"
+        fmt=lua
+      elif [[ -f "$HOME/.config/hypr/hyprland.conf" ]]; then
+        cfg="$HOME/.config/hypr/hyprland.conf"
+        fmt=hyprlang
+      else
+        echo "No deployed Hyprland config found under ~/.config/hypr/."
         return
       fi
-      out=$(hyprctl keyword "$field" "$value" 2>&1)
-      echo "hyprctl keyword $field '$value' → $out"
-      hyprctl reload >/dev/null 2>&1
-      errs=$(hyprctl configerrors 2>&1)
-      echo "configerrors after restoring deployed config: ${errs:-(none — green)}"
+
+      if [[ -n "$snippet" ]]; then
+        trial="$snippet"
+      elif [[ -n "$field" && -n "$value" ]]; then
+        if [[ "$fmt" == "lua" ]]; then
+          echo "Deployed config is Lua ($cfg); field/value is hyprlang shape."
+          echo "Pass 'snippet' instead, e.g. snippet='hl.config{ general = { gaps_in = 2 } }'"
+          return
+        fi
+        trial="$field = $value"
+      else
+        echo "Provide either 'snippet', or both 'field' and 'value' (hyprlang only)."
+        echo "Deployed format: $fmt ($cfg)"
+        return
+      fi
+
+      # Under Lua, --verify-config EXECUTES the config. A top-level
+      # hl.exec_cmd runs for real; the same call inside hl.on("hyprland.start")
+      # does not. Refuse the dangerous shape rather than spawning processes
+      # from a validation tool.
+      if [[ "$fmt" == "lua" && "$trial" == *exec_cmd* && "$trial" != *hyprland.start* ]]; then
+        echo "Refusing: a top-level hl.exec_cmd EXECUTES during --verify-config."
+        echo "Wrap it in hl.on(\"hyprland.start\", function() ... end) and retry."
+        return
+      fi
+
+      tmp=$(mktemp -d)
+      # Keep the original extension — Hyprland selects its parser from it.
+      local trialcfg="$tmp/hyprland.${cfg##*.}"
+      cat "$cfg" >"$trialcfg"
+      printf '\n%s\n' "$trial" >>"$trialcfg"
+
+      # XDG_RUNTIME_DIR is mandatory: without it Hyprland aborts with
+      # "XDG_RUNTIME_DIR is not set!" and exit 134 — identically for a good
+      # and a bad config, so that abort must never be read as a verdict.
+      out=$(XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}" \
+        Hyprland --verify-config -c "$trialcfg" 2>&1) && rc=0 || rc=$?
+      rm -rf "$tmp"
+
+      echo "format: $fmt   base: $cfg"
+      echo "trial:  $trial"
+      if [[ "$rc" == 0 ]] && printf '%s' "$out" | grep -q "config ok"; then
+        echo "verdict: OK — config parses with the trial applied"
+      elif printf '%s' "$out" | grep -q "Config error\|error"; then
+        echo "verdict: REJECTED"
+        printf '%s\n' "$out" | grep -iE "config error|error|unknown|invalid|expected" | head -10
+      else
+        echo "verdict: UNVERIFIABLE (rc=$rc) — the verifier could not run; this is NOT a config verdict"
+        printf '%s\n' "$out" | tail -5
+      fi
       ;;
     hypr_config_errors)
       if ! hypr_available; then
@@ -178,7 +236,7 @@ $(grep -iE 'error|caused|unavailable' "$log" | head -20)"
   esac
 }
 
-TOOLS='[{"name":"disk_usage","description":"Show btrfs filesystem usage and disk space","inputSchema":{"type":"object","properties":{}}},{"name":"failed_services","description":"List any failed systemd services","inputSchema":{"type":"object","properties":{}}},{"name":"recent_errors","description":"Show recent error-level journal entries","inputSchema":{"type":"object","properties":{"count":{"type":"integer","description":"Number of entries (default 50)","default":50}}}},{"name":"system_status","description":"System overview: uptime, load, memory, CPU temp, battery","inputSchema":{"type":"object","properties":{}}},{"name":"snapshot_list","description":"List btrfs snapshots managed by snapper","inputSchema":{"type":"object","properties":{}}},{"name":"network_status","description":"NetworkManager status and active connections","inputSchema":{"type":"object","properties":{}}},{"name":"nix_store_size","description":"Nix store disk usage and GC status","inputSchema":{"type":"object","properties":{}}},{"name":"scrub_status","description":"Last btrfs scrub result","inputSchema":{"type":"object","properties":{}}},{"name":"hypr_config_check","description":"Validate a hyprland.conf field/value against the RUNNING compositor (nix build cannot check generated config contents). Applies the value live via hyprctl keyword, reports ok/error verbatim, then hyprctl reload restores the deployed config. Only works inside the Hyprland session.","inputSchema":{"type":"object","properties":{"field":{"type":"string","description":"Config keyword, e.g. windowrule, general:gaps_in"},"value":{"type":"string","description":"Value to trial, e.g. \"float class:^(foo)$\""}},"required":["field","value"]}},{"name":"hypr_config_errors","description":"Report hyprctl configerrors for the running Hyprland session (empty = green). Optionally hyprctl reload first to re-parse the deployed config. Only works inside the Hyprland session.","inputSchema":{"type":"object","properties":{"reload":{"type":"boolean","description":"Run hyprctl reload before checking (default false)","default":false}}}},{"name":"quickshell_check","description":"Load-check the bespoke Quickshell bar QML from repo source without a NixOS rebuild: overlays repo *.qml onto a copy of the deployed config (generated Theme.qml/cava.conf) and runs qs -p. One broken QML file blanks the whole bar, so run this before rebuilding. Briefly restarts the live bar. Only works inside the Hyprland session.","inputSchema":{"type":"object","properties":{"qml_dir":{"type":"string","description":"QML source dir to check (default $CLAUDEOS_DIR/home/quickshell — pass explicitly from worktrees)"}}}}]'
+TOOLS='[{"name":"disk_usage","description":"Show btrfs filesystem usage and disk space","inputSchema":{"type":"object","properties":{}}},{"name":"failed_services","description":"List any failed systemd services","inputSchema":{"type":"object","properties":{}}},{"name":"recent_errors","description":"Show recent error-level journal entries","inputSchema":{"type":"object","properties":{"count":{"type":"integer","description":"Number of entries (default 50)","default":50}}}},{"name":"system_status","description":"System overview: uptime, load, memory, CPU temp, battery","inputSchema":{"type":"object","properties":{}}},{"name":"snapshot_list","description":"List btrfs snapshots managed by snapper","inputSchema":{"type":"object","properties":{}}},{"name":"network_status","description":"NetworkManager status and active connections","inputSchema":{"type":"object","properties":{}}},{"name":"nix_store_size","description":"Nix store disk usage and GC status","inputSchema":{"type":"object","properties":{}}},{"name":"scrub_status","description":"Last btrfs scrub result","inputSchema":{"type":"object","properties":{}}},{"name":"hypr_config_check","description":"Validate Hyprland config against the Hyprland binary with --verify-config (nix build cannot check generated config contents). Appends a trial line to the deployed config in a temp copy and parses it — nothing is mutated, no reload, no live session needed. Works for both hyprlang (.conf) and Lua (.lua); the deployed format is auto-detected. Verdicts are OK / REJECTED / UNVERIFIABLE — UNVERIFIABLE means the verifier itself could not run and is NOT a statement about the config.","inputSchema":{"type":"object","properties":{"field":{"type":"string","description":"hyprlang keyword, e.g. windowrule, general:gaps_in (hyprlang configs only; use snippet for Lua)"},"value":{"type":"string","description":"Value to trial, e.g. \"float on, match:class ^(foo)$\""},"snippet":{"type":"string","description":"Raw config text to append verbatim — required for Lua, e.g. hl.config{ general = { gaps_in = 2 } }. Takes precedence over field/value."}},"required":[]}},{"name":"hypr_config_errors","description":"Report hyprctl configerrors for the running Hyprland session (empty = green). Optionally hyprctl reload first to re-parse the deployed config. Only works inside the Hyprland session.","inputSchema":{"type":"object","properties":{"reload":{"type":"boolean","description":"Run hyprctl reload before checking (default false)","default":false}}}},{"name":"quickshell_check","description":"Load-check the bespoke Quickshell bar QML from repo source without a NixOS rebuild: overlays repo *.qml onto a copy of the deployed config (generated Theme.qml/cava.conf) and runs qs -p. One broken QML file blanks the whole bar, so run this before rebuilding. Briefly restarts the live bar. Only works inside the Hyprland session.","inputSchema":{"type":"object","properties":{"qml_dir":{"type":"string","description":"QML source dir to check (default $CLAUDEOS_DIR/home/quickshell — pass explicitly from worktrees)"}}}}]'
 
 while IFS= read -r msg; do
   [[ -z "$msg" ]] && continue
