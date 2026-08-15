@@ -91,6 +91,15 @@
   # boot generations still carry it if a GNOME session is ever needed again.
   claude-os.hyprland.enable = true;
 
+  # TESTBED TRIAL (2026-08-15): the Quickshell greeter, replacing regreet.
+  # transporter first BY DESIGN — a broken QML file blanks the whole Quickshell
+  # config, and in the greeter that means no way to log in. This is the testbed;
+  # gti is the daily driver and stays on regreet until this has survived real
+  # use here (docs/plans/2026-08-15-quickshell-greeter-plan.md, phases 2-4).
+  # Recovery if it does blank: ctrl+alt+F3 to a TTY, or pick the previous
+  # generation in the boot menu.
+  claude-os.greeter.enable = true;
+
   # TESTBED TRIAL (2026-08-06): give the GREETER its own portal routing, so
   # xdg-desktop-portal-hyprland never starts in the greeter session.
   #

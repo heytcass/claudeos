@@ -8,6 +8,7 @@ in
 {
   imports = [
     ./hyprland.nix # inert unless claude-os.hyprland.enable (default false)
+    ./greeter.nix # inert unless claude-os.greeter.enable (default false)
     ./audio.nix
     ./fonts.nix
     ./theme.nix
