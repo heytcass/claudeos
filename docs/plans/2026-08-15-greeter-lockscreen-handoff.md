@@ -1,5 +1,63 @@
 # hyprlock crash + greeter measurement — handoff to a local session
 
+> **CLOSED 2026-08-15. Both jobs done; three of this document's hypotheses were
+> wrong.** Read this box before anything below it — the body is preserved as the
+> reasoning-at-the-time, not as current fact.
+>
+> **Job A root cause — it was neither the wallpaper nor a hyprlock defect.**
+> hyprlock is forked by hypridle and lives in `hypridle.service`'s cgroup
+> (journald proves it by tagging hyprlock's own stdout as `hypridle[PID]`,
+> since it attributes by cgroup). hypridle runs `KillMode=control-group`,
+> `KillSignal=15`. When home-manager activation logged
+> `Stopping units: … hypridle.service …` at 03:41:16, it **SIGTERM'd the
+> hyprlock holding the active session lock**. That instance's last line is one
+> second earlier and it is the only hyprlock in the journal that never logs
+> `Unlocking session`. SIGTERM leaves no core — which is why the coredump hunt
+> below finds nothing. The 03:46 relaunch was then **denied, not successful**:
+> `onLockFinished called. Seems we got yeeten. Is another lockscreen running?`
+> — Hyprland refusing a second `ext-session-lock-v1` because
+> `misc:allow_session_lock_restore` defaults false. The denied process lingered,
+> satisfying the `pidof hyprlock ||` guard, which short-circuited all seven
+> later idle triggers.
+>
+> **This generalises**, which section 2 did not anticipate: the mechanism is
+> cgroup teardown, so a plain home-manager switch with *no version change* would
+> wedge the lock identically. Rarity does not come from version skew.
+>
+> **Dead hypothesis 1 — the 3840² `assets/dune.jpg` decode.** The image really
+> is 3840², but hyprlock logs `Resources gathered after 189 milliseconds` on
+> every launch across a dozen-plus locks. Not implicated in either job.
+>
+> **Dead hypothesis 2 — a Hyprland 0.56.2 session-lock regression.** The
+> compositor never restarted (`Started Main service` 08-10 17:55:48, `Stopping`
+> 08-15 10:51:18), so **0.56.1 was in memory for the entire incident**; 0.56.2
+> first executed at the 10:51:48 reboot, after it was over.
+>
+> **Correction to section 2's framing of the escape hatch.** `.conf` is not "the
+> broken path". `eval` and `keyword` are mirror-image gated in
+> `src/debug/HyprCtl.cpp` — each format has a working hatch. The real defect is
+> that `lockdead.png` is a **static PNG with no source**, so it cannot branch on
+> config type; it was rewritten to the Lua wording in hyprwm/Hyprland#14213 and
+> therefore misinstructed every `.conf` user. Since the config has migrated to
+> Lua (#100), the on-screen advice now works as printed.
+>
+> **Job B — resolved NEGATIVE.** greetd is ready in ~1 s; `graphical.target` at
+> 4.75 s; `systemd-analyze blame` does not list greetd at all. The 30 s to a
+> prompt is 18.5 s of Dell UEFI firmware. regreet is not slow.
+>
+> **Shipped in #99 and #100:** auto-update `switch`→`boot`;
+> `misc.allow_session_lock_restore = true`; `security.pam.services.hyprlock`
+> (hyprlock had no PAM stack and fell back to `/etc/pam.d/su`, so screen-unlock
+> never unlocked the keyring — a real find, but *not* a contributing cause); a
+> VM-gate check of the generated Hyprland config; `hypr_config_check` rebuilt on
+> the format-agnostic `Hyprland --verify-config`; and the hyprlang→Lua
+> migration. Both `docs/known-issues.md` entries are filed.
+>
+> **Still open:** hardening the mechanism itself — `KillMode=process` on
+> hypridle, or not spawning hyprlock as a hypridle child, or an idempotent
+> `lock_cmd`. The `pidof hyprlock ||` guard is what turned a recoverable failure
+> into an unrecoverable one and remains unchanged.
+
 *2026-08-15. Written by the remote (web) session that opened PR #98, for the
 local Claude Code session picking it up. The remote container has **no `nix`,
 no journal, and no machine access** — every open question below is blocked on
@@ -209,14 +267,31 @@ re-scope PR #98 accordingly.
 
 ## 5. What "done" looks like
 
-- [ ] Root cause for the hyprlock crash, with journal/coredump evidence
-- [ ] **Lock-screen recovery made to actually work on `gti`** — the `eval`
-      escape hatch is dead here (section 2). This is a separate deliverable from
-      the crash root cause and should not be closed by fixing the crash alone.
-- [ ] `docs/known-issues.md` entries added — **two of them**, one for the crash
-      and one for the broken escape hatch (dated, with evidence and verdict,
-      matching the existing entry style)
-- [ ] Fix pushed, or an explicit "not reproducible, monitoring" note if it was
-      a one-off
-- [ ] Phase 0 number recorded in PR #98, hypothesis confirmed or killed
-- [ ] A call on whether PR #98's phasing still makes sense given what you found
+- [x] Root cause for the hyprlock crash, with journal evidence — cgroup
+      teardown via hypridle's `KillMode=control-group`. **No coredump exists**,
+      because SIGTERM leaves none; hyprlock wedged rather than crashed.
+- [x] **Lock-screen recovery made to actually work on `gti`** —
+      `misc.allow_session_lock_restore = true` (#99) makes
+      `hyprctl dispatch exec hyprlock` re-arm a prompt while keeping the session
+      locked. The Lua migration (#100) additionally restores the
+      `hyprctl eval 'hl.clear_crashed_lockscreen()'` hatch the fallback screen
+      actually prints.
+- [x] `docs/known-issues.md` entries added — two, per this list; the
+      escape-hatch one is now marked **RESOLVED** by the Lua migration.
+- [x] Fix pushed and merged (#99, #100), staged on `gti` via `nixos-rebuild
+      boot`. Reproducibility: one-off — `Stopping units: …hypridle…` appears
+      exactly once across all 10 retained boots, and `yeeten` exactly once, five
+      minutes later. The weekly timer only landed on a locked session because
+      Aug 8's 03:00 run fired while the machine was off and `Persistent=true`
+      deferred it to a midday boot.
+- [x] Phase 0 number recorded — greetd ready in ~1 s, `graphical.target` at
+      4.75 s, not listed by `systemd-analyze blame`. **Hypothesis killed.**
+- [x] A call on PR #98's phasing: phase 0 resolves negative, so the Quickshell
+      greeter is now an appearance-and-footgun argument, not a performance one.
+      The plan doc has been updated to say so rather than quietly dropping it.
+- [ ] **Not done — the mechanism itself is unhardened.** `switch`→`boot` removes
+      the trigger the auto-update lane pulls, but a manual `nixos-rebuild
+      switch` on a locked session still kills the lock client. Options:
+      `KillMode=process` on hypridle, not spawning hyprlock as a hypridle child,
+      or an idempotent `lock_cmd` (the `pidof hyprlock ||` guard is what turned
+      a recoverable failure into an unrecoverable one).

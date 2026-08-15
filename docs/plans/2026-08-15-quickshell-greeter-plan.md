@@ -1,6 +1,8 @@
 # Quickshell greeter — replacing regreet
 
-**Status:** proposed (2026-08-15)
+**Status:** proposed (2026-08-15) · **phase 0 resolved NEGATIVE same day** —
+the performance premise did not survive measurement; see "The reliability
+complaint is probably not regreet" below before acting on any later phase.
 **Supersedes:** the greeter half of `services.displayManager.regreet.enable`
 in `modules/desktop/hyprland.nix`
 **Prompted by:** evaluation of [Nitrux/qmlgreet](https://github.com/Nitrux/qmlgreet)
@@ -77,21 +79,42 @@ Intel Panel Self Refresh freezing the eDP panel on a fully static screen. Fixed
 fleet-wide with `i915.enable_psr=0` in `modules/common/boot.nix:30-42`. Not a
 greeter defect.
 
-**Open hypothesis for the slowness:** Stylix points the regreet background at
-`assets/dune.jpg` — 674 KB, but a 3840² canvas per `modules/desktop/theme.nix:146-157`.
-That is ~14.7 M pixels to JPEG-decode and rescale in GTK4, inside cage, on
-2017-era Kaby Lake iGPUs, on every boot. Plausible; **not yet measured**.
+**The slowness hypothesis is DEAD — measured 2026-08-15 on `gti`.** The claim
+was that Stylix points the regreet background at `assets/dune.jpg`, a 3840²
+canvas per `modules/desktop/theme.nix:146-157`, and that decoding ~14.7 M
+pixels in GTK4 inside cage on a 2017 Kaby Lake iGPU dominates greeter startup.
 
-**Action before implementing:** capture the actual numbers on `transporter`:
+It does not. greetd is ready in about **one second**:
 
 ```
-systemd-analyze blame | grep -i greetd
-journalctl -b -u greetd --no-pager
+10:51:56  Started greetd.service
+10:51:57  gkr-pam: gnome-keyring-daemon started properly
+10:52:08  [user types password]
+10:52:09  session opened for user tom — keyring unlocked
 ```
 
-If wallpaper decode dominates, a pre-scaled greeter background is the fix and
-it applies to *either* greeter. The Quickshell greeter should ship a
-panel-resolution asset regardless, rather than the 3840² master.
+`graphical.target` is reached **4.75 s** into userspace, and
+`systemd-analyze blame | grep -i greet` returns **nothing at all** — greetd's
+own start duration is below the reporting threshold. The 30 s wall-clock to a
+login prompt is dominated by **18.5 s of Dell XPS 13 UEFI firmware**, which no
+greeter change can touch.
+
+The same image was independently cleared on the lock-screen side: hyprlock logs
+`Resources gathered after 189 milliseconds` on *every* launch across a
+dozen-plus locks. The wallpaper is not a performance problem anywhere.
+
+**Consequence for this plan: phase 0 resolves negative, and the justification
+changes.** The "unreliable/slow login screen" half of the original complaint is
+**not about speed** — it is about how regreet *looks* next to the bar. A
+Quickshell greeter remains defensible on visual-consistency and
+footgun-removal grounds (the session-picker default), but it should no longer
+be sold as a performance fix, and a pre-scaled background asset is **not** the
+high-value change this document previously implied.
+
+*(Caveat on the measurement: this times `greetd.service`, not regreet's
+render-to-first-frame. regreet emits no journal output, so its own decode time
+was not isolated directly. The ceiling is tight — the greeter was interactive
+well before the user authenticated — but the inner number is unmeasured.)*
 
 ---
 
@@ -175,7 +198,7 @@ Mitigations, all required:
 
 | Phase | Deliverable |
 |---|---|
-| 0 | Measure greeter startup on `transporter` (see above). Confirm or kill the wallpaper hypothesis. |
+| 0 | ~~Measure greeter startup. Confirm or kill the wallpaper hypothesis.~~ **DONE 2026-08-15 — resolved NEGATIVE.** greetd is ready in ~1 s; the wallpaper is not implicated. See above. Phases 1-4 now rest on appearance and footgun-removal alone. |
 | 1 | Extract `lib/quickshell-theme.nix`; bar behavior unchanged. Independently shippable. |
 | 2 | `modules/desktop/greeter.nix` + greeter QML, `transporter` only, regreet still default on `gti`. |
 | 3 | Soak on `transporter`. Verify the four on-machine items. |
