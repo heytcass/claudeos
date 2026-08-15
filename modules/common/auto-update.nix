@@ -1,7 +1,14 @@
 # modules/common/auto-update.nix — Weekly unattended NixOS flake updates with Claude review.
 #
 # Flow: nix flake update → build test → VM smoke-test gate → Claude-reviewed
-# changelog → commit & push → nixos-rebuild switch (autoApply) → notify
+# changelog → commit & push → nixos-rebuild boot (autoApply) → notify
+#
+# autoApply stages with `boot`, never `switch`. A live switch changes the
+# closure under a running graphical session: long-lived processes keep their
+# old /nix/store paths mapped while anything spawned afterwards gets the new
+# ones. That split-brain wedged hyprlock on gti 2026-08-15 (see
+# docs/known-issues.md). Staging means the closure only ever changes across a
+# reboot, where nothing has stale paths mapped.
 #
 # The VM gate is what makes autoApply safe: the freshly built generation is
 # booted headless in a throwaway QEMU VM (config.system.build.vm with a
@@ -10,6 +17,9 @@
 # update may be committed, pushed, or applied. No usable /dev/kvm → the gate
 # is skipped and the run degrades to the old build-only behavior (commit and
 # push, never switch).
+#
+# The gate also verifies the *contents* of the generated hyprland.conf, which
+# nix eval cannot do — see the claudeos-vm-smoke script below.
 #
 # On a build failure: Claude diagnoses the error, flake.lock is reverted, the
 # user is notified. On a red VM run: flake.lock is reverted, the failing unit
@@ -21,11 +31,27 @@
   lib,
   config,
   pkgs,
+  user,
   ...
 }:
 
 let
   cfg = config.claude-os.autoUpdate;
+
+  # The generated hyprland.conf and the Hyprland that will read it. Both come
+  # from the *outer* config — i.e. the generation the VM is about to boot —
+  # so the gate verifies the config that is actually shipping. Guarded with
+  # attrByPath so a host that doesn't run Hyprland simply skips the check
+  # rather than failing to evaluate.
+  hmUser = config.home-manager.users.${user} or { };
+  hyprConf = lib.attrByPath [ "xdg" "configFile" "hypr/hyprland.conf" "source" ] null hmUser;
+  hyprPkg = lib.attrByPath [
+    "wayland"
+    "windowManager"
+    "hyprland"
+    "package"
+  ] null hmUser;
+  canVerifyHypr = hyprConf != null && hyprPkg != null;
 
   claudeLib = import ../../lib/claude-script.nix { inherit pkgs lib; };
 
@@ -337,6 +363,7 @@ in
           pkgs.coreutils
           pkgs.gawk
           pkgs.findutils
+          pkgs.gnugrep # Hyprland --verify-config output matching
         ];
         # Type=exec, not oneshot: the boot transaction must be able to finish
         # while we wait on it, or `is-system-running --wait` deadlocks on our
@@ -353,10 +380,65 @@ in
           # month-long silent-revert bug, PR #29).
           displaymgr=$(systemctl is-active display-manager.service || true)
           failed=$(systemctl --failed --no-legend --plain | awk '{print $1}' | xargs || true)
+
+          # --- Hyprland config verification --------------------------------
+          # The unit checks above all pass for a system whose *session* is
+          # broken: display-manager.service is greetd, which runs BEFORE any
+          # session exists, so a hyprland.conf Hyprland refuses to parse is
+          # invisible to them. `nix build` can't see it either — it only
+          # checks Nix eval, never the generated file's contents (CLAUDE.md,
+          # "Compositor config isn't validated by the build").
+          #
+          # `Hyprland --verify-config` closes that gap. Verified on gti
+          # 2026-08-15 against 0.56.2, three distinct outcomes:
+          #   exit 0,   "config ok"                → parses
+          #   exit 1,   "Config error in file ..." → genuinely broken. Catches
+          #             the windowrule comma-grammar footgun that sat silently
+          #             inert in this repo until 2026-07-11 ("invalid field
+          #             float: missing a value").
+          #   exit 134, "XDG_RUNTIME_DIR is not set!" → the verifier could not
+          #             RUN. This aborts *identically* for a good and a broken
+          #             config, so it must never be read as a verdict. We set
+          #             XDG_RUNTIME_DIR to avoid it, but a future Hyprland
+          #             could add another precondition — hence the third state.
+          hyprcfg=skipped
+          hyprcfg_out=""
+          ${lib.optionalString canVerifyHypr ''
+            hyprcfg_out=$(XDG_RUNTIME_DIR=/run HOME=/tmp \
+              ${hyprPkg}/bin/Hyprland --verify-config -c ${hyprConf} 2>&1) && hyprcfg_rc=0 || hyprcfg_rc=$?
+            if [ "$hyprcfg_rc" = 0 ] && printf '%s' "$hyprcfg_out" | grep -q "config ok"; then
+              hyprcfg=ok
+            elif printf '%s' "$hyprcfg_out" | grep -q "Config error"; then
+              hyprcfg=broken
+            else
+              hyprcfg=unverifiable
+            fi
+            echo "CLAUDEOS-HYPRCFG $hyprcfg (rc=$hyprcfg_rc)"
+            [ "$hyprcfg" = ok ] || printf '%s\n' "$hyprcfg_out"
+          ''}
+
+          # TODO(tom): decide the verdict policy for $hyprcfg and fold it into
+          # the condition below. The three states are ok / broken / unverifiable
+          # (plus "skipped" on a host with no Hyprland). "broken" must clearly
+          # fail. The real decision is "unverifiable":
+          #
+          #   fail-closed — treat unverifiable as a red gate. Never silently
+          #     loses the protection, but a Hyprland quirk that breaks the
+          #     verifier blocks the weekly update until someone intervenes.
+          #
+          #   fail-open — treat unverifiable as a pass and rely on the printed
+          #     CLAUDEOS-HYPRCFG line. Updates keep flowing, but the guard goes
+          #     quiet exactly when it stops working — which is how the
+          #     literal-unit-name assumption caused the month-long silent
+          #     revert in PR #29.
+          #
+          # Worth weighing against 0.57: when .conf support is removed, an
+          # un-migrated config becomes "broken" here, and that is precisely the
+          # case this gate exists to catch before it reaches the boot menu.
           if [ "$multiuser" = "active" ] && [ "$displaymgr" = "active" ] && [ -z "$failed" ]; then
             echo "CLAUDEOS-SMOKE-PASS status=$status"
           else
-            echo "CLAUDEOS-SMOKE-FAIL status=$status multi-user=$multiuser display-manager=$displaymgr failed=''${failed:-none}"
+            echo "CLAUDEOS-SMOKE-FAIL status=$status multi-user=$multiuser display-manager=$displaymgr hyprcfg=$hyprcfg failed=''${failed:-none}"
             for u in $failed; do
               echo "--- journal: $u ---"
               journalctl -u "$u" -n 30 --no-pager || true
