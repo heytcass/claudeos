@@ -11,13 +11,18 @@ exactly that. A local session closes all of them in minutes. Branch:
 > Read `docs/PHILOSOPHY.md`, `docs/plans/2026-08-15-quickshell-greeter-plan.md`,
 > and this file first. Two independent jobs, in priority order.
 >
-> **Job A — diagnose a live hyprlock crash.** The lock screen died and dropped
-> to Hyprland's "Oopsie daisy" crashed-lockscreen fallback (photo taken
-> 2026-08-15, host unconfirmed — establish which one). Nothing has been deployed
-> from PR #98; it is a docs-only branch that was never merged, so this is
-> pre-existing. There is a specific hypothesis to test in section 2 below —
-> **test it, don't assume it.** If the journal says something else, follow the
-> journal.
+> **Job A — diagnose a live hyprlock crash on `gti`.** The lock screen died and
+> dropped to Hyprland's "Oopsie daisy" crashed-lockscreen fallback (2026-08-15).
+> Nothing has been deployed from PR #98; it is a docs-only branch that was never
+> merged, so this is pre-existing. There is a specific hypothesis to test in
+> section 2 below — **test it, don't assume it.** If the journal says something
+> else, follow the journal.
+>
+> Note that this has **two separable defects**, and the second is arguably more
+> urgent: hyprlock crashed, *and* Hyprland's documented recovery command doesn't
+> work on this build, which strands you at a TTY. Section 2 has a verified
+> working recovery ladder. Fix the recoverability even if the crash turns out to
+> be a one-off.
 >
 > **Job B — phase 0 of the greeter plan.** Measure regreet startup so we know
 > whether the Quickshell greeter proposal is even aimed at the right problem.
@@ -111,10 +116,59 @@ Stylix hyprlock target; that loses the theming.
 
 ### If it is not
 
-Follow the evidence. Worth knowing that hyprlock has no respawn safety here — if
-it dies you get the fallback screen, which is at least recoverable
-(`hyprctl --instance 0 eval 'hl.clear_crashed_lockscreen()'` from another tty)
-and does not lose session state.
+Follow the evidence.
+
+### Recovery — the documented escape hatch does NOT work on this build
+
+**Verified on `gti`, 2026-08-15.** Hyprland's crashed-lockscreen fallback screen
+tells you to run `hyprctl --instance 0 eval 'hl.clear_crashed_lockscreen()'`.
+On this build that returns:
+
+```
+eval is only supported with the lua config manager
+```
+
+We do not enable Hyprland's lua config manager, so **the on-screen instructions
+are dead** — Hyprland ships advice its own default configuration cannot follow.
+This is independent of whatever crashes hyprlock, and it is the difference
+between a five-second recovery and being stranded at a TTY on the primary host.
+
+Working ladder instead, least destructive first, all from a TTY (ctrl+alt+F3):
+
+```
+# 1. Re-lock properly: a fresh lock client takes over the crashed lock,
+#    then unlocks normally. Preserves the session and open work.
+killall -9 hyprlock
+eval "$(systemctl --user show-environment | grep -E '^(WAYLAND_DISPLAY|HYPRLAND_INSTANCE_SIGNATURE|XDG_RUNTIME_DIR)=' | sed 's/^/export /')"
+hyprctl monitors                      # sanity check: should print the display
+hyprlock                              # then ctrl+alt+F1 and type the password
+
+# 2. If hyprlock won't start, its failure IS the diagnostic — capture it:
+hyprlock 2>&1 | tee /tmp/hyprlock-fail.txt
+
+# 3. Clean logout (loses unsaved work, returns to greeter):
+hyprctl dispatch exit
+
+# 4. Last resort:
+sudo systemctl restart greetd
+```
+
+UWSM exports those three variables into the systemd user environment, which is
+why step 1 works without digging through `/proc`.
+
+**This deserves its own fix and its own `known-issues.md` entry, separate from
+the crash root cause.** Options worth weighing: enabling the lua config manager
+purely to restore the escape hatch, or a keybind/script that runs the step-1
+ladder directly. Do not let it get buried under the crash investigation — a
+recoverable lock failure is a different severity from an unrecoverable one.
+
+### Host note
+
+The observed crash is on **`gti`** — the primary daily driver, not the
+`transporter` testbed. The greeter plan's "prove on transporter first" phasing
+does not help here, and any hyprlock fix needs to land on `gti` to be worth
+anything. Weigh that against the usual don't-experiment-on-the-daily-driver
+caution.
 
 ---
 
@@ -156,8 +210,12 @@ re-scope PR #98 accordingly.
 ## 5. What "done" looks like
 
 - [ ] Root cause for the hyprlock crash, with journal/coredump evidence
-- [ ] `docs/known-issues.md` entry added (dated, with the evidence and the
-      verdict — matching the existing entry style)
+- [ ] **Lock-screen recovery made to actually work on `gti`** — the `eval`
+      escape hatch is dead here (section 2). This is a separate deliverable from
+      the crash root cause and should not be closed by fixing the crash alone.
+- [ ] `docs/known-issues.md` entries added — **two of them**, one for the crash
+      and one for the broken escape hatch (dated, with evidence and verdict,
+      matching the existing entry style)
 - [ ] Fix pushed, or an explicit "not reproducible, monitoring" note if it was
       a one-off
 - [ ] Phase 0 number recorded in PR #98, hypothesis confirmed or killed
