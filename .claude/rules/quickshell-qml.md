@@ -25,10 +25,13 @@ themed by `home/hyprland.nix`. When editing it:
   which is exactly what `qml-preview` does.
 
 - **The build does not validate QML/hyprland.conf contents** — only Nix eval.
-  Validate against the running binary before `rebuild`: `qs -p <copy>` loads
-  clean, `hyprctl keyword <field> <value>` returns `ok`, `hyprctl configerrors`
-  is empty after `hyprctl reload`. (See CLAUDE.md "Compositor config isn't
-  validated by the build".)
+  Validate against the Hyprland binary before `rebuild`: `qs -p <copy>` loads
+  clean, and `Hyprland --verify-config -c <file>` prints `config ok`. Do NOT
+  use `hyprctl keyword` — it only works on hyprlang configs (`hyprctl eval`
+  only on Lua ones), so it breaks across a format migration. `--verify-config`
+  is format-agnostic. Note it needs `XDG_RUNTIME_DIR` set or it aborts with
+  exit 134 regardless of whether the config is valid. (See CLAUDE.md
+  "Compositor config isn't validated by the build".)
 
 - **Deploy = `rebuild`, then pick up the new config.** Hyprland is the default
   generation on every host (no specialisation since the GNOME rip-out,

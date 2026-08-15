@@ -26,7 +26,7 @@ System diagnostics plus runtime config validation — checks `nix build` cannot 
 | `network_status` | NetworkManager status and connections |
 | `nix_store_size` | Nix store disk usage and GC timer |
 | `scrub_status` | Last btrfs scrub result |
-| `hypr_config_check` | Trial a hyprland.conf field/value against the running compositor, then restore |
+| `hypr_config_check` | Parse a trial config line with `Hyprland --verify-config` (hyprlang or Lua; mutates nothing) |
 | `hypr_config_errors` | `hyprctl configerrors` (optionally after reload) — empty = green |
 | `quickshell_check` | Load-check repo bar QML against deployed Theme.qml (briefly restarts the bar) |
 

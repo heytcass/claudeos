@@ -83,6 +83,15 @@ in
     # the components in-session.
     services.gnome.gnome-keyring.enable = true;
     security.pam.services.greetd.enableGnomeKeyring = true;
+    # hyprlock needs its own PAM stack. Without this it logs on every launch:
+    #   ERR ]: Pam module "/etc/pam.d/hyprlock" does not exist!
+    #          Falling back to "/etc/pam.d/su"
+    # Authentication still succeeds through the `su` fallback (it did on every
+    # unlock in the journal), so this never blocked a login — but the su stack
+    # carries no pam_gnome_keyring, so unlocking the screen does not unlock the
+    # keyring the way unlocking at the greeter does. Found 2026-08-15 while
+    # diagnosing the lockscreen wedge; not a contributing cause of it.
+    security.pam.services.hyprlock.enableGnomeKeyring = true;
 
     # GNOME's settings-daemon made the power button suspend (home/gnome.nix
     # power-button-action); logind owns the button in a bare compositor and

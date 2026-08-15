@@ -411,6 +411,28 @@ in
       # so the layout doesn't reflow unexpectedly.
       dwindle.preserve_split = true;
 
+      misc = {
+        # Recovery hatch for a dead lockscreen. Default is false, which is how
+        # gti got stranded at a TTY on 2026-08-15: hyprlock wedged, and the
+        # "Oopsie daisy" fallback screen (assets/install/lockdead.png) told us
+        # to run `hyprctl eval 'hl.clear_crashed_lockscreen()'`. That is a
+        # LUA-ONLY command — HyprCtl.cpp gates `eval` on CONFIG_LUA and
+        # `keyword` on CONFIG_LEGACY, mirror images. We're on hyprlang
+        # (configType above), so the on-screen advice cannot work here. The PNG
+        # is a static asset with no source, so it can't branch on config type;
+        # it was switched to the Lua wording in hyprwm/Hyprland#14213 and now
+        # misinstructs every .conf user.
+        #
+        # With this on, the TTY recovery is:
+        #   hyprctl --instance 0 dispatch exec hyprlock
+        # which re-arms a working prompt while KEEPING the session locked —
+        # safer on a laptop than clear_crashed_lockscreen(), which unlocks
+        # outright. forceUnlock is still refused while a client holds the lock,
+        # so this does not hand out an unlock. Verified against the running
+        # 0.56.2 binary via hypr_config_check → ok. See docs/known-issues.md.
+        allow_session_lock_restore = true;
+      };
+
       # Auto-float utility windows + the GTK file picker, so dialogs don't tile
       # awkwardly. Match by app class; add more as they come up.
       # Hyprland 0.55 hyprlang-compat grammar (verified against

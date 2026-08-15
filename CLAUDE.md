@@ -63,7 +63,13 @@ All work is done directly on NixOS machines:
 
 `nix build` / `nix flake check` only check Nix **evaluation** — they cannot parse the *contents* of a generated `hyprland.conf` or the Quickshell QML. A config that builds green can still be rejected at runtime: e.g. Hyprland 0.55 changed `windowrule` grammar to space-separated (`float class:^(…)$`), so the old comma form (`float, class:…`) builds fine but throws `invalid field float` and raises Hyprland's on-screen config-error banner. Likewise a single broken QML file blanks the entire bar (Quickshell registers the config dir as one module).
 
-So validate **new Hyprland config values against the running binary** before rebuilding. The `system-health` MCP server wraps this workflow as tools: `hypr_config_check` (trials a field/value via `hyprctl keyword`, then restores the deployed config), `hypr_config_errors` (empty = green), and `quickshell_check` (overlays repo QML onto the deployed config and load-checks with `qs -p`; pass `qml_dir` from worktrees). Manual fallback: `hyprctl keyword <field> <value>` must return `ok`, `hyprctl configerrors` must be empty after `hyprctl reload`, and `qs -p <writable copy>/shell.qml` must load with no errors.
+So validate **new Hyprland config values against the Hyprland binary** before rebuilding. The `system-health` MCP server wraps this workflow as tools: `hypr_config_check` (appends a trial line to a temp copy of the deployed config and parses it with `Hyprland --verify-config` — nothing is mutated, no reload, no live session required), `hypr_config_errors` (empty = green), and `quickshell_check` (overlays repo QML onto the deployed config and load-checks with `qs -p`; pass `qml_dir` from worktrees).
+
+Manual fallback: `Hyprland --verify-config -c <file>` must print `config ok`, and `qs -p <writable copy>/shell.qml` must load with no errors. Three traps worth knowing:
+
+- **`XDG_RUNTIME_DIR` must be set** or Hyprland aborts with `XDG_RUNTIME_DIR is not set!` and exit 134 — *identically for a good and a bad config*. Never read that abort as a verdict; it means the verifier didn't run.
+- **Do not reach for `hyprctl keyword`.** It is gated on `CONFIG_LEGACY`, and `hyprctl eval` on `CONFIG_LUA` (`src/debug/HyprCtl.cpp`) — exact mirror images. Whichever you pick is broken on the other config format, which is why the tooling moved to `--verify-config`.
+- **Under Lua, `--verify-config` executes the config.** A top-level `hl.exec_cmd` runs for real; the same call inside `hl.on("hyprland.start", …)` does not. Keep `exec-once` in the start hook.
 
 ## Capabilities
 
