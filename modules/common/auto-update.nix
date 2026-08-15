@@ -38,20 +38,36 @@
 let
   cfg = config.claude-os.autoUpdate;
 
-  # The generated hyprland.conf and the Hyprland that will read it. Both come
-  # from the *outer* config — i.e. the generation the VM is about to boot —
-  # so the gate verifies the config that is actually shipping. Guarded with
+  # The generated Hyprland config and the Hyprland that will read it. Both come
+  # from the *outer* config — i.e. the generation the VM is about to boot — so
+  # the gate verifies the config that is actually shipping. Guarded with
   # attrByPath so a host that doesn't run Hyprland simply skips the check
   # rather than failing to evaluate.
+  #
+  # Both filenames are probed because home-manager emits exactly one of them,
+  # chosen by `configType`: hyprland.lua under "lua", hyprland.conf under
+  # "hyprlang". Probing only one would make this whole check evaporate silently
+  # on a format flip — the check would still "pass", having verified nothing.
+  # That is the PR #29 silent-revert failure mode, so the assert below turns it
+  # into a build error instead.
   hmUser = config.home-manager.users.${user} or { };
-  hyprConf = lib.attrByPath [ "xdg" "configFile" "hypr/hyprland.conf" "source" ] null hmUser;
+  hyprCfgFile =
+    let
+      f = n: lib.attrByPath [ "xdg" "configFile" n "source" ] null hmUser;
+    in
+    if f "hypr/hyprland.lua" != null then f "hypr/hyprland.lua" else f "hypr/hyprland.conf";
+  hyprEnabled = lib.attrByPath [ "wayland" "windowManager" "hyprland" "enable" ] false hmUser;
   hyprPkg = lib.attrByPath [
     "wayland"
     "windowManager"
     "hyprland"
     "package"
   ] null hmUser;
-  canVerifyHypr = hyprConf != null && hyprPkg != null;
+  # If Hyprland is enabled we MUST have found a config to verify. Failing loudly
+  # here beats a gate that quietly checks nothing.
+  canVerifyHypr =
+    assert hyprEnabled -> (hyprCfgFile != null && hyprPkg != null);
+    hyprCfgFile != null && hyprPkg != null;
 
   claudeLib = import ../../lib/claude-script.nix { inherit pkgs lib; };
 
@@ -217,8 +233,11 @@ let
             # the next idle-lock launched a 0.56.2-era hyprlock against the
             # still-running 0.56.1 compositor. It never re-armed; seven
             # subsequent lock triggers were short-circuited by the
-            # `pidof hyprlock ||` guard, and Hyprland's own recovery advice
-            # (`hyprctl eval`) is unavailable on the .conf config format.
+            # `pidof hyprlock ||` guard. (At the time, Hyprland's own recovery
+            # advice — `hyprctl eval` — was also unavailable, because it is
+            # gated on the Lua config manager and we were still on .conf. The
+            # config has since migrated to Lua, so that hatch now works; the
+            # staging fix below is what keeps the wedge from happening at all.)
             # See docs/known-issues.md 2026-08-15.
             #
             # `boot` stages the generation as the next boot default and leaves
@@ -405,7 +424,7 @@ in
           hyprcfg_out=""
           ${lib.optionalString canVerifyHypr ''
             hyprcfg_out=$(XDG_RUNTIME_DIR=/run HOME=/tmp \
-              ${hyprPkg}/bin/Hyprland --verify-config -c ${hyprConf} 2>&1) && hyprcfg_rc=0 || hyprcfg_rc=$?
+              ${hyprPkg}/bin/Hyprland --verify-config -c ${hyprCfgFile} 2>&1) && hyprcfg_rc=0 || hyprcfg_rc=$?
             if [ "$hyprcfg_rc" = 0 ] && printf '%s' "$hyprcfg_out" | grep -q "config ok"; then
               hyprcfg=ok
             elif printf '%s' "$hyprcfg_out" | grep -q "Config error"; then
