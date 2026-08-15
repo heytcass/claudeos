@@ -182,16 +182,32 @@ let
             # non-setuid store binary, which cannot elevate ("sudo must be
             # owned by uid 0"). Interactive shells never hit this — wrappers
             # come first there — so it only bites in unit context.
-            if /run/wrappers/bin/sudo /run/current-system/sw/bin/nixos-rebuild switch --flake "$CLAUDEOS_DIR#$HOST" 2>&1; then
+            # `boot`, deliberately NOT `switch`. A live switch activates the new
+            # generation under a running graphical session: long-lived processes
+            # keep their old /nix/store paths mapped, while anything spawned
+            # afterwards gets the new closure. That split-brain wedged hyprlock
+            # on gti 2026-08-15 — the session had been up since 08-10 on
+            # Hyprland 0.56.1, the 03:41 switch moved the system to 0.56.2, and
+            # the next idle-lock launched a 0.56.2-era hyprlock against the
+            # still-running 0.56.1 compositor. It never re-armed; seven
+            # subsequent lock triggers were short-circuited by the
+            # `pidof hyprlock ||` guard, and Hyprland's own recovery advice
+            # (`hyprctl eval`) is unavailable on the .conf config format.
+            # See docs/known-issues.md 2026-08-15.
+            #
+            # `boot` stages the generation as the next boot default and leaves
+            # the running system untouched, so the closure only ever changes
+            # across a reboot — where nothing has stale paths mapped.
+            if /run/wrappers/bin/sudo /run/current-system/sw/bin/nixos-rebuild boot --flake "$CLAUDEOS_DIR#$HOST" 2>&1; then
               claudeos_notify \
-                "System Rebuilt" "VM smoke test green — auto-update applied."
-              claudeos_lane_card auto-update "Flake updated & applied" "📦" normal \
-                "$changelog"$'\n\n'"VM gate passed — applied to $HOST."
+                "Update Staged" "VM smoke test green — applied on next reboot."
+              claudeos_lane_card auto-update "Flake updated & staged" "📦" normal \
+                "$changelog"$'\n\n'"VM gate passed — staged on $HOST, active after next reboot."
             else
               claudeos_notify --urgency=critical \
-                "Rebuild Failed" "VM gate was green but the switch failed. Run 'rebuild' manually."
-              claudeos_lane_card auto-update "Update built, switch failed" "📦" critical \
-                "$changelog"$'\n\n'"VM gate was green but nixos-rebuild switch failed — run 'rebuild' manually."
+                "Rebuild Failed" "VM gate was green but staging failed. Run 'rebuild' manually."
+              claudeos_lane_card auto-update "Update built, staging failed" "📦" critical \
+                "$changelog"$'\n\n'"VM gate was green but nixos-rebuild boot failed — run 'rebuild' manually."
               rm -f ./result ./result-vm
               exit 1
             fi
