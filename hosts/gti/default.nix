@@ -18,6 +18,25 @@
   # home/hyprland.nix or a host override) — burn-in checklist covers it.
   claude-os.hyprland.enable = true;
 
+  # The Quickshell greeter, replacing regreet (2026-08-15). Promoted to the
+  # daily driver at Tom's call, ahead of the soak the greeter plan's phase 3
+  # asked for — recorded here rather than left implicit.
+  #
+  # What made that acceptable: the two scariest items on that checklist do not
+  # live in the part we replaced. The greeter's KEYMAP is cage's job (Colemak
+  # arrives via XKB_DEFAULT_VARIANT in environment.sessionVariables, which
+  # pam_env exports and wlroots reads) — regreet and quickshell are both merely
+  # clients of cage, so swapping the client cannot change what the keyboard
+  # types. Likewise the AUTH PATH is greetd's, via
+  # security.pam.services.greetd.enableGnomeKeyring, which this change does not
+  # touch. What genuinely remains untested is the QML behaving differently under
+  # cage than under `qs -p`, and the UWSM argv.
+  #
+  # If the login screen is ever blank or unusable: ctrl+alt+F3 for a TTY, or
+  # pick the previous generation in the boot menu (regreet is still one
+  # generation away, and greetd's agreety remains available on a VT).
+  claude-os.greeter.enable = true;
+
   # Machine-specific overrides (Phase 5)
 
   # Lenovo ThinkSmart View flashing (tsv-fleet project, runbook at

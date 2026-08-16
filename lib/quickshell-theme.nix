@@ -72,9 +72,30 @@ in
     readonly property color warn: base0A
     readonly property color urgent: base08
 
-    // Fonts (single source of truth: lib/theme.nix)
+    // Fonts (single source of truth: lib/theme.nix).
+    //
+    // Three ROLES, per .claude/skills/brand-guidelines — not three
+    // interchangeable faces. Picking the wrong one is a brand error even
+    // though every one of these is "the system font" in some sense:
+    //
+    //   fontSans    Inter    — numerals, axis ticks, UI chrome. The default.
+    //                          Also the correct face for a LARGE standalone
+    //                          number (a clock, a stat): the brand skill's
+    //                          collision rule with `dataviz` gives figures to
+    //                          Inter, so do not "upgrade" a clock to Poppins.
+    //   fontDisplay Poppins  — headings and identity moments ONLY. A geometric
+    //                          display face: right in a headline, poor at
+    //                          11px. Never make this the default UI face.
+    //   fontSerif   Lora     — body prose. The Anthropic brand body face, and
+    //                          the system serif (lib/theme.nix fonts.serif).
+    //
+    // All three are in fonts.packages (modules/desktop/fonts.nix), so they
+    // resolve for the greeter too — which runs before any user session and
+    // cannot see a per-user fontconfig.
     readonly property string fontSans: "${themeLib.fonts.sansSerif.name}"
     readonly property string fontMono: "${themeLib.fonts.monospace.nerdName}"
+    readonly property string fontDisplay: "${themeLib.brand.display.name}"
+    readonly property string fontSerif: "${themeLib.fonts.serif.name}"
     readonly property int fontSize: ${toString fontSize}
     readonly property int iconSize: ${toString iconSize}
 
