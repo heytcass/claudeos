@@ -111,6 +111,28 @@ in
       enable = true;
       settings.default_session.command = lib.mkForce (
         lib.concatStringsSep " " [
+          # XDG_CURRENT_DESKTOP=Greeter is load-bearing, and predates this
+          # module — it was a transporter trial (2026-08-06) that this cutover
+          # would otherwise have silently thrown away, since the mkForce below
+          # overrides the host's own default_session.command.
+          #
+          # Why it matters: xdg-desktop-portal picks its config file by
+          # XDG_CURRENT_DESKTOP (portals.conf(5)), and the greeter otherwise
+          # inherits "Hyprland" from pam_env — so greeter and user session read
+          # the SAME portals.conf and cannot be told apart. xdp then EAGERLY
+          # starts every backend in that file's `default` list, handing the
+          # greeter the hyprland backend under cage, a compositor it was never
+          # meant to drive. On gti that segfaulted at teardown every boot
+          # (SIGSEGV in ~CCZxdgOutputV1, an upstream xdp-hyprland 1.4.1 shutdown
+          # bug), writing a coredump each time. Giving the greeter its own
+          # desktop name is what separates the two configs.
+          #
+          # Rejected alternatives are recorded in the original trial: PAM
+          # setEnvironment=false also drops XKB_DEFAULT_* and breaks Colemak at
+          # the password prompt; systemd.services.greetd.environment never
+          # reaches cage; a ConditionUser does nothing because the greeter is
+          # activated via dbus-run-session, not systemd.
+          "${pkgs.coreutils}/bin/env XDG_CURRENT_DESKTOP=Greeter"
           "${pkgs.dbus}/bin/dbus-run-session"
           # -s: allow VT switching (so ctrl+alt+F3 to a TTY still works if the
           # greeter misbehaves). -d: don't draw client decorations.
@@ -119,6 +141,18 @@ in
         ]
       );
     };
+
+    # Written to /etc/xdg/xdg-desktop-portal/greeter-portals.conf, matched by
+    # the lower-cased XDG_CURRENT_DESKTOP above. The user session is untouched:
+    # it sets XDG_CURRENT_DESKTOP=Hyprland (uwsm, via `-D Hyprland`), finds no
+    # hyprland-portals.conf, and falls back to the shared portals.conf — so
+    # screencast/screenshot/global-shortcuts still route to hyprland.
+    #
+    # Kept at "gtk" rather than dropped: this greeter is Qt and may well ask for
+    # nothing, in which case no backend starts at all — but if something does
+    # request a portal, answering it with gtk is strictly better than handing
+    # the request to the hyprland backend, which is the crash this avoids.
+    xdg.portal.config.greeter.default = [ "gtk" ];
 
     # The greeter user drives the GPU and reads input devices directly (regreet's
     # own module was arranging this for GTK; Quickshell needs it stated).

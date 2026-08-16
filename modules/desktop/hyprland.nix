@@ -2,7 +2,8 @@
 # entirely in the 2026-07 rip-out; docs/plans/2026-07-11-gnome-ripout-plan.md
 # records the decisions). The module attaches its own home config
 # (home/hyprland.nix) and owns everything a full DE would otherwise provide —
-# login manager (greetd + regreet), keyring PAM, power policy, night light,
+# login manager (greetd + the Quickshell greeter), keyring PAM, power policy,
+# night light,
 # and the standalone app set (Files, calculator, image viewer, settings
 # surfaces). Still option-gated so a host or specialisation can turn it off.
 #
@@ -26,7 +27,9 @@ in
     home-manager.users.${user}.imports = [ ../../home/hyprland.nix ];
     # Hyprland from nixpkgs (nixos-unstable) — Mesa matches the system by
     # construction, sidestepping the flake-Hyprland GPU-glitch. UWSM is the
-    # session launcher (regreet lists hyprland-uwsm.desktop).
+    # session launcher — the greeter launches hyprland-uwsm.desktop's argv
+    # directly (built from config.programs.uwsm.package in greeter.nix) rather
+    # than discovering session files at runtime.
     programs.hyprland = {
       enable = true;
       withUWSM = true;
@@ -62,17 +65,22 @@ in
       XKB_DEFAULT_VARIANT = "colemak";
     };
 
-    # Login manager: greetd + regreet (chose over SDDM/GDM in the rip-out —
-    # see the plan doc). regreet is GTK4 under a cage kiosk; enabling it pulls
-    # greetd and sets the default_session command. Sessions are discovered
-    # via XDG_DATA_DIRS (pam_env supplies it) — ALWAYS pick the
-    # "Hyprland (UWSM)" entry, the plain one strands graphical-session.target
-    # units. Theming: Stylix has an auto-enabled regreet target that sets the
-    # whole greeter from the shared source of truth — wallpaper background,
-    # base16 GTK CSS, sans font, cursor + icon themes, dark polarity. Setting
-    # any of those here just conflicts with it (found the hard way: dry-run
-    # 2026-07-11).
-    services.displayManager.regreet.enable = true;
+    # Login manager: greetd + the bespoke Quickshell greeter
+    # (modules/desktop/greeter.nix). greetd and cage were kept from the rip-out
+    # choice; only the process inside the kiosk changed, from regreet (GTK4) to
+    # quickshell — see docs/plans/2026-08-15-quickshell-greeter-plan.md.
+    #
+    # mkDefault, not a bare `true`: a host may still turn the greeter off, but
+    # a host that enables this desktop and says nothing must not end up with NO
+    # login manager. That is the trap that made deleting the old
+    # `services.displayManager.regreet.enable = true` line insufficient on its
+    # own — the declaration was load-bearing even though regreet was not.
+    #
+    # The old regreet-era warning about the session picker is now enforced
+    # rather than documented: the greeter offers ONLY the "Hyprland (UWSM)"
+    # entry, because the plain one never activates graphical-session.target and
+    # strands hyprpaper/hypridle/gammastep.
+    claude-os.greeter.enable = lib.mkDefault true;
 
     # Secret Service (org.freedesktop.secrets): gnome-keyring stays through
     # the rip-out — apps depend on the freedesktop API, not on GNOME; oo7 is
