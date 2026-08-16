@@ -82,24 +82,50 @@ in
     # strands hyprpaper/hypridle/gammastep.
     claude-os.greeter.enable = lib.mkDefault true;
 
-    # Secret Service (org.freedesktop.secrets): gnome-keyring stays through
-    # the rip-out — apps depend on the freedesktop API, not on GNOME; oo7 is
-    # the eventual successor (plan doc, Deferred). Under GDM the login-keyring
-    # unlock rode gdm-password's substack of `login`; greetd needs it stated:
-    # pam_gnome_keyring on the greetd stack unlocks with the login password.
-    # The exec-once gnome-keyring-daemon --start in home/hyprland.nix exposes
-    # the components in-session.
-    services.gnome.gnome-keyring.enable = true;
-    security.pam.services.greetd.enableGnomeKeyring = true;
-    # hyprlock needs its own PAM stack. Without this it logs on every launch:
-    #   ERR ]: Pam module "/etc/pam.d/hyprlock" does not exist!
-    #          Falling back to "/etc/pam.d/su"
-    # Authentication still succeeds through the `su` fallback (it did on every
-    # unlock in the journal), so this never blocked a login — but the su stack
-    # carries no pam_gnome_keyring, so unlocking the screen does not unlock the
-    # keyring the way unlocking at the greeter does. Found 2026-08-15 while
-    # diagnosing the lockscreen wedge; not a contributing cause of it.
-    security.pam.services.hyprlock.enableGnomeKeyring = true;
+    # Secret Service (org.freedesktop.secrets): oo7, the Rust reimplementation
+    # that GNOME itself intends as gnome-keyring's successor. Same D-Bus API, so
+    # libsecret consumers (Chrome, Claude Desktop) are unaffected. This was the
+    # "last GNOME-C daemon leaves" step deferred in the rip-out plan; the
+    # blocker it named — "nixpkgs ships only the oo7 CLI, no daemon" — cleared,
+    # and the locked rev now has oo7-server, oo7-pam and oo7-portal.
+    services.oo7.enable = true;
+
+    # hyprlock needs pam_oo7 stated. Without its own stack it falls back to
+    # /etc/pam.d/su, which carries no keyring module at all, so unlocking the
+    # SCREEN would not unlock the keyring the way unlocking at the greeter does
+    # (found 2026-08-15).
+    security.pam.services.hyprlock.oo7.enable = true;
+
+    # NOTE: there is deliberately NO `security.pam.services.greetd.oo7.enable`
+    # here, and its `enableGnomeKeyring` predecessor was removed rather than
+    # translated — it was DEAD CONFIG carrying a confident comment about why it
+    # was required.
+    #
+    # nixpkgs' greetd module declares its PAM service with
+    # `useDefaultRules = false` and a hand-written rules set whose entire
+    # content is `substack login`. That skips every per-service PAM option, so
+    # setting one on `greetd` emits nothing. Verified on the live system while
+    # keyring unlock was demonstrably working: /etc/pam.d/greetd contains ZERO
+    # pam_gnome_keyring lines and /etc/pam.d/login contains three.
+    #
+    # So the greeter's keyring unlock rides `login`'s stack through that
+    # substack — and the oo7 module sets `security.pam.services.login.oo7.enable`
+    # itself. Adding a greetd line back would not break anything; it would just
+    # be a no-op that reads as load-bearing.
+
+    # gcr, kept DELIBERATELY and independently of gnome-keyring.
+    #
+    # This is the trap in retiring gnome-keyring: its NixOS module is what put
+    # pkgs.gcr into services.dbus.packages, and gcr — not gnome-keyring — is
+    # what provides gcr-ssh-agent.socket. That socket serves SSH_AUTH_SOCK
+    # (/run/user/1000/gcr/ssh) and holds the git signing key. Dropping the
+    # gnome-keyring module without this line would silently take the ssh agent
+    # with it, and the symptom would be a failed git push, not an obvious
+    # keyring error.
+    #
+    # oo7 does NOT provide an ssh agent — it is a Secret Service only — so
+    # there is nothing in the migration that replaces this.
+    services.dbus.packages = [ pkgs.gcr ];
 
     # GNOME's settings-daemon made the power button suspend (home/gnome.nix
     # power-button-action); logind owns the button in a bare compositor and
@@ -149,6 +175,7 @@ in
       brightnessctl # XF86MonBrightness keys
       playerctl # XF86Audio play/pause/next/prev keys
       wireplumber # wpctl — volume/mute keys (audio.nix's stated control tool)
+      gcr # gcr-ssh-agent (SSH_AUTH_SOCK + the git signing key) — see above
 
       # The standalone app set (rip-out decisions: keep the good GNOME apps,
       # they run fine without GNOME and stay Stylix/libadwaita-themed).

@@ -498,17 +498,17 @@ in
               "qs" # the bespoke Quickshell bar
               # Apply the Adwaita cursor at runtime (belt-and-suspenders with env).
               "hyprctl setcursor Adwaita 20"
-              # Start + unlock the Secret Service (org.freedesktop.secrets) so
-              # Claude and other libsecret apps can save logins. A bare WM
-              # session must start the daemon's components itself.
+              # NO keyring daemon started here any more. The Secret Service is
+              # oo7 (modules/desktop/hyprland.nix), which ships its own
+              # systemd user unit wanted by default.target — so there is
+              # nothing for the compositor to launch. gcr-ssh-agent is socket-
+              # activated and likewise needs no exec line; it keeps serving
+              # SSH_AUTH_SOCK and the git signing key.
               #
-              # NOTE `ssh` is deliberately absent: gnome-keyring 50 accepts only
-              # `pkcs11,secrets` (`gnome-keyring-daemon --help`), and the ssh
-              # agent moved out to gcr-ssh-agent — a separately socket-activated
-              # service that already serves SSH_AUTH_SOCK
-              # (/run/user/1000/gcr/ssh) and holds the git signing key. Passing
-              # `ssh` here was a silent no-op, not a working setting.
-              "gnome-keyring-daemon --start --components=secrets,pkcs11"
+              # For the record, the line this replaced asked for
+              # `--components=secrets,ssh,pkcs11`, and `ssh` had not been a
+              # valid gnome-keyring component for some time (50 accepts only
+              # `pkcs11,secrets`) — it was silently ignored.
               # NO polkit agent launched here any more. The bar IS the agent
               # (home/quickshell/PolkitDialog.qml), which is what let the
               # XDG_SESSION_ID ordering workaround be deleted outright — see
