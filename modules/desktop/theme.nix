@@ -175,6 +175,14 @@ in
       size = 20;
     };
 
+    # GNOME is gone (rip-out completed 2026-07-12 —
+    # docs/plans/2026-07-11-gnome-ripout-plan.md), so this target has nothing
+    # left to theme. Do NOT re-enable it: the closure carries zero
+    # gnome-shell binaries, so everything it emits is dead weight — see the
+    # home-manager.sharedModules block below, which disables the hm half and
+    # re-homes the handful of dconf keys that WERE load-bearing.
+    targets.gnome.enable = false;
+
     # Font configuration — names and packages both from lib/theme.nix
     fonts = {
       serif = {
@@ -208,5 +216,54 @@ in
     {
       dconf.settings."org/gnome/desktop/interface".icon-theme = "ClaudeOS";
     }
+
+    # The hm half of the GNOME target. Unlike almost every other Stylix
+    # target — which writes into ANOTHER module's option tree and so goes
+    # inert when that program is disabled (the btop target only sets
+    # programs.btop.settings, etc.) — the GNOME target autoEnables on bare
+    # `isLinux` and writes to unconditional sinks. With GNOME gone it still
+    # emitted, into every generation:
+    #
+    #   * gnomeExtensions.user-themes in home.packages — an extension for a
+    #     gnome-shell that does not exist in the closure
+    #   * ~/.config/autostart/stylix-activate-gnome.desktop — a login hook
+    #     that shells out to `gnome-extensions`, also absent
+    #   * org/gnome/shell/extensions/user-theme — settings for the above
+    #
+    # so turn it off. But four of its dconf keys were NOT dead weight: they
+    # land in org/gnome/desktop/interface, which is exactly the namespace
+    # xdg-desktop-portal-gtk serves to our live GTK apps (same mechanism as
+    # icon-theme above). Dropping the target without re-homing them would
+    # flip Nautilus/Loupe/Calculator to LIGHT mode and lose the brand fonts,
+    # so they are restated here — this block is now their only source.
+    (
+      let
+        inherit (config.stylix) fonts;
+        size = toString fonts.sizes.applications;
+        documentSize = toString (fonts.sizes.applications - 1);
+      in
+      {
+        dconf.settings."org/gnome/desktop/interface" = {
+          # libadwaita dark mode for every GTK4 app we ship.
+          color-scheme = if config.stylix.polarity == "dark" then "prefer-dark" else "default";
+          font-name = "${fonts.sansSerif.name} ${size}";
+          document-font-name = "${fonts.serif.name} ${documentSize}";
+          monospace-font-name = "${fonts.monospace.name} ${size}";
+        };
+
+        stylix.targets.gnome.enable = false;
+
+        # Same defect, same verdict: the KDE target is guarded only on
+        # `stylix.enable && cfg.enable && isLinux` — it never checks that
+        # Plasma exists. There is no KDE on either host (no plasmashell, no
+        # kwin), yet it was shipping a 1.8M stylix-kde-theme into
+        # home.packages, an xdg.systemDirs.config entry, an autostart hook,
+        # and a home.activation step that ran the Plasma theme activator on
+        # every switch just to log that it only works in a Plasma session.
+        # Unlike the GNOME target it writes no dconf keys we depend on, so
+        # this is a clean removal with nothing to re-home.
+        stylix.targets.kde.enable = false;
+      }
+    )
   ];
 }
