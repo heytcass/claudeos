@@ -111,18 +111,25 @@ in
       };
     };
 
-    # Polkit authentication agent — soteria (Rust + GTK4). Replaces the
-    # unmaintained polkit-gnome; the NixOS module installs and autostarts the
-    # agent (systemd user service), so GUI privilege prompts work. GTK4 means it
-    # inherits Stylix's GTK theming rather than needing its own.
-    security.soteria.enable = true;
-    # ...but don't let its systemd --user service autostart. It runs at
-    # graphical-session.target, before UWSM exports XDG_SESSION_ID to the user
-    # manager, so it dies ("Could not get XDG session id") and start-limit-hits,
-    # leaving a FAILED unit. home/hyprland.nix launches soteria from Hyprland's
-    # exec-once instead (inherits the live session env). The unit stays defined
-    # (so `systemctl --user start polkit-soteria` still works) but idle.
-    systemd.user.services.polkit-soteria.wantedBy = lib.mkForce [ ];
+    # Polkit authentication agent: the BAR is the agent (PolkitDialog.qml,
+    # Quickshell.Services.Polkit). soteria is gone, and so is the workaround it
+    # needed — which is the actual reason for the swap, not the theming.
+    #
+    # soteria's systemd --user service starts at graphical-session.target,
+    # BEFORE UWSM exports XDG_SESSION_ID to the user manager, so it died with
+    # "Could not get XDG session id" and start-limit-hit, leaving a FAILED unit.
+    # The fix was to disable that unit and launch soteria from Hyprland's
+    # exec-once so it inherited the live session env. Two moving parts to
+    # maintain an ordering guarantee.
+    #
+    # Running the agent inside the already-running bar makes the ordering
+    # question disappear: by the time the bar exists, the session variables are
+    # exported. No second process, no disabled unit, no exec-once entry.
+    #
+    # Recovery if the bar is ever dead when a prompt is needed: `systemctl
+    # --user start polkit-gnome-authentication-agent-1` is NOT available here;
+    # run the privileged action from a TTY with sudo instead. This is the same
+    # exposure as before — soteria also died with the bar's session.
 
     # CLIs the Quickshell bar and keybinds shell out to. GNOME's settings-daemon
     # handled media/brightness keys and screenshots for free; a bare Hyprland
