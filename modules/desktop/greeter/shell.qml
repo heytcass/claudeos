@@ -117,29 +117,58 @@ ShellRoot {
 
                 // Avatar: initial in a circle. No avatar file to read as the
                 // greeter user, and a missing-image box would look broken.
+                //
+                // NEUTRAL fill, deliberately. This used to be a solid
+                // Theme.accent disc, which spent the single strongest brand
+                // signal on pure decoration — and put it in direct competition
+                // with the focus ring below, which actually carries meaning
+                // ("your keystrokes land here"). Brand rule: one accent per
+                // view, and it goes to the thing that means something.
+                // The initial itself takes the accent, which is enough to tie
+                // the card to the palette without shouting.
                 Rectangle {
                     anchors.horizontalCenter: parent.horizontalCenter
                     width: 56
                     height: 56
                     radius: 28
-                    color: Theme.accent
+                    color: Qt.rgba(Theme.surface.r, Theme.surface.g, Theme.surface.b, 0.9)
+                    border.width: 1
+                    border.color: Qt.rgba(Theme.muted.r, Theme.muted.g, Theme.muted.b, 0.5)
                     Text {
                         anchors.centerIn: parent
                         text: GreeterConfig.user.charAt(0).toUpperCase()
-                        color: Theme.bgAlt
-                        font.family: Theme.fontSans
+                        // Theme.text, NOT Theme.accent. Across 17 bar files the
+                        // accent is only ever an active-STATE marker, always in
+                        // a ternary against text/muted (`radioOn ? accent :
+                        // muted`, `sameDay(today) ? accent : text`). It is never
+                        // a static decorative fill. An avatar initial is
+                        // identity, not state — so it takes text, and the focus
+                        // ring below keeps the card's single accent.
+                        color: Theme.text
+                        // Display face: a single glyph at 26px is a display
+                        // moment, not UI chrome.
+                        font.family: Theme.fontDisplay
                         font.pixelSize: 26
-                        font.weight: Font.DemiBold
+                        font.weight: Font.Medium
                     }
                 }
 
+                // The one genuine DISPLAY line in the greeter — this is
+                // identity, not chrome, so it takes Poppins. Everything else
+                // here (prompt, session, status) is chrome and stays Inter;
+                // the clock stays Inter too because a large standalone numeral
+                // belongs to Inter, not the display face.
                 Text {
                     anchors.horizontalCenter: parent.horizontalCenter
                     text: GreeterConfig.user
                     color: Theme.text
-                    font.family: Theme.fontSans
-                    font.pixelSize: Theme.fontSize + 4
-                    font.weight: Font.DemiBold
+                    font.family: Theme.fontDisplay
+                    font.pixelSize: Theme.fontSize + 5
+                    font.weight: Font.Medium
+                    // Poppins is geometric and set tight by default; a little
+                    // tracking keeps a short lowercase name from reading as a
+                    // logo lockup.
+                    font.letterSpacing: 0.3
                 }
 
                 // Password / prompt field.

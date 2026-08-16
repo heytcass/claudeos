@@ -199,10 +199,10 @@ Mitigations, all required:
 | Phase | Deliverable |
 |---|---|
 | 0 | ~~Measure greeter startup. Confirm or kill the wallpaper hypothesis.~~ **DONE 2026-08-15 — resolved NEGATIVE.** greetd is ready in ~1 s; the wallpaper is not implicated. See above. Phases 1-4 now rest on appearance and footgun-removal alone. |
-| 1 | Extract `lib/quickshell-theme.nix`; bar behavior unchanged. Independently shippable. |
-| 2 | `modules/desktop/greeter.nix` + greeter QML, `transporter` only, regreet still default on `gti`. |
-| 3 | Soak on `transporter`. Verify the four on-machine items. |
-| 4 | Promote to `gti`; remove the regreet path; update `CLAUDE.md`, `docs/MODULES.md`, `INSTALL.md`. |
+| 1 | ~~Extract `lib/quickshell-theme.nix`~~ **DONE** (#101). Proven a pure refactor: generated `Theme.qml` byte-identical but for its doc comment. |
+| 2 | ~~`modules/desktop/greeter.nix` + greeter QML, `transporter` only~~ **DONE** (#101). |
+| 3 | ~~Soak on `transporter`~~ **SKIPPED at Tom's call, 2026-08-15.** Recorded rather than left implicit. Two of the four on-machine items turned out not to live in the replaced component: the greeter's **keymap is cage's** (Colemak arrives via `XKB_DEFAULT_VARIANT`; regreet and quickshell are both merely cage clients, so swapping the client cannot change it), and the **auth path is greetd's** (`security.pam.services.greetd.enableGnomeKeyring`, untouched). What remains genuinely untested: the QML under `cage` rather than `qs -p`, and the UWSM argv. |
+| 4 | **Promoted to `gti`** 2026-08-15. Still open: remove the regreet path once this has real mileage, and update `CLAUDE.md`, `docs/MODULES.md`, `INSTALL.md`, `README.md` — all still name regreet. Keeping regreet reachable one generation back is deliberate for now. |
 
 ## Docs to update on completion
 
