@@ -37,6 +37,12 @@ ShellRoot {
     // SUPER+W wish prompt — a sentence in, a wish/* PR out (its own overlay).
     WishOverlay {}
 
+    // Polkit authentication agent. Not keybound — it surfaces itself whenever
+    // something asks for authorization. Lives in the bar's process on purpose:
+    // that is what removes soteria's XDG_SESSION_ID ordering workaround, since
+    // by the time the bar exists the session variables are already exported.
+    PolkitDialog {}
+
     // SUPER+R intent line — one input that routes itself (app / $command /
     // question? / wish), deterministically, with the route shown before commit.
     IntentLine {}

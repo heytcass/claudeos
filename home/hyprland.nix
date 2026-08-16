@@ -501,15 +501,18 @@ in
               # Start + unlock the Secret Service (org.freedesktop.secrets) so
               # Claude and other libsecret apps can save logins. A bare WM
               # session must start the daemon's components itself.
-              "gnome-keyring-daemon --start --components=secrets,ssh,pkcs11"
-              # Polkit agent (soteria). Launched here, NOT via its systemd --user
-              # service: that service starts at graphical-session.target but the
-              # user manager's environment lacks XDG_SESSION_ID (UWSM exports it
-              # too late), so soteria dies with "Could not get XDG session id"
-              # and start-limit-hits. The start hook inherits the live session
-              # env, so it registers fine. Its systemd unit's autostart is
-              # disabled in modules/desktop/hyprland.nix.
-              "soteria"
+              #
+              # NOTE `ssh` is deliberately absent: gnome-keyring 50 accepts only
+              # `pkcs11,secrets` (`gnome-keyring-daemon --help`), and the ssh
+              # agent moved out to gcr-ssh-agent — a separately socket-activated
+              # service that already serves SSH_AUTH_SOCK
+              # (/run/user/1000/gcr/ssh) and holds the git signing key. Passing
+              # `ssh` here was a silent no-op, not a working setting.
+              "gnome-keyring-daemon --start --components=secrets,pkcs11"
+              # NO polkit agent launched here any more. The bar IS the agent
+              # (home/quickshell/PolkitDialog.qml), which is what let the
+              # XDG_SESSION_ID ordering workaround be deleted outright — see
+              # modules/desktop/hyprland.nix.
             ]
             + "end"
           ))
