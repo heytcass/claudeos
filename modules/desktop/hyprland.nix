@@ -24,7 +24,13 @@ in
   options.claude-os.hyprland.enable = lib.mkEnableOption "the Hyprland desktop (compositor + bespoke Quickshell bar)";
 
   config = lib.mkIf cfg.enable {
-    home-manager.users.${user}.imports = [ ../../home/hyprland.nix ];
+    # claude-desktop.nix rides the desktop module, not home/default.nix: its
+    # unit binds to graphical-session.target, so it belongs to the same
+    # generation that provides the session.
+    home-manager.users.${user}.imports = [
+      ../../home/hyprland.nix
+      ../../home/claude-desktop.nix
+    ];
     # Hyprland from nixpkgs (nixos-unstable) — Mesa matches the system by
     # construction, sidestepping the flake-Hyprland GPU-glitch. UWSM is the
     # session launcher — the greeter launches hyprland-uwsm.desktop's argv
@@ -103,9 +109,25 @@ in
 
     # GNOME's settings-daemon made the power button suspend (home/gnome.nix
     # power-button-action); logind owns the button in a bare compositor and
-    # defaults to poweroff — keep the suspend behavior. Lid switch already
-    # suspends by logind default.
+    # defaults to poweroff — keep the suspend behavior.
     services.logind.settings.Login.HandlePowerKey = "suspend";
+
+    # Lid on AC does nothing; lid on battery still suspends. This is the same
+    # split hypridle already applies to the idle timeout (home/hyprland.nix
+    # suspendOnBattery: "on AC the machine stays awake — overnight automation
+    # depends on it"), extended to the one event that could still cut power to
+    # that automation mid-run. A closed lid was the gap: logind's own default
+    # is HandleLidSwitch=suspend, and per logind.conf(5)
+    # HandleLidSwitchExternalPower "is completely ignored by default (for
+    # backwards compatibility) — an explicit value must be set before it will
+    # be used", so AC fell through to the plain suspend action. A machine left
+    # docked-and-closed at home was therefore asleep, not merely idle, which
+    # takes the whole absence-is-the-resource lane down with it — including the
+    # Claude Desktop session that serves remote (phone) sessions.
+    #
+    # Deliberately NOT "ignore" for HandleLidSwitch: closing the lid on battery
+    # in a bag must still suspend, or the machine cooks and drains.
+    services.logind.settings.Login.HandleLidSwitchExternalPower = "ignore";
 
     # Location for the night-light sun schedule (home/hyprland.nix gammastep,
     # geoclue2 provider — the same mechanism GNOME's night-light used). GNOME
