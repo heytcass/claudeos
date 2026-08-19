@@ -152,13 +152,42 @@ xserver.xkb workaround deleted.
 
 ## Deferred / future
 
-- **oo7-daemon as the gnome-keyring successor**: Rust reimplementation of the
-  Secret Service, same D-Bus API, reads gnome-keyring's keyring format —
-  GNOME's own intended replacement, so it's the natural "last GNOME-C daemon
-  leaves" step. NOT actionable yet: the locked nixpkgs ships only `oo7`
-  0.6.0 (CLI, verified 2026-07-11 — no daemon package), and its PAM
-  auto-unlock story is younger than pam_gnome_keyring's. Re-check when
-  nixpkgs grows an oo7-daemon package; trial on transporter first.
+- **oo7-daemon as the gnome-keyring successor**: ~~NOT actionable yet: the
+  locked nixpkgs ships only `oo7` 0.6.0 (CLI, verified 2026-07-11 — no daemon
+  package)~~ **ATTEMPTED AND REVERTED 2026-08-15. Do not retry at 0.6.0.**
+
+  The packaging blocker named above did clear — `oo7-server`, `oo7-pam` and
+  `oo7-portal` are all in nixpkgs now, with a `services.oo7.enable` module and
+  a `security.pam.services.<name>.oo7.enable` option. **That condition turned
+  out to be necessary but nowhere near sufficient.** Attempting the migration
+  on `gti` locked Chrome and Claude Desktop out of their saved credentials.
+
+  What was learned (full evidence in `docs/known-issues.md`, 2026-08-15):
+
+  - The **format is not the problem.** oo7 migrates the classic v0 keyring
+    cleanly when it has the secret at startup — verified offline against a
+    copy with `oo7-daemon --login`.
+  - The **PAM hand-off is not the problem** either. `pam_oo7` stashes the
+    token at auth and delivers it over `/run/user/<uid>/oo7-pam.sock` exactly
+    as designed.
+  - The problem is **ordering**. The NixOS module starts the daemon at
+    `default.target`, which beats PAM by ~9s. With no secret, oo7 creates an
+    empty placeholder `Login` collection; when the real migrated collection
+    arrives it collides, `/org/freedesktop/secrets/collection/Login` stops
+    resolving, and all writes fail. The likely fix is
+    `systemd.user.services.oo7-daemon.wantedBy = lib.mkForce [ ]` so
+    `pam_oo7`'s `auto_start` brings it up *with* the secret — structurally the
+    same fix as soteria's `XDG_SESSION_ID` ordering problem.
+  - But oo7 also **panics** (`unwrap()` on `None`, `server/src/service/mod.rs:831`)
+    whenever the default alias is missing. In a process holding OAuth tokens
+    and browser encryption keys that is disqualifying on its own, which is why
+    the ordering fix was not pursued.
+
+  The original caveat here — "its PAM auto-unlock story is younger than
+  pam_gnome_keyring's" — was the right instinct, aimed at slightly the wrong
+  component. Re-evaluate at a later oo7 release, **and trial on transporter
+  first** (this attempt did not, and that is why it cost a lockout on the
+  daily driver). Always back up `~/.local/share/keyrings/` first.
 - Trim gnome-keyring components: exec-once starts `secrets,ssh,pkcs11` — if
   the ssh-agent and pkcs11 components are unused (git signs with a plain SSH
   key), slim to `--components=secrets`.
