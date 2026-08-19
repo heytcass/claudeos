@@ -29,20 +29,49 @@ let
     text = ''
       CONTEXT_FILE="$MONITOR_CACHE_DIR/alert-context.txt"
       COOLDOWN_FILE="$MONITOR_CACHE_DIR/last-notification"
-      COOLDOWN=1800  # 30 minutes
+      FINGERPRINT_FILE="$MONITOR_CACHE_DIR/last-alert-fingerprint"
+      COOLDOWN=1800     # 30 minutes — churn floor for NEW content
+      REMIND=86400      # 24 hours — reminder period for UNCHANGED content
 
       # Nothing to report
       [[ ! -s "$CONTEXT_FILE" ]] && exit 0
 
       context=$(<"$CONTEXT_FILE")
 
-      # --- Rate limit ---
-      # Gates the notification itself, not just the Claude call. health-check
-      # re-triggers this handler on every failure, so a condition that stays
-      # broken (a unit stuck in `failed`) fires OnFailure every 15 min; when
-      # the cooldown guarded only the Claude call, the fallback path below
-      # still bannered the user on every single one of them.
-      claudeos_cooldown_ok "$COOLDOWN_FILE" "$COOLDOWN" || exit 0
+      # --- Content dedup + rate limit ---
+      # The 30-min cooldown alone is time-based with no memory of WHAT was
+      # said, and health-check's failed-unit sweep can carry a LATCHED signal:
+      # home-ops-health (hosts/gti) exits 1 by design and stays `failed` for
+      # up to a week, which this handler re-worded (one haiku call each time)
+      # and re-bannered every 30 minutes — 48/day for the same unchanged fact
+      # (observed 2026-08-16→19: 283 consecutive health-check failures over
+      # one latched weekly finding). Fingerprint the alert content: new
+      # content notifies (subject to the churn floor), unchanged content
+      # reminds once a day so a latched finding can't be forgotten — or spam.
+      #
+      # The fingerprint must hash only the FACTS, not the run: the System
+      # Context block (Time:/Uptime: change every run) and the HH:MM:SS
+      # prefixes on critical-log lines would otherwise make every run look
+      # "new" and quietly disable the dedup. Crit entries older than the
+      # 15-min journal window age out of the context on their own, so
+      # stripping their timestamps loses nothing.
+      fingerprint=$(printf '%s' "$context" \
+        | sed '/^=== System Context ===$/,$d' \
+        | sed -E 's/^[0-9]{2}:[0-9]{2}:[0-9]{2} //' \
+        | sha256sum | cut -d' ' -f1)
+
+      if [[ "$fingerprint" == "$(cat "$FINGERPRINT_FILE" 2>/dev/null)" ]]; then
+        claudeos_cooldown_ok "$COOLDOWN_FILE" "$REMIND" || exit 0
+      else
+        # Gates the notification itself, not just the Claude call: when the
+        # cooldown guarded only the Claude call, the fallback path below
+        # still bannered the user on every OnFailure.
+        claudeos_cooldown_ok "$COOLDOWN_FILE" "$COOLDOWN" || exit 0
+      fi
+      # Stamp only when actually notifying: a changed alert that lands inside
+      # the churn floor exits above WITHOUT storing its fingerprint, so it
+      # still counts as new — and notifies — once the floor expires.
+      printf '%s\n' "$fingerprint" > "$FINGERPRINT_FILE"
       touch "$COOLDOWN_FILE"
 
       prompt="You are ClaudeOS, the AI monitoring this NixOS system. Analyze these system alerts and respond with ONLY the notification body text (2-3 sentences max). Be specific and actionable — include the exact command the user should run to fix it if applicable. No markdown, no emoji, no titles, no tool use — just output plain text and nothing else.
