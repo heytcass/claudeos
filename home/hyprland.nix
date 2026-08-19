@@ -743,7 +743,19 @@ in
     enable = true;
     settings = {
       general = {
-        lock_cmd = "pidof hyprlock || hyprlock";
+        # hyprlock gets its OWN transient unit, never hypridle's cgroup. A
+        # bare `hyprlock` here is spawned inside hypridle.service, and systemd
+        # attributes by cgroup, not parentage — so every home-manager
+        # activation that stops hypridle SIGTERM'd the live lock with it
+        # (KillMode=control-group), which is exactly the 2026-08-15 lockscreen
+        # wedge (docs/known-issues.md). hypridle also carries Restart=always,
+        # so it bounces on far more than switches. With its own scope the lock
+        # survives any hypridle stop/restart/crash; --collect reaps the unit
+        # on exit so the name is reusable, and the fixed unit name doubles as
+        # an idempotency guard alongside pidof (systemd-run refuses a
+        # duplicate unit). Same launch pattern, same verified env inheritance,
+        # as the transient-unit probes of 2026-08-16.
+        lock_cmd = "pidof hyprlock || systemd-run --user --collect --unit=hyprlock-active hyprlock";
         before_sleep_cmd = "loginctl lock-session";
         after_sleep_cmd = "hyprctl dispatch dpms on";
       };
