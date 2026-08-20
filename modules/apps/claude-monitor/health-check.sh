@@ -91,11 +91,23 @@ fi
 # Collapsing MESSAGE to its first line also makes `head -20` mean "20 entries"
 # rather than "20 lines of one stack trace", so a single noisy record can no
 # longer crowd every other entry out of the alert context Claude reads.
+#
+# Also exclude the shutdown watchdog line — same reboot-adjacent blind spot
+# as the coredump case above, from the other side of the boot: the kernel
+# logs `watchdog: watchdogN: watchdog did not stop!` at crit during every
+# reboot with an armed hardware watchdog (it is the OLD boot's final kernel
+# message, stamped by systemd-shutdown). It then sits inside this 15-minute
+# window for the first run(s) after boot, failing the check and firing a
+# notification for a message that means "the machine rebooted normally"
+# (observed 2026-08-20, first post-vacation reboot). Anchored to the exact
+# message shape so a real watchdog fault ("watchdog detected hard LOCKUP",
+# soft lockups, etc.) still alerts.
 crit=$(journalctl --since "15 min ago" -p crit --no-pager -q -o json 2>/dev/null \
   | jq -r 'select((.SYSLOG_IDENTIFIER // "") != "systemd-coredump")
            | ((.MESSAGE // "") | if type == "array" then "<binary>" else . end
               | split("\n") | .[0] // "") as $line
            | select($line != "")
+           | select(($line | test("^watchdog: watchdog[0-9]+: watchdog did not stop!$")) | not)
            | "\(.__REALTIME_TIMESTAMP // "0" | tonumber / 1000000 | strflocaltime("%H:%M:%S")) \(.SYSLOG_IDENTIFIER // "?"): \($line)"' \
   | head -20 || true)
 if [[ -n "$crit" ]]; then
