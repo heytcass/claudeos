@@ -757,7 +757,23 @@ in
         # as the transient-unit probes of 2026-08-16.
         lock_cmd = "pidof hyprlock || systemd-run --user --collect --unit=hyprlock-active hyprlock";
         before_sleep_cmd = "loginctl lock-session";
-        after_sleep_cmd = "hyprctl dispatch dpms on";
+        # dpms calls MUST be the Lua table-arg form since the 08-15 Lua config
+        # migration. Two traps, both verified against the 0.56.2 source
+        # (LuaBindingsInternal.cpp tableToggleAction):
+        #   1. `hyprctl dispatch dpms on` fails outright under CONFIG_LUA
+        #      (exit 7, "')' expected") — these hooks were silently dead
+        #      2026-08-15→20, and with mouse_move/key_press_enables_dpms
+        #      defaulting to false, NOTHING could wake a blanked screen (found
+        #      2026-08-20: dark screen, unwakeable, after the vacation).
+        #   2. Worse: hl.dsp.dpms("on") and dpms(true) parse fine but a
+        #      non-table argument is silently TOGGLE — an "on" that turns the
+        #      screen off every other call. The argument must be
+        #      {action = "on"|"off"} (parseToggleStr; unknown strings also
+        #      fall through to toggle, so typos toggle too).
+        # Setter semantics proven live 2026-08-20: on,on holds; off drops;
+        # on restores — and the exact sh-quoted strings below verified by
+        # running them through `sh -c` against `hyprctl -j monitors`.
+        after_sleep_cmd = "hyprctl dispatch 'hl.dsp.dpms({action=\"on\"})'";
       };
       listener = [
         {
@@ -766,8 +782,9 @@ in
         }
         {
           timeout = 600;
-          on-timeout = "hyprctl dispatch dpms off";
-          on-resume = "hyprctl dispatch dpms on";
+          # Table-arg form required — see the after_sleep_cmd comment above.
+          on-timeout = "hyprctl dispatch 'hl.dsp.dpms({action=\"off\"})'";
+          on-resume = "hyprctl dispatch 'hl.dsp.dpms({action=\"on\"})'";
         }
         {
           timeout = 1200;
