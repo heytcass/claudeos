@@ -54,7 +54,7 @@ Item {
                         {
                             label: "lock",
                             icon: Icons.lock,
-                            cmd: ["hyprlock"],
+                            cmd: ["loginctl", "lock-session"],
                             danger: false
                         },
                         {
