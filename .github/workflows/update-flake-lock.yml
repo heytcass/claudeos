@@ -36,6 +36,18 @@ jobs:
       # of its nested actions, which is the actual fix.
       - uses: DeterminateSystems/update-flake-lock@834c491b2ece4de0bbd00d85214bb5e83b4da5c6 # v28
         with:
+          # A PAT, not the default GITHUB_TOKEN: PRs created by GITHUB_TOKEN
+          # deliberately fire NO pull_request workflows (GitHub's recursion
+          # guard), so bot PRs arrived with no validate/claude-review at all —
+          # discovered 2026-08-21 on PR #108, the workflow's first-ever PR,
+          # which needed a manual empty-commit nudge before CI would run. That
+          # silently defeated the design note above ("gated by validate.yml
+          # like any other") AND the lane's whole purpose (running when nobody
+          # is around to nudge). Fine-grained PAT, this repo only,
+          # contents+pull-requests write. The || fallback keeps the workflow
+          # functional (with the manual-nudge caveat) if the secret is ever
+          # deleted or expires.
+          token: ${{ secrets.FLAKE_UPDATE_PAT || github.token }}
           pr-title: "chore: weekly flake.lock update (cloud fallback)"
           commit-msg: "chore: weekly flake.lock update (cloud fallback)"
           pr-labels: |
