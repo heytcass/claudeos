@@ -96,6 +96,12 @@ PanelWindow {
             TrayWidget {
                 Layout.leftMargin: 4
             }
+
+            // Power menu — lock/reboot/shut down. Always present, gated
+            // behind a tap-to-open popup (see PowerWidget.qml).
+            PowerWidget {
+                Layout.leftMargin: 4
+            }
         }
     }
 }
