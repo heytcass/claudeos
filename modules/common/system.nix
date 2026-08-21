@@ -23,7 +23,16 @@ in
     usbutils
 
     # Network tools
-    dig
+    # dnsutils, NOT `dig`: both provide the dig binary, but as of the
+    # 2026-08-19 nixpkgs `dig` is a standalone reduced bind build while the
+    # base system-path.nix ships `host` from the full-bind family — two
+    # different bind derivations whose man outputs collide on ~35 pages (the
+    # "colliding subpath (ignored)" wall first seen 2026-08-21). dnsutils is
+    # the full-bind family's client-tools output (dig/delv/nslookup/nsupdate)
+    # and shares the base entry's exact man store path, so buildEnv dedupes
+    # instead of colliding. The one remaining collision (su.1.gz, shadow vs
+    # sudo-rs) is inherent to running sudo-rs and predates the lock bump.
+    dnsutils
     traceroute
 
     # Claude quick-launch (bound to Super+C — lib/keybindings.nix drives the
