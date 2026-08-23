@@ -129,6 +129,45 @@
     ];
     serviceConfig = {
       Type = "oneshot";
+      # ExecCondition, not ExecStartPre: a condition that exits 1-254 SKIPS the
+      # unit cleanly (inactive/dead), while a failing ExecStartPre would mark it
+      # `failed` — which is the exact false alarm this gate exists to remove.
+      # The unit's whole contract is "failed means go look" (see above), so the
+      # gate must be able to say "not now" without saying "something is wrong".
+      #
+      # Why it is needed: every target this check probes lives on the home LAN
+      # (10.0.10.0/24 / *.cassady.network), and the timer is Persistent=true —
+      # so a missed Sunday fires the instant the laptop resumes from suspend,
+      # before wifi has reassociated. Observed 2026-08-23: OnCalendar=Sun 09:00
+      # fired at 09:48:52 on resume, HA returned HTTP 000 after 110ms (a
+      # resolver failure, not the --max-time 10 timeout), both ha-ws.sh calls
+      # failed, and the run then wedged until TimeoutStartSec SIGTERMed it at
+      # 09:58:52. Re-run with the network up: exit 0, "all clear", 44.7s.
+      # This mirrors claudeos_wait_for_network (lib/claude-script.nix), which
+      # every mkClaudeScript lane inherits — but this unit runs a foreign
+      # script out in ~/Projects/home-ops, so it never gets that preamble.
+      #
+      # The probe is the real HA vhost rather than a generic internet check:
+      # being ON the internet says nothing about being on the home LAN, and a
+      # laptop away from home would still false-alarm. Unauthenticated GET —
+      # no credential belongs in this repo. Budget is enforced against a
+      # wall-clock deadline, not by summing sleeps: each iteration also burns
+      # up to `curl -m 5`, so a naive counter overshoots by ~2x.
+      ExecCondition = "${pkgs.writeShellScript "home-ops-health-netgate" ''
+        export PATH="${
+          pkgs.lib.makeBinPath [
+            pkgs.curl
+            pkgs.coreutils
+          ]
+        }"
+        deadline=$(( $(date +%s) + 180 ))
+        while (( $(date +%s) < deadline )); do
+          curl -fs -o /dev/null -m 5 https://hass.cassady.network/ && exit 0
+          sleep 5
+        done
+        echo "home LAN unreachable after 180s — skipping (not a finding)" >&2
+        exit 1
+      ''}";
       ExecStart = "/home/${user}/Projects/home-ops/scripts/health-check.sh";
       # Backstop so a hung network call cannot wedge the timer.
       TimeoutStartSec = "10m";
