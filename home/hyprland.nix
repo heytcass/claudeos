@@ -322,6 +322,39 @@ in
             }
           ];
 
+      # Sticky per-monitor workspace defaults for gti's office dock (the wish,
+      # 2026-08-24): left external = workspace 1, laptop panel = workspace 2,
+      # portrait external = workspace 3 — so docking always lands the same
+      # workspace on the same physical screen instead of whatever order
+      # Hyprland happened to detect the outputs in. Keyed by the same
+      # desc/serial as `monitor` above, so the two Dell entries simply don't
+      # match anything when undocked. The eDP-1 entry DOES always match —
+      # undocked (sole monitor) that makes 2 its initial workspace instead of
+      # the old implicit 1, but mod+1..5 still reach every workspace regardless
+      # (see the `bind` list below), so the only visible effect is which
+      # workspace opens first.
+      #
+      # Lua shape: a LIST renders one `hl.workspace_rule{…}` call per element,
+      # same pattern as `window_rule` below. Ref:
+      # https://wiki.hypr.land/Configuring/Basics/Workspace-Rules/
+      workspace_rule = lib.optionals (osConfig.networking.hostName == "gti") [
+        {
+          workspace = 1;
+          monitor = "desc:Dell Inc. DELL P2419H FXP0RB3";
+          default = true;
+        }
+        {
+          workspace = 2;
+          monitor = "eDP-1";
+          default = true;
+        }
+        {
+          workspace = 3;
+          monitor = "desc:Dell Inc. DELL P2419H 9HYLVF3";
+          default = true;
+        }
+      ];
+
       # Everything that was a plain hyprlang option block (general/decoration/
       # dwindle/input/misc) lives under one `config` attr, which renders as a
       # single `hl.config{…}`. Stylix writes here too (its Lua branch emits
