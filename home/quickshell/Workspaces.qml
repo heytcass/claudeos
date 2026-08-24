@@ -33,8 +33,13 @@ RowLayout {
     }
 
     // Wheel anywhere on the row cycles through existing workspaces.
+    //
+    // Lua config form, not the legacy string: Hyprland.dispatch wraps its
+    // argument verbatim in hl.dispatch(...), so "workspace e+1" reaches Lua as
+    // hl.dispatch(workspace e+1) and dies on a syntax error. Same casualty
+    // class as the hyprctl dispatch dpms breakage (docs/known-issues.md).
     WheelHandler {
-        onWheel: event => Hyprland.dispatch("workspace " + (event.angleDelta.y > 0 ? "e-1" : "e+1"))
+        onWheel: event => Hyprland.dispatch("hl.dsp.focus({ workspace = \"" + (event.angleDelta.y > 0 ? "e-1" : "e+1") + "\" })")
     }
 
     Repeater {
@@ -153,7 +158,7 @@ RowLayout {
 
                 MouseArea {
                     anchors.fill: parent
-                    onClicked: Hyprland.dispatch("workspace " + cell.modelData.id)
+                    onClicked: Hyprland.dispatch("hl.dsp.focus({ workspace = " + cell.modelData.id + " })")
                 }
             }
         }
