@@ -25,10 +25,17 @@ dry-run-builds every host the flake defines:
 
 ```bash
 claudeos-validate
-nix fmt -- --check .
+nix fmt -- --ci .
 ```
 
 **Stop on failure.** Fix before continuing.
+
+`--ci` is the formatting gate, not `--check` — treefmt has no `--check`
+flag, so that spelling makes it print its help and exit 1 on every run,
+whether or not anything is misformatted. `--ci` implies `--no-cache
+--fail-on-change`: exit 0 when the tree is clean, 1 when a file would
+change. Read the `N changed` count in its output, not a piped `$?` —
+`cmd | tail` reports tail's status and will mask a real failure.
 
 ### 3. Build
 
