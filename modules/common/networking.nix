@@ -104,16 +104,26 @@ in
       type = "basic";
       source = pkgs.writeText "wired-wifi-toggle" ''
         nmcli=${pkgs.networkmanager}/bin/nmcli
-        [ "$("$nmcli" -g GENERAL.TYPE device show "$1" 2>/dev/null)" = "ethernet" ] || exit 0
+        type=$("$nmcli" -g GENERAL.TYPE device show "$1" 2>/dev/null) || type=""
 
         # ':wifi$' deliberately excludes ':wifi-p2p' companion devices.
         wifi_devs() { "$nmcli" -t -f DEVICE,TYPE device | grep ':wifi$' | cut -d: -f1; }
 
         case "$2" in
           up)
+            [ "$type" = "ethernet" ] || exit 0
             for d in $(wifi_devs); do "$nmcli" -w 0 device disconnect "$d" || true; done
             ;;
           down)
+            # An empty type is not a reason to bail here. The dock's wired NIC is
+            # a USB r8152: undocking *removes* the netdev rather than dropping
+            # carrier, so by dispatcher time NM answers `Device not found` (exit
+            # 10, empty stdout) and the old `= "ethernet"` guard exited before
+            # ever reaching the reconnect below. That is the undock path, not a
+            # foreign event — a device that still exists still reports its type,
+            # so wifi's own down events are still filtered out normally.
+            [ "$type" = "ethernet" ] || [ -z "$type" ] || exit 0
+
             # Reconnect only when no other wired link remains connected
             "$nmcli" -t -f TYPE,STATE device | grep -q "^ethernet:connected" && exit 0
             for d in $(wifi_devs); do "$nmcli" -w 0 device connect "$d" || true; done
