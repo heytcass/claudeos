@@ -107,6 +107,22 @@ Ledger edits are committed by the normal rebuild auto-commit flow.
 
 - 2026-07-13 · "Stack trace of thread [1632/1563/1557]" (3 occurrences) · Incomplete kernel thread traces (header only, no frames); context unclear but no functional impact reported. Likely from short-lived process/thread that recovered.
 
+- 2026-08-22 · `src/service.c:service_accept() rap profile accept failed for D8:A6:40:C6:0F:40` (2 occurrences) · Bluetooth Radio Access Profile initialization failure for a specific peer MAC; similar to existing RAP/LE Audio pattern when disabled. Benign if standard Bluetooth audio works normally.
+
+- 2026-08-22 · `PID 1508 exited with RC 129` · Process termination with SIGHUP signal; transient unless pattern emerges with specific process.
+
+- 2026-08-22 · `pam_unix(sudo:auth): conversation failed` and `auth could not identify password for [tom]` (2 occurrences) · Sudo PAM authentication transients; recurrence of pattern at line 62. Benign if sudo functionality remains normal.
+
+- 2026-08-22 · `i915 0000:00:02.0: [drm] *ERROR* CPU pipe B FIFO underrun` · GPU display timing glitch on pipe B (analogous to pipe A entry at line 64). Does not affect display output if monitor remains stable.
+
+- 2026-08-22 · `gkr-pam: the password for the login keyring was invalid` · gnome-keyring PAM module password validation transient during session initialization; keyring becomes usable after boot completes.
+
+- 2026-08-22 · `Failed to send coredump datagram: Connection reset by peer` · Coredump socket write transient during system shutdown race; variant of existing "Broken pipe" pattern at line 128. Harmless log artifact unrelated to actual crashes.
+
+- 2026-08-23 · "No matching connection for device" (3 occurrences) · NetworkManager device connectivity transient; device likely recovered or was transient if no network issues observed. Benign if network connectivity remains stable.
+
+- 2026-08-23 · `profiles/ranging/rap.c:rap_detached() unable to find session` (2 occurrences) · Bluetooth Radio Access Profile session management transient during adapter lifecycle; similar to existing RAP attach/accept pattern. Benign if standard Bluetooth audio works normally.
+
 - 2026-07-06 · D-Bus "Ignoring duplicate name" warnings (org.gnome.keyring, org.freedesktop.secrets, org.gtk.vfs.*, org.gnome.evolution.*, etc., ~200 total occurrences) · Normal in multi-package setups providing the same D-Bus interface (gnome-keyring remains as the Secret Service); D-Bus just logs when multiple packages provide the same service interface. Does not affect functionality.
 
 - 2026-07-06 · "Activation request for 'org.freedesktop.nm_dispatcher' failed" (39 occurrences) · NetworkManager dispatcher activation failures are transient and common; do not affect network connectivity. Monitor if actual network issues arise.
@@ -166,6 +182,8 @@ Ledger edits are committed by the normal rebuild auto-commit flow.
 - 2026-08-11 · `Process 2255159 (chrome) of user 1000 dumped core` (1 occurrence) · Chrome crash dump transient; similar to existing XDG Desktop Portal pattern at line 112. Benign if Chrome restarts and functions normally; only escalate if crashes recur or session stability degrades.
 
 - 2026-08-13 · `dhcp4 (enp57s0u1u4): error -19 dispatching events` · DHCP on USB network interface (enp57s0u1u4 is a USB device path) failed because the interface is not present (-19 ENODEV); expected if adapter was physically disconnected or had a transient USB enumeration race. Benign if interface recovers on device reconnection or is not normally used.
+
+- 2026-08-24 · ACPI Error cascade: `Timeout from EC hardware or EC device driver` → `AE_TIME, Returned by Handler for [EmbeddedControl]` → `Aborting method \_SB.PCI0.LPCB.ECDV._Q79` / `\_SB.PCI0.LPCB.ECDV.ECR1` / `\ECRB` · Embedded Controller timeout transient during boot with different aborting methods than the prior 2026-07-19 cascade; firmware/BIOS timing race. Benign variant of line 164 pattern; identical diagnosis and resolution.
 
 ## Resolved
 
