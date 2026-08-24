@@ -58,6 +58,19 @@ Item {
     property string weeklyReset: ""
     property string scopedReset: ""
 
+    // The usage half rides on an OAuth access token we can only *read*
+    // (~/.claude/.credentials.json) — Claude Code refreshes it, we do not. So
+    // an expired token is a routine state, not an error, and it must not read
+    // the same as "you have no usage data".
+    property bool usageStale: false
+
+    function clearUsage() {
+        root.session = -1;
+        root.weekly = -1;
+        root.scoped = -1;
+        root.usageStale = false;
+    }
+
     readonly property bool hasUsage: session >= 0 || weekly >= 0
     // The binding constraint — whichever limit runs out first. The ring and the
     // number both read from this, so they can never disagree (they used to: the
@@ -126,26 +139,37 @@ Item {
                 if (!t.startsWith("@"))
                     return;
                 const body = t.slice(1).trim();
+                // Bare sentinel: no token, an expired one, or an unreachable
+                // API. Keep the last reading rather than wiping it — these are
+                // 5-minute polls against multi-hour and weekly budgets, so the
+                // previous numbers stay broadly true, and a dimmed stale ring
+                // tells you more than an absent one. Wiping is what made an
+                // expired token look identical to the pre-merge status widget.
                 if (body === "") {
-                    root.session = -1;
-                    root.weekly = -1;
-                    root.scoped = -1;
+                    if (root.hasUsage)
+                        root.usageStale = true;
+                    else
+                        root.clearUsage();
                     return;
                 }
+                // Narrow: only the parse is guarded. Wrapping the assignments
+                // and requestPaint() too meant any render-side throw got
+                // reported as "no data" and silently blanked the ring.
+                let d = null;
                 try {
-                    const d = JSON.parse(body);
-                    root.session = d.s;
-                    root.weekly = d.w;
-                    root.scoped = d.f;
-                    root.sessionReset = d.sr;
-                    root.weeklyReset = d.wr;
-                    root.scopedReset = d.fr;
-                    ringCanvas.requestPaint();
+                    d = JSON.parse(body);
                 } catch (e) {
-                    root.session = -1;
-                    root.weekly = -1;
-                    root.scoped = -1;
+                    root.clearUsage();
+                    return;
                 }
+                root.session = d.s;
+                root.weekly = d.w;
+                root.scoped = d.f;
+                root.sessionReset = d.sr;
+                root.weeklyReset = d.wr;
+                root.scopedReset = d.fr;
+                root.usageStale = false;
+                ringCanvas.requestPaint();
             }
         }
     }
@@ -188,6 +212,9 @@ Item {
                 id: ringCanvas
                 anchors.fill: parent
                 visible: root.hasUsage
+                // Stale = last known reading, token gone. Recede rather than
+                // disappear: still legible as a gauge, clearly not live.
+                opacity: root.usageStale ? 0.4 : 1
                 onPaint: {
                     const ctx = getContext("2d");
                     ctx.reset();
@@ -284,6 +311,7 @@ Item {
             anchors.verticalCenter: parent.verticalCenter
             text: root.maxPct + "%"
             color: root.gaugeColor
+            opacity: root.usageStale ? 0.4 : 1
             font.family: Theme.fontMono
             font.pixelSize: Theme.fontSize - 2
         }
@@ -418,10 +446,21 @@ Item {
                 // ---- usage section ----
                 Text {
                     visible: root.hasUsage
-                    text: "claude usage"
+                    text: root.usageStale ? "claude usage — stale" : "claude usage"
                     color: Theme.subtext
                     font.family: Theme.fontSans
                     font.pixelSize: Theme.fontSize - 2
+                }
+                // The dim ring is the signal; this is the explanation. Without
+                // it a stale gauge just looks like a rendering bug.
+                Text {
+                    visible: root.hasUsage && root.usageStale
+                    text: "last known — access token expired, run claude to refresh"
+                    color: Theme.muted
+                    font.family: Theme.fontSans
+                    font.pixelSize: Theme.fontSize - 3
+                    wrapMode: Text.WordWrap
+                    width: col.width
                 }
                 Repeater {
                     model: root.hasUsage ? [
