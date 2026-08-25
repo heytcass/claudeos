@@ -20,6 +20,10 @@
   # Claude subscription (no dedicated API key) and writes a gated insight for
   # the bar; cheap to leave on.
   claude-os.jasper.enable = lib.mkDefault true;
+  # Who's-who / relationships live in an untracked local file (this repo is
+  # public). Missing file = section silently skipped, so this is safe to set
+  # on hosts that haven't written one yet.
+  claude-os.jasper.personalContextFile = lib.mkDefault "/home/tom/.config/jasper-companion/context.md";
   claude-os.monitor.enable = lib.mkDefault true;
   claude-os.monitor.dailyBrief = lib.mkDefault true;
   claude-os.monitor.journalDiary = lib.mkDefault true;
