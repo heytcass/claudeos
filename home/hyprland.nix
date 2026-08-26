@@ -73,12 +73,18 @@ let
   # win whenever it's absent. Scanning get_monitors() instead of trusting the
   # callback argument keeps one body valid for both events (hl.meta.lua types
   # event callbacks as `fun(...)` — the argument shape is not a contract).
+  #
+  # set_workspace takes a SPEC TABLE, not a bare id: `set_workspace(2)` throws
+  # "attempt to index a number value" inside the callback (the stub's `fun(...)`
+  # hides the real signature). Verified live via `hyprctl eval` 2026-08-25 —
+  # which is also the way to test any future change to this body: it runs the
+  # exact same Lua in the exact same runtime the hooks do.
   secondDeskWorkspaces = ''
     for _, mon in ipairs(hl.get_monitors()) do
       if mon.serial == "J8CTK14" then
-        mon:set_workspace(2)
+        mon:set_workspace({ workspace = 2 })
         local laptop = hl.get_monitor("eDP-1")
-        if laptop then laptop:set_workspace(1) end
+        if laptop then laptop:set_workspace({ workspace = 1 }) end
       end
     end
   '';
