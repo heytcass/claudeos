@@ -74,10 +74,72 @@ ShellRoot {
             precision: SystemClock.Seconds
         }
 
+        // ---- stage: the ONE screen the UI is centred on ------------------
+        // cage fullscreens this single toplevel across the UNION of all
+        // outputs, so `centerIn: parent` centres on the combined surface — with
+        // two monitors that put the login card on the bezel (2026-08-25).
+        // Everything the user reads lives inside this Item, which is pinned to
+        // one screen's rectangle, so the children's centring is unchanged but
+        // now means "centred on that screen".
+        //
+        // Coordinates: Quickshell.screens reports GLOBAL logical geometry, and
+        // cage lays outputs out itself (its arrangement is NOT Hyprland's), so
+        // never assume an origin — translate by the union's top-left corner,
+        // which is (0,0) of this window.
+        //
+        // FALLBACK IS LOAD-BEARING: if screens are missing or a rect comes back
+        // degenerate, fill the whole window. That is the old split-across-two
+        // behavior, which is ugly but usable; a zero-sized stage would mean an
+        // INVISIBLE LOGIN BOX, i.e. a lockout. Never let this collapse to 0.
+        Item {
+            id: stage
+
+            // The built-in panel when it is on, else the first output. Chosen
+            // for predictability: eDP-1 is present at every desk and is the
+            // screen physically in front of Tom.
+            readonly property var target: {
+                var list = Quickshell.screens;
+                if (!list || list.length === 0)
+                    return null;
+                for (var i = 0; i < list.length; i++) {
+                    if (list[i].name === "eDP-1")
+                        return list[i];
+                }
+                return list[0];
+            }
+
+            readonly property bool usable: target !== null && target.width > 0 && target.height > 0
+
+            // Union origin — the global point this window's (0,0) sits at.
+            readonly property real originX: {
+                var list = Quickshell.screens;
+                if (!list || list.length === 0)
+                    return 0;
+                var m = list[0].x;
+                for (var i = 1; i < list.length; i++)
+                    m = Math.min(m, list[i].x);
+                return m;
+            }
+            readonly property real originY: {
+                var list = Quickshell.screens;
+                if (!list || list.length === 0)
+                    return 0;
+                var m = list[0].y;
+                for (var i = 1; i < list.length; i++)
+                    m = Math.min(m, list[i].y);
+                return m;
+            }
+
+            x: usable ? target.x - originX : 0
+            y: usable ? target.y - originY : 0
+            width: usable ? target.width : win.width
+            height: usable ? target.height : win.height
+        }
+
         Column {
-            anchors.horizontalCenter: parent.horizontalCenter
-            anchors.top: parent.top
-            anchors.topMargin: Math.round(parent.height * 0.16)
+            anchors.horizontalCenter: stage.horizontalCenter
+            anchors.top: stage.top
+            anchors.topMargin: Math.round(stage.height * 0.16)
             spacing: 4
 
             Text {
@@ -100,8 +162,8 @@ ShellRoot {
         // ---- login card ------------------------------------------------
         Rectangle {
             id: card
-            anchors.centerIn: parent
-            anchors.verticalCenterOffset: Math.round(parent.height * 0.12)
+            anchors.centerIn: stage
+            anchors.verticalCenterOffset: Math.round(stage.height * 0.12)
             width: 380
             height: cardCol.implicitHeight + 40
             radius: Theme.radius * 2
