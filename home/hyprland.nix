@@ -88,7 +88,14 @@ let
   # The trailing apply_desk_workspaces() runs at CONFIG LOAD on purpose: under
   # --verify-config there are no monitors, so it only toggles rule flags; on a
   # real `hyprctl reload` it re-asserts the mapping immediately.
+  # Keep exactly ONE enabled rule per workspace per desk: rules for the same
+  # workspace MERGE, later registration winning each field — with the office
+  # ws1 rule left static (always enabled), it out-merged the desk2 ws1 rule
+  # and left ws1 unbound at the second desk (`hyprctl workspacerules` showed
+  # FXP0RB3 as ws1's monitor there). So the office ws1 rule is toggleable too;
+  # only ws3 stays static (it has no per-desk counterpart to conflict with).
   deskWorkspaceLua = ''
+    local office_ws1 = hl.workspace_rule({ workspace = 1, monitor = "desc:Dell Inc. DELL P2419H FXP0RB3", default = true })
     local office_ws2 = hl.workspace_rule({ workspace = 2, monitor = "eDP-1", default = true })
     local desk2_ws1 = hl.workspace_rule({ workspace = 1, monitor = "eDP-1", default = true, enabled = false })
     local desk2_ws2 = hl.workspace_rule({ workspace = 2, monitor = "desc:Dell Inc. DELL P2425HE J8CTK14", default = true, enabled = false })
@@ -97,6 +104,7 @@ let
       for _, mon in ipairs(hl.get_monitors()) do
         if mon.serial == "J8CTK14" then desk2 = mon end
       end
+      office_ws1:set_enabled(desk2 == nil)
       office_ws2:set_enabled(desk2 == nil)
       desk2_ws1:set_enabled(desk2 ~= nil)
       desk2_ws2:set_enabled(desk2 ~= nil)
@@ -389,22 +397,20 @@ in
       # desc/serial as `monitor` above, so the two Dell entries simply don't
       # match anything when undocked.
       #
-      # eDP-1's own rule is deliberately NOT here: its workspace differs per
-      # desk (office/undocked: 2, second desk: 1, with ws2 on that desk's
-      # P2425HE), so it and the second desk's pair are registered as toggleable
-      # rule OBJECTS in `deskWorkspaceLua` (see the let block) — a static rule
-      # for either desk would be re-enforced by the compositor at the other
-      # (monitor connect, reload, emptied-workspace re-creation).
+      # Only ws3 lives here: ws1 and ws2 differ per desk (office/undocked:
+      # ws2 on eDP-1, ws1 on the left office Dell; second desk: ws1 on eDP-1,
+      # ws2 on that desk's P2425HE), so they're registered as toggleable rule
+      # OBJECTS in `deskWorkspaceLua` (see the let block). A static rule can't
+      # coexist with a per-desk one for the same workspace — same-workspace
+      # rules merge with later registration winning, and static rules render
+      # after the `on` block's — and a wrong-desk binding gets re-enforced by
+      # the compositor at monitor connect, reload, and emptied-workspace
+      # re-creation.
       #
       # Lua shape: a LIST renders one `hl.workspace_rule{…}` call per element,
       # same pattern as `window_rule` below. Ref:
       # https://wiki.hypr.land/Configuring/Basics/Workspace-Rules/
       workspace_rule = lib.optionals (osConfig.networking.hostName == "gti") [
-        {
-          workspace = 1;
-          monitor = "desc:Dell Inc. DELL P2419H FXP0RB3";
-          default = true;
-        }
         {
           workspace = 3;
           monitor = "desc:Dell Inc. DELL P2419H 9HYLVF3";
