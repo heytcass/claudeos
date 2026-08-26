@@ -30,6 +30,56 @@ let
         | ${pkgs.gnugrep}/bin/grep -q '^ethernet:connected'
     }
 
+    # ':wifi$' deliberately excludes ':wifi-p2p' companion devices, matching
+    # wifi_devs in the dispatcher script below.
+    wifi_devs() {
+      "$nmcli" -t -f DEVICE,TYPE device \
+        | ${pkgs.gnugrep}/bin/grep ':wifi$' \
+        | ${pkgs.coreutils}/bin/cut -d: -f1
+    }
+
+    # Clear the device-level autoconnect inhibit that `nmcli device disconnect`
+    # leaves behind on dock-attach. From man nmcli, `device down`: "Disconnect a
+    # device and prevent the device from automatically activating further
+    # connections without user/manual intervention."
+    #
+    # Turning the radio back on does NOT clear this — the flag lives on the
+    # device, not on rfkill. That is why an undock left wlp2s0 with a live
+    # radio, a stored PSK and an autoconnect-enabled profile, and it still sat
+    # dead for 10.5 minutes on 2026-08-24 (08:14:26 -> 08:25:04, not one scan
+    # logged) until the connection was activated by hand at uid=1000.
+    #
+    # `device connect` is that intervention, and it is deliberately the same
+    # call the dispatcher already makes on the ethernet-down path below — one
+    # behaviour to reason about across both undock routes. It also considers
+    # profiles that lack the autoconnect flag. Its documented caveat ("If no
+    # compatible connection exists, a new profile with default settings will
+    # be created") is harmless here: a machine with no wifi profile has no
+    # working link to strand in the first place. `connection up ifname` would
+    # avoid inventing a profile but hard-fails when nothing matches, which is
+    # the worse trade for a heal path.
+    re_arm_autoconnect() {
+      for d in $(wifi_devs); do
+        # Already up — the common resume case, where we undocked long ago and
+        # wifi never dropped. Nothing to un-inhibit, and a redundant activate
+        # would only churn a working link. Terse DEVICE,STATE prints exactly
+        # `wlp2s0:connected`, so anchor both ends: `connected (externally)`
+        # is a different state and must not match.
+        "$nmcli" -t -f DEVICE,STATE device \
+          | ${pkgs.gnugrep}/bin/grep -q "^$d:connected$" && continue
+
+        # -w 0 = "do not wait, exit immediately with a status of success"
+        # (man nmcli). NOT the dispatcher's reason — this script runs as a
+        # systemd oneshot and from resumeCommands, so it cannot deadlock on
+        # NM's state machine. It is a timeout guard: `device connect` defaults
+        # to a 90s wait *per device*, which would outlive the oneshot's
+        # TimeoutStartSec and get the whole heal SIGTERMed halfway. The
+        # inhibit is lifted by issuing the request, not by observing it, and
+        # nothing below branches on the result.
+        "$nmcli" -w 0 device connect "$d" || true
+      done
+    }
+
     # Distinguish a deliberate Fn+Home from stranded state. The kernel's
     # rfkill-input handler (bound straight to "Dell WMI hotkeys" / "Intel HID
     # events") blocks every radio on KEY_RFKILL, and systemd-rfkill stamps the
@@ -55,6 +105,7 @@ let
         recently_blocked && exit 0
         "$rfkill" unblock wlan || true
         "$nmcli" radio wifi on || true
+        re_arm_autoconnect
         exit 0
       fi
       ${pkgs.coreutils}/bin/sleep 3
