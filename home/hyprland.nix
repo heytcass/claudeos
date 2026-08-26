@@ -64,29 +64,51 @@ let
   # binds, which would otherwise terminate the literal early.
   mkExec = cmd: mkLuaInline "hl.dsp.exec_cmd(${builtins.toJSON cmd})";
 
-  # Second-desk workspace claim, shared by the `hyprland.start` and
-  # `monitor.added` subscriptions below. This CANNOT be a static workspace_rule:
-  # eDP-1's default workspace depends on which desk we're at (office: 2, second
-  # desk: 1), and two static rules keyed on the same always-present panel would
-  # conflict. The P2425HE's presence is the distinguishing signal, so its
-  # arrival triggers the inverse mapping at runtime; the office static rules
-  # win whenever it's absent. Scanning get_monitors() instead of trusting the
-  # callback argument keeps one body valid for both events (hl.meta.lua types
-  # event callbacks as `fun(...)` — the argument shape is not a contract).
+  # Desk-aware workspace rules for eDP-1, whose mapping differs per desk
+  # (office: workspace 2, second desk: workspace 1 with ws2 on the desk's
+  # P2425HE). A static rule can't express that — and a hook that merely MOVES
+  # workspaces after the fact loses, because the compositor re-enforces static
+  # bindings at many points: monitor connect, `hyprctl reload`, and every
+  # re-creation of an emptied workspace (ws2 snapped back to the laptop within
+  # minutes of the move-based first attempt, 2026-08-25). So instead: register
+  # BOTH desks' conflicting rules up front, keep the rule objects, and let
+  # apply_desk_workspaces() toggle which set is enabled based on whether the
+  # P2425HE (serial J8CTK14) is present. The compositor then enforces the
+  # right binding itself at every trigger point. The office ws1/ws3 rules stay
+  # in the static workspace_rule list — keyed to office-only serials, they're
+  # inert elsewhere. Undocked, desk2 is absent, so the office set is enabled
+  # and the laptop still opens on ws2 (the 2026-08-24 behavior).
   #
-  # set_workspace takes a SPEC TABLE, not a bare id: `set_workspace(2)` throws
-  # "attempt to index a number value" inside the callback (the stub's `fun(...)`
-  # hides the real signature). Verified live via `hyprctl eval` 2026-08-25 —
-  # which is also the way to test any future change to this body: it runs the
-  # exact same Lua in the exact same runtime the hooks do.
-  secondDeskWorkspaces = ''
-    for _, mon in ipairs(hl.get_monitors()) do
-      if mon.serial == "J8CTK14" then
-        mon:set_workspace({ workspace = 2 })
+  # Two live-verified API contracts the stub's `fun(...)` typing hides (both
+  # found via `hyprctl eval` 2026-08-25 — which runs the same Lua runtime the
+  # hooks do, and is the way to test any future change to this chunk):
+  #   * set_workspace wants a SPEC TABLE: set_workspace({ workspace = 2 });
+  #     a bare id throws "attempt to index a number value".
+  #   * set_enabled takes a plain boolean.
+  # The trailing apply_desk_workspaces() runs at CONFIG LOAD on purpose: under
+  # --verify-config there are no monitors, so it only toggles rule flags; on a
+  # real `hyprctl reload` it re-asserts the mapping immediately.
+  deskWorkspaceLua = ''
+    local office_ws2 = hl.workspace_rule({ workspace = 2, monitor = "eDP-1", default = true })
+    local desk2_ws1 = hl.workspace_rule({ workspace = 1, monitor = "eDP-1", default = true, enabled = false })
+    local desk2_ws2 = hl.workspace_rule({ workspace = 2, monitor = "desc:Dell Inc. DELL P2425HE J8CTK14", default = true, enabled = false })
+    local function apply_desk_workspaces()
+      local desk2 = nil
+      for _, mon in ipairs(hl.get_monitors()) do
+        if mon.serial == "J8CTK14" then desk2 = mon end
+      end
+      office_ws2:set_enabled(desk2 == nil)
+      desk2_ws1:set_enabled(desk2 ~= nil)
+      desk2_ws2:set_enabled(desk2 ~= nil)
+      if desk2 then
+        desk2:set_workspace({ workspace = 2 })
         local laptop = hl.get_monitor("eDP-1")
         if laptop then laptop:set_workspace({ workspace = 1 }) end
       end
     end
+    hl.on("monitor.added", apply_desk_workspaces)
+    hl.on("monitor.removed", apply_desk_workspaces)
+    apply_desk_workspaces()
   '';
   mkGlobal = name: mkLuaInline "hl.dsp.global(${builtins.toJSON name})";
   mkBind = keys: dsp: {
@@ -365,16 +387,14 @@ in
       # workspace on the same physical screen instead of whatever order
       # Hyprland happened to detect the outputs in. Keyed by the same
       # desc/serial as `monitor` above, so the two Dell entries simply don't
-      # match anything when undocked. The eDP-1 entry DOES always match —
-      # undocked (sole monitor) that makes 2 its initial workspace instead of
-      # the old implicit 1, but mod+1..5 still reach every workspace regardless
-      # (see the `bind` list below), so the only visible effect is which
-      # workspace opens first.
+      # match anything when undocked.
       #
-      # The second desk's mapping is the INVERSE (laptop = 1, P2425HE = 2) and
-      # deliberately absent here — it's applied by the `monitor.added` +
-      # `hyprland.start` subscriptions (see `secondDeskWorkspaces` in the let
-      # block), because eDP-1 can't hold two different static defaults.
+      # eDP-1's own rule is deliberately NOT here: its workspace differs per
+      # desk (office/undocked: 2, second desk: 1, with ws2 on that desk's
+      # P2425HE), so it and the second desk's pair are registered as toggleable
+      # rule OBJECTS in `deskWorkspaceLua` (see the let block) — a static rule
+      # for either desk would be re-enforced by the compositor at the other
+      # (monitor connect, reload, emptied-workspace re-creation).
       #
       # Lua shape: a LIST renders one `hl.workspace_rule{…}` call per element,
       # same pattern as `window_rule` below. Ref:
@@ -383,11 +403,6 @@ in
         {
           workspace = 1;
           monitor = "desc:Dell Inc. DELL P2419H FXP0RB3";
-          default = true;
-        }
-        {
-          workspace = 2;
-          monitor = "eDP-1";
           default = true;
         }
         {
@@ -564,50 +579,46 @@ in
       # `hl.exec_cmd` runs during verification; the same call inside this hook
       # does not. No collision with home-manager's own start hook — HM only
       # emits one when `systemd.enable = true`, and that is false here.
-      # Lua shape: a LIST renders one `hl.on(…)` call per element — the start
-      # hook (was exec-once) plus the second-desk workspace claim. The claim
-      # runs in BOTH: `monitor.added` covers dock/undock while the session is
-      # live, `hyprland.start` covers booting already-docked (whether
-      # monitor.added replays for monitors present at startup is not
-      # documented, so don't bet the boot path on it).
-      on = [
-        {
-          _args = [
-            "monitor.added"
-            (mkLuaInline ("function()\n" + secondDeskWorkspaces + "end"))
-          ];
-        }
-        {
-          _args = [
-            "hyprland.start"
-            (mkLuaInline (
-              "function()\n"
-              + lib.concatMapStrings (cmd: "  hl.exec_cmd(${builtins.toJSON cmd})\n") [
-                "qs" # the bespoke Quickshell bar
-                # Apply the Adwaita cursor at runtime (belt-and-suspenders with env).
-                "hyprctl setcursor Adwaita 20"
-                # Start + unlock the Secret Service (org.freedesktop.secrets) so
-                # Claude and other libsecret apps can save logins. A bare WM
-                # session must start the daemon's components itself.
-                #
-                # NOTE `ssh` is deliberately absent: gnome-keyring 50 accepts only
-                # `pkcs11,secrets` (`gnome-keyring-daemon --help`), and the ssh
-                # agent moved out to gcr-ssh-agent — a separately socket-activated
-                # service that already serves SSH_AUTH_SOCK
-                # (/run/user/1000/gcr/ssh) and holds the git signing key. Passing
-                # `ssh` here was a silent no-op, not a working setting.
-                "gnome-keyring-daemon --start --components=secrets,pkcs11"
-                # NO polkit agent launched here any more. The bar IS the agent
-                # (home/quickshell/PolkitDialog.qml), which is what let the
-                # XDG_SESSION_ID ordering workaround be deleted outright — see
-                # modules/desktop/hyprland.nix.
-              ]
-              + secondDeskWorkspaces
-              + "end"
-            ))
-          ];
-        }
-      ];
+      # The second argument is an IIFE, not a plain function: its OUTER part
+      # runs at config load, registering the desk-aware workspace rules and
+      # the monitor.added/removed subscriptions from `deskWorkspaceLua` (safe
+      # under --verify-config — rule registration is exactly what generated
+      # top-level config does anyway, and with no monitors present the
+      # trailing apply is inert). It RETURNS the actual start callback, which
+      # closes over apply_desk_workspaces so startup gets the right desk
+      # mapping regardless of whether monitors beat the start event.
+      on = {
+        _args = [
+          "hyprland.start"
+          (mkLuaInline (
+            "(function()\n"
+            + deskWorkspaceLua
+            + "return function()\n"
+            + lib.concatMapStrings (cmd: "  hl.exec_cmd(${builtins.toJSON cmd})\n") [
+              "qs" # the bespoke Quickshell bar
+              # Apply the Adwaita cursor at runtime (belt-and-suspenders with env).
+              "hyprctl setcursor Adwaita 20"
+              # Start + unlock the Secret Service (org.freedesktop.secrets) so
+              # Claude and other libsecret apps can save logins. A bare WM
+              # session must start the daemon's components itself.
+              #
+              # NOTE `ssh` is deliberately absent: gnome-keyring 50 accepts only
+              # `pkcs11,secrets` (`gnome-keyring-daemon --help`), and the ssh
+              # agent moved out to gcr-ssh-agent — a separately socket-activated
+              # service that already serves SSH_AUTH_SOCK
+              # (/run/user/1000/gcr/ssh) and holds the git signing key. Passing
+              # `ssh` here was a silent no-op, not a working setting.
+              "gnome-keyring-daemon --start --components=secrets,pkcs11"
+              # NO polkit agent launched here any more. The bar IS the agent
+              # (home/quickshell/PolkitDialog.qml), which is what let the
+              # XDG_SESSION_ID ordering workaround be deleted outright — see
+              # modules/desktop/hyprland.nix.
+            ]
+            + "  apply_desk_workspaces()\n"
+            + "end\nend)()"
+          ))
+        ];
+      };
 
       # Auto-float utility windows + the GTK file picker, so dialogs don't tile
       # awkwardly. Match by app class; add more as they come up.
