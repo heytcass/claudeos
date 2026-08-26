@@ -63,61 +63,6 @@ let
   # string literal and escapes the embedded quotes in the screenshot and rfkill
   # binds, which would otherwise terminate the literal early.
   mkExec = cmd: mkLuaInline "hl.dsp.exec_cmd(${builtins.toJSON cmd})";
-
-  # Desk-aware workspace rules for eDP-1, whose mapping differs per desk
-  # (office: workspace 2, second desk: workspace 1 with ws2 on the desk's
-  # P2425HE). A static rule can't express that — and a hook that merely MOVES
-  # workspaces after the fact loses, because the compositor re-enforces static
-  # bindings at many points: monitor connect, `hyprctl reload`, and every
-  # re-creation of an emptied workspace (ws2 snapped back to the laptop within
-  # minutes of the move-based first attempt, 2026-08-25). So instead: register
-  # BOTH desks' conflicting rules up front, keep the rule objects, and let
-  # apply_desk_workspaces() toggle which set is enabled based on whether the
-  # P2425HE (serial J8CTK14) is present. The compositor then enforces the
-  # right binding itself at every trigger point. The office ws1/ws3 rules stay
-  # in the static workspace_rule list — keyed to office-only serials, they're
-  # inert elsewhere. Undocked, desk2 is absent, so the office set is enabled
-  # and the laptop still opens on ws2 (the 2026-08-24 behavior).
-  #
-  # Two live-verified API contracts the stub's `fun(...)` typing hides (both
-  # found via `hyprctl eval` 2026-08-25 — which runs the same Lua runtime the
-  # hooks do, and is the way to test any future change to this chunk):
-  #   * set_workspace wants a SPEC TABLE: set_workspace({ workspace = 2 });
-  #     a bare id throws "attempt to index a number value".
-  #   * set_enabled takes a plain boolean.
-  # The trailing apply_desk_workspaces() runs at CONFIG LOAD on purpose: under
-  # --verify-config there are no monitors, so it only toggles rule flags; on a
-  # real `hyprctl reload` it re-asserts the mapping immediately.
-  # Keep exactly ONE enabled rule per workspace per desk: rules for the same
-  # workspace MERGE, later registration winning each field — with the office
-  # ws1 rule left static (always enabled), it out-merged the desk2 ws1 rule
-  # and left ws1 unbound at the second desk (`hyprctl workspacerules` showed
-  # FXP0RB3 as ws1's monitor there). So the office ws1 rule is toggleable too;
-  # only ws3 stays static (it has no per-desk counterpart to conflict with).
-  deskWorkspaceLua = ''
-    local office_ws1 = hl.workspace_rule({ workspace = 1, monitor = "desc:Dell Inc. DELL P2419H FXP0RB3", default = true })
-    local office_ws2 = hl.workspace_rule({ workspace = 2, monitor = "eDP-1", default = true })
-    local desk2_ws1 = hl.workspace_rule({ workspace = 1, monitor = "eDP-1", default = true, enabled = false })
-    local desk2_ws2 = hl.workspace_rule({ workspace = 2, monitor = "desc:Dell Inc. DELL P2425HE J8CTK14", default = true, enabled = false })
-    local function apply_desk_workspaces()
-      local desk2 = nil
-      for _, mon in ipairs(hl.get_monitors()) do
-        if mon.serial == "J8CTK14" then desk2 = mon end
-      end
-      office_ws1:set_enabled(desk2 == nil)
-      office_ws2:set_enabled(desk2 == nil)
-      desk2_ws1:set_enabled(desk2 ~= nil)
-      desk2_ws2:set_enabled(desk2 ~= nil)
-      if desk2 then
-        desk2:set_workspace({ workspace = 2 })
-        local laptop = hl.get_monitor("eDP-1")
-        if laptop then laptop:set_workspace({ workspace = 1 }) end
-      end
-    end
-    hl.on("monitor.added", apply_desk_workspaces)
-    hl.on("monitor.removed", apply_desk_workspaces)
-    apply_desk_workspaces()
-  '';
   mkGlobal = name: mkLuaInline "hl.dsp.global(${builtins.toJSON name})";
   mkBind = keys: dsp: {
     _args = [
@@ -333,12 +278,6 @@ in
       # we picked where Tom crosses).
       # Undocked, eDP-1's fixed offset is harmless (sole monitor, origin moot).
       #
-      # gti's second desk (dialed in live 2026-08-25 via wdisplays): laptop |
-      # P2425HE, laptop on the left. The external's logical y is 549px above
-      # the laptop's so cursor crossings land where the two screens physically
-      # align. 100Hz because the P2425HE panel supports it (the office P2419Hs
-      # top out at 60); same serial-keyed matching as the office Dells.
-      #
       # Lua shape: a LIST renders one `hl.monitor{…}` call per element. The old
       # comma-string's positional fields become named ones, the trailing
       # `transform, 3` keyword pair becomes a plain `transform` field, and the
@@ -365,6 +304,16 @@ in
               scale = 1.0;
               transform = 3;
             }
+            # Second desk (dialed in live 2026-08-25 via wdisplays): laptop
+            # left, P2425HE right, its logical y 549px above the laptop's so
+            # cursor crossings land where the screens physically align. 100Hz
+            # per its EDID — the office P2419Hs top out at 60. Serial-keyed
+            # like the office Dells, so it's inert at any other desk.
+            #
+            # Workspace placement is deliberately NOT handled here. A hook that
+            # bound workspaces to this monitor cost a broken boot on 2026-08-25
+            # (see docs/known-issues.md); the office rules below apply at every
+            # desk until that's rebuilt against a real boot test.
             {
               output = "desc:Dell Inc. DELL P2425HE J8CTK14";
               mode = "1920x1080@100";
@@ -395,22 +344,26 @@ in
       # workspace on the same physical screen instead of whatever order
       # Hyprland happened to detect the outputs in. Keyed by the same
       # desc/serial as `monitor` above, so the two Dell entries simply don't
-      # match anything when undocked.
-      #
-      # Only ws3 lives here: ws1 and ws2 differ per desk (office/undocked:
-      # ws2 on eDP-1, ws1 on the left office Dell; second desk: ws1 on eDP-1,
-      # ws2 on that desk's P2425HE), so they're registered as toggleable rule
-      # OBJECTS in `deskWorkspaceLua` (see the let block). A static rule can't
-      # coexist with a per-desk one for the same workspace — same-workspace
-      # rules merge with later registration winning, and static rules render
-      # after the `on` block's — and a wrong-desk binding gets re-enforced by
-      # the compositor at monitor connect, reload, and emptied-workspace
-      # re-creation.
+      # match anything when undocked. The eDP-1 entry DOES always match —
+      # undocked (sole monitor) that makes 2 its initial workspace instead of
+      # the old implicit 1, but mod+1..5 still reach every workspace regardless
+      # (see the `bind` list below), so the only visible effect is which
+      # workspace opens first.
       #
       # Lua shape: a LIST renders one `hl.workspace_rule{…}` call per element,
       # same pattern as `window_rule` below. Ref:
       # https://wiki.hypr.land/Configuring/Basics/Workspace-Rules/
       workspace_rule = lib.optionals (osConfig.networking.hostName == "gti") [
+        {
+          workspace = 1;
+          monitor = "desc:Dell Inc. DELL P2419H FXP0RB3";
+          default = true;
+        }
+        {
+          workspace = 2;
+          monitor = "eDP-1";
+          default = true;
+        }
         {
           workspace = 3;
           monitor = "desc:Dell Inc. DELL P2419H 9HYLVF3";
@@ -585,21 +538,11 @@ in
       # `hl.exec_cmd` runs during verification; the same call inside this hook
       # does not. No collision with home-manager's own start hook — HM only
       # emits one when `systemd.enable = true`, and that is false here.
-      # The second argument is an IIFE, not a plain function: its OUTER part
-      # runs at config load, registering the desk-aware workspace rules and
-      # the monitor.added/removed subscriptions from `deskWorkspaceLua` (safe
-      # under --verify-config — rule registration is exactly what generated
-      # top-level config does anyway, and with no monitors present the
-      # trailing apply is inert). It RETURNS the actual start callback, which
-      # closes over apply_desk_workspaces so startup gets the right desk
-      # mapping regardless of whether monitors beat the start event.
       on = {
         _args = [
           "hyprland.start"
           (mkLuaInline (
-            "(function()\n"
-            + deskWorkspaceLua
-            + "return function()\n"
+            "function()\n"
             + lib.concatMapStrings (cmd: "  hl.exec_cmd(${builtins.toJSON cmd})\n") [
               "qs" # the bespoke Quickshell bar
               # Apply the Adwaita cursor at runtime (belt-and-suspenders with env).
@@ -620,8 +563,7 @@ in
               # XDG_SESSION_ID ordering workaround be deleted outright — see
               # modules/desktop/hyprland.nix.
             ]
-            + "  apply_desk_workspaces()\n"
-            + "end\nend)()"
+            + "end"
           ))
         ];
       };
