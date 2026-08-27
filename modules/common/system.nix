@@ -300,13 +300,27 @@ in
   # Zram swap for compressed in-memory swap
   zramSwap.enable = true;
 
-  # sched_ext: scx_lavd BPF scheduler (Rust, Steam Deck lineage) — tuned for
-  # interactive latency on battery devices; --autopower flips performance/
-  # powersave with AC state. Kernel falls back to EEVDF instantly if it dies.
+  # sched_ext: scx_bpfland BPF scheduler — vruntime-based, prioritizes
+  # interactive workloads. The Rust userspace part handles flags and metrics
+  # only; every scheduling decision is made in BPF. Kernel falls back to
+  # EEVDF instantly if it dies.
+  #
+  # Replaced scx_lavd on 2026-08-26. lavd 1.1.3 (arrived with the nixpkgs
+  # bump in generation 47) regressed badly on kernel 7.2.0: RCU stalls that
+  # froze all 8 CPUs for ~21s, ~35 crashes/hour, versus ~1/day on 1.1.2.
+  # Presented to the user as "every app and the cursor hang at once" — the
+  # blast-radius rule in docs/PHILOSOPHY.md was written from this incident.
+  # No 1.1.4 exists to upgrade into; upstream fixes matching the signature
+  # are in main but unreleased.
+  #
+  # No extraArgs, on purpose: lavd's --autopower is lavd-only and bpfland
+  # rejects it outright ("unexpected argument '--autopower' found"), which
+  # would leave the unit dead and the system silently on EEVDF. bpfland's
+  # analog is --primary-domain=auto ("automatically detect the CPUs based
+  # on the active power profile") — already its default.
   services.scx = {
     enable = true;
-    scheduler = "scx_lavd";
-    extraArgs = [ "--autopower" ];
+    scheduler = "scx_bpfland";
   };
 
   # dbus-broker: the Fedora/Arch default bus implementation — faster under

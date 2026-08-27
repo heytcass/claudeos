@@ -91,6 +91,64 @@ instinct is how the March failure started. The same pattern applies at every
 scale (e.g. coreutils: Rust uutils on the interactive PATH, GNU for system
 scripts).
 
+## The blast-radius rule
+
+The two-ring rule draws the *ownership* boundary. This one draws the
+**failure** boundary — the companion it was missing until 2026-08-26.
+
+Bleeding-edge plumbing is a goal here (see Taste), but that commitment hides
+two different bets under one phrase:
+
+- **Adopt the successor early.** PipeWire, Wayland, nftables, systemd-boot.
+  A consensus winner, replacing something everyone agrees is worse, already
+  becoming the default elsewhere. The risk is being early, and time fixes it.
+- **Run the experiment.** sched_ext schedulers, a freshly-rewritten config
+  format, a Secret Service implementation at 0.6.0. No consensus winner,
+  weekly churn, replacing something that already works fine. Time does not
+  fix this one; only evidence does.
+
+Both are "new system tech." They are not the same risk, and the taste bullet
+alone does not distinguish them.
+
+**The rule: a component's licence to be experimental is set by how it fails,
+not by how new it is.** Two questions before adopting, and the second matters
+more:
+
+1. **How wide?** Does failure stay in its own lane (audio dies, a command
+   errors, the network drops), or does it take the whole machine at once?
+2. **How legible?** Will the failure *say what it is* — a dead unit, an error
+   on screen, an obviously broken feature — or will it present as something
+   else entirely?
+
+Silent-and-wide is the dangerous quadrant, and it is rarer than it looks:
+PipeWire, uutils, nftables, and sudo-rs all fail loudly and locally, and pass
+without ceremony. What does not pass gets, at minimum:
+
+- a named signature to watch for, written down *before* deploying, and
+- a stated observation window with a rollback trigger — generations make
+  reverting cheap, but only if someone decided in advance what would trigger
+  it, and
+- an entry in `docs/known-issues.md` that says what the user would *feel*,
+  not just what the log line says.
+
+Note what this rule does **not** ask for: a testbed soak on transporter. That
+convention was real, and the scx adoption skipped it — but transporter has
+gone unbooted since gti became the daily driver, so a rule that depends on it
+is a rule that gets waived every time. Rollback plus a defined window is the
+mitigation that actually exists on a one-machine setup. Prefer the honest
+weaker control over the stronger one nobody performs.
+
+The incident this was written from: `scx_lavd` 1.1.3 arrived in a routine
+nixpkgs bump and began evicting itself from the kernel ~35 times an hour,
+freezing all 8 CPUs for ~21 seconds each time. Maximally wide, and completely
+illegible — it presented as "Chrome keeps hanging," so the hunt started in
+the browser. The journal diary *did* catch it automatically and file it the
+same morning, which is the system working; it filed it as two unlinked
+entries ranked no higher than `i2c_designware: spurious STOP detected`, which
+is the system failing. **A ledger that only grows is not narration.** If
+`docs/known-issues.md` is mostly open entries, severity ranking is the thing
+to fix before adding the next experiment.
+
 ## The proactivity doctrine
 
 This is the philosophical core, reached after several wrong drafts. The wrong
@@ -281,7 +339,9 @@ These are aesthetic commitments that double as engineering bets:
 - **Bleeding-edge plumbing on purpose:** PipeWire, Wayland, systemd-boot,
   systemd-initrd, nftables, sched_ext schedulers, the oxidized userland
   (sudo-rs, uutils, fish 4, the Rust CLI ring). Trying new system tech is a
-  goal, not a risk to minimize.
+  goal, not a risk to minimize — but *which* risk is set by the blast-radius
+  rule, not by this bullet. Adopting the successor early and running the
+  experiment both live on this list and are not the same bet.
 - **The system narrates itself.** Generations are named by what changed
   (boot menu as changelog), snapshots carry the same names, the journal
   diary keeps a ledger, every agent leaves an audit trail. A system you can
