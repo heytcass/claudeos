@@ -24,7 +24,7 @@ System diagnostics plus runtime config validation — checks `nix build` cannot 
 | `system_status` | Uptime, memory, CPU temp, battery |
 | `snapshot_list` | Btrfs snapshots from snapper (root + home) |
 | `network_status` | NetworkManager status and connections |
-| `nix_store_size` | Nix store disk usage and GC timer |
+| `nix_store_size` | Store free space, generation count, `nh-clean` timer state (pass `exact=true` for a precise `du` size) |
 | `scrub_status` | Last btrfs scrub result |
 | `hypr_config_check` | Parse a trial config line with `Hyprland --verify-config` (hyprlang or Lua; mutates nothing) |
 | `hypr_config_errors` | `hyprctl configerrors` (optionally after reload) — empty = green |

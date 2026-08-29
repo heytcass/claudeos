@@ -58,11 +58,26 @@ handle_tool() {
       fi
       ;;
     snapshot_list)
-      echo "=== ROOT SNAPSHOTS ==="
-      snapper -c root list 2>/dev/null || echo "root config not found"
-      echo ""
-      echo "=== HOME SNAPSHOTS ==="
-      snapper -c home list 2>/dev/null || echo "home config not found"
+      # Surface snapper's own stderr rather than discarding it. This server
+      # runs as the desktop user, where `snapper -c root list` answers
+      # "No permissions." — the old code sent that to /dev/null and printed
+      # "root config not found" instead, which reads as a missing rollback
+      # safety net during exactly the incident where you need to trust it.
+      # (Verified 2026-08-29: /etc/snapper/configs/root was present and fine.)
+      local snap_out cfg
+      for cfg in root home; do
+        echo "=== ${cfg^^} SNAPSHOTS ==="
+        if snap_out=$(snapper -c "$cfg" list 2>&1); then
+          echo "$snap_out"
+        else
+          echo "(snapper -c ${cfg} failed: ${snap_out:-unknown error})"
+          if [[ "$snap_out" == *"No permissions"* ]]; then
+            echo "  note: the config exists; this server runs unprivileged."
+            echo "  run: sudo snapper -c ${cfg} list"
+          fi
+        fi
+        echo ""
+      done
       ;;
     network_status)
       echo "=== STATUS ==="
@@ -72,12 +87,53 @@ handle_tool() {
       nmcli connection show --active 2>/dev/null || echo "(no active connections)"
       ;;
     nix_store_size)
-      local size
-      size=$(timeout 10 du -sh /nix/store 2>/dev/null | cut -f1) || size="(timed out)"
-      echo "NIX STORE SIZE: ${size}"
+      # "Do I need a GC?" is answered by free space, generation count and the
+      # timer state — all instant. The store's exact byte count needs a du
+      # walk over millions of paths (>10s here), so it is opt-in rather than
+      # wedged behind a timeout that silently truncated the answer.
+      local exact
+      exact=$(printf '%s' "$args" | jq -r '.exact // false')
+
+      echo "=== STORE FILESYSTEM ==="
+      df -h /nix 2>/dev/null || echo "(could not stat /nix)"
       echo ""
+
+      echo "=== GENERATIONS ==="
+      local gens
+      gens=$(find /nix/var/nix/profiles -maxdepth 1 -name 'system-*-link' 2>/dev/null | wc -l)
+      echo "system profile: ${gens} generation(s)"
+      echo "current:        $(readlink /nix/var/nix/profiles/system 2>/dev/null || echo '(unknown)')"
+      echo ""
+
       echo "=== GC TIMER ==="
-      systemctl status nix-gc.timer --no-pager 2>/dev/null | head -5 || true
+      # GC here is driven by programs.nh.clean (modules/common/nix.nix), NOT
+      # nix.gc.automatic — so the unit is nh-clean.timer. This used to query
+      # nix-gc.timer, which does not exist on this system, so the section was
+      # permanently blank and read as "no GC configured".
+      systemctl list-timers --all nh-clean.timer --no-pager 2>/dev/null \
+        || echo "(could not query nh-clean.timer)"
+      echo ""
+
+      echo "=== STORE SIZE ==="
+      if [[ "$exact" == "true" ]]; then
+        local size rc
+        # du counts hardlinked paths once, which is what we want on a store
+        # deduplicated by nix.optimise; `nix path-info -S` would over-count
+        # shared closures. Test du's OWN status, not the pipeline's: the old
+        # code piped into cut, whose success masked every du failure and left
+        # the size silently blank on every single call.
+        size=$(timeout 120 du -sh /nix/store 2>/dev/null)
+        rc=$?
+        if [[ $rc -eq 0 && -n "$size" ]]; then
+          echo "${size%%[[:space:]]*} (exact, hardlinks counted once)"
+        elif [[ $rc -eq 124 ]]; then
+          echo "(du timed out after 120s)"
+        else
+          echo "(du failed, exit ${rc})"
+        fi
+      else
+        echo "(not measured — pass exact=true for the du walk, ~10-30s)"
+      fi
       ;;
     scrub_status)
       btrfs scrub status / 2>/dev/null || echo "scrub status not available"
@@ -236,7 +292,7 @@ $(grep -iE 'error|caused|unavailable' "$log" | head -20)"
   esac
 }
 
-TOOLS='[{"name":"disk_usage","description":"Show btrfs filesystem usage and disk space","inputSchema":{"type":"object","properties":{}}},{"name":"failed_services","description":"List any failed systemd services","inputSchema":{"type":"object","properties":{}}},{"name":"recent_errors","description":"Show recent error-level journal entries","inputSchema":{"type":"object","properties":{"count":{"type":"integer","description":"Number of entries (default 50)","default":50}}}},{"name":"system_status","description":"System overview: uptime, load, memory, CPU temp, battery","inputSchema":{"type":"object","properties":{}}},{"name":"snapshot_list","description":"List btrfs snapshots managed by snapper","inputSchema":{"type":"object","properties":{}}},{"name":"network_status","description":"NetworkManager status and active connections","inputSchema":{"type":"object","properties":{}}},{"name":"nix_store_size","description":"Nix store disk usage and GC status","inputSchema":{"type":"object","properties":{}}},{"name":"scrub_status","description":"Last btrfs scrub result","inputSchema":{"type":"object","properties":{}}},{"name":"hypr_config_check","description":"Validate Hyprland config against the Hyprland binary with --verify-config (nix build cannot check generated config contents). Appends a trial line to the deployed config in a temp copy and parses it — nothing is mutated, no reload, no live session needed. Works for both hyprlang (.conf) and Lua (.lua); the deployed format is auto-detected. Verdicts are OK / REJECTED / UNVERIFIABLE — UNVERIFIABLE means the verifier itself could not run and is NOT a statement about the config.","inputSchema":{"type":"object","properties":{"field":{"type":"string","description":"hyprlang keyword, e.g. windowrule, general:gaps_in (hyprlang configs only; use snippet for Lua)"},"value":{"type":"string","description":"Value to trial, e.g. \"float on, match:class ^(foo)$\""},"snippet":{"type":"string","description":"Raw config text to append verbatim — required for Lua, e.g. hl.config{ general = { gaps_in = 2 } }. Takes precedence over field/value."}},"required":[]}},{"name":"hypr_config_errors","description":"Report hyprctl configerrors for the running Hyprland session (empty = green). Optionally hyprctl reload first to re-parse the deployed config. Only works inside the Hyprland session.","inputSchema":{"type":"object","properties":{"reload":{"type":"boolean","description":"Run hyprctl reload before checking (default false)","default":false}}}},{"name":"quickshell_check","description":"Load-check the bespoke Quickshell bar QML from repo source without a NixOS rebuild: overlays repo *.qml onto a copy of the deployed config (generated Theme.qml/cava.conf) and runs qs -p. One broken QML file blanks the whole bar, so run this before rebuilding. Briefly restarts the live bar. Only works inside the Hyprland session.","inputSchema":{"type":"object","properties":{"qml_dir":{"type":"string","description":"QML source dir to check (default $CLAUDEOS_DIR/home/quickshell — pass explicitly from worktrees)"}}}}]'
+TOOLS='[{"name":"disk_usage","description":"Show btrfs filesystem usage and disk space","inputSchema":{"type":"object","properties":{}}},{"name":"failed_services","description":"List any failed systemd services","inputSchema":{"type":"object","properties":{}}},{"name":"recent_errors","description":"Show recent error-level journal entries","inputSchema":{"type":"object","properties":{"count":{"type":"integer","description":"Number of entries (default 50)","default":50}}}},{"name":"system_status","description":"System overview: uptime, load, memory, CPU temp, battery","inputSchema":{"type":"object","properties":{}}},{"name":"snapshot_list","description":"List btrfs snapshots managed by snapper","inputSchema":{"type":"object","properties":{}}},{"name":"network_status","description":"NetworkManager status and active connections","inputSchema":{"type":"object","properties":{}}},{"name":"nix_store_size","description":"Nix store free space, system generation count, and nh-clean GC timer status. Reports instantly the numbers that actually answer whether a GC is needed. Pass exact=true to additionally walk the store with du for a precise deduplicated size (slow, 10-30s).","inputSchema":{"type":"object","properties":{"exact":{"type":"boolean","description":"Also measure exact store size with du (slow: walks millions of store paths)","default":false}}}},{"name":"scrub_status","description":"Last btrfs scrub result","inputSchema":{"type":"object","properties":{}}},{"name":"hypr_config_check","description":"Validate Hyprland config against the Hyprland binary with --verify-config (nix build cannot check generated config contents). Appends a trial line to the deployed config in a temp copy and parses it — nothing is mutated, no reload, no live session needed. Works for both hyprlang (.conf) and Lua (.lua); the deployed format is auto-detected. Verdicts are OK / REJECTED / UNVERIFIABLE — UNVERIFIABLE means the verifier itself could not run and is NOT a statement about the config.","inputSchema":{"type":"object","properties":{"field":{"type":"string","description":"hyprlang keyword, e.g. windowrule, general:gaps_in (hyprlang configs only; use snippet for Lua)"},"value":{"type":"string","description":"Value to trial, e.g. \"float on, match:class ^(foo)$\""},"snippet":{"type":"string","description":"Raw config text to append verbatim — required for Lua, e.g. hl.config{ general = { gaps_in = 2 } }. Takes precedence over field/value."}},"required":[]}},{"name":"hypr_config_errors","description":"Report hyprctl configerrors for the running Hyprland session (empty = green). Optionally hyprctl reload first to re-parse the deployed config. Only works inside the Hyprland session.","inputSchema":{"type":"object","properties":{"reload":{"type":"boolean","description":"Run hyprctl reload before checking (default false)","default":false}}}},{"name":"quickshell_check","description":"Load-check the bespoke Quickshell bar QML from repo source without a NixOS rebuild: overlays repo *.qml onto a copy of the deployed config (generated Theme.qml/cava.conf) and runs qs -p. One broken QML file blanks the whole bar, so run this before rebuilding. Briefly restarts the live bar. Only works inside the Hyprland session.","inputSchema":{"type":"object","properties":{"qml_dir":{"type":"string","description":"QML source dir to check (default $CLAUDEOS_DIR/home/quickshell — pass explicitly from worktrees)"}}}}]'
 
 while IFS= read -r msg; do
   [[ -z "$msg" ]] && continue
