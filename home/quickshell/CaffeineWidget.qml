@@ -3,12 +3,19 @@
 // (disappears on its own when the run ends). The coffee is hot: faint steam
 // wisps rise off the rim while the hold lasts.
 import QtQuick
+import Quickshell
 
 Item {
     id: root
     visible: Caffeine.inhibited
     implicitWidth: mug.implicitWidth
     implicitHeight: Theme.barHeight - 8
+
+    // Caffeine holds for the whole of every agent run, so the steam was the
+    // bar's other permanent repaint: an infinite loop running on EVERY
+    // monitor's bar at once. Ambient motion, so it follows focus like the
+    // island's breath does — see BarFocus.qml.
+    readonly property bool onFocusedScreen: BarFocus.isFocused(QsWindow.window)
 
     Text {
         id: mug
@@ -44,8 +51,16 @@ Item {
             opacity: 0
 
             SequentialAnimation {
-                running: root.visible
+                running: root.visible && root.onFocusedScreen
                 loops: Animation.Infinite
+                // Stopping mid-rise would strand a dot half-faded above the
+                // rim; park it back on the rim, invisible. Safe to assign —
+                // these are target/property animations, so nothing owns
+                // `opacity`/`y` the way an `on <property>` animation would.
+                onRunningChanged: if (!running) {
+                    wisp.opacity = 0;
+                    wisp.y = 6;
+                }
                 PauseAnimation {
                     duration: wisp.modelData.delay
                 }

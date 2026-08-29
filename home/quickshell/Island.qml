@@ -35,6 +35,16 @@ Rectangle {
     // while music plays the agent keeps the breathing border but not the stage.
     state: peeking ? "notif" : (playing ? "media" : Agent.active ? "agent" : "clock")
 
+    // Only the island on the FOCUSED output animates — see BarFocus.qml for
+    // why (one QSGRenderThread per monitor, all breathing the same pulse).
+    // Off-focus islands hold a steady mid-breath: same colour language, no
+    // per-frame work.
+    readonly property bool onFocusedScreen: BarFocus.isFocused(QsWindow.window)
+    // The border/halo breath runs under any face while the agent works …
+    readonly property bool agentAnimating: Agent.active && root.onFocusedScreen
+    // … whereas the agent FACE's own motion only exists in that state.
+    readonly property bool agentFaceAnimating: root.state === "agent" && root.onFocusedScreen
+
     // Agent-face phrase. One lane → its own phrase (Agent.activity, the newest
     // marker). More than one → "N lanes" with that newest phrase riding along,
     // so the island tells you the second operator is doing several things at
@@ -110,8 +120,13 @@ Rectangle {
     // Drives `pulse` 0→1→0; the border alpha follows it. Highest-priority border
     // treatment (over notif/idle) because it's a persistent state, not transient.
     property real pulse: 0
+    // Everything visual reads `glow`, never `pulse` directly. A stopped
+    // animation leaves its property wherever the last frame put it, so an
+    // off-focus island would otherwise strand on a random alpha; `glow` pins it
+    // to mid-breath instead, and the two never fight over one property.
+    readonly property real glow: root.onFocusedScreen ? root.pulse : 0.5
     SequentialAnimation on pulse {
-        running: Agent.active
+        running: root.agentAnimating
         loops: Animation.Infinite
         NumberAnimation {
             to: 1
@@ -125,7 +140,7 @@ Rectangle {
         }
     }
     border.width: Agent.active ? 2 : 1
-    border.color: Agent.active ? Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.3 + 0.6 * pulse) : (root.state === "notif" ? peekColor : Qt.rgba(Theme.muted.r, Theme.muted.g, Theme.muted.b, playing ? 0.5 : 0.25))
+    border.color: Agent.active ? Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.3 + 0.6 * root.glow) : (root.state === "notif" ? peekColor : Qt.rgba(Theme.muted.r, Theme.muted.g, Theme.muted.b, playing ? 0.5 : 0.25))
 
     // Outer glow while the agent works: two soft halo layers behind the pill
     // (negative z paints below the parent's own fill), swelling and fading on
@@ -142,19 +157,39 @@ Rectangle {
                 alpha: 0.07
             }
         ]
-        delegate: Rectangle {
+        // The breath rides on a Scale transform and opacity — never on width/
+        // height or colour. Animating geometry re-tessellates the rounded rect
+        // and dirties layout every frame; animating `color` rebuilds the
+        // material. Both are node-level updates here instead, so a frame costs
+        // one matrix and one alpha. xScale/yScale are computed per axis so the
+        // swell stays a uniform 8px on both, exactly as the old geometry did —
+        // a single uniform scale would balloon the wide axis.
+        delegate: Item {
+            id: halo
             required property var modelData
             z: -1
             anchors.centerIn: parent
-            width: root.width + modelData.pad + 8 * root.pulse
-            height: root.height + modelData.pad + 8 * root.pulse
-            radius: height / 2
-            color: Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, modelData.alpha * (0.4 + 0.6 * root.pulse))
+            width: root.width + halo.modelData.pad
+            height: root.height + halo.modelData.pad
+            // Outer item owns the on/off fade, so the Behavior never sees the
+            // per-frame breath and try to animate towards each frame's value.
             opacity: Agent.active ? 1 : 0
             visible: opacity > 0
             Behavior on opacity {
                 NumberAnimation {
                     duration: 400
+                }
+            }
+            Rectangle {
+                anchors.fill: parent
+                radius: height / 2
+                color: Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 1)
+                opacity: halo.modelData.alpha * (0.4 + 0.6 * root.glow)
+                transform: Scale {
+                    origin.x: halo.width / 2
+                    origin.y: halo.height / 2
+                    xScale: 1 + 8 * root.glow / Math.max(1, halo.width)
+                    yScale: 1 + 8 * root.glow / Math.max(1, halo.height)
                 }
             }
         }
@@ -241,10 +276,13 @@ Rectangle {
         Text {
             anchors.verticalCenter: parent.verticalCenter
             text: "✳"
-            color: Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.45 + 0.55 * root.pulse)
+            // Constant colour + animated opacity: same look, but the glyph
+            // keeps one material instead of allocating a new one every frame.
+            color: Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 1)
+            opacity: 0.45 + 0.55 * root.glow
             font.pixelSize: Theme.fontSize + 1
             RotationAnimation on rotation {
-                running: root.state === "agent"
+                running: root.agentFaceAnimating
                 loops: Animation.Infinite
                 from: 0
                 to: 360
@@ -253,43 +291,96 @@ Rectangle {
         }
         // The activity text shimmers — a narrow brightness wave traveling
         // through the letters, the same "thinking" tell Claude's own UI uses.
-        // Per-character Texts driven by one phase clock; pure QtQuick, no
-        // effects modules (which the gotchas list says not to trust here).
-        Row {
-            id: shimmerRow
+        //
+        // This was 42 per-character Texts, each re-evaluating a `wave` and a
+        // `color` binding every frame: ~5k JS binding evaluations a second per
+        // monitor, and the single biggest cost in the bar. Same effect, one
+        // animated node: a static base Text, a brighter copy of it, and a
+        // gradient band swept across a MultiEffect mask so only the band's
+        // stripe of the bright copy shows. A frame is now one `x` binding plus
+        // a small FBO redraw — no per-glyph JS at all.
+        Item {
+            id: shimmer
             anchors.verticalCenter: parent.verticalCenter
+            // Sized from the base Text's *implicit* size, which is content-
+            // derived and so never reads back this Item's width — no loop.
+            implicitWidth: baseText.implicitWidth
+            implicitHeight: baseText.implicitHeight
 
-            // Cap what we animate; per-char Texts are cheap but not free.
             readonly property string shown: root.agentPhrase.length > 42 ? root.agentPhrase.slice(0, 41) + "…" : root.agentPhrase
             readonly property color peak: Qt.lighter(Theme.accent, 1.2)
 
+            // 0→1 sweeps the band from just off the left edge to just off the right.
             property real phase: 0
             NumberAnimation on phase {
-                running: root.state === "agent"
+                running: root.agentFaceAnimating
                 loops: Animation.Infinite
                 from: 0
                 to: 1
                 duration: 2400
             }
 
-            Repeater {
-                model: shimmerRow.shown.length
-                delegate: Text {
-                    required property int index
-                    // Wrapping distance from the wave crest → narrow highlight
-                    readonly property real wave: {
-                        const n = Math.max(1, shimmerRow.shown.length);
-                        const raw = Math.abs(index / n - shimmerRow.phase);
-                        const d = Math.min(raw, 1 - raw) * 2;
-                        return Math.max(0, 1 - d * 3);
+            Text {
+                id: baseText
+                text: shimmer.shown
+                color: Theme.text
+                font.family: Theme.fontSans
+                font.pixelSize: Theme.fontSize
+                font.italic: true
+            }
+
+            // The bright copy, revealed only where the mask band is opaque.
+            // Hidden-source + layered-mask is the pattern the album-art disc
+            // below already uses, so it is known good against this Qt build.
+            Text {
+                id: peakText
+                text: shimmer.shown
+                color: shimmer.peak
+                font.family: Theme.fontSans
+                font.pixelSize: Theme.fontSize
+                font.italic: true
+                visible: false
+            }
+
+            // Stencil, not palette: only this subtree's ALPHA is read, so the
+            // white/transparent stops are a mask ramp rather than a colour
+            // choice (same role as the album-art `artMask` rectangle).
+            Item {
+                id: shimmerMask
+                anchors.fill: parent
+                visible: false
+                layer.enabled: true
+                Rectangle {
+                    // Soft-edged band; only its `x` moves per frame.
+                    width: Math.max(24, shimmerMask.width * 0.35)
+                    height: shimmerMask.height
+                    x: -width + (shimmerMask.width + width) * shimmer.phase
+                    gradient: Gradient {
+                        orientation: Gradient.Horizontal
+                        GradientStop {
+                            position: 0
+                            color: "transparent"
+                        }
+                        GradientStop {
+                            position: 0.5
+                            color: "white"
+                        }
+                        GradientStop {
+                            position: 1
+                            color: "transparent"
+                        }
                     }
-                    anchors.verticalCenter: parent.verticalCenter
-                    text: shimmerRow.shown.charAt(index)
-                    color: Qt.rgba(Theme.text.r + (shimmerRow.peak.r - Theme.text.r) * wave, Theme.text.g + (shimmerRow.peak.g - Theme.text.g) * wave, Theme.text.b + (shimmerRow.peak.b - Theme.text.b) * wave, 1)
-                    font.family: Theme.fontSans
-                    font.pixelSize: Theme.fontSize
-                    font.italic: true
                 }
+            }
+
+            MultiEffect {
+                anchors.fill: parent
+                source: peakText
+                maskEnabled: true
+                maskSource: shimmerMask
+                // Off-focus the band is frozen mid-sweep; hide the highlight
+                // entirely so it reads as plain text rather than a stuck smear.
+                opacity: root.agentFaceAnimating ? 1 : 0
             }
         }
         // Time stays legible during long rebuilds, just demoted.
