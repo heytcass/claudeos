@@ -59,6 +59,8 @@ Ledger edits are committed by the normal rebuild auto-commit flow.
 
 <!-- known-benign noise lands here: date · signature · why it's harmless -->
 
+- 2026-08-27 · `sched_ext: lavd_1.1.3… RCU CPU stall detected` · `rcu: INFO: rcu_preempt detected stalls on CPUs/tasks` · `sched_ext: BPF scheduler "lavd_1.1.3…" disabled (runtime error)` · `sched_ext: BPF scheduler "lavd_1.1.3…" disabled (runnable task stall)` with RCU task-blocked traces (29 distinct PIDs, 291 total repeating occurrences) · Already fully documented in Actionable section (2026-08-26 entry); switching to `scx_bpfland` is in progress. These are the stale end-of-life logs from generation 47 (lavd 1.1.3) — expect them to stop after the soaking period on bpfland confirms stability.
+
 - 2026-07-17 · health-check exit 1 triggered solely by `fwupd-refresh.service` in the failed state; its log shows `fwupdmgr: Unsupported daemon version 2.1.5, client version is 2.1.6` · Rebuild artifact, not a live fault: `fwupd-refresh` runs at activation (and on a 15-min timer), but the long-running `fwupd.service` daemon is not restarted in lockstep with the `fwupdmgr` client on every `nixos-rebuild switch`, so during a switch that bumps the fwupd version the client briefly talks to the older daemon and `fwupdmgr` refuses with a version-mismatch and exits 1. The unit then sits in `failed` until its next successful timer run — which is why the health check *flaps* (fail while skewed, pass once daemon and client versions line up again; observed both at 2.1.5 post-recovery). `alert-context.txt` held only the one failed-service line; no disk, memory, OOM, stale-update, or critical-log issues. Same class as the 2026-07-11 watchdog reboot artifact — expected on a rebuild-heavy day. Clear the stale state with `sudo systemctl reset-failed fwupd-refresh.service`; it passes on the next timer tick once versions match. Do NOT add a `Restart=`/override to force the refresh — the skew self-corrects and a forced retry just races the daemon restart (same reasoning as the envfs actionable entry). Only escalate if `fwupd-refresh` keeps failing while `fwupdmgr --version` shows the daemon and client on the *same* version (a genuine refresh/network fault, not a skew).
 
 - 2026-07-11 · health-check exit 1 triggered solely by `kernel: watchdog: watchdog0: watchdog did not stop!` (single crit line caught by the "Critical Log Entries" 15-min lookback) · Reboot artifact, not a live fault: the Intel iTCO hardware watchdog can't be halted cleanly on shutdown, so the kernel logs this at crit priority as the last line before the next boot (observed 14:12:39, fresh kernel up 14:13:08). The first post-boot health check's 15-min window swept it up and exited 1 — expected on any reboot, and unavoidable on a day with many rebuilds (7 boots on 2026-07-11). `alert-context.txt` held only this line; no failed services, disk, memory, OOM, or stale-update issues. Distinct from the by-design "health-check failed" entry (2026-07-08) — this documents the specific benign *trigger content*. Only escalate if the watchdog line appears mid-session (not adjacent to a reboot) or the new kernel fails to come up.
@@ -192,6 +194,26 @@ Ledger edits are committed by the normal rebuild auto-commit flow.
 - 2026-08-24 · ACPI Error cascade: `Timeout from EC hardware or EC device driver` → `AE_TIME, Returned by Handler for [EmbeddedControl]` → `Aborting method \_SB.PCI0.LPCB.ECDV._Q79` / `\_SB.PCI0.LPCB.ECDV.ECR1` / `\ECRB` · Embedded Controller timeout transient during boot with different aborting methods than the prior 2026-07-19 cascade; firmware/BIOS timing race. Benign variant of line 164 pattern; identical diagnosis and resolution.
 
 - 2026-08-26 · USB port enumeration failures (usb4-port2 and usb3-port2 allocation transients, 3 total occurrences) · USB port controller allocation and enumeration transients during boot discovery. Benign if connected USB devices enumerate and function normally; only escalate if specific ports consistently fail to enumerate or if connected USB peripherals fail to attach/reattach.
+
+- 2026-08-28 · `profiles/audio/bap.c:bap_adapter_probe() BAP requires ISO Socket which is not enabled` (1 occurrence) · Recurrence of documented 2026-07-07 pattern; same root cause and verdict.
+
+- 2026-08-28 · `gkr-pam: unable to locate daemon control file` (1 occurrence) · Recurrence of documented 2026-07-13 pattern; same root cause and verdict.
+
+- 2026-08-28 · `gkr-pam: the password for the login keyring was invalid` (1 occurrence) · Recurrence of documented 2026-08-22 pattern; same root cause and verdict.
+
+- 2026-08-28 · `Failed to start Open today's dashboard once the session is unlocked` (1 occurrence) · Recurrence of documented 2026-08-09 pattern; same root cause and verdict.
+
+- 2026-08-28 · `Failed to start ClaudeOS system health check` (1 occurrence) · Recurrence of documented 2026-07-08 pattern (by design); same root cause and verdict.
+
+- 2026-08-28 · `bap: Operation not supported (95)` (1 occurrence) · Recurrence of documented 2026-07-13 pattern; same root cause and verdict.
+
+- 2026-08-31 · `i915 0000:00:02.0: [drm] *ERROR* Atomic update failure on pipe B (start=1305192 end=1305193) time 118 us, min 1069, max 1079, scanline start 1068, end 1081` (1 occurrence) · GPU display timing glitch on pipe B during vertical sync (analogous to existing pipe A/B FIFO underrun pattern at lines 72 and 124). Does not affect display output; benign if display remains stable.
+
+- 2026-08-31 · `Failed to start home-ops infrastructure health check` (1 occurrence) · Recurrence of documented 2026-08-17 resolved issue (line 21); the underlying findings persist, causing expected re-latching at the Sunday cycle per design. Same verdict: benign if underlying HA issues are addressed externally in home-ops repo.
+
+- 2026-09-01 · `pam_unix(sudo:auth): conversation failed` and `auth could not identify password for [tom]` (1 each) · Recurrence of documented PAM authentication transient pattern (lines 70, 106, 122); benign if sudo functionality remains normal.
+
+- 2026-09-01 · `i915 0000:00:02.0: [drm] *ERROR* Atomic update failure on pipe B (start=156840 end=156841) time 112 us, min 1069, max 1079, scanline start 1068, end 1069` (1 occurrence) · Recurrence of documented 2026-08-31 GPU display timing glitch pattern (line 210); benign if display remains stable.
 
 ## Resolved
 

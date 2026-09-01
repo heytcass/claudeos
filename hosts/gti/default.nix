@@ -65,10 +65,25 @@
   #                        but stating it here keeps the guarantee ours rather
   #                        than a detail of whatever MM version comes down the
   #                        next flake update.
-  services.udev.extraRules = ''
-    SUBSYSTEM=="usb", ATTR{idVendor}=="05c6", ATTR{idProduct}=="9008", TAG+="uaccess"
-    ATTRS{idVendor}=="05c6", ATTRS{idProduct}=="9008", ENV{ID_MM_DEVICE_IGNORE}="1"
-  '';
+  #
+  # services.udev.packages, NOT services.udev.extraRules: extraRules renders as
+  # 99-local.rules, but TAG+="uaccess" only takes effect if it is set BEFORE
+  # 73-seat-late.rules runs the uaccess builtin — from 99- the tag races the
+  # builtin and device permissions were a coin-flip per plug (verified
+  # 2026-08-27). A packaged file numbered 70- sorts ahead of 73- and wins
+  # deterministically. MODE/GROUP=dialout is the non-seat fallback (Tom is in
+  # dialout via modules/common/users.nix); uaccess still handles the
+  # sitting-at-the-machine case via a logind ACL.
+  services.udev.packages = [
+    (pkgs.writeTextFile {
+      name = "edl-udev-rules";
+      destination = "/etc/udev/rules.d/70-edl.rules";
+      text = ''
+        SUBSYSTEM=="usb", ATTR{idVendor}=="05c6", ATTR{idProduct}=="9008", MODE="0660", GROUP="dialout", TAG+="uaccess"
+        ATTRS{idVendor}=="05c6", ATTRS{idProduct}=="9008", ENV{ID_MM_DEVICE_IGNORE}="1"
+      '';
+    })
+  ];
 
   # adb over both USB and network for the flashed devices.
   #
@@ -112,14 +127,18 @@
   # Run on demand: systemctl --user start home-ops-health
   systemd.user.services.home-ops-health = {
     description = "home-ops infrastructure health check";
-    # openssl is on the path explicitly so the script's nix-build fallback for
-    # it never has to fire under systemd, where network and nix access are more
-    # constrained than in an interactive shell.
+    # openssl and websocat are on the path explicitly so the script's nix-build
+    # fallback for them never has to fire under systemd, where network and nix
+    # access are more constrained than in an interactive shell.
+    # websocat added 2026-08-28: health-check.sh gained registry invariants that
+    # call ha-ws.sh, which nix-built websocat on every invocation — 13s of CPU
+    # stretched over 3min 5s of wall clock. Measured, not guessed.
     path = with pkgs; [
       bash
       curl
       jq
       openssl
+      websocat
       android-tools
       iputils
       nix
