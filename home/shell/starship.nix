@@ -19,6 +19,15 @@ in
     enableFishIntegration = true;
 
     settings = {
+      # git_status and git_metrics shell out to the real git binary (git_branch
+      # uses starship's built-in gix, no subprocess). Warm they take ~16ms, but
+      # the *first* prompt of a session lands mid process-storm — ghostty cold
+      # start, or Claude Code launching six MCP servers off /nix/store — and the
+      # pair has been measured at ~5s there, blowing past starship's 500ms
+      # default and printing "Executing command git timed out". Recurs after
+      # every rebuild because git's store path (and its page cache) is new.
+      command_timeout = 1000;
+
       # Two-line: context on top, input character below
       format = lib.concatStrings [
         "$username"

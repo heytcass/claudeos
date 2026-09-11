@@ -215,6 +215,10 @@ Ledger edits are committed by the normal rebuild auto-commit flow.
 
 - 2026-09-01 · `i915 0000:00:02.0: [drm] *ERROR* Atomic update failure on pipe B (start=156840 end=156841) time 112 us, min 1069, max 1079, scanline start 1068, end 1069` (1 occurrence) · Recurrence of documented 2026-08-31 GPU display timing glitch pattern (line 210); benign if display remains stable.
 
+- 2026-09-11 · `usb 1-1: clear tt 2 (9051) error -71` (1 occurrence) · USB hub topology-table (TT) clearing operation failed with EPROTO (protocol error -71) during enumeration or power-state management. Benign transient if USB devices enumerate and function normally; only escalate if specific USB device fails to attach/reattach.
+
+- 2026-09-11 · `ftdi_sio ttyUSB0: error from flowcontrol urb` (1 occurrence) · USB-to-serial adapter (FTDI device) flow-control request failed, likely transient during device enumeration or caused by disconnected/absent device. Benign if no USB serial device is attached or if normal usage is unaffected; only escalate if user relies on this device and reports failures.
+
 ## Resolved
 
 <!-- move entries here when fixed, with the fixing commit/PR -->
