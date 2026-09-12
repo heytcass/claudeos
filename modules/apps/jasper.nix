@@ -79,15 +79,70 @@ let
       [[ -z "$weather_json" ]] && weather_json='"unavailable"'
       weather_stable=$(printf '%s' "$weather_json" | jq -c '{desc, maxF, minF, rain}' 2>/dev/null || echo "$weather_json")
 
-      # Calendar: today + tomorrow, labelled by calendar name so the model can
-      # attribute ownership. "not connected" before the one-time gcalcli init.
-      calendar=$(claudeos_gcal_agenda "$(date +%F)" "$(date -d '2 days' +%F)" --details calendar --details location)
+      # Calendar: today + tomorrow as TSV — ONE fetch serving two consumers.
+      # Columns: start_date start_time end_date end_time title location calendar.
+      # The pretty-printed agenda withheld END times, so the model guessed
+      # durations out loud ("wraps around 12:30ish" — docs/jasper-insights.md);
+      # TSV hands them over for free and gives the boundary gate below a
+      # machine-readable source instead of a second fetch. Still labelled by
+      # calendar name so the model can attribute ownership. "not connected"
+      # before the one-time gcalcli init.
+      calendar=$(claudeos_gcal_agenda "$(date +%F)" "$(date -d '2 days' +%F)" --tsv --details calendar --details location)
       [[ -z "$calendar" ]] && calendar="nothing on the calendar"
+
+      # ---- Event-boundary signal (docs/jasper-insights.md "Timing") ----------
+      # The agenda text above is stable midnight-to-midnight: it cannot tell the
+      # gate that an event just STARTED. Without this the only gate field moving
+      # on the poll's timescale is the weather, so whether Jasper speaks at a
+      # moment when its observation is still true is chance. (The best insight to
+      # date landed 29s after the event it described began — a forecast field
+      # settling, not a design.)
+      #
+      # jasper_boundary_counts HORIZON_MIN prints three integers for TODAY:
+      #   started   timed events whose start time has passed
+      #   ended     timed events whose end time has passed
+      #   imminent  timed events starting within HORIZON_MIN from now
+      # All-day rows (empty time columns) are skipped — they have no boundary.
+      # Each count is DISCRETE, so a quiet stretch leaves the hash untouched and
+      # costs nothing, while a boundary moves it exactly once, promptly.
+      jasper_boundary_counts() {
+        printf '%s\n' "$calendar" | awk -v today="$(date +%F)" -v now="$(date +%H:%M)" -v horizon="$1" '
+          function mins(t) { split(t, a, ":"); return a[1] * 60 + a[2] }
+          BEGIN { FS = "\t"; split(now, n, ":"); nowm = n[1] * 60 + n[2] }
+          NR == 1 { next }                      # header row
+          $1 != today || $2 == "" { next }      # other days, and all-day rows
+          { s = mins($2)
+            if (s <= nowm) started++
+            else if (s - nowm <= horizon) imminent++ }
+          $3 == today && $4 != "" && mins($4) <= nowm { ended++ }
+          END { printf "%d %d %d", started + 0, ended + 0, imminent + 0 }
+        '
+      }
+
+      # jasper_boundary_signal — the value that actually enters the gate hash.
+      # All three counts are in, so Jasper wakes on every kind of transition:
+      # `started` gives "X just began", `ended` gives "you're free again", and
+      # `imminent` opens a departure window — priority (4) in the prompt, which
+      # until now only fired by luck.
+      #
+      # The 60-minute horizon is chosen, not arbitrary. Polls land on :00/:30, so
+      # with horizon H the first warning arrives between H and H-30 minutes ahead
+      # — H=30 has a worst case of ZERO notice (it can flip on the same poll the
+      # event starts), H=60 guarantees at least 30 minutes, enough for a 15-minute
+      # drive plus getting out the door. Widening H costs nothing in tokens: it
+      # moves *when* the single flip happens, and consecutive polls that both see
+      # the same event ahead produce the same count, so the hash stays put.
+      jasper_boundary_signal() {
+        set -- $(jasper_boundary_counts 60)
+        local started="$1" ended="$2" imminent="$3"
+        printf '%s-%s-%s' "$started" "$ended" "$imminent"
+      }
+      boundary=$(jasper_boundary_signal)
 
       # ---- Significance gate ----
       # Hash the STABLE context. Call the model only when it changed OR a
       # heartbeat window is due and the last insight is stale ( > cooldown ).
-      context_hash=$(printf '%s' "$(date +%F)|$phase|$calendar|$weather_stable" | sha256sum | cut -d' ' -f1)
+      context_hash=$(printf '%s' "$(date +%F)|$phase|$calendar|$weather_stable|$boundary" | sha256sum | cut -d' ' -f1)
       prev_hash=$(cat "$HASH_FILE" 2>/dev/null || echo "")
 
       should_run=0
@@ -151,7 +206,9 @@ let
 
       CONTEXT
       Weather (json or 'unavailable'): $weather_json
-      Calendar (today + tomorrow, labelled by calendar): $calendar''${personal_context:+
+      Calendar (today + tomorrow, TSV — columns are start_date, start_time,
+      end_date, end_time, title, location, calendar; empty time columns mean an
+      all-day event): $calendar''${personal_context:+
 
       Personal context about $user_title (use to interpret events): $personal_context}"
 
