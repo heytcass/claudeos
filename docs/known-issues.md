@@ -247,6 +247,14 @@ Ledger edits are committed by the normal rebuild auto-commit flow.
 
 - 2026-09-18 · `atkbd serio0: Failed to deactivate keyboard on isa0060/serio0` (1 occurrence) · Recurrence of documented 2026-08-09 pattern (line 188); same root cause and verdict.
 
+- 2026-09-19 · ACPI Error cascade: `AE_BAD_PARAMETER, Returned by Handler for [EmbeddedControl]` → `Aborting method \_SB.PCI0.LPCB.ECDV._Q66` / `ECR2` / `ECR1` / `\NEVT` / `\ECRW` / `\ECGD` (7 lines, single cascade) · Embedded Controller parameter validation error at firmware level during boot initialization; distinct from existing EC timeout pattern (AE_TIME). Single cascade suggests transient firmware/EC interaction glitch during power-state or event handling. Benign if system boot and EC functionality (USB-C, power management, thermal) remain normal; variant of existing Dell firmware quirk patterns. Only escalate if USB-C or thermal control issues emerge.
+
+- 2026-09-20 · `usb 1-1: device descriptor read/64, error -71` (4 occurrences) + `usb usb1-port1: unable to enumerate USB device` (1 occurrence) + `usb 1-1: device not accepting address [8|9], error -71` (2 occurrences total) · USB device enumeration failures during probe phase on 1-1 and usb1 ports; EPROTO (protocol error -71) suggests device power or transient USB controller state during discovery. Benign if connected devices reattach normally on retry or if no USB device is permanently attached to this port; only escalate if specific USB peripherals consistently fail to enumerate.
+
+- 2026-09-20 · `pcieport 0000:04:00.0: Unable to change power state from D3cold to D0, device inaccessible` (1 occurrence) · PCIe power state transition failure (D3cold→D0) on boot enumeration; device reported inaccessible. Variant of documented D3hot pattern (line 180); same Dell firmware quirk class (port exposed but device missing or timing race). Benign if PCIe peripherals (USB, storage, network) enumerate and function normally; only escalate if specific PCIe devices consistently fail to attach.
+
+- 2026-09-21 · `profiles/input/hog-lib.c:set_report_cb() Error setting Report value: Request attribute has encountered an unlikely error` (1 occurrence) · Bluetooth HID (Human Interface Device) report callback error during device communication or boot initialization; cryptic error from the HID protocol layer suggests transient firmware state glitch or timing race with input device enumeration. Benign if keyboard, touchpad, and other input devices function normally; only escalate if input devices become unresponsive or fail to enumerate.
+
 ## Resolved
 
 <!-- move entries here when fixed, with the fixing commit/PR -->
