@@ -255,6 +255,22 @@ Ledger edits are committed by the normal rebuild auto-commit flow.
 
 - 2026-09-21 · `profiles/input/hog-lib.c:set_report_cb() Error setting Report value: Request attribute has encountered an unlikely error` (1 occurrence) · Bluetooth HID (Human Interface Device) report callback error during device communication or boot initialization; cryptic error from the HID protocol layer suggests transient firmware state glitch or timing race with input device enumeration. Benign if keyboard, touchpad, and other input devices function normally; only escalate if input devices become unresponsive or fail to enumerate.
 
+- 2026-09-24 · `<error> [1790172079.0497] device (wlp2s0): Couldn't initialize supplicant interface: Name owner lost` (1 occurrence) · WiFi supplicant (iwd/wpasupplicant) D-Bus interface initialization transient; Name owner lost suggests the service was not ready when Network Manager or iwd tried to claim the interface, a common boot race. Benign if WiFi connectivity remains stable and subsequent scans/joins succeed; only escalate if WiFi stops initializing on multiple boots.
+
+- 2026-09-26 · `src/device.c:new_auth() No agent available for request type 2` (2 occurrences) + `device_confirm_passkey: Operation not permitted` (2 occurrences) · Bluetooth agent/passkey confirmation transients during device pairing or boot initialization; the agent (likely `bluetoothctl confirm` or systemd D-Bus service) was not ready when the adapter tried to handle a passkey request. Benign variant of existing Bluetooth initialization pattern if pairing succeeds on retry or Bluetooth connectivity remains stable; only escalate if specific devices consistently fail to pair.
+
+- 2026-09-27 · `src/service.c:service_accept() rap profile accept failed for B4:22:00:E2:FB:84` (36 occurrences) · Recurrence of documented 2026-08-22 pattern (line 120); same root cause and verdict.
+
+- 2026-09-27 · `profiles/ranging/rap.c:rap_accept() RAP unable to attach` (36 occurrences) · Recurrence of documented 2026-07-19 pattern (line 166); same root cause and verdict.
+
+- 2026-09-27 · `No matching connection for device` (18 occurrences) · Recurrence of documented 2026-08-23 pattern (line 132); same root cause and verdict.
+
+- 2026-09-27 · `Failed to start ClaudeOS system health check` (6 occurrences) · Recurrence of documented 2026-07-08 pattern (line 84, by design); same root cause and verdict.
+
+- 2026-09-28 · `Failed to start Jasper personal-companion insight` (1 occurrence) · Insight generation service startup transient at boot; Jasper may have encountered a timing race during session initialization. Benign if the service is not actively used or recovers on next boot; variant of existing dashboard/service startup pattern (line 186). Only escalate if user reports missing insight output on subsequent boots.
+
+- 2026-10-06 · `Failed to start ClaudeOS system health check` (96 occurrences) · Recurrence of documented 2026-07-08 pattern (line 84, by design); same root cause and verdict.
+
 ## Resolved
 
 <!-- move entries here when fixed, with the fixing commit/PR -->
