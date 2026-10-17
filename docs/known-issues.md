@@ -275,6 +275,8 @@ Ledger edits are committed by the normal rebuild auto-commit flow.
 
 - 2026-10-13 · `i915 0000:00:02.0: [drm] *ERROR* Atomic update failure on pipe B (start=8246984 end=8246985) time 111 us, min 1069, max 1079, scanline start 1068, end 1080` and `i915 0000:00:02.0: [drm] *ERROR* Atomic update failure on pipe B (start=11566857 end=11566858) time 111 us, min 1069, max 1079, scanline start 1067, end 1080` (2 occurrences) · Recurrence of documented 2026-08-31 GPU display timing glitch pattern (line 210); benign if display remains stable.
 
+- 2026-10-16 · `Process 457095 (claude-desktop) of user 1000 dumped core` (1 occurrence) · Claude Desktop crash dump transient; similar to existing Chrome and XDG Desktop Portal core dump patterns (lines 194, 150). Benign if Claude Desktop restarts and functions normally; only escalate if crashes recur or session stability degrades.
+
 ## Resolved
 
 <!-- move entries here when fixed, with the fixing commit/PR -->
