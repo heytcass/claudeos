@@ -281,6 +281,8 @@ Ledger edits are committed by the normal rebuild auto-commit flow.
 
 - 2026-10-16 · `Process 457095 (claude-desktop) of user 1000 dumped core` (1 occurrence) · Claude Desktop crash dump transient; similar to existing Chrome and XDG Desktop Portal core dump patterns (lines 194, 150). Benign if Claude Desktop restarts and functions normally; only escalate if crashes recur or session stability degrades.
 
+- 2026-10-19 · `Failed to start ClaudeOS system health check` (52 occurrences) · Recurrence of documented 2026-07-08 pattern (line 84, by design); same root cause and verdict.
+
 ## Resolved
 
 <!-- move entries here when fixed, with the fixing commit/PR -->
