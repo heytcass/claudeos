@@ -11,6 +11,7 @@
     ./cards.nix
     ./intent.nix
     ./contexts
+    ./unifi-endpoint.nix
   ];
 
   # Enable Claude and Jasper by default (override per-host with `false`)
