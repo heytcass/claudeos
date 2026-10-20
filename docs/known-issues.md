@@ -283,6 +283,16 @@ Ledger edits are committed by the normal rebuild auto-commit flow.
 
 - 2026-10-19 · `Failed to start ClaudeOS system health check` (52 occurrences) · Recurrence of documented 2026-07-08 pattern (line 84, by design); same root cause and verdict.
 
+- 2026-10-20 · `Failed to start ClaudeOS system health check` (4 occurrences) · Recurrence of documented 2026-07-08 pattern (line 84, by design); same root cause and verdict.
+
+- 2026-10-20 · `Failed to start Jasper personal-companion insight` (2 occurrences) · Recurrence of documented 2026-09-28 pattern (line 276); same root cause and verdict.
+
+- 2026-10-20 · `profiles/audio/bap.c:bap_adapter_probe() BAP requires ISO Socket which is not enabled` (1 occurrence) · Recurrence of documented 2026-07-07 pattern (line 96); same root cause and verdict.
+
+- 2026-10-20 · `bap: Operation not supported (95)` (1 occurrence) · Recurrence of documented 2026-07-13 pattern (line 102); same root cause and verdict.
+
+- 2026-10-20 · `atkbd serio0: Failed to deactivate keyboard on isa0060/serio0` (1 occurrence) · Recurrence of documented 2026-08-09 pattern (line 188); same root cause and verdict.
+
 ## Resolved
 
 <!-- move entries here when fixed, with the fixing commit/PR -->
