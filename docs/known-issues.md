@@ -293,6 +293,10 @@ Ledger edits are committed by the normal rebuild auto-commit flow.
 
 - 2026-10-20 · `atkbd serio0: Failed to deactivate keyboard on isa0060/serio0` (1 occurrence) · Recurrence of documented 2026-08-09 pattern (line 188); same root cause and verdict.
 
+- 2026-10-21 · `wlp2s0: failed to remove key (0, [MAC]) from hardware (-110)` (2 occurrences with different MAC addresses) · WiFi driver timeout (-110 = ETIMEDOUT) attempting to remove a WPA/WPA2 key from the Qualcomm QCA6174 adapter hardware during connection state teardown or device reset. Benign transient if WiFi connectivity and join/leave operations remain stable; likely a firmware state glitch or brief hardware unavailability during key mgmt. Only escalate if WiFi stops connecting or key removal failures correlate with authentication failures.
+
+- 2026-10-21 · `Failed to move worker into cgroup '/system.slice/systemd-udevd.service/workers': No such file or directory` (1 occurrence) · systemd-udevd worker allocation transient during boot; the cgroup hierarchy may not have been fully initialized when the first worker tried to move. Benign if device enumeration completed normally and all peripherals function; only escalate if USB or block device enumeration is incomplete on multiple boots.
+
 ## Resolved
 
 <!-- move entries here when fixed, with the fixing commit/PR -->
