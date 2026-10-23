@@ -297,6 +297,10 @@ Ledger edits are committed by the normal rebuild auto-commit flow.
 
 - 2026-10-21 · `Failed to move worker into cgroup '/system.slice/systemd-udevd.service/workers': No such file or directory` (1 occurrence) · systemd-udevd worker allocation transient during boot; the cgroup hierarchy may not have been fully initialized when the first worker tried to move. Benign if device enumeration completed normally and all peripherals function; only escalate if USB or block device enumeration is incomplete on multiple boots.
 
+- 2026-10-22 · `Failed to start Refresh fwupd metadata and update motd.` (1 occurrence) · fwupd metadata refresh service startup transient at boot or timer trigger; motd (message of the day) update is non-critical. Benign if system firmware tooling (`fwupdmgr` queries) remains functional; variant of existing fwupd-refresh pattern (line 72). Only escalate if `fwupdmgr` commands fail or firmware update detection becomes unavailable.
+
+- 2026-10-22 · `<error> [1792601788.7738] device (wlp2s0): Activation: failed activating connection 'UniFi-Endpoint-Wifi-Cassady_UI' because device is still unmanaged` (1 occurrence) · WiFi device (wlp2s0) initialization race — NetworkManager attempted to activate a connection before the adapter was claimed by the managed interface list. Transient at boot or during device state transitions. Benign if WiFi connectivity succeeds on subsequent scans/joins; variant of existing 2026-09-24 supplicant initialization pattern (line 264). Only escalate if WiFi stops connecting after multiple boot cycles.
+
 ## Resolved
 
 <!-- move entries here when fixed, with the fixing commit/PR -->
