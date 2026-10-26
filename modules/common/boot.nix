@@ -5,10 +5,6 @@
   boot.loader.systemd-boot.enable = true;
   boot.loader.efi.canTouchEfiVariables = true;
 
-  # Use systemd-based initrd for faster boot, better error handling,
-  # and dependency-ordered service startup during early boot
-  boot.initrd.systemd.enable = true;
-
   # Include console fonts in the initrd so systemd-vconsole-setup can find them
   # before the NixOS activation script sets up /etc/kbd
   console.earlySetup = true;
