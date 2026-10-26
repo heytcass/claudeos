@@ -301,6 +301,14 @@ Ledger edits are committed by the normal rebuild auto-commit flow.
 
 - 2026-10-22 · `<error> [1792601788.7738] device (wlp2s0): Activation: failed activating connection 'UniFi-Endpoint-Wifi-Cassady_UI' because device is still unmanaged` (1 occurrence) · WiFi device (wlp2s0) initialization race — NetworkManager attempted to activate a connection before the adapter was claimed by the managed interface list. Transient at boot or during device state transitions. Benign if WiFi connectivity succeeds on subsequent scans/joins; variant of existing 2026-09-24 supplicant initialization pattern (line 264). Only escalate if WiFi stops connecting after multiple boot cycles.
 
+- 2026-10-23 · `usb 3-2: device not accepting address 7, error -71` (1 occurrence) · USB device enumeration failure on port 3-2 with EPROTO (protocol error -71) during probe phase; similar to documented 1-1 enumeration pattern (line 258). Benign if connected USB devices enumerate and function normally on retry; only escalate if this specific port consistently fails to enumerate.
+
+- 2026-10-23 · `Stack trace of thread 1:` (1 occurrence) · Incomplete kernel thread trace (header only, no frames); context unclear but no functional impact reported. Recurrence of documented pattern (lines 124, 238). Benign if system stability remains normal; only escalate if correlated with crashes or performance anomalies.
+
+- 2026-10-23 · `Process 2361933 (chrome) of user 1000 dumped core.` (1 occurrence) · Chrome crash dump transient; recurrence of documented Chrome/Chromium crash pattern (lines 194, 282). Benign if Chrome restarts and functions normally; only escalate if crashes recur frequently or session stability degrades.
+
+- 2026-10-26 · `usb 3-2: device descriptor read/all, error -108` (1 occurrence) · USB device enumeration timeout (ETIMEDOUT, -108) on port 3-2 during probe phase; similar to documented USB enumeration failures. Benign if connected USB devices enumerate and function normally on retry; only escalate if this specific port consistently fails to enumerate.
+
 ## Resolved
 
 <!-- move entries here when fixed, with the fixing commit/PR -->
