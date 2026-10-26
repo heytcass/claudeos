@@ -19,7 +19,8 @@
         "UNIFI_API_KEY": "${UNIFI_API_KEY}",
         "UNIFI_API_TYPE": "local",
         "UNIFI_LOCAL_HOST": "10.0.0.1",
-        "UNIFI_LOCAL_VERIFY_SSL": "false"
+        "UNIFI_LOCAL_VERIFY_SSL": "false",
+        "UNIFI_AUDIT_LOG_PATH": "${HOME}/.local/state/unifi-mcp/audit.log"
       }
     }
   }
