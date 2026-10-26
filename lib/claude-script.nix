@@ -29,6 +29,11 @@ let
   # Tools every agent script gets for free — all tiny and already in the
   # system closure. Task-specific extras go in runtimeInputs.
   baseInputs = with pkgs; [
+    # procps BEFORE coreutils: both ship `uptime` (and `kill`), and PATH order
+    # decides which wins. coreutils' uptime has no `-p`, so with it first every
+    # `uptime -p` failed and alert context / the daily brief read
+    # "Uptime: unknown" (gti, 2026-10-25).
+    procps
     coreutils
     gnugrep
     gnused
@@ -38,7 +43,6 @@ let
     systemd
     libnotify
     hostname
-    procps
     # curl is base, not per-lane: claudeos_wait_for_network below is the first
     # thing a boot-time lane runs, so it cannot depend on the lane having
     # remembered to list curl in runtimeInputs.
