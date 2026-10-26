@@ -76,11 +76,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1792707885,
-        "narHash": "sha256-SGTgzeRtRnqdpMdSVYez976n4m+FcZ+7ypM33MfnzAs=",
+        "lastModified": 1792741097,
+        "narHash": "sha256-5SuQu20D+Ls/rnH1jtri7i2XDqAbYhC0NEEvi4QTMs8=",
         "owner": "heytcass",
         "repo": "claude-desktop-linux-flake",
-        "rev": "246c47df859ef2b549b4fbaedcda62cba0d7ac2f",
+        "rev": "6621e14548aa3c79b37e416b51c20d6b7fa3dd43",
         "type": "github"
       },
       "original": {
@@ -422,11 +422,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1792308394,
-        "narHash": "sha256-r4G33ygU307QCwyngAS6E9BMhnCRPyZrL7UxRCMrqo0=",
+        "lastModified": 1792655475,
+        "narHash": "sha256-4ChDjNgJM5uKwTuecLHxGlafAtoyKo5a7ip23J5IG3M=",
         "owner": "Mic92",
         "repo": "sops-nix",
-        "rev": "a1438ca361b05d1e70854d5495abcb34fdf6ff47",
+        "rev": "e80b8b733d8452a751a25d0063abc9683b6c8185",
         "type": "github"
       },
       "original": {
