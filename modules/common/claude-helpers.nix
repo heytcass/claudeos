@@ -103,25 +103,32 @@ in
         # generation-label/flake.lock chores, so replay them on top and retry
         # once. Never leave a committed-but-unpushed tree silently: remotes
         # rebuild by pulling this repo.
-        git -C "$dir" push && exit 0
-
-        upstream=$(git -C "$dir" rev-parse --abbrev-ref --symbolic-full-name '@{u}' 2>/dev/null)
-        if [[ -z "$upstream" ]]; then
-          echo "Push failed and no upstream is set — push by hand." >&2
+        #
+        # Always push to the same-named branch on origin, never to whatever
+        # '@{u}' says: a branch cut with 'checkout -b X origin/main' tracks
+        # main under another name, and push.default=simple refuses a bare
+        # push there — so the commit would sit local-only. -u re-points the
+        # tracking so the next plain 'git push' agrees.
+        branch=$(git -C "$dir" symbolic-ref --short -q HEAD)
+        if [[ -z "$branch" ]]; then
+          echo "Detached HEAD — commit is local only, push by hand." >&2
           exit 1
         fi
+        git -C "$dir" push -u origin HEAD && exit 0
+
+        upstream="origin/$branch"
         echo "Push rejected — replaying onto $upstream…"
 
-        if ! git -C "$dir" fetch "''${upstream%%/*}"; then
+        if ! git -C "$dir" fetch origin; then
           echo "Fetch failed — commit is local only, push by hand." >&2
           exit 1
         fi
         if ! git -C "$dir" rebase "$upstream"; then
           git -C "$dir" rebase --abort
-          echo "Rebase onto $upstream conflicts — resolve by hand, then: git push" >&2
+          echo "Rebase onto $upstream conflicts — resolve by hand, then: git push -u origin HEAD" >&2
           exit 1
         fi
-        if ! git -C "$dir" push; then
+        if ! git -C "$dir" push -u origin HEAD; then
           echo "Push still rejected after rebase — commit is local only." >&2
           exit 1
         fi

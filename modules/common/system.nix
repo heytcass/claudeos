@@ -217,16 +217,16 @@ in
         Your job:
         1. Interpret the wish as the SMALLEST configuration change that genuinely grants it, honoring docs/PHILOSOPHY.md's daily-driver rule and the CLAUDE.md house rules. If the wish is unsafe, destructive, needs new secrets, or is not expressible as NixOS/home-manager configuration in this repo, output exactly WISH-DECLINED: <one-line reason> and STOP.
         2. Verify every NixOS/home-manager option name with the nixos MCP server — never from memory.
-        3. Work ONLY on a new branch: git fetch origin, then git checkout -b $branch origin/main. Never commit to main. Stylix base16 tokens only — never hardcode hex.
+        3. Work ONLY on a new branch: git fetch origin, then git checkout -b $branch --no-track origin/main (--no-track matters: tracking origin/main under another name makes every later git push fail). Never commit to main. Stylix base16 tokens only — never hardcode hex.
         4. Validate: nix fmt, then a --dry-run build of BOTH hosts' config.system.build.toplevel (gti and transporter). Both must pass.
-        5. Stage exactly the files you changed (never git add -A), commit with a conventional message starting 'wish: ', push the branch, then: gh pr create --base main, title starting 'wish: ', body explaining the wish verbatim, what you changed, why that grants it, how you validated, and that this PR was authored by the wish lane. After the PR is open, return the checkout to its previous branch: git checkout -
+        5. Stage exactly the files you changed (never git add -A), commit with a conventional message starting 'wish: ', push the branch with exactly: git push -u origin $branch — then: gh pr create --base main, title starting 'wish: ', body explaining the wish verbatim, what you changed, why that grants it, how you validated, and that this PR was authored by the wish lane. After the PR is open, return the checkout to its previous branch: git checkout -
         6. Touch none of: flake.nix, flake.lock, .sops.yaml, secrets/, .github/, .claude/. If the wish truly requires them, decline with the reason.
         7. Your FINAL output line must be exactly one of:
         WISH-PR: <url>
         WISH-DECLINED: <reason>"
 
         text=$(claude_headless sonnet "$prompt" \
-          --allowedTools 'Read,Grep,Glob,Edit,Write,Bash(git fetch*),Bash(git status*),Bash(git diff*),Bash(git log*),Bash(git checkout -b *),Bash(git add *),Bash(git commit *),Bash(git push *),Bash(gh pr create*),Bash(nix build*--dry-run*),Bash(nix fmt*),Bash(hostname),mcp__nixos__*')
+          --allowedTools 'Read,Grep,Glob,Edit,Write,Bash(git fetch*),Bash(git status*),Bash(git diff*),Bash(git log*),Bash(git checkout -b *),Bash(git checkout -),Bash(git add *),Bash(git commit *),Bash(git push *),Bash(gh pr create*),Bash(nix build*--dry-run*),Bash(nix fmt*),Bash(hostname),mcp__nixos__*')
 
         url=$(grep -oE 'WISH-PR: \S+' <<<"$text" | tail -1 | cut -d' ' -f2)
         declined=$(grep -oE 'WISH-DECLINED: .*' <<<"$text" | tail -1)
