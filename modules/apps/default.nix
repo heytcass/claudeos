@@ -40,5 +40,6 @@
   environment.systemPackages = with pkgs; [
     google-chrome # Browser (also hosts the comms PWAs)
     obsidian # Knowledge management (install Terminal + Web Clipper community plugins)
+    music-assistant-desktop # Companion desktop app for Music Assistant
   ];
 }
