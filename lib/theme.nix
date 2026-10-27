@@ -123,5 +123,12 @@
         dampening = 26;
       };
     };
+
+    # Hyprland-only: named animation styles, so every surface that should
+    # "arrive like a window" (windows in/out, the launcher layer) shares one
+    # string. QML has no equivalent — Quickshell animates contents, not shapes.
+    styles = {
+      popin = "popin 92%";
+    };
   };
 }

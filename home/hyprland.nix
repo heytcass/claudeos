@@ -432,9 +432,9 @@ in
             enabled = true;
             speed = d.standard / 100.0;
             spring = "settle";
-            style = "popin 92%";
+            style = motion.styles.popin;
           }
-          (anim "windowsOut" "quick" "exit" { style = "popin 92%"; })
+          (anim "windowsOut" "quick" "exit" { style = motion.styles.popin; })
           (anim "fade" "quick" "standard" { })
           (anim "fadeIn" "quick" "standard" { })
           (anim "fadeOut" "quick" "exit" { })
@@ -455,7 +455,7 @@ in
         {
           name = "launcher-popin";
           match.namespace = "^launcher$";
-          animation = "popin 92%";
+          animation = motion.styles.popin;
         }
       ];
 
