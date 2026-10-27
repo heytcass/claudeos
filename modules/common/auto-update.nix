@@ -117,6 +117,17 @@ let
         exit 1
       fi
 
+      # Inputs already current (a manual update landed since last week) →
+      # nothing to build, summarize, commit, or apply. Without this the run
+      # built the unchanged closure, diffed it against itself, and handed
+      # haiku an empty "diff" whose chat reply became the commit message
+      # (85aeeb7, e8c1a9a). Stamped as a success: the updater is alive.
+      if git diff --quiet -- flake.lock; then
+        echo "flake.lock already current — nothing to update."
+        date -Iseconds > "$STATE_DIR/last-update"
+        exit 0
+      fi
+
       # Test build
       build_output=$(nix build ".#nixosConfigurations.$HOST.config.system.build.toplevel" 2>&1)
       build_status=$?
@@ -177,29 +188,39 @@ let
         # ------------------------------------------------------------------
 
         # Success — generate changelog
-        diff_output=$(nix store diff-closures /run/current-system ./result 2>&1 || true)
+        # stderr stays out: an error message is not a diff to summarize
+        diff_output=$(nix store diff-closures /run/current-system ./result 2>/dev/null || true)
 
-        export CLAUDEOS_AGENT_ACTIVITY="summarizing the update"
-        changelog=$(claude_text haiku "Summarize this NixOS package update diff. List notable version bumps and flag potentially breaking changes. 2-3 sentences max. No markdown.
+        # A lock bump can leave this host's closure untouched (formatter or
+        # other-host-only inputs). Empty diff → no model call: an empty
+        # prompt draws a chat reply, never a summary.
+        changelog=""
+        if [[ -n "''${diff_output//[[:space:]]/}" ]]; then
+          export CLAUDEOS_AGENT_ACTIVITY="summarizing the update"
+          changelog=$(claude_text haiku "Summarize this NixOS package update diff. List notable version bumps and flag potentially breaking changes. 2-3 sentences max. No markdown.
 
       $diff_output")
-
-        # CLI/API error text ("You've hit your monthly spend limit", "Not
-        # logged in") must not become the commit message — or, via --local
-        # below, the generation slug
-        if echo "$changelog" | grep -qiE 'spend limit|usage limit|rate limit|not logged in|please run /login|api error|overloaded'; then
-          changelog=""
         fi
-        [[ -z "$changelog" ]] && changelog="Flake inputs updated ($(date -I))"
 
-        # Name the generation (shared slug logic → boot-menu label).
-        # --local: the changelog IS already a haiku summary — deriving the
-        # slug from it locally avoids a second model call per run
-        echo "$changelog" | claude-name-generation --local --fallback "flake-update-$(date +%m%d)" > /dev/null
+        # Fail closed: only an answer-shaped summary may reach the commit,
+        # the generation slug, or the notification. Questions, requests for
+        # input, CLI error text, and runaway length all fall back to a
+        # deterministic line (claudeos_reply_ok, lib/claude-script.nix).
+        today=$(date -I)
+        if claudeos_reply_ok "$changelog" 120 4; then
+          # --local: the changelog IS already a haiku summary — deriving
+          # the slug from it locally avoids a second model call per run
+          echo "$changelog" | claude-name-generation --local --fallback "flake-update-$(date +%m%d)" > /dev/null
+        else
+          changelog="Flake inputs updated ($today)"
+          claude-name-generation --fallback "flake-update-$(date +%m%d)" < /dev/null > /dev/null
+        fi
 
-        # Commit and push (retry once after rebase in case origin moved mid-run)
+        # Commit and push (retry once after rebase in case origin moved mid-run).
+        # The subject is deterministic; the model's prose lives in the body,
+        # where a bad summary can mislead a reader but never a subject line.
         git add flake.lock generation-label
-        git commit -m "chore: weekly flake update — $changelog"
+        git commit -m "chore: weekly flake update $today" -m "$changelog"
         if ! gh auth token >/dev/null 2>&1; then
           claudeos_notify --urgency=critical \
             "Push Skipped" "flake.lock committed locally — no GitHub credential in this context (keyring locked, no sops automation token). Push manually."
