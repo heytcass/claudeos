@@ -45,13 +45,15 @@ Rectangle {
             loops: Animation.Infinite
             NumberAnimation {
                 to: 0.4
-                duration: 850
-                easing.type: Easing.InOutSine
+                duration: Motion.pulse
+                easing.type: Easing.BezierSpline
+                easing.bezierCurve: Motion.curveBreathe
             }
             NumberAnimation {
                 to: 1
-                duration: 850
-                easing.type: Easing.InOutSine
+                duration: Motion.pulse
+                easing.type: Easing.BezierSpline
+                easing.bezierCurve: Motion.curveBreathe
             }
         }
         onLowChanged: if (!low)
@@ -78,13 +80,16 @@ Rectangle {
                 clip: true
                 Behavior on width {
                     NumberAnimation {
-                        duration: 400
-                        easing.type: Easing.OutCubic
+                        duration: Motion.standard
+                        easing.type: Easing.BezierSpline
+                        easing.bezierCurve: Motion.curveStandard
                     }
                 }
                 Behavior on color {
                     ColorAnimation {
-                        duration: 300
+                        duration: Motion.standard
+                        easing.type: Easing.BezierSpline
+                        easing.bezierCurve: Motion.curveStandard
                     }
                 }
 
@@ -101,8 +106,9 @@ Rectangle {
                         loops: Animation.Infinite
                         from: -6
                         to: 24
-                        duration: 1400
-                        easing.type: Easing.InOutQuad
+                        duration: Motion.breathe
+                        easing.type: Easing.BezierSpline
+                        easing.bezierCurve: Motion.curveBreathe
                     }
                 }
             }

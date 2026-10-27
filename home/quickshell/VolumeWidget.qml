@@ -53,8 +53,9 @@ Rectangle {
                 color: root.muted ? Theme.muted : Theme.accent
                 Behavior on width {
                     NumberAnimation {
-                        duration: 120
-                        easing.type: Easing.OutCubic
+                        duration: Motion.instant
+                        easing.type: Easing.BezierSpline
+                        easing.bezierCurve: Motion.curveStandard
                     }
                 }
             }

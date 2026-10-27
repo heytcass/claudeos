@@ -101,16 +101,17 @@ Rectangle {
                 target: root
                 property: "opacity"
                 to: 1
-                duration: 320
-                easing.type: Easing.OutCubic
+                duration: Motion.standard
+                easing.type: Easing.BezierSpline
+                easing.bezierCurve: Motion.curveStandard
             }
             NumberAnimation {
                 target: root
                 property: "scale"
                 to: 1
-                duration: 460
-                easing.type: Easing.OutBack
-                easing.overshoot: 1.15
+                duration: Motion.emphasis
+                easing.type: Easing.BezierSpline
+                easing.bezierCurve: Motion.curveEmphasized
             }
         }
     }
@@ -130,13 +131,15 @@ Rectangle {
         loops: Animation.Infinite
         NumberAnimation {
             to: 1
-            duration: 1100
-            easing.type: Easing.InOutSine
+            duration: Motion.breathe
+            easing.type: Easing.BezierSpline
+            easing.bezierCurve: Motion.curveBreathe
         }
         NumberAnimation {
             to: 0
-            duration: 1100
-            easing.type: Easing.InOutSine
+            duration: Motion.breathe
+            easing.type: Easing.BezierSpline
+            easing.bezierCurve: Motion.curveBreathe
         }
     }
     border.width: Agent.active ? 2 : 1
@@ -177,7 +180,9 @@ Rectangle {
             visible: opacity > 0
             Behavior on opacity {
                 NumberAnimation {
-                    duration: 400
+                    duration: Motion.standard
+                    easing.type: Easing.BezierSpline
+                    easing.bezierCurve: Motion.curveStandard
                 }
             }
             Rectangle {
@@ -202,9 +207,9 @@ Rectangle {
     }
     Behavior on implicitWidth {
         NumberAnimation {
-            duration: 300
-            easing.type: Easing.OutBack
-            easing.overshoot: 0.85
+            duration: Motion.standard
+            easing.type: Easing.BezierSpline
+            easing.bezierCurve: Motion.curveEmphasized
         }
     }
 
@@ -222,7 +227,9 @@ Rectangle {
         visible: opacity > 0
         Behavior on opacity {
             NumberAnimation {
-                duration: 150
+                duration: Motion.quick
+                easing.type: Easing.BezierSpline
+                easing.bezierCurve: Motion.curveStandard
             }
         }
         // Jasper's mood emoji — the companion's whole bar presence. The
@@ -267,7 +274,9 @@ Rectangle {
         visible: opacity > 0
         Behavior on opacity {
             NumberAnimation {
-                duration: 150
+                duration: Motion.quick
+                easing.type: Easing.BezierSpline
+                easing.bezierCurve: Motion.curveStandard
             }
         }
 
@@ -286,7 +295,7 @@ Rectangle {
                 loops: Animation.Infinite
                 from: 0
                 to: 360
-                duration: 14000
+                duration: Motion.drift
             }
         }
         // The activity text shimmers — a narrow brightness wave traveling
@@ -317,7 +326,7 @@ Rectangle {
                 loops: Animation.Infinite
                 from: 0
                 to: 1
-                duration: 2400
+                duration: 2400 // a linear sweep's speed, not a Motion tier
             }
 
             Text {
@@ -402,7 +411,9 @@ Rectangle {
         visible: opacity > 0
         Behavior on opacity {
             NumberAnimation {
-                duration: 150
+                duration: Motion.quick
+                easing.type: Easing.BezierSpline
+                easing.bezierCurve: Motion.curveStandard
             }
         }
 
@@ -465,6 +476,8 @@ Rectangle {
                     SequentialAnimation on x {
                         running: titleText.overflow > 0 && root.state === "media"
                         loops: Animation.Infinite
+                        // Marquee choreography — reading pauses and a pixel-rate scroll, not
+                        // motion vocabulary, so these stay literal rather than Motion tokens.
                         PauseAnimation {
                             duration: 2000
                         }
@@ -478,8 +491,9 @@ Rectangle {
                         }
                         NumberAnimation {
                             to: 0
-                            duration: 350
-                            easing.type: Easing.OutCubic
+                            duration: Motion.standard
+                            easing.type: Easing.BezierSpline
+                            easing.bezierCurve: Motion.curveStandard
                         }
                     }
                 }
@@ -509,7 +523,9 @@ Rectangle {
         visible: opacity > 0
         Behavior on opacity {
             NumberAnimation {
-                duration: 150
+                duration: Motion.quick
+                easing.type: Easing.BezierSpline
+                easing.bezierCurve: Motion.curveStandard
             }
         }
 
@@ -525,13 +541,15 @@ Rectangle {
                 loops: Animation.Infinite
                 NumberAnimation {
                     to: 0.35
-                    duration: 700
-                    easing.type: Easing.InOutSine
+                    duration: Motion.pulse
+                    easing.type: Easing.BezierSpline
+                    easing.bezierCurve: Motion.curveBreathe
                 }
                 NumberAnimation {
                     to: 1
-                    duration: 700
-                    easing.type: Easing.InOutSine
+                    duration: Motion.pulse
+                    easing.type: Easing.BezierSpline
+                    easing.bezierCurve: Motion.curveBreathe
                 }
             }
         }

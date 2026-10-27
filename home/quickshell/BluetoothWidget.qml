@@ -48,7 +48,9 @@ Rectangle {
         color: !root.radioOn ? Theme.muted : root.connectedCount > 0 ? Theme.accent : Theme.text
         Behavior on color {
             ColorAnimation {
-                duration: 220
+                duration: Motion.quick
+                easing.type: Easing.BezierSpline
+                easing.bezierCurve: Motion.curveStandard
             }
         }
     }

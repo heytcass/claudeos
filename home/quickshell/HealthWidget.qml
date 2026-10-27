@@ -53,13 +53,15 @@ Item {
             loops: Animation.Infinite
             NumberAnimation {
                 to: 0.35
-                duration: 900
-                easing.type: Easing.InOutSine
+                duration: Motion.pulse
+                easing.type: Easing.BezierSpline
+                easing.bezierCurve: Motion.curveBreathe
             }
             NumberAnimation {
                 to: 1
-                duration: 900
-                easing.type: Easing.InOutSine
+                duration: Motion.pulse
+                easing.type: Easing.BezierSpline
+                easing.bezierCurve: Motion.curveBreathe
             }
         }
     }

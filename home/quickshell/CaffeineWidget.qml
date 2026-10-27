@@ -53,6 +53,8 @@ Item {
             SequentialAnimation {
                 running: root.visible && root.onFocusedScreen
                 loops: Animation.Infinite
+                // Steam-wisp choreography: these timings are a tuned scene,
+                // not motion vocabulary, so they stay literal (not Motion.*).
                 // Stopping mid-rise would strand a dot half-faded above the
                 // rim; park it back on the rim, invisible. Safe to assign —
                 // these are target/property animations, so nothing owns

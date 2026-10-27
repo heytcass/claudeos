@@ -19,7 +19,7 @@ themed by `home/hyprland.nix`. When editing it:
   "unavailable" and the bar vanishes. The error chain names the file+line —
   always fast-reload and read it before rebuilding (see `/qml-dial-in`).
 
-- **`Theme.qml` and `cava.conf` are generated, not source.** They exist only in
+- **`Theme.qml`, `Motion.qml` and `cava.conf` are generated, not source.** They exist only in
   the *deployed* `~/.config/quickshell`, not in `home/quickshell/`. So a preview
   must start from a copy of the deployed dir with the repo's `*.qml` overlaid —
   which is exactly what `qml-preview` does.
