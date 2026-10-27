@@ -113,14 +113,26 @@
       ]; # ease-in-out sine: symmetric, for pulses
     };
 
-    # Hyprland-only: windows settle on a spring. Damping ratio
-    # ζ = dampening / (2·√(mass·stiffness)) ≈ 0.97 — just under critical, so
-    # windows land with no visible bounce (Hyprland's stock "easy" is ≈ 0.78).
+    # Physical springs (mass, stiffness, dampening — Hyprland's units). Damping
+    # ratio ζ = dampening / (2·√(mass·stiffness)): 1 is critical (no
+    # overshoot), lower rings. Hyprland takes these as-is; QML's
+    # SpringAnimation runs the same ODE in fixed 16 ms Euler steps, so
+    # lib/quickshell-motion.nix scales stiffness/dampening by 0.016 and the
+    # bar's springs are the compositor's springs, not lookalikes.
     springs = {
+      # Windows land with no visible bounce, ζ ≈ 0.97 (stock "easy" ≈ 0.78).
       settle = {
         mass = 1;
         stiffness = 180;
         dampening = 26;
+      };
+      # The island's width morph (clock ↔ media ↔ agent ↔ notif). Its
+      # one sanctioned bounce: ζ ≈ 0.78 overshoots ~2% and settles in ~0.35 s,
+      # enough that the capsule reads as elastic rather than resized.
+      morph = {
+        mass = 1;
+        stiffness = 200;
+        dampening = 22;
       };
     };
 

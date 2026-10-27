@@ -142,8 +142,41 @@ Rectangle {
             easing.bezierCurve: Motion.curveBreathe
         }
     }
-    border.width: Agent.active ? 2 : 1
-    border.color: Agent.active ? Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.3 + 0.6 * root.glow) : (root.state === "notif" ? peekColor : Qt.rgba(Theme.muted.r, Theme.muted.g, Theme.muted.b, playing ? 0.5 : 0.25))
+    // Flare: a one-shot terracotta swell when the agent STARTS or FINISHES —
+    // the breath above says "busy", this marks the edges of the work. Rises in
+    // an instant, fades over a pulse; tinted onto whatever the border already
+    // is, so it lands cleanly on the breathing border (start) and on the idle
+    // one (finish). Focused output only, like the breath.
+    property real flare: 0
+    Connections {
+        target: Agent
+        function onActiveChanged() {
+            if (root.onFocusedScreen)
+                flareAnim.restart();
+        }
+    }
+    SequentialAnimation {
+        id: flareAnim
+        NumberAnimation {
+            target: root
+            property: "flare"
+            to: 1
+            duration: Motion.instant
+            easing.type: Easing.BezierSpline
+            easing.bezierCurve: Motion.curveStandard
+        }
+        NumberAnimation {
+            target: root
+            property: "flare"
+            to: 0
+            duration: Motion.pulse
+            easing.type: Easing.BezierSpline
+            easing.bezierCurve: Motion.curveBreathe
+        }
+    }
+
+    border.width: Agent.active || root.flare > 0 ? 2 : 1
+    border.color: Qt.tint(Agent.active ? Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.3 + 0.6 * root.glow) : (root.state === "notif" ? peekColor : Qt.rgba(Theme.muted.r, Theme.muted.g, Theme.muted.b, playing ? 0.5 : 0.25)), Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, root.flare))
 
     // Outer glow while the agent works: two soft halo layers behind the pill
     // (negative z paints below the parent's own fill), swelling and fading on
@@ -176,7 +209,7 @@ Rectangle {
             height: root.height + halo.modelData.pad
             // Outer item owns the on/off fade, so the Behavior never sees the
             // per-frame breath and try to animate towards each frame's value.
-            opacity: Agent.active ? 1 : 0
+            opacity: Agent.active || root.flare > 0 ? 1 : 0
             visible: opacity > 0
             Behavior on opacity {
                 NumberAnimation {
@@ -186,30 +219,38 @@ Rectangle {
                 }
             }
             Rectangle {
+                id: haloFill
                 anchors.fill: parent
                 radius: height / 2
                 color: Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 1)
-                opacity: halo.modelData.alpha * (0.4 + 0.6 * root.glow)
+                // The breath only counts while working (after finish, `glow`
+                // strands mid-cycle); the flare adds on top, brighter and wider
+                // than any breath so the edge of the work reads as an event.
+                readonly property real breath: Agent.active ? root.glow : 0
+                opacity: Math.min(1, halo.modelData.alpha * ((Agent.active ? 0.4 : 0) + 0.6 * breath + 1.6 * root.flare))
                 transform: Scale {
                     origin.x: halo.width / 2
                     origin.y: halo.height / 2
-                    xScale: 1 + 8 * root.glow / Math.max(1, halo.width)
-                    yScale: 1 + 8 * root.glow / Math.max(1, halo.height)
+                    xScale: 1 + (8 * haloFill.breath + 14 * root.flare) / Math.max(1, halo.width)
+                    yScale: 1 + (8 * haloFill.breath + 14 * root.flare) / Math.max(1, halo.height)
                 }
             }
         }
     }
 
-    // Width tracks the visible content; springs open/closed on morph.
+    // Width tracks the visible content; springs open/closed on morph. A real
+    // spring, not a duration+curve: when a peek interrupts a media morph the
+    // spring retargets carrying its current velocity, so back-to-back state
+    // flips flow into each other instead of restarting from rest.
     implicitWidth: {
         const w = state === "notif" ? notifContent.implicitWidth : state === "media" ? mediaContent.implicitWidth : state === "agent" ? agentContent.implicitWidth : clockContent.implicitWidth;
         return w + 26;
     }
     Behavior on implicitWidth {
-        NumberAnimation {
-            duration: Motion.standard
-            easing.type: Easing.BezierSpline
-            easing.bezierCurve: Motion.curveEmphasized
+        SpringAnimation {
+            spring: Motion.springMorph
+            damping: Motion.dampingMorph
+            mass: Motion.massMorph
         }
     }
 
