@@ -223,6 +223,24 @@ let
       printf '%s\n' "$out"
     }
 
+    # claudeos_reply_ok TEXT MAX_WORDS [MAX_LINES] — fail-closed shape check
+    # for a claude_text reply that will be committed, or will name a
+    # generation, with no human reading it first. Succeeds only for non-empty
+    # text within the word/line budget (default 1 line) that reads as an
+    # answer. A question, a request for input ("I don't see a diff… Could
+    # you paste…"), or CLI error text fails it, and the caller falls back to
+    # a deterministic string. That chat reply was committed as a weekly
+    # update message twice (85aeeb7, e8c1a9a). Same doctrine as the trust
+    # ladder's VERDICT contract: silence, garble and doubt all mean no.
+    claudeos_reply_ok() {
+      local text="$1" max_words="$2" max_lines="''${3:-1}"
+      [[ -n "''${text//[[:space:]]/}" ]] || return 1
+      [[ "$text" == *'?'* ]] && return 1
+      grep -qiE "i don.?t|i do not|i can.?t|i cannot|i.?m sorry|could you|can you|would you|please (paste|share|provide)|paste|let me know|as an ai|spend limit|usage limit|rate limit|not logged in|please run /login|api error|overloaded" <<<"$text" && return 1
+      (( $(wc -w <<<"$text") <= max_words )) || return 1
+      (( $(grep -c . <<<"$text") <= max_lines )) || return 1
+    }
+
     # claudeos_cooldown_ok FILE SECONDS — rate-limit gate: succeeds when at
     # least SECONDS have passed since FILE was last touched (or it doesn't
     # exist). Check-only — the caller stamps FILE when it actually acts.
