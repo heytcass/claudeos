@@ -30,7 +30,7 @@ PopupWindow {
         id: card
         anchors.fill: parent
         implicitHeight: content.implicitHeight + 24
-        color: Theme.bg
+        color: Theme.bgGlass
         radius: 14
         border.color: Theme.surface
         border.width: 1

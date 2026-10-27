@@ -202,7 +202,7 @@ Rectangle {
         color: "transparent"
         Rectangle {
             anchors.fill: parent
-            color: Theme.bg
+            color: Theme.bgGlass
             radius: 8
             border.color: Theme.surface
             border.width: 1
@@ -232,7 +232,7 @@ Rectangle {
 
         Rectangle {
             anchors.fill: parent
-            color: Theme.bg
+            color: Theme.bgGlass
             radius: 10
             border.color: Theme.surface
             border.width: 1

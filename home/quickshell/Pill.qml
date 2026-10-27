@@ -49,7 +49,7 @@ Rectangle {
     implicitHeight: Theme.barHeight - 6
     implicitWidth: holder.childrenRect.width + padH * 2
     radius: height / 2
-    color: hover.hovered ? Qt.lighter(Theme.surface, 1.15) : Theme.surface
+    color: hover.hovered ? Qt.lighter(Theme.surfaceGlass, 1.15) : Theme.surfaceGlass
     border.width: 1
     border.color: Qt.rgba(Theme.muted.r, Theme.muted.g, Theme.muted.b, 0.25)
 

@@ -79,7 +79,7 @@ Scope {
                         width: stack.width
                         implicitHeight: body.implicitHeight + 28
                         radius: 16
-                        color: Theme.bg
+                        color: Theme.bgGlass
                         border.width: 1
                         readonly property color accent: modelData.urgency === "critical" ? Theme.urgent : (modelData.urgency === "low" ? Theme.muted : Theme.accent)
                         border.color: Qt.rgba(accent.r, accent.g, accent.b, 0.45)

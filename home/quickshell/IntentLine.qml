@@ -345,7 +345,7 @@ Scope {
             width: 560
             height: col.implicitHeight + 52
             radius: 20
-            color: Theme.bg
+            color: Theme.bgGlass
             border.width: 2
             border.color: Qt.rgba(root.routeColor(root.route).r, root.routeColor(root.route).g, root.routeColor(root.route).b, 0.4 + 0.45 * glow)
 

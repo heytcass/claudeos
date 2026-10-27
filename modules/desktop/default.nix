@@ -12,6 +12,7 @@ in
     ./audio.nix
     ./fonts.nix
     ./theme.nix
+    ./plymouth.nix
   ];
 
   # dconf: the settings backend GTK apps + the gtk portal's Settings iface

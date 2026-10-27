@@ -83,7 +83,7 @@ Rectangle {
 
     implicitHeight: Theme.barHeight - 6
     radius: height / 2
-    color: hover.hovered ? Qt.lighter(Theme.surface, 1.15) : Theme.surface
+    color: hover.hovered ? Qt.lighter(Theme.surfaceGlass, 1.15) : Theme.surfaceGlass
 
     // Staggered entrance (matches Pill.qml) — the center settles in between the
     // left and right islands.

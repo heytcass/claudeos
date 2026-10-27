@@ -54,6 +54,13 @@
     name = "Adwaita";
   };
 
+  # Glass — the shell's one translucency (chosen 2026-10-27: "shell only").
+  # The bar's pills, island and popups, the launcher and notifications sit at
+  # this opacity over a compositor blur; application windows stay solid.
+  # Quickshell reads it as Theme.glass (bgGlass/surfaceGlass), Stylix as
+  # stylix.opacity.popups (fuzzel), so the launcher and the bar match.
+  glass = 0.85;
+
   # Motion language — the timing twin of the palette. Hyprland (home/hyprland.nix
   # → hl.curve/hl.animation) and the bar (lib/quickshell-motion.nix →
   # Motion.qml) both read THIS, so a window settling and a pill settling move

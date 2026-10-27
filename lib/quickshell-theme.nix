@@ -72,6 +72,13 @@ in
     readonly property color warn: base0A
     readonly property color urgent: base08
 
+    // Glass: the shell's outer surfaces (pills, island, popup panels) at
+    // lib/theme.nix `glass` opacity; Hyprland blurs what shows through.
+    // Inner chips stay on the opaque colours above.
+    readonly property real glass: ${toString themeLib.glass}
+    readonly property color bgGlass: Qt.rgba(bg.r, bg.g, bg.b, glass)
+    readonly property color surfaceGlass: Qt.rgba(surface.r, surface.g, surface.b, glass)
+
     // Fonts (single source of truth: lib/theme.nix).
     //
     // Three ROLES, per .claude/skills/brand-guidelines — not three

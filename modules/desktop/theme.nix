@@ -168,6 +168,12 @@ in
     # Dark mode theme
     polarity = "dark";
 
+    # Shell glass (lib/theme.nix `glass`): fuzzel's background alpha, so the
+    # launcher matches the bar's translucent pills over Hyprland's blur. The
+    # only enabled consumer of `popups` here is fuzzel; applications/terminal/
+    # desktop stay at their opaque defaults ("shell only", 2026-10-27).
+    opacity.popups = themeLib.glass;
+
     # Cursor theme — must set all three for Stylix to manage home.pointerCursor
     cursor = {
       package = pkgs.adwaita-icon-theme;

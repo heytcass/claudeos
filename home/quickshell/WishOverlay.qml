@@ -139,7 +139,7 @@ Scope {
             width: 560
             height: col.implicitHeight + 56
             radius: 20
-            color: Theme.bg
+            color: Theme.bgGlass
             border.width: 2
             border.color: Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.35 + 0.45 * glow)
 
