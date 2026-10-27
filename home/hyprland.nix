@@ -448,6 +448,17 @@ in
           (anim "specialWorkspace" "standard" "standard" { style = "slidefadevert 12%"; })
         ];
 
+      # The launcher (fuzzel, SUPER+Space — its layer namespace is `launcher`)
+      # isn't bar chrome: give it the windows' popin instead of the layers'
+      # plain fade, which flickered as fuzzel's first frames landed.
+      layer_rule = [
+        {
+          name = "launcher-popin";
+          match.namespace = "^launcher$";
+          animation = "popin 92%";
+        }
+      ];
+
       # Everything that was a plain hyprlang option block (general/decoration/
       # dwindle/input/misc) lives under one `config` attr, which renders as a
       # single `hl.config{…}`. Stylix writes here too (its Lua branch emits
@@ -853,7 +864,16 @@ in
   xdg.configFile."quickshell".source = qsConfig;
 
   # Light companions — Stylix auto-themes those with targets (autoEnable is on).
-  programs.fuzzel.enable = true;
+  programs.fuzzel = {
+    enable = true;
+    # dpi-aware's default `auto` means DPI sizing whenever every monitor is at
+    # scale 1 — and a fresh layer surface doesn't know its monitor yet, so
+    # fuzzel's first frame rendered at a guessed DPI (giant text + an orange
+    # border block), then re-rendered on wl_surface.enter. A visible flash on
+    # every SUPER+Space, caught on a 100fps recording 2026-10-27. Scale-based
+    # sizing is identical on all outputs, so frame one is already final.
+    settings.main.dpi-aware = "no";
+  };
   # Notifications are owned by the Quickshell shell now (home/quickshell —
   # Notifications.qml runs the org.freedesktop.Notifications server + toasts).
   # mako is deliberately NOT enabled: only one process can own that D-Bus name,
