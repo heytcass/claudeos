@@ -91,6 +91,9 @@ in
         # otherwise gets committed verbatim
         [[ "$msg" == *$'\n'* ]] && exit 0
         [[ "$msg" =~ ^[a-z]+(\(.+\))?!?:\ .+$ ]] || exit 0
+        # …and a conventional-commit prefix on a chat reply ("chore: I don't
+        # see a diff…") is still a chat reply
+        claudeos_reply_ok "$msg" 15 || exit 0
 
         git -C "$dir" add -A \
           && git -C "$dir" commit -m "$msg" \
