@@ -53,4 +53,75 @@
   icons = {
     name = "Adwaita";
   };
+
+  # Motion language — the timing twin of the palette. Hyprland (home/hyprland.nix
+  # → hl.curve/hl.animation) and the bar (lib/quickshell-motion.nix →
+  # Motion.qml) both read THIS, so a window settling and a pill settling move
+  # on the same curve by construction. Never hardcode a duration or easing in
+  # QML; reach for a token, or add one here.
+  #
+  # Character: calm and warm (chosen 2026-10-27). Things ease OUT — arrive
+  # fast, settle slowly — and only "arrival" moments get a small overshoot.
+  # Nothing bounces for its own sake: the bar is the system's one quiet voice
+  # (docs/PHILOSOPHY.md), and motion is part of that voice.
+  motion = {
+    # Milliseconds. Hyprland's unit is 100 ms per `speed` point, so the
+    # compositor divides by 100 (see home/hyprland.nix).
+    durations = {
+      instant = 90; # press feedback, audio-rate meters
+      quick = 160; # crossfades, colour changes, small state flips
+      standard = 280; # the default: size/position changes, focus
+      emphasis = 480; # arrivals and departures (pills, island, wish card)
+      pulse = 800; # half-cycle of an ATTENTION pulse (urgent, low battery)
+      breathe = 1400; # half-cycle of an AMBIENT pulse (working, listening)
+      drift = 14000; # slow decorative rotation
+    };
+
+    # Cubic beziers as [x1 y1 x2 y2] — the format both hl.curve (as two
+    # points) and QML's Easing.BezierSpline (plus a trailing 1,1) take, so the
+    # very same curve drives compositor and bar.
+    curves = {
+      standard = [
+        0.22
+        1
+        0.36
+        1
+      ]; # ease-out quint: fast arrival, long gentle settle
+      emphasized = [
+        0.34
+        1.28
+        0.64
+        1
+      ]; # ease-out with a ~6% overshoot — arrivals only
+      exit = [
+        0.55
+        0
+        1
+        0.45
+      ]; # ease-in: leave quietly, accelerating away
+      anticipate = [
+        0.36
+        0
+        0.66
+        (-0.4) # parenthesised: a bare `0.66 -0.4` in a list is subtraction
+      ]; # ease-in with a small wind-up — "flying into the bar"
+      breathe = [
+        0.37
+        0
+        0.63
+        1
+      ]; # ease-in-out sine: symmetric, for pulses
+    };
+
+    # Hyprland-only: windows settle on a spring. Damping ratio
+    # ζ = dampening / (2·√(mass·stiffness)) ≈ 0.97 — just under critical, so
+    # windows land with no visible bounce (Hyprland's stock "easy" is ≈ 0.78).
+    springs = {
+      settle = {
+        mass = 1;
+        stiffness = 180;
+        dampening = 26;
+      };
+    };
+  };
 }

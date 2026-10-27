@@ -34,16 +34,18 @@ Item {
                 property: "opacity"
                 from: 0
                 to: 1
-                duration: 160
-                easing.type: Easing.OutCubic
+                duration: Motion.quick
+                easing.type: Easing.BezierSpline
+                easing.bezierCurve: Motion.curveStandard
             }
             NumberAnimation {
                 target: content
                 property: "x"
                 from: -7
                 to: 0
-                duration: 200
-                easing.type: Easing.OutCubic
+                duration: Motion.quick
+                easing.type: Easing.BezierSpline
+                easing.bezierCurve: Motion.curveStandard
             }
         }
     }

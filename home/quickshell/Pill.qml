@@ -31,16 +31,17 @@ Rectangle {
                 target: pill
                 property: "opacity"
                 to: 1
-                duration: 320
-                easing.type: Easing.OutCubic
+                duration: Motion.standard
+                easing.type: Easing.BezierSpline
+                easing.bezierCurve: Motion.curveStandard
             }
             NumberAnimation {
                 target: pill
                 property: "scale"
                 to: 1
-                duration: 460
-                easing.type: Easing.OutBack
-                easing.overshoot: 1.15
+                duration: Motion.emphasis
+                easing.type: Easing.BezierSpline
+                easing.bezierCurve: Motion.curveEmphasized
             }
         }
     }

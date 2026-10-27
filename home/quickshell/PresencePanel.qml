@@ -101,13 +101,15 @@ Scope {
                 loops: Animation.Infinite
                 NumberAnimation {
                     to: 1
-                    duration: 1300
-                    easing.type: Easing.InOutSine
+                    duration: Motion.breathe
+                    easing.type: Easing.BezierSpline
+                    easing.bezierCurve: Motion.curveBreathe
                 }
                 NumberAnimation {
                     to: 0
-                    duration: 1300
-                    easing.type: Easing.InOutSine
+                    duration: Motion.breathe
+                    easing.type: Easing.BezierSpline
+                    easing.bezierCurve: Motion.curveBreathe
                 }
             }
             Repeater {

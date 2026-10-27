@@ -142,7 +142,9 @@ Rectangle {
                     color: lit ? root.strength : Qt.rgba(Theme.muted.r, Theme.muted.g, Theme.muted.b, 0.35)
                     Behavior on color {
                         ColorAnimation {
-                            duration: 300
+                            duration: Motion.standard
+                            easing.type: Easing.BezierSpline
+                            easing.bezierCurve: Motion.curveStandard
                         }
                     }
                 }

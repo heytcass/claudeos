@@ -39,22 +39,25 @@ Scope {
             target: card
             property: "scale"
             to: 0.06
-            duration: 520
-            easing.type: Easing.InBack
+            duration: Motion.emphasis
+            easing.type: Easing.BezierSpline
+            easing.bezierCurve: Motion.curveAnticipate
         }
         NumberAnimation {
             target: card
             property: "anchors.verticalCenterOffset"
             to: -(win.height / 2) + Theme.barHeight
-            duration: 520
-            easing.type: Easing.InCubic
+            duration: Motion.emphasis
+            easing.type: Easing.BezierSpline
+            easing.bezierCurve: Motion.curveExit
         }
         NumberAnimation {
             target: card
             property: "opacity"
             to: 0.15
-            duration: 520
-            easing.type: Easing.InQuad
+            duration: Motion.emphasis
+            easing.type: Easing.BezierSpline
+            easing.bezierCurve: Motion.curveExit
         }
         onFinished: {
             root.shown = false;
@@ -116,12 +119,14 @@ Scope {
                     NumberAnimation {
                         to: 0.14 + (index % 4) * 0.11
                         duration: 1200 + (index % 5) * 380
-                        easing.type: Easing.InOutSine
+                        easing.type: Easing.BezierSpline
+                        easing.bezierCurve: Motion.curveBreathe
                     }
                     NumberAnimation {
                         to: 0.04
                         duration: 1500 + (index % 3) * 420
-                        easing.type: Easing.InOutSine
+                        easing.type: Easing.BezierSpline
+                        easing.bezierCurve: Motion.curveBreathe
                     }
                 }
             }
@@ -144,13 +149,15 @@ Scope {
                 loops: Animation.Infinite
                 NumberAnimation {
                     to: 1
-                    duration: 1400
-                    easing.type: Easing.InOutSine
+                    duration: Motion.breathe
+                    easing.type: Easing.BezierSpline
+                    easing.bezierCurve: Motion.curveBreathe
                 }
                 NumberAnimation {
                     to: 0
-                    duration: 1400
-                    easing.type: Easing.InOutSine
+                    duration: Motion.breathe
+                    easing.type: Easing.BezierSpline
+                    easing.bezierCurve: Motion.curveBreathe
                 }
             }
 
@@ -194,7 +201,7 @@ Scope {
                             loops: Animation.Infinite
                             from: 0
                             to: 360
-                            duration: 14000
+                            duration: Motion.drift
                         }
                     }
                     Text {

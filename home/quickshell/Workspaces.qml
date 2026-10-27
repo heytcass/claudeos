@@ -75,16 +75,17 @@ RowLayout {
                     target: pillRect
                     property: "scale"
                     to: 1.18
-                    duration: 90
-                    easing.type: Easing.OutQuad
+                    duration: Motion.instant
+                    easing.type: Easing.BezierSpline
+                    easing.bezierCurve: Motion.curveStandard
                 }
                 NumberAnimation {
                     target: pillRect
                     property: "scale"
                     to: 1
-                    duration: 240
-                    easing.type: Easing.OutBack
-                    easing.overshoot: 2.2
+                    duration: Motion.standard
+                    easing.type: Easing.BezierSpline
+                    easing.bezierCurve: Motion.curveEmphasized
                 }
             }
 
@@ -100,7 +101,9 @@ RowLayout {
                 Behavior on opacity {
                     enabled: !cell.urgent
                     NumberAnimation {
-                        duration: 260
+                        duration: Motion.standard
+                        easing.type: Easing.BezierSpline
+                        easing.bezierCurve: Motion.curveStandard
                     }
                 }
             }
@@ -113,13 +116,15 @@ RowLayout {
                     loops: Animation.Infinite
                     NumberAnimation {
                         to: 1
-                        duration: 650
-                        easing.type: Easing.InOutSine
+                        duration: Motion.pulse
+                        easing.type: Easing.BezierSpline
+                        easing.bezierCurve: Motion.curveBreathe
                     }
                     NumberAnimation {
                         to: 0.35
-                        duration: 650
-                        easing.type: Easing.InOutSine
+                        duration: Motion.pulse
+                        easing.type: Easing.BezierSpline
+                        easing.bezierCurve: Motion.curveBreathe
                     }
                 }
             }
@@ -137,14 +142,16 @@ RowLayout {
 
                 Behavior on implicitWidth {
                     NumberAnimation {
-                        duration: 220
-                        easing.type: Easing.OutBack
-                        easing.overshoot: 1.6
+                        duration: Motion.quick
+                        easing.type: Easing.BezierSpline
+                        easing.bezierCurve: Motion.curveEmphasized
                     }
                 }
                 Behavior on color {
                     ColorAnimation {
-                        duration: 220
+                        duration: Motion.quick
+                        easing.type: Easing.BezierSpline
+                        easing.bezierCurve: Motion.curveStandard
                     }
                 }
 

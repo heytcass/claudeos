@@ -73,13 +73,16 @@ Item {
                 height: Math.max(3, level * root.height)
                 Behavior on height {
                     NumberAnimation {
-                        duration: 85
-                        easing.type: Easing.OutQuad
+                        duration: Motion.instant
+                        easing.type: Easing.BezierSpline
+                        easing.bezierCurve: Motion.curveStandard
                     }
                 }
                 Behavior on color {
                     ColorAnimation {
-                        duration: 85
+                        duration: Motion.instant
+                        easing.type: Easing.BezierSpline
+                        easing.bezierCurve: Motion.curveStandard
                     }
                 }
             }

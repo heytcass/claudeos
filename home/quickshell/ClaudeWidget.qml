@@ -202,8 +202,9 @@ Item {
             property real arcPct: root.hasUsage ? Math.max(0, root.maxPct) : 0
             Behavior on arcPct {
                 NumberAnimation {
-                    duration: 450
-                    easing.type: Easing.InOutCubic
+                    duration: Motion.standard
+                    easing.type: Easing.BezierSpline
+                    easing.bezierCurve: Motion.curveStandard
                 }
             }
             onArcPctChanged: ringCanvas.requestPaint()
@@ -275,13 +276,15 @@ Item {
                     loops: Animation.Infinite
                     NumberAnimation {
                         to: 0.4
-                        duration: 900
-                        easing.type: Easing.InOutSine
+                        duration: Motion.pulse
+                        easing.type: Easing.BezierSpline
+                        easing.bezierCurve: Motion.curveBreathe
                     }
                     NumberAnimation {
                         to: 1
-                        duration: 900
-                        easing.type: Easing.InOutSine
+                        duration: Motion.pulse
+                        easing.type: Easing.BezierSpline
+                        easing.bezierCurve: Motion.curveBreathe
                     }
                 }
             }
