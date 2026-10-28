@@ -15,10 +15,18 @@
 #       easing.bezierCurve: Motion.curveStandard
 #   }
 #
+# A spring needs all three of its tokens:
+#
+#   SpringAnimation {
+#       spring: Motion.springMorph
+#       damping: Motion.dampingMorph
+#       mass: Motion.massMorph
+#   }
+#
 # Never hardcode a duration or easing in QML — add a token to lib/theme.nix.
 { lib, motion }:
 let
-  inherit (motion) durations curves;
+  inherit (motion) durations curves springs;
   json = builtins.toJSON;
   cap = s: lib.toUpper (builtins.substring 0 1 s) + builtins.substring 1 (-1) s;
   # QML's BezierSpline wants [x1, y1, x2, y2, endX, endY]; the end is (1, 1).
@@ -40,6 +48,24 @@ let
   curveProps = builtins.concatStringsSep "\n  " (
     map (n: "readonly property var curve${cap n}: ${spline curves.${n}}") (builtins.attrNames curves)
   );
+  # QSpringAnimation integrates v += (spring·Δ − damping·v)/mass, then
+  # x += v·0.016, in fixed 16 ms steps (qquickspringanimation.cpp). The
+  # continuous spring that matches has stiffness = spring/0.016 and
+  # dampening = damping/0.016, hence the scale.
+  qtStep = 0.016;
+  springProps = builtins.concatStringsSep "\n  " (
+    lib.concatMap (
+      n:
+      let
+        s = springs.${n};
+      in
+      [
+        "readonly property real spring${cap n}: ${toString (s.stiffness * qtStep)}"
+        "readonly property real damping${cap n}: ${toString (s.dampening * qtStep)}"
+        "readonly property real mass${cap n}: ${toString s.mass}"
+      ]
+    ) (builtins.attrNames springs)
+  );
 in
 ''
   pragma Singleton
@@ -59,5 +85,9 @@ in
 
     // Cubic beziers for `easing.type: Easing.BezierSpline`.
     ${curveProps}
+
+    // Springs for SpringAnimation { spring; damping; mass } — the same
+    // physical springs Hyprland uses, converted to Qt's per-step units.
+    ${springProps}
   }
 ''

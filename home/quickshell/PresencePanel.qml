@@ -85,7 +85,7 @@ Scope {
             width: 420
             implicitHeight: col.implicitHeight + 28
             radius: 16
-            color: Theme.bg
+            color: Theme.bgGlass
             border.width: 1
             border.color: Theme.surface
 

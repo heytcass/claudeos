@@ -42,7 +42,7 @@ Variants {
                     Layout.fillWidth: true
                     implicitHeight: crow.implicitHeight + 20
                     radius: 12
-                    color: Theme.bg
+                    color: Theme.bgGlass
                     border.width: modelData.urgency === NotificationUrgency.Critical ? 2 : 1
                     border.color: modelData.urgency === NotificationUrgency.Critical ? Theme.urgent : Theme.surface
 

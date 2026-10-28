@@ -457,6 +457,19 @@ in
           match.namespace = "^launcher$";
           animation = motion.styles.popin;
         }
+        # Glass: blur behind the bar (Quickshell's surfaces carry the default
+        # namespace `quickshell`) and the launcher. ignore_alpha skips pixels
+        # below the threshold, so the bar layer's fully transparent gaps and
+        # the island's faint halo glow don't drag a blurred rectangle along —
+        # only the ~85% glass fills (Theme.glass) get frosted. blur_popups
+        # covers the widgets' PopupWindows (xdg popups parented to the bar).
+        {
+          name = "shell-glass";
+          match.namespace = "^(quickshell|launcher)$";
+          blur = true;
+          blur_popups = true;
+          ignore_alpha = 0.5;
+        }
       ];
 
       # Everything that was a plain hyprlang option block (general/decoration/
@@ -528,7 +541,31 @@ in
           # conflicts with Stylix's own definitions.
         };
 
-        decoration.rounding = 6; # matched to the tighter gaps (was 8)
+        decoration = {
+          rounding = 6; # matched to the tighter gaps (was 8)
+
+          # Glass (2026-10-27, "shell only"): the blur exists for the bar's
+          # translucent surfaces (Theme.bgGlass, lib/theme.nix `glass`) and
+          # the launcher. Windows are opaque, so nothing else shows it. Two
+          # passes of a smaller kernel reads frosted rather than smeared;
+          # xray off so a pill blurs the window under it, not just wallpaper.
+          blur = {
+            size = 6;
+            passes = 2;
+            xray = false;
+            new_optimizations = true;
+          };
+
+          # Floating windows only (tiled ones opt out in window_rule
+          # `tiled-no-shadow`): wide and soft, like the window is lifted off
+          # the desk rather than outlined. Stylix owns the colour — base00 at
+          # 60% — so only the shape is set here.
+          shadow = {
+            range = 28;
+            render_power = 3;
+            offset = "0 6";
+          };
+        };
 
         # dwindle (default layout): keep the split direction when a window
         # closes so the layout doesn't reflow unexpectedly.
@@ -669,6 +706,16 @@ in
       # regex engine needs. Getting it wrong is SILENT (a rule that matches
       # nothing), the same class of bug as the 2026-07-11 comma-grammar one.
       window_rule = [
+        # Shadows are for floating windows (decoration.shadow above); a tiled
+        # window sits in the grid and a shadow there only muddies the gaps.
+        # `float` (not `floating` — that is the query filter's key, and the
+        # rule parser rejects it) is re-matched when a window is toggled, so
+        # the shadow follows it in and out of the tiling.
+        {
+          name = "tiled-no-shadow";
+          match.float = false;
+          no_shadow = true;
+        }
         {
           name = "float-utils";
           match.class = "^(pavucontrol|nm-connection-editor|blueman-manager|org.gnome.Calculator)$";
