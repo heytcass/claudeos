@@ -146,6 +146,10 @@ let
         fi
         ;;
       refresh) [ -f "$f" ] && touch "$f" ;;
+      # Blocked on the user mid-turn (a question, a permission): the bar's
+      # Sonic plays the "hello" twinkle. Detached so a missing/slow bar never
+      # holds the hook up.
+      waiting) (${pkgs.quickshell}/bin/qs ipc call sonic waiting </dev/null >/dev/null 2>&1 &) ;;
       end) rm -f "$f" ;;
     esac
     exit 0
@@ -173,6 +177,32 @@ let
           {
             type = "command";
             command = "claudeos-agent-hook refresh 2>/dev/null || true";
+          }
+        ];
+      }
+    ];
+    # "Blocked on you": a question fires PreToolUse:AskUserQuestion the moment
+    # it is asked; a permission or MCP elicitation dialog left unanswered for
+    # 6 s fires a Notification of that type. (idle_prompt — a finished turn
+    # sitting unanswered — is deliberately left out: the fall already said it.)
+    PreToolUse = [
+      {
+        matcher = "AskUserQuestion";
+        hooks = [
+          {
+            type = "command";
+            command = "claudeos-agent-hook waiting 2>/dev/null || true";
+          }
+        ];
+      }
+    ];
+    Notification = [
+      {
+        matcher = "permission_prompt|elicitation_dialog";
+        hooks = [
+          {
+            type = "command";
+            command = "claudeos-agent-hook waiting 2>/dev/null || true";
           }
         ];
       }

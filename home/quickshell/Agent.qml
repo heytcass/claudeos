@@ -24,8 +24,14 @@ Singleton {
     // What the machine is doing, e.g. "rebuilding" / "healing" — "" when idle.
     property string activity: ""
     readonly property bool active: activity !== ""
+    // WHO is working: one id per live agent (a marker file's name, or
+    // "marker" / "rebuild"), sorted. Sonic diffs it so each session's turn
+    // starts and finishes audibly even while others keep the machine busy.
+    property var agents: []
+    property var pending: []
 
-    // Every poll prints exactly one "@<phrase>" line ("@" alone = idle): the
+    // Every poll prints a "#<id>" line per live agent, then exactly one
+    // "@<phrase>" line ("@" alone = idle), which also closes the id list: the
     // sentinel keeps the idle case parseable (SplitParser may drop bare empty
     // lines) and marker content can never be mistaken for no-output.
     Process {
@@ -33,13 +39,20 @@ Singleton {
         command: [
             "sh",
             "-c",
-            "f=$(find \"$XDG_RUNTIME_DIR/claudeos-agent.d\" -maxdepth 1 -type f -mmin -60 -printf '%T@ %p\\n' 2>/dev/null | sort -rn | head -n1 | cut -d' ' -f2-); if [ -n \"$f\" ]; then a=$(head -n1 \"$f\" 2>/dev/null); echo \"@${a:-working}\"; elif [ -e \"$XDG_RUNTIME_DIR/claudeos-agent\" ]; then a=$(head -n1 \"$XDG_RUNTIME_DIR/claudeos-agent\" 2>/dev/null); echo \"@${a:-working}\"; elif pgrep -x nh >/dev/null 2>&1 || pgrep -x '[.]?nixos-rebuild.*' >/dev/null 2>&1; then echo '@rebuilding'; else echo '@'; fi"
+            "find \"$XDG_RUNTIME_DIR/claudeos-agent.d\" -maxdepth 1 -type f ! -name '*.json' -mmin -60 -printf '#%f\\n' 2>/dev/null; [ -e \"$XDG_RUNTIME_DIR/claudeos-agent\" ] && echo '#marker'; if pgrep -x nh >/dev/null 2>&1 || pgrep -x '[.]?nixos-rebuild.*' >/dev/null 2>&1; then echo '#rebuild'; fi; f=$(find \"$XDG_RUNTIME_DIR/claudeos-agent.d\" -maxdepth 1 -type f -mmin -60 -printf '%T@ %p\\n' 2>/dev/null | sort -rn | head -n1 | cut -d' ' -f2-); if [ -n \"$f\" ]; then a=$(head -n1 \"$f\" 2>/dev/null); echo \"@${a:-working}\"; elif [ -e \"$XDG_RUNTIME_DIR/claudeos-agent\" ]; then a=$(head -n1 \"$XDG_RUNTIME_DIR/claudeos-agent\" 2>/dev/null); echo \"@${a:-working}\"; elif pgrep -x nh >/dev/null 2>&1 || pgrep -x '[.]?nixos-rebuild.*' >/dev/null 2>&1; then echo '@rebuilding'; else echo '@'; fi"
         ]
         stdout: SplitParser {
             onRead: line => {
                 const t = line.trim();
-                if (t.startsWith("@"))
+                if (t.startsWith("#")) {
+                    root.pending.push(t.slice(1));
+                } else if (t.startsWith("@")) {
                     root.activity = t.slice(1);
+                    const ids = root.pending.sort();
+                    root.pending = [];
+                    if (ids.join("\n") !== root.agents.join("\n"))
+                        root.agents = ids;
+                }
             }
         }
     }

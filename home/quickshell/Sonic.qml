@@ -8,8 +8,10 @@ pragma Singleton
 // and each would otherwise play the same event once per screen.
 //
 // Moments:
-//   · agent start/finish — Agent.active edges, debounced by Motion.quick so
+//   · agent start/finish — an agent joining/leaving Agent.agents, debounced by Motion.quick so
 //                          a flap never plays rise+fall back to back
+//   · agent waiting      — the "hello" twinkle, via IPC from the Claude Code
+//                          hook when a session is blocked on you
 //   · notifications      — notify(urgency), called by Notifications.qml for
 //                          the routes that reach a live surface (toast, peek)
 //   · level ticks        — Osd.shown; pitch climbs with the level
@@ -48,12 +50,16 @@ Singleton {
     }
 
     // ---- agent ----
-    // `sounded` is the last state we made a sound for, seeded at load so the
-    // bar starting mid-rebuild doesn't announce an agent it never saw begin.
-    property bool sounded: Agent.active
+    // Per agent, not per machine (chosen 2026-10-28): with parallel Claude
+    // sessions the machine is almost never idle, so whole-machine edges were
+    // near-silent. Each id joining Agent.agents is a start, each leaving is a
+    // finish — "a reply is ready" even while other sessions keep working.
+    // `sounded` is the set we last made a sound for; the first poll only
+    // seeds it, so a bar restart doesn't announce agents it never saw begin.
+    property var sounded: null
     Connections {
         target: Agent
-        function onActiveChanged() {
+        function onAgentsChanged() {
             agentSettle.restart();
         }
     }
@@ -61,11 +67,34 @@ Singleton {
         id: agentSettle
         interval: Motion.quick
         onTriggered: {
-            if (Agent.active === root.sounded)
+            const now = Agent.agents;
+            const before = root.sounded;
+            root.sounded = now;
+            if (before === null)
                 return;
-            root.sounded = Agent.active;
+            // Both at once (one finishing as another starts): the finish is
+            // the one that wants you, so it wins.
+            const finished = before.some(id => !now.includes(id));
+            const started = now.some(id => !before.includes(id));
+            if ((finished || started) && !root.mediaPlaying && !Notifications.fullscreenActive)
+                root.play(finished ? "agent-finish" : "agent-start");
+        }
+    }
+
+    // "Blocked on you": the Claude Code hook calls `qs ipc call sonic waiting`
+    // when a session asks a question or waits on a permission. Same quiet
+    // rules as the rise and fall. One question can fire both of its triggers,
+    // so repeats within a `breathe` are one twinkle.
+    property double lastWaiting: 0
+    IpcHandler {
+        target: "sonic"
+        function waiting(): void {
+            const now = Date.now();
+            if (now - root.lastWaiting < Motion.breathe)
+                return;
+            root.lastWaiting = now;
             if (!root.mediaPlaying && !Notifications.fullscreenActive)
-                root.play(Agent.active ? "agent-start" : "agent-finish");
+                root.play("agent-waiting");
         }
     }
 

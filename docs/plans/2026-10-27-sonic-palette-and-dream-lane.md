@@ -55,8 +55,9 @@ deterministic.
 
 | Event | Sound | Trigger |
 |---|---|---|
-| Agent start | One tone gliding home (the accent's pitch) → its fifth along `emphasized` | `Agent.active` false → true, debounced by `quick` |
-| Agent finish | One tone gliding fifth → home along `standard` | `Agent.active` true → false, debounced by `quick` |
+| Agent start | One tone gliding home (the accent's pitch) → its fifth along `emphasized` | Any agent (a Claude session turn, an automation, a rebuild) joins `Agent.agents`, debounced by `quick` (per agent since 2026-10-28: with parallel sessions the machine is rarely idle) |
+| Agent finish | One tone gliding fifth → home along `standard` | Any agent leaves `Agent.agents` ("a reply is ready"); wins over a simultaneous start |
+| Agent waiting ("hello", added 2026-10-28) | Three sparkle notes up the ladder from home's octave, an `instant` apart, then a ping two octaves above home | A Claude session is blocked on you mid-turn: `PreToolUse:AskUserQuestion`, or a permission/elicitation dialog unanswered for 6 s (`Notification`). The hook calls `qs ipc call sonic waiting`; same quiet rules as start/finish; repeats within a `breathe` collapse |
 | Notification | One note. Timbre by urgency: low is the pure sine, quietest; normal adds the octave; critical adds a minor-third pair, played twice | `Notifications.posted`, **only** for the toast and peek routes. Quiet and ledger routes are silent by definition. |
 | Volume / brightness | An `instant` tick. Pitch is chosen from 11 pre-rendered steps by the level (0 % = lowest) | `Osd.shown` |
 | Login chime | Three-note pentatonic chord, swelling over `breathe` | Session start: once per login, from `Sonic.qml`, when the default sink is ready |
