@@ -313,6 +313,10 @@ Ledger edits are committed by the normal rebuild auto-commit flow.
 
 - 2026-10-27 · `psi: inconsistent task state! task=661:nix-build` (1 occurrence) · Same kernel PSI accounting race as the 2026-09-13 quickshell entry, here hit by a `nix-build` worker during the nightly build. Benign if the build completes and no stall correlates with it; only escalate if it recurs alongside display or input hangs.
 
+- 2026-10-28 · `Bluetooth: hci0: ACL packet for unknown connection handle 14` (1 occurrence) · The controller received ACL data for a connection handle the host no longer tracks, most likely a packet still in flight when a link was torn down. Single occurrence with no functional report; benign if Bluetooth devices keep working. Only escalate if it recurs alongside audio dropouts or pairings that will not stick.
+
+- 2026-10-28 · `ucsi_acpi USBC000:00: con1: failed to get status` (1 occurrence) · Same USB-C port controller family as the existing GET_CONNECTOR_STATUS, PPM init, and re-enable-notifications entries: one missed connector status read during the Embedded Controller handshake. Benign if USB-C charging and attach keep working; only escalate if they start failing.
+
 ## Resolved
 
 <!-- move entries here when fixed, with the fixing commit/PR -->
