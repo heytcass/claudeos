@@ -156,6 +156,7 @@ Singleton {
             switch (dest) {
             case "toast":
                 notif.tracked = true; // Toasts.qml renders tracked notifs
+                Sonic.notify(notif.urgency);
                 break;
             case "quiet":
                 quietModel.append({
@@ -171,6 +172,7 @@ Singleton {
             case "peek":
             default:
                 root.posted(notif.summary, notif.body, notif.appName, notif.urgency);
+                Sonic.notify(notif.urgency);
                 break;
             }
         }
