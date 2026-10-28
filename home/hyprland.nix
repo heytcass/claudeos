@@ -838,11 +838,15 @@ in
           locked = true;
           repeating = true;
         })
-        (mkBindOpts "XF86MonBrightnessUp" (mkExec "brightnessctl set 5%+") {
+        # Brightness has no change event for the bar to watch, so each press
+        # pings the island's OSD over Quickshell IPC (home/quickshell/Osd.qml).
+        # `;` not `&&`: the key must work even with the bar down, and a failed
+        # ping is harmless. Volume needs no ping — Osd.qml watches Pipewire.
+        (mkBindOpts "XF86MonBrightnessUp" (mkExec "brightnessctl set 5%+; qs ipc call osd brightness") {
           locked = true;
           repeating = true;
         })
-        (mkBindOpts "XF86MonBrightnessDown" (mkExec "brightnessctl set 5%-") {
+        (mkBindOpts "XF86MonBrightnessDown" (mkExec "brightnessctl set 5%-; qs ipc call osd brightness") {
           locked = true;
           repeating = true;
         })
