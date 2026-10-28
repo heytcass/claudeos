@@ -64,8 +64,11 @@ Singleton {
             root.volumeMoved();
         }
     }
+    // Set while Sonic lifts the sink for the login chime: a volume change that
+    // is the system's, not the user's, shows no OSD (and plays no tick).
+    property bool hush: false
     function volumeMoved() {
-        if (root.armed && root.sink?.audio)
+        if (root.armed && !root.hush && root.sink?.audio)
             root.show("volume", root.sink.audio.volume, root.sink.audio.muted);
     }
 

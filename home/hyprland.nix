@@ -678,11 +678,7 @@ in
           (mkLuaInline (
             "function()\n"
             + lib.concatMapStrings (cmd: "  hl.exec_cmd(${builtins.toJSON cmd})\n") [
-              "qs" # the bespoke Quickshell bar
-              # The sonic palette's login chime — the first moment sound can
-              # exist (Plymouth's initrd has no Pipewire). Not in Sonic.qml, or
-              # every bar restart would chime.
-              "${pkgs.pipewire}/bin/pw-play --media-role=Notification ${sonic}/login.wav"
+              "qs" # the bespoke Quickshell bar (also plays the login chime: Sonic.qml)
               # Apply the Adwaita cursor at runtime (belt-and-suspenders with env).
               "hyprctl setcursor Adwaita 20"
               # Start + unlock the Secret Service (org.freedesktop.secrets) so

@@ -59,7 +59,7 @@ deterministic.
 | Agent finish | One tone gliding fifth → home along `standard` | `Agent.active` true → false, debounced by `quick` |
 | Notification | One note. Timbre by urgency: low is the pure sine, quietest; normal adds the octave; critical adds a minor-third pair, played twice | `Notifications.posted`, **only** for the toast and peek routes. Quiet and ledger routes are silent by definition. |
 | Volume / brightness | An `instant` tick. Pitch is chosen from 11 pre-rendered steps by the level (0 % = lowest) | `Osd.shown` |
-| Login chime | Three-note pentatonic chord, swelling over `breathe` | Session start (once, from the Hyprland start hook) |
+| Login chime | Three-note pentatonic chord, swelling over `breathe` | Session start: once per login, from `Sonic.qml`, when the default sink is ready |
 
 The login chime is not played during Plymouth: the initrd has no Pipewire.
 It plays at session start instead, which is the first moment sound can exist.
@@ -102,12 +102,25 @@ a rise and a fall back to back.
   JSON spec; a `runCommand` that renders it.
 - `pkgs/sonic-synth/` (new): the Rust renderer (`default.nix`,
   `Cargo.toml`/`Cargo.lock`, `src/main.rs`).
-- `home/hyprland.nix`: copy the sounds into the Quickshell config; add the
-  login chime to the start hook.
+- `home/hyprland.nix`: copy the sounds into the Quickshell config. (The
+  login chime first went in the start hook; it moved to `Sonic.qml`, below.)
 - `home/quickshell/Sonic.qml` (new singleton): quiet rules, `play(name)`,
   `notify(urgency)`, plus the agent and OSD listeners.
 - `Notifications.qml`: `Sonic.notify(...)` on the toast and peek routes.
   `shell.qml`: touch `Sonic` at startup.
+
+**Login chime, revised 2026-10-28.** The first build played the chime as a bare
+`pw-play` from the Hyprland start hook, and it was silent at a real login. The
+cause wasn't a race (a cold Pipewire start links the stream within 200 ms). It
+was volume: WirePlumber restores the speaker at login to about 12 %, roughly
+−54 dB on its cubic scale. That volume is the codec's *hardware* mixer, and the
+WAV peaks at −6 dBFS, so stream gain can't make it up without clipping.
+`Sonic.qml` now owns the chime. A marker dir in `$XDG_RUNTIME_DIR` (tmpfs,
+emptied at logout) keeps it to once per login, so a bar restart still never
+chimes. It waits for the default sink to be ready, lifts the sink to a 0.4
+floor if it sits lower, and restores it when `pw-play` exits, unless the user
+moved it meanwhile. `Osd.hush` keeps the lift from showing an OSD or playing a
+tick. A muted sink stays silent.
 
 ---
 

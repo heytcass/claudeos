@@ -2,8 +2,7 @@ pragma Singleton
 // Sonic.qml — the sonic palette's player: decides WHEN an earcon may sound and
 // plays it. The sounds themselves are synthesised at build time from the
 // palette + motion tokens (lib/sonic.nix) and shipped beside this file as
-// `sounds/`. The login chime is the one earcon not played here (the Hyprland
-// start hook owns it, so restarting the bar never chimes).
+// `sounds/`.
 //
 // One singleton, not per-island logic: Bar.qml makes an island per monitor,
 // and each would otherwise play the same event once per screen.
@@ -14,6 +13,7 @@ pragma Singleton
 //   · notifications      — notify(urgency), called by Notifications.qml for
 //                          the routes that reach a live surface (toast, peek)
 //   · level ticks        — Osd.shown; pitch climbs with the level
+//   · login chime        — once per login session, when the sink is ready
 //
 // Quiet rules (chosen 2026-10-27):
 //   · media playing → silent, except the ticks (feedback you asked for)
@@ -22,6 +22,7 @@ pragma Singleton
 //     notify() at all — that's the rest of the do-not-disturb story.
 import QtQuick
 import Quickshell
+import Quickshell.Io
 import Quickshell.Services.Mpris
 import Quickshell.Services.Notifications
 
@@ -80,5 +81,57 @@ Singleton {
             root.lastTick = now;
             root.play("tick-" + Math.round((Osd.muted ? 0 : Osd.level) * 10));
         }
+    }
+
+    // ---- login chime ----
+    // Once per login session: the first bar of a session claims a marker in
+    // XDG_RUNTIME_DIR (tmpfs, emptied at logout), so a bar restart never
+    // chimes. It waits for the default sink, not a fixed delay — at boot the
+    // bar can beat Pipewire up.
+    //
+    // The speaker volume is a hardware mixer and WirePlumber restores it at
+    // login, often low enough (~12%, about -54 dB) to swallow the chime. The
+    // WAV peaks at -6 dBFS, so the stream has no gain to make that up with;
+    // instead the sink is lifted to `chimeFloor` for the chime and put back
+    // when pw-play exits. Muted stays muted.
+    readonly property real chimeFloor: 0.4
+    property bool chimeClaimed: false
+    property real chimeRestore: -1
+    Process {
+        running: true
+        command: ["sh", "-c", 'mkdir "$XDG_RUNTIME_DIR/claudeos-login-chime"']
+        onExited: code => root.chimeClaimed = code === 0
+    }
+    readonly property bool chimeReady: root.chimeClaimed && (Osd.sink?.ready ?? false) && !!Osd.sink.audio
+    onChimeReadyChanged: if (root.chimeReady) Qt.callLater(root.chime)
+    function chime() {
+        root.chimeClaimed = false;
+        const a = Osd.sink.audio;
+        if (a.muted)
+            return;
+        if (a.volume < root.chimeFloor) {
+            root.chimeRestore = a.volume;
+            Osd.hush = true;
+            a.volume = root.chimeFloor;
+        }
+        chimeProc.running = true;
+    }
+    Process {
+        id: chimeProc
+        command: ["pw-play", "--media-role=Notification", root.dir + "/login.wav"]
+        onExited: {
+            const a = Osd.sink?.audio;
+            // Only undo our own lift — if the volume moved meanwhile, it's the user's.
+            if (a && root.chimeRestore >= 0 && Math.abs(a.volume - root.chimeFloor) < 0.01)
+                a.volume = root.chimeRestore;
+            root.chimeRestore = -1;
+            unhush.restart();
+        }
+    }
+    // The restore's volumeChanged lands asynchronously; let it pass first.
+    Timer {
+        id: unhush
+        interval: Motion.standard
+        onTriggered: Osd.hush = false
     }
 }
