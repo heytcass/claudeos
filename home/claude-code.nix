@@ -146,6 +146,10 @@ let
         fi
         ;;
       refresh) [ -f "$f" ] && touch "$f" ;;
+      # Blocked on the user mid-turn (a question, a permission): the bar's
+      # Sonic plays the "hello" twinkle. Detached so a missing/slow bar never
+      # holds the hook up.
+      waiting) (${pkgs.quickshell}/bin/qs ipc call sonic waiting </dev/null >/dev/null 2>&1 &) ;;
       end) rm -f "$f" ;;
     esac
     exit 0
@@ -173,6 +177,32 @@ let
           {
             type = "command";
             command = "claudeos-agent-hook refresh 2>/dev/null || true";
+          }
+        ];
+      }
+    ];
+    # "Blocked on you": a question fires PreToolUse:AskUserQuestion the moment
+    # it is asked; a permission or MCP elicitation dialog left unanswered for
+    # 6 s fires a Notification of that type. (idle_prompt — a finished turn
+    # sitting unanswered — is deliberately left out: the fall already said it.)
+    PreToolUse = [
+      {
+        matcher = "AskUserQuestion";
+        hooks = [
+          {
+            type = "command";
+            command = "claudeos-agent-hook waiting 2>/dev/null || true";
+          }
+        ];
+      }
+    ];
+    Notification = [
+      {
+        matcher = "permission_prompt|elicitation_dialog";
+        hooks = [
+          {
+            type = "command";
+            command = "claudeos-agent-hook waiting 2>/dev/null || true";
           }
         ];
       }
@@ -256,17 +286,36 @@ in
     fi
   '';
 
-  # Same seed philosophy, per-key: machines whose settings.json predates the
-  # agent-pulse hooks get the "hooks" key merged in once — only when absent,
-  # so the live file keeps owning it afterwards (two-ring rule). Tolerant of
-  # malformed JSON: a failed merge must never abort the whole HM activation.
+  # Same seed philosophy, per HOOK: each ClaudeOS hook (event + matcher +
+  # command) is merged into the live file once, the first activation that
+  # knows it, and recorded in a stamp file. A hook added to agentHooks later
+  # therefore still reaches machines whose settings.json already has hooks
+  # (the old whole-key seed skipped them — the waiting twinkle never fired,
+  # 2026-10-28), while one the user deletes stays deleted and their own hooks
+  # are never touched: the live file keeps owning it (two-ring rule).
+  # Tolerant of malformed JSON: a failed merge must never abort the whole HM
+  # activation, and leaves the stamp alone so the next one retries.
   home.activation.seedClaudeHooks = lib.hm.dag.entryAfter [ "seedClaudeConfig" ] ''
     s="$HOME/.claude/settings.json"
-    if [ -e "$s" ] && ! ${pkgs.jq}/bin/jq -e 'has("hooks")' "$s" >/dev/null 2>&1; then
-      if ${pkgs.jq}/bin/jq --slurpfile h ${agentHooksJson} '.hooks = $h[0]' "$s" > "$s.tmp" 2>/dev/null; then
+    stamp="$HOME/.claude/claudeos-seeded-hooks"
+    [ -e "$stamp" ] || : > "$stamp"
+    if [ -e "$s" ]; then
+      if ${pkgs.jq}/bin/jq --slurpfile h ${agentHooksJson} --rawfile seen "$stamp" '
+          ($seen | split("\n")) as $seen
+          | [$h[0] | to_entries[] | .key as $e | .value[] | (.matcher // "") as $m
+              | .hooks[] | {e: $e, m: $m, h: ., k: "\($e)\t\($m)\t\(.command)"}] as $want
+          | reduce ($want[] | select(.k as $k | $seen | index($k) | not)) as $x (.;
+              if any((.hooks[$x.e] // [])[]; (.matcher // "") == $x.m and any(.hooks[]?; .command == $x.h.command))
+              then .
+              else .hooks[$x.e] = (.hooks[$x.e] // []) + [(if $x.m == "" then {} else {matcher: $x.m} end) + {hooks: [$x.h]}]
+              end)' "$s" > "$s.tmp" 2>/dev/null \
+        && ${pkgs.jq}/bin/jq -r --rawfile seen "$stamp" \
+          '[($seen | split("\n")[] | select(. != "")), (to_entries[] | .key as $e | .value[] | (.matcher // "") as $m | .hooks[] | "\($e)\t\($m)\t\(.command)")] | unique[]' \
+          ${agentHooksJson} > "$stamp.tmp" 2>/dev/null; then
         $DRY_RUN_CMD mv "$s.tmp" "$s"
+        $DRY_RUN_CMD mv "$stamp.tmp" "$stamp"
       else
-        rm -f "$s.tmp"
+        rm -f "$s.tmp" "$stamp.tmp"
         echo "claudeos: could not seed agent-pulse hooks into $s (malformed JSON?)" >&2
       fi
     fi

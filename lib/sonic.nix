@@ -150,6 +150,40 @@ let
       ];
     };
 
+    # Waiting ("hello", chosen 2026-10-28): an agent is blocked on you. Three
+    # sparkle notes run up the ladder from home's octave an `instant` apart,
+    # then a bright ping lands two octaves above home — a greeting, not a
+    # glide, so it can't be mistaken for the rise or the fall.
+    agent-waiting = {
+      level = -6;
+      notes =
+        lib.imap0
+          (
+            i: k:
+            note {
+              semis = degreeSemis (degreeOf colors.base0D + k);
+              start = i * sec d.instant * 0.6;
+              dur = sec d.standard;
+              harm = 0.5;
+              attack = 0.003;
+            }
+          )
+          [
+            5
+            6
+            7
+          ]
+        ++ [
+          (note {
+            semis = home + 24;
+            start = sec d.quick * 1.5;
+            dur = sec (d.emphasis + d.quick);
+            harm = 0.45;
+            attack = 0.004;
+          })
+        ];
+    };
+
     # Notifications: one pitch (home, an octave up), timbre by urgency.
     notif-low = {
       level = -16;
