@@ -5,7 +5,9 @@
 //   · agent      → ClaudeOS is working on itself: breathing spark + what it's
 //                  doing (Agent.activity) + a dim clock so time isn't lost
 //   · notif      → a new notification peeks inline for a few seconds, then
-//                  collapses back (takes priority over clock/media while shown)
+//                  collapses back (takes priority over clock/media while shown);
+//                  peeks arriving mid-peek queue behind it with a "+N" badge
+//   · osd        → volume/brightness keys show their level for a moment (Osd.qml)
 // Click opens the media popup while playing, else the calendar/notification
 // centre. This is the deliberate break from the GNOME panel look.
 import QtQuick
@@ -23,8 +25,13 @@ Rectangle {
     }
     readonly property bool playing: player !== null
 
-    // Notification peek state (driven by Notifications.posted).
+    // Notification peek state (driven by Notifications.posted). One peek is
+    // shown; later ones wait in `peekQueue` (oldest first) instead of
+    // overwriting it, and the timer only runs while nobody is reading —
+    // hovering the island, or an OSD covering it, holds the current peek.
     property bool peeking: false
+    property var peekQueue: []
+    readonly property bool peekHeld: hover.hovered || root.osdShown
     property string peekTitle: ""
     property string peekBody: ""
     property int peekUrgency: 1
@@ -33,7 +40,8 @@ Rectangle {
 
     // Face priority: a peek always wins (transient); media outranks agent —
     // while music plays the agent keeps the breathing border but not the stage.
-    state: peeking ? "notif" : (playing ? "media" : Agent.active ? "agent" : "clock")
+    // The OSD outranks even a peek: it answers a key you just pressed.
+    state: osdShown ? "osd" : peeking ? "notif" : (playing ? "media" : Agent.active ? "agent" : "clock")
 
     // Only the island on the FOCUSED output animates — see BarFocus.qml for
     // why (one QSGRenderThread per monitor, all breathing the same pulse).
@@ -62,23 +70,97 @@ Rectangle {
         },
         State {
             name: "notif"
+        },
+        State {
+            name: "osd"
         }
     ]
 
     Connections {
         target: Notifications
         function onPosted(summary, body, appName, urgency) {
-            root.peekTitle = summary;
-            root.peekBody = body;
-            root.peekUrgency = urgency;
-            root.peeking = true;
-            peekTimer.restart();
+            const n = {
+                summary: summary,
+                body: body,
+                appName: appName,
+                urgency: urgency
+            };
+            if (root.peeking)
+                root.peekQueue = root.admitPeek(root.peekQueue, n);
+            else
+                root.showPeek(n);
         }
+    }
+
+    // Queue policy: given the waiting peeks (oldest first) and a new one,
+    // return the new queue. Critical notifications never get here — they
+    // route to toasts (Notifications.qml route()) — so this only weighs
+    // normal/low FYIs.
+    //
+    // Two rules keep a flood calm:
+    //   · a burst from one app (a chat thread) collapses into ONE waiting
+    //     entry — the newest message, counting the ones it stands for;
+    //   · at most `peekQueueMax` entries wait; past that the OLDEST drops.
+    //     Everything is still in the notification centre — the peek is the
+    //     tell, not the record — so stale FYIs are the right thing to lose.
+    readonly property int peekQueueMax: 3
+    function admitPeek(queue, n) {
+        const last = queue.length > 0 ? queue[queue.length - 1] : null;
+        if (last && last.appName === n.appName) {
+            n.count = (last.count ?? 1) + 1;
+            return queue.slice(0, -1).concat([n]);
+        }
+        return queue.concat([n]).slice(-root.peekQueueMax);
+    }
+
+    function showPeek(n) {
+        root.peekTitle = n.summary;
+        // A collapsed burst says how many it stands for ahead of the newest body.
+        root.peekBody = (n.count ?? 1) > 1 ? n.count + " new · " + n.body : n.body;
+        root.peekUrgency = n.urgency;
+        root.peeking = true;
+        if (!root.peekHeld)
+            peekTimer.restart();
+    }
+    // Retire the current peek: the next waiting one takes its place, or the
+    // island collapses back. Both the timer and a tap land here.
+    function nextPeek() {
+        if (root.peekQueue.length > 0) {
+            const n = root.peekQueue[0];
+            root.peekQueue = root.peekQueue.slice(1);
+            root.showPeek(n);
+        } else {
+            root.peeking = false;
+        }
+    }
+    // Stopping and restarting a Timer resets it, so letting go of the island
+    // gives the peek a fresh five seconds rather than the remainder.
+    onPeekHeldChanged: {
+        if (root.peekHeld)
+            peekTimer.stop();
+        else if (root.peeking)
+            peekTimer.restart();
     }
     Timer {
         id: peekTimer
         interval: 5000
-        onTriggered: root.peeking = false
+        onTriggered: root.nextPeek()
+    }
+
+    // OSD: every island shows the level, each holding it on its own timer,
+    // restarted by every change so a held key keeps the face up.
+    property bool osdShown: false
+    Connections {
+        target: Osd
+        function onShown() {
+            root.osdShown = true;
+            osdTimer.restart();
+        }
+    }
+    Timer {
+        id: osdTimer
+        interval: 1500
+        onTriggered: root.osdShown = false
     }
 
     implicitHeight: Theme.barHeight - 6
@@ -243,7 +325,7 @@ Rectangle {
     // spring retargets carrying its current velocity, so back-to-back state
     // flips flow into each other instead of restarting from rest.
     implicitWidth: {
-        const w = state === "notif" ? notifContent.implicitWidth : state === "media" ? mediaContent.implicitWidth : state === "agent" ? agentContent.implicitWidth : clockContent.implicitWidth;
+        const w = state === "osd" ? osdContent.implicitWidth : state === "notif" ? notifContent.implicitWidth : state === "media" ? mediaContent.implicitWidth : state === "agent" ? agentContent.implicitWidth : clockContent.implicitWidth;
         return w + 26;
     }
     Behavior on implicitWidth {
@@ -549,6 +631,14 @@ Rectangle {
                 visible: text.length > 0
             }
         }
+        // Music never costs you the time — demoted, as on the agent face.
+        Text {
+            anchors.verticalCenter: parent.verticalCenter
+            text: Qt.formatDateTime(clock.date, "h:mm AP")
+            color: Theme.subtext
+            font.family: Theme.fontSans
+            font.pixelSize: Theme.fontSize - 2
+        }
     }
 
     // ---- notification peek face ----
@@ -614,6 +704,75 @@ Rectangle {
             elide: Text.ElideRight
             width: Math.min(implicitWidth, 300)
         }
+        // How many more are waiting behind this one.
+        Text {
+            anchors.verticalCenter: parent.verticalCenter
+            visible: root.peekQueue.length > 0
+            text: "+" + root.peekQueue.length
+            color: Theme.muted
+            font.family: Theme.fontSans
+            font.pixelSize: Theme.fontSize - 2
+            font.bold: true
+        }
+    }
+
+    // ---- OSD face: glyph · level bar · percent ----
+    Row {
+        id: osdContent
+        anchors.centerIn: parent
+        spacing: 9
+        opacity: root.state === "osd" ? 1 : 0
+        visible: opacity > 0
+        Behavior on opacity {
+            NumberAnimation {
+                duration: Motion.quick
+                easing.type: Easing.BezierSpline
+                easing.bezierCurve: Motion.curveStandard
+            }
+        }
+        readonly property bool dim: Osd.muted || Osd.level === 0
+
+        Text {
+            anchors.verticalCenter: parent.verticalCenter
+            width: Theme.iconSize + 2
+            horizontalAlignment: Text.AlignHCenter
+            font.family: Theme.fontMono
+            font.pixelSize: Theme.iconSize
+            color: osdContent.dim ? Theme.muted : Theme.accent
+            text: Osd.kind === "brightness" ? Icons.brightness : Osd.muted ? Icons.volumeMute : Osd.level > 0.5 ? Icons.volumeHigh : Icons.volumeLow
+        }
+        Rectangle {
+            anchors.verticalCenter: parent.verticalCenter
+            width: 120
+            height: 4
+            radius: 2
+            color: Qt.rgba(Theme.muted.r, Theme.muted.g, Theme.muted.b, 0.35)
+            Rectangle {
+                anchors.left: parent.left
+                anchors.verticalCenter: parent.verticalCenter
+                width: Osd.level * parent.width
+                height: parent.height
+                radius: parent.radius
+                color: osdContent.dim ? Theme.muted : Theme.accent
+                Behavior on width {
+                    NumberAnimation {
+                        duration: Motion.instant
+                        easing.type: Easing.BezierSpline
+                        easing.bezierCurve: Motion.curveStandard
+                    }
+                }
+            }
+        }
+        // Fixed width so 9% → 10% → 100% doesn't jiggle the spring.
+        Text {
+            anchors.verticalCenter: parent.verticalCenter
+            width: 34
+            horizontalAlignment: Text.AlignRight
+            text: Osd.muted ? "mute" : Math.round(Osd.level * 100) + "%"
+            color: osdContent.dim ? Theme.muted : Theme.text
+            font.family: Theme.fontSans
+            font.pixelSize: Theme.fontSize - 1
+        }
     }
 
     HoverHandler {
@@ -621,8 +780,10 @@ Rectangle {
     }
     TapHandler {
         onTapped: {
-            if (root.state === "notif")
-                root.peeking = false;          // tap dismisses the peek
+            if (root.state === "osd")
+                root.osdShown = false;          // tap clears the OSD early
+            else if (root.state === "notif")
+                root.nextPeek();                // tap dismisses → next waiting
             else if (root.state === "agent")
                 Presence.togglePanel();         // second-operator surface
             else if (root.state === "media")
