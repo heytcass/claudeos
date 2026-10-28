@@ -14,12 +14,14 @@ ShellRoot {
     // NotificationServer claims org.freedesktop.Notifications immediately,
     // rather than lazily when a popup first reads it (which would drop any
     // notifications fired before then). Touch Presence too so its polls start
-    // now rather than when the panel is first opened.
+    // now rather than when the panel is first opened. Sonic listens for agent
+    // and OSD edges, so it must exist before the first one.
     Component.onCompleted: {
         Notifications.list;
         Presence.live;
         Cards.count;
         Contexts.contexts;
+        Sonic.dir;
     }
 
     // One bar per monitor.

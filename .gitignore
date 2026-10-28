@@ -36,3 +36,6 @@ secrets/*.age
 
 # Git worktrees
 .worktrees/
+
+# Cargo build output for in-repo Rust packages (pkgs/*)
+target/

@@ -1,0 +1,15 @@
+[package]
+name = "sonic-synth"
+version = "0.1.0"
+edition = "2021"
+description = "Renders the ClaudeOS sonic palette (lib/sonic.nix) to WAVs"
+license = "MIT"
+
+[dependencies]
+# `std` only: no file decoding (symphonia) or FFT — we only synthesise and write.
+fundsp = { version = "0.23", default-features = false, features = ["std"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+[profile.release]
+opt-level = 3
