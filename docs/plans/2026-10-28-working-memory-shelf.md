@@ -113,14 +113,16 @@ claudeos-shelf tidy [<context>]
 
 ### 2. Capture hotkeys (`lib/keybindings.nix`)
 
-| Key (tentative) | Action |
+| Key | Action |
 |---|---|
-| `Super+S` | **Shelve clipboard.** `wl-paste --list-types` picks the kind (image/png → image, text/uri-list → file or link, text → text). `source` comes from the active window (`hyprctl activewindow -j`). A sonic tick confirms. |
-| `Super+Shift+S` | **Shelve region.** slurp → grim → the OCR step `claude-grab-text` already uses → `add image` with the OCR text attached. |
+| `Super+S` | **Shelve clipboard** (`claudeos-shelve-clipboard`). `wl-paste --list-types` picks the kind (image/png → image, text/uri-list → file or link, a lone URL → link, other text → text). `source` comes from the active window (`hyprctl activewindow -j`). |
+| `Super+Shift+S` | **Shelve region** (`claudeos-shelve-region`). slurp → grim → the haiku OCR `claude-grab-text` uses → `add image` with the OCR text attached. `source` is the topmost visible window under the region's corner. |
 
-The keys are tentative. Before binding them, check that they're free in the
-generated Hyprland config (`hypr_config_check`), since `home/hyprland.nix` also
-binds keys that aren't listed in `lib/keybindings.nix`.
+Both keys were the scratchpad's; it moved to `Super+Z` / `Super+Shift+Z`
+(chosen 2026-10-28). Success is confirmed by a low-urgency notification
+("Shelved — refinance: payoff.pdf"), which also plays Sonic's `notif-low`
+earcon, so Phase 2 needs no QML. Phase 3's count chip may make the
+notification redundant; revisit then.
 
 ### 3. The Island: drop target and popup
 

@@ -621,7 +621,7 @@ in
           direction = "up";
           action = "fullscreen";
         }
-        # Four fingers up = the "magic" scratchpad ($mod+S / $mod+SHIFT+S, in
+        # Four fingers up = the "magic" scratchpad ($mod+Z / $mod+SHIFT+Z, in
         # `bind` below). Deliberately a different finger count from the
         # workspace swipe — the scratchpad is not part of the 1-5 rotation and
         # shouldn't feel like it is.
@@ -815,10 +815,11 @@ in
           mkLuaInline "hl.dsp.window.resize({ x = 0, y = 40, relative = true })"
         ))
 
-        # Scratchpad: SUPER+S toggles a hidden "magic" workspace,
-        # SUPER+SHIFT+S stashes the focused window into it.
-        (mkBind "${mod} + S" (mkLuaInline ''hl.dsp.workspace.toggle_special("magic")''))
-        (mkBind "${mod} + SHIFT + S" (mkLuaInline ''hl.dsp.window.move({ workspace = "special:magic" })''))
+        # Scratchpad: SUPER+Z toggles a hidden "magic" workspace,
+        # SUPER+SHIFT+Z stashes the focused window into it. (Moved off S/Shift+S
+        # 2026-10-28 so the Shelf's capture keys could have them.)
+        (mkBind "${mod} + Z" (mkLuaInline ''hl.dsp.workspace.toggle_special("magic")''))
+        (mkBind "${mod} + SHIFT + Z" (mkLuaInline ''hl.dsp.window.move({ workspace = "special:magic" })''))
 
         # Graceful session exit. (The wiki warns UWSM sessions off the `exit`
         # dispatcher — it removes Hyprland from under its clients and

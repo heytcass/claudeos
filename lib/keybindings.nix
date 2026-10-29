@@ -66,6 +66,22 @@
     short = "Grab text from a screen region";
   }
   {
+    name = "Shelve clipboard";
+    binding = "<Super>s";
+    command = "claudeos-shelve-clipboard";
+    display = "Super+S";
+    help = "Put the clipboard on the shelf — image, file, link or text, kept with the current context";
+    short = "Shelve the clipboard";
+  }
+  {
+    name = "Shelve region";
+    binding = "<Super><Shift>s";
+    command = "claudeos-shelve-region";
+    display = "Super+Shift+S";
+    help = "Drag a region — the image and the text in it go on the shelf";
+    short = "Shelve a screen region";
+  }
+  {
     name = "Semantic clipboard";
     binding = "<Super><Shift>v";
     command = "claude-clip";

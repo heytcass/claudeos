@@ -34,5 +34,23 @@ in
       ''
       + builtins.readFile ./claudeos-shelf.sh;
     })
+
+    # Capture hotkeys (lib/keybindings.nix: Super+S, Super+Shift+S). Both are
+    # thin front ends that pick a kind and call claudeos-shelf from PATH, so
+    # validation and refusals stay in one place. Success is a low-urgency
+    # notification, which also sounds Sonic's notif-low earcon.
+    (claudeLib.mkClaudeScriptBin {
+      name = "claudeos-shelve-clipboard";
+      runtimeInputs = [ pkgs.wl-clipboard ];
+      text = builtins.readFile ./shelve-clipboard.sh;
+    })
+    (claudeLib.mkClaudeScriptBin {
+      name = "claudeos-shelve-region";
+      runtimeInputs = [
+        pkgs.grim
+        pkgs.slurp
+      ];
+      text = builtins.readFile ./shelve-region.sh;
+    })
   ];
 }
