@@ -96,6 +96,8 @@ CI (`validate.yml`) runs rung 1, the rung-4 dry-runs, and rung 5 for transporter
 
 Before landing, the deploy skill runs 1, 4, and 5 in the worktree; `claudeos-land` reruns 4 and then performs rung 8 from the shared checkout.
 
+CI's required checks (ruleset "main: Validate must pass") are `actionlint`, `flake-validate` (rung 4) and `lock-gate` (rung 7, only for `flake.lock`/`flake.nix`/`validate.yml` changes). `host-build`, a cold full build of transporter (~35 min), still runs on every PR but is **advisory** since 2026-10-29: merges no longer wait on a rarely used testbed, because landing's own rung 8 on the primary is the real build. A red `host-build` means transporter needs a look before its next rebuild. It doesn't block landing.
+
 ## Compositor config isn't validated by the build
 
 `nix build` / `nix flake check` only check Nix **evaluation** — they cannot parse the *contents* of a generated `hyprland.conf` or the Quickshell QML. A config that builds green can still be rejected at runtime: e.g. Hyprland 0.55 changed `windowrule` grammar to space-separated (`float class:^(…)$`), so the old comma form (`float, class:…`) builds fine but throws `invalid field float` and raises Hyprland's on-screen config-error banner. Likewise a single broken QML file blanks the entire bar (Quickshell registers the config dir as one module).
