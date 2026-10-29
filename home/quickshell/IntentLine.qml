@@ -47,13 +47,16 @@ Scope {
     readonly property string qt: input.text.trim()
 
     // Best desktop-entry match for the current text, ranked best-first:
-    //   exact name/id  >  full-string prefix  >  interior word prefix
+    //   exact name/id  >  name prefix  >  name word prefix  >  id prefix / word
     //   >  keyword / generic-name word  >  loose substring
     // Interior words matter: "chrome" must find "Google Chrome", "code" →
     // "Visual Studio Code". Still deliberately conservative — every tier is
     // anchored at a WORD boundary (or a substring of a single token), so a
     // real multi-word sentence matches nothing here and falls through to the
     // wish route instead of launching something that merely shares letters.
+    // The name you read outranks the id you don't: Chrome PWAs all get ids
+    // like "chrome-<hash>-Default", which once let "chrome" launch a web app
+    // (Home Assistant) ahead of Google Chrome itself.
     // Within a tier the shortest name is the most specific, so it wins.
     function bestApp(text) {
         const q = text.trim().toLowerCase();
@@ -63,7 +66,7 @@ Scope {
             return (s || "").toLowerCase().split(/[\s._\-]+/).filter(Boolean);
         }
         const apps = DesktopEntries.applications.values;
-        var tiers = [[], [], [], []];   // 0 prefix · 1 word-prefix · 2 keyword · 3 substring
+        var tiers = [[], [], [], [], []];   // 0 prefix · 1 word-prefix · 2 id · 3 keyword · 4 substring
         for (var i = 0; i < apps.length; i++) {
             const e = apps[i];
             if (!e || e.noDisplay)
@@ -72,21 +75,25 @@ Scope {
             const id = (e.id || "").toLowerCase();
             if (n === q || id === q)
                 return e;                                  // exact — launch this
-            if (n.startsWith(q) || id.startsWith(q)) {
+            if (n.startsWith(q)) {
                 tiers[0].push(e);
                 continue;
             }
-            if (words(n).some(w => w.startsWith(q)) || words(id).some(w => w.startsWith(q))) {
+            if (words(n).some(w => w.startsWith(q))) {
                 tiers[1].push(e);                          // "chrome" → "Google Chrome"
+                continue;
+            }
+            if (id.startsWith(q) || words(id).some(w => w.startsWith(q))) {
+                tiers[2].push(e);                          // "nautilus" → "Files"
                 continue;
             }
             const extra = (e.keywords || []).concat([e.genericName || ""]);
             if (extra.some(k => words(k).some(w => w.startsWith(q)))) {
-                tiers[2].push(e);                          // "browser" → generic name
+                tiers[3].push(e);                          // "browser" → generic name
                 continue;
             }
             if (n.includes(q)) {
-                tiers[3].push(e);
+                tiers[4].push(e);
                 continue;
             }
         }
