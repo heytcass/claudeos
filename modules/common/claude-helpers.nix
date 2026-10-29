@@ -284,7 +284,7 @@ in
           pr=''${url##*/}
         fi
         # main's ruleset refuses the merge until the required checks pass
-        # (host-build is a full toplevel build, ~40 min), so wait for them.
+        # (lock-gate builds gti and boots a VM on lock bumps), so wait for them.
         # They take a moment to register after a push; none after ~3 min
         # means nothing is required.
         echo "claudeos-land: PR #$pr open — waiting for its required checks…"

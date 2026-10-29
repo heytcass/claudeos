@@ -55,7 +55,7 @@ claudeos-land
 
 It rebases on origin/main, names the generation, re-runs
 `claudeos-validate`, pushes, opens or reuses the PR, waits for its required
-CI (~40 min: host-build is a full toplevel build), squash-merges it
+CI (about a minute; a PR touching flake.lock, flake.nix or validate.yml also waits on lock-gate's gti build and VM boot), squash-merges it
 (only the exact validated head), fast-forwards `~/.config/claudeos`, runs
 `nixos-rebuild switch` there for `$(hostname)` (scoped NOPASSWD — no prompt),
 and sweeps landed worktrees. Run it in the background; CI and the switch take
