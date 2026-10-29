@@ -54,10 +54,11 @@ claudeos-land
 ```
 
 It rebases on origin/main, names the generation, re-runs
-`claudeos-validate`, pushes, opens or reuses the PR, squash-merges it
+`claudeos-validate`, pushes, opens or reuses the PR, waits for its required
+CI (about a minute; a PR touching flake.lock, flake.nix or validate.yml also waits on lock-gate's gti build and VM boot), squash-merges it
 (only the exact validated head), fast-forwards `~/.config/claudeos`, runs
 `nixos-rebuild switch` there for `$(hostname)` (scoped NOPASSWD — no prompt),
-and sweeps landed worktrees. Run it in the background; the switch can take
+and sweeps landed worktrees. Run it in the background; CI and the switch take
 minutes. `--no-deploy` stops after the merge.
 
 It refuses — and says why — rather than deploy a half state: uncommitted

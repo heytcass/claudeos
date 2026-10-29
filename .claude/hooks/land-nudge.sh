@@ -22,6 +22,15 @@ ahead=$(git rev-list --count origin/main..HEAD 2>/dev/null || echo 0)
 dirty=$(git status --porcelain 2>/dev/null)
 [[ "$ahead" -eq 0 && -z "$dirty" ]] && exit 0
 
+# A squash merge leaves the branch's own commits off main forever, so "ahead"
+# alone misreads a PR merged outside claudeos-land as unlanded. A clean tree
+# whose HEAD is exactly a merged PR's head has landed (same test as the sweep).
+if [[ -z "$dirty" ]] && branch=$(git symbolic-ref -q --short HEAD) &&
+  timeout 10 gh pr list --head "$branch" --state merged --json headRefOid \
+    -q '.[].headRefOid' 2>/dev/null | grep -qx "$(git rev-parse HEAD)"; then
+  exit 0
+fi
+
 state="$(git rev-parse HEAD) $(sha1sum <<<"$dirty" | cut -c1-12)"
 mark="${XDG_STATE_HOME:-$HOME/.local/state}/claudeos/land-nudge/$sid"
 [[ "$(cat "$mark" 2>/dev/null)" == "$state" ]] && exit 0
