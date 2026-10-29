@@ -42,5 +42,6 @@
     google-chrome # Browser (also hosts the comms PWAs)
     obsidian # Knowledge management (install Terminal + Web Clipper community plugins)
     music-assistant-desktop # Companion desktop app for Music Assistant
+    fractal # Matrix client — GTK4/libadwaita on the Rust matrix-sdk (native, not Electron)
   ];
 }
