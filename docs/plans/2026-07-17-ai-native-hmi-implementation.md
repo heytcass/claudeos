@@ -58,6 +58,15 @@ helper in `lib/claude-script.nix`, polling/`FileView` singleton in QML):
 
 ## Phase 1a — Presence: the second-operator surface
 
+> **Update 2026-10-28 — shrunk to a PR inbox.** In daily use the panel went
+> unopened and the "second operator" framing confused more than it explained.
+> *working* repeated what the island already said, and *recently finished* was
+> mostly stale Jasper insights. The panel is now `ReviewPanel.qml`: only the
+> agent PRs waiting for review, opened from the ProposalsWidget glyph (the
+> island no longer opens it). `Presence.qml` keeps `live` (for the island's
+> "N lanes" phrase) and `waiting`. `claudeos_agent_done` still writes
+> `presence-done.jsonl` as a history file, but no bar surface reads it.
+
 **Goal:** one glanceable answer to "what is the other operator doing, what
 has it done, what is it waiting on?" Today that's three fragments: Agent.qml
 (one activity line), ProposalsWidget (PR count), and nothing at all for
@@ -129,7 +138,7 @@ destination:
 | **Island peek** | ambient/FYI — glance and gone | default (no actions, urgency ≤ normal) |
 | **Corner toast** | needs a decision *now* — buttons, Critical | `actions.length > 0` or Critical |
 | **Quiet queue** | FYI that shouldn't interrupt — flushed at idle/unlock as one summary | `urgency = low`, or lane-hinted |
-| **Presence ledger (1a)** | lane work product — the panel is its home | `x-claudeos-lane` hint + done-class |
+| **Presence ledger (1a)** | lane work product — history centre only since 2026-10-28 (no panel section) | `x-claudeos-lane` hint + done-class |
 | **History center** | memory | everything, unconditionally (as now) |
 
 Routing inputs, in priority order: explicit ClaudeOS hints (`claudeos_notify`
@@ -149,7 +158,8 @@ diff (or a wish).
   Critical divert to the quiet queue; flushed when fullscreen ends,
   collapsed into one summary toast if >2 queued ("3 quiet notifications
   while you were focused" → opens the notification center).
-- **Lane completions never toast** once 1a lands — the PresencePanel
+- **Lane completions never toast** once 1a lands — the PresencePanel (until
+  2026-10-28; now the history centre)
   *recent* section is their home, and the toast budget is reserved for
   things needing action. This retires a class of "the machine narrating at
   you" noise.
@@ -320,7 +330,9 @@ morning desk card appears at first login, dismiss removes the file; an
 ## Stage 5 preconditions (not planned here)
 
 The second seat — the agent visibly driving real apps in its own workspace —
-is deliberately unplanned until: (a) PresencePanel is daily-driver habit
+is deliberately unplanned until: (a) the agent's narration is trusted (the
+PresencePanel was meant to prove this but was cut to a PR inbox 2026-10-28;
+find a better signal)
 (you already trust the narration), (b) task lanes have a track record of
 artifact quality (rung history to point at), and (c) contexts exist (the
 agent needs a workspace-shaped place to work that isn't yours). Revisit as

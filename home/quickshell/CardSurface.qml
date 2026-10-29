@@ -1,5 +1,5 @@
 // CardSurface.qml — where generated surfaces live (Phase 4). A dropdown-style
-// overlay (same layer-shell pattern as PresencePanel) listing every live card,
+// overlay (same layer-shell pattern as ReviewPanel) listing every live card,
 // each rendered by CardRenderer from validated data. Opened by the CardsWidget
 // bar glyph or the island (both flip Cards.surfaceOpen); Esc or click-away
 // dismisses the surface, and it auto-closes when the last card is gone. Cards

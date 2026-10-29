@@ -55,8 +55,7 @@ Rectangle {
 
     // Agent-face phrase. One lane → its own phrase (Agent.activity, the newest
     // marker). More than one → "N lanes" with that newest phrase riding along,
-    // so the island tells you the second operator is doing several things at
-    // once; the PresencePanel (tap) breaks them out.
+    // so the island tells you several lanes are working at once.
     readonly property string agentPhrase: Presence.laneCount > 1 ? (Presence.laneCount + " lanes · " + Agent.activity) : Agent.activity
     states: [
         State {
@@ -784,8 +783,6 @@ Rectangle {
                 root.osdShown = false;          // tap clears the OSD early
             else if (root.state === "notif")
                 root.nextPeek();                // tap dismisses → next waiting
-            else if (root.state === "agent")
-                Presence.togglePanel();         // second-operator surface
             else if (root.state === "media")
                 mediaPopup.visible = !mediaPopup.visible;
             else

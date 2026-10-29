@@ -106,7 +106,7 @@ let
     claudeos_agent_begin() {
       mkdir -p "$CLAUDEOS_AGENT_DIR"
       printf '%s\n' "$1" > "$CLAUDEOS_AGENT_DIR/$$"
-      # Structured sidecar for the Presence surface (home/quickshell/Presence.qml):
+      # Structured sidecar for home/quickshell/Presence.qml (the island lane count):
       # lane name + the same phrase (line 1) + start epoch. This is purely
       # additive — the plain <pid> file above stays byte-identical, so Agent.qml
       # keeps working unmodified as the always-present fallback.
@@ -123,12 +123,12 @@ let
     claudeos_agent_end() { rm -f "$CLAUDEOS_AGENT_DIR/$$" "$CLAUDEOS_AGENT_DIR/$$.json"; }
 
     # claudeos_agent_done RESULT [URL] — record one line of finished lane work
-    # in the presence ledger (PresencePanel's "recently finished" section).
+    # in the presence ledger — a history file (no bar surface reads it since
+    # 2026-10-28; Jasper insight debugging recovers past runs from it).
     # Append-then-tail-rewrite keeps the last 20 lines; the atomic mv means a
     # concurrent reader never sees a half-truncated file. Call this just before
     # the script exits (while the live marker is still up); the EXIT trap clears
-    # the live marker immediately after. URL is optional — an empty url renders
-    # as a non-clickable row.
+    # the live marker immediately after. URL is optional.
     claudeos_agent_done() {
       local result="$1" url="''${2:-}" ledger="$MONITOR_CACHE_DIR/presence-done.jsonl"
       mkdir -p "$MONITOR_CACHE_DIR"

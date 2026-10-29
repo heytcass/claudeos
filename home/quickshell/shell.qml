@@ -49,10 +49,9 @@ ShellRoot {
     // question? / wish), deterministically, with the route shown before commit.
     IntentLine {}
 
-    // The second-operator surface — working / waiting / recently finished.
-    // Opened from the island (agent mode) or the proposals glyph via
-    // Presence.panelOpen; its own overlay window.
-    PresencePanel {}
+    // The PR inbox — agent-authored PRs waiting for review. Opened from the
+    // proposals glyph via Presence.panelOpen; its own overlay window.
+    ReviewPanel {}
 
     // Generated surfaces (cards) — the long tail of single-use UI, rendered
     // deterministically from schema-validated data. Opened from the CardsWidget
