@@ -113,7 +113,8 @@ General, or the API calls below):
   machines; the UniFi one also sets `VERIFY_SSL: false`. Unchanged by going
   public, but the pattern will be on display.
 - **Mind the transitive supply chain:** `heytcass/claude-desktop-linux-flake`
-  is a flake input auto-pulled weekly by the update bot; its branch hygiene is
+  is a flake input auto-pulled weekly by the update lanes (local auto-update,
+  Dependabot fallback); its branch hygiene is
   effectively part of this repo's supply chain.
 - **`has_issues` is on** — that's the surface `claude.yml`'s actor gate
   protects; keep the gate if you keep public issues.

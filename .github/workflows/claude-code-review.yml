@@ -21,7 +21,13 @@ jobs:
     # (GitHub withholds secrets from fork pull_request runs), so without this
     # gate every drive-by fork PR would spin a runner just to fail red. This
     # makes them a clean no-op instead.
-    if: github.event.pull_request.head.repo.full_name == github.repository
+    #
+    # Dependabot PRs are skipped for the same reason: they receive Dependabot
+    # secrets, not Actions secrets, so the OAuth token is absent and the job
+    # would fail red. validate.yml gates them; @claude reviews on demand.
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.user.login != 'dependabot[bot]'
 
     runs-on: ubuntu-latest
     # write, not read: with `pull-requests: read` this job could not have
