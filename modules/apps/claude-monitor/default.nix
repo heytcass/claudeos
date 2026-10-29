@@ -126,7 +126,7 @@ let
       # --- System health (persistent/actionable signals only) ---
       failed_units=$(claudeos_failed_units)
       nix_store=$(df -h /nix/store 2>/dev/null | awk 'NR==2 {printf "%s used / %s", $3, $2}')
-      generations=$(ls -1d /nix/var/nix/profiles/system-*-link 2>/dev/null | wc -l)
+      generations=$(find /nix/var/nix/profiles -maxdepth 1 -name 'system-*-link' 2>/dev/null | wc -l)
 
       # --- Config status ---
       # Last rebuild: when the current system profile was activated

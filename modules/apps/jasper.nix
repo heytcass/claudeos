@@ -133,8 +133,8 @@ let
       # moves *when* the single flip happens, and consecutive polls that both see
       # the same event ahead produce the same count, so the hash stays put.
       jasper_boundary_signal() {
-        set -- $(jasper_boundary_counts 60)
-        local started="$1" ended="$2" imminent="$3"
+        local started ended imminent
+        read -r started ended imminent <<< "$(jasper_boundary_counts 60)"
         printf '%s-%s-%s' "$started" "$ended" "$imminent"
       }
       boundary=$(jasper_boundary_signal)
@@ -162,7 +162,7 @@ let
       # Optional personal context file (Jasper's context.md) — relationships,
       # routines, who's who — appended verbatim if present.
       personal_context=""
-      if [[ -n ${lib.escapeShellArg cfg.personalContextFile} && -r ${lib.escapeShellArg cfg.personalContextFile} ]]; then
+      if [[ -r ${lib.escapeShellArg cfg.personalContextFile} ]]; then
         personal_context=$(cat ${lib.escapeShellArg cfg.personalContextFile})
       fi
 
