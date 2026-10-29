@@ -11,10 +11,14 @@ input=$(cat)
 tool=$(jq -r '.tool_name // empty' <<<"$input")
 cwd=$(jq -r '.cwd // empty' <<<"$input")
 [[ -n "$cwd" ]] || cwd="${CLAUDE_PROJECT_DIR:-$PWD}"
+base="$cwd"
 
 # True when DIR sits in a main checkout (not a linked worktree).
 is_shared() {
   local d="$1" gd cd
+  # A shell variable can't be expanded here: judge by where the command runs.
+  [[ "$d" == *'$'* ]] && d="$base"
+  [[ "$d" == /* ]] || d="$base/$d"
   # A file, or a path not created yet: test its nearest existing directory.
   while [[ ! -d "$d" && "$d" != / ]]; do d=$(dirname "$d"); done
   gd=$(git -C "$d" rev-parse --path-format=absolute --git-dir 2>/dev/null) || return 1
