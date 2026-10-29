@@ -94,10 +94,24 @@
         }
       ) hosts;
 
-      # Validate host configurations with `nix flake check`
-      checks.x86_64-linux = builtins.mapAttrs (
-        _: host: host.config.system.build.toplevel
-      ) self.nixosConfigurations;
+      # The shared baseline, re-exported for discoverability. Its real home is
+      # the inputless subflake at modules/shared (see its README).
+      nixosModules.shared = ./modules/shared;
+
+      # Validate host configurations with `nix flake check`, plus a headless
+      # stand-in that imports only modules/shared — the shape of a consumer
+      # this repo can't see (no home-manager, Stylix, or specialArgs).
+      checks.x86_64-linux =
+        builtins.mapAttrs (_: host: host.config.system.build.toplevel) self.nixosConfigurations
+        // {
+          shared-headless =
+            (nixpkgs.lib.nixosSystem {
+              modules = [
+                ./modules/shared
+                ./tests/shared-headless.nix
+              ];
+            }).config.system.build.toplevel;
+        };
 
       # Formatter for `nix fmt` (treefmt-nix handles directory traversal).
       # statix/deadnix ride along so one command formats AND lints — the

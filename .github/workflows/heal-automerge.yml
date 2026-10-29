@@ -14,7 +14,7 @@
 #   3. the PR is open, non-draft, mergeable, and unlabelled `heal-hold`
 #   4. the diff touches EXACTLY ONE file, matching modules/**.nix or home/**.nix
 #   5. no forbidden path: flake.nix, flake.lock, .sops.yaml, secrets/,
-#      .github/, .claude/
+#      .github/, .claude/, modules/shared/ (a fleet flake consumes it)
 #   6. total churn (additions + deletions) <= 40 lines
 #   7. a Claude machine-review returns exactly `VERDICT: APPROVE`
 #   8. the PR head still points at the SHA Validate tested (TOCTOU guard,
@@ -143,7 +143,7 @@ jobs:
 
           # Redundant against the allowlist above, deliberately. If that regex
           # is ever loosened, these must still hold.
-          if grep -qE '^(flake\.nix|flake\.lock|\.sops\.yaml)$|^(secrets|\.github|\.claude)/' <<<"$path"; then
+          if grep -qE '^(flake\.nix|flake\.lock|\.sops\.yaml)$|^(secrets|\.github|\.claude|modules/shared)/' <<<"$path"; then
             block "\`$path\` is a protected path."
           fi
 

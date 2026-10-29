@@ -45,6 +45,17 @@ jobs:
       - name: Check formatting and lint (treefmt — nixfmt, statix, deadnix)
         run: nix fmt -- --ci
 
+      # modules/shared is consumed by a flake that fetches only that directory.
+      # The headless stand-in check (host-build) catches specialArgs and
+      # third-party options at eval; this catches what eval cannot: paths
+      # that resolve fine here but point outside the directory a consumer gets.
+      - name: Shared layer is self-contained
+        run: |
+          if grep -rnE '\.\./|specialArgs|home-manager|stylix' modules/shared --include='*.nix'; then
+            echo "::error::modules/shared must stay self-contained (see modules/shared/README.md)"
+            exit 1
+          fi
+
       - name: Dry-run build every host configuration
         run: |
           for host in $(nix flake show --json --all-systems 2>/dev/null | jq -r '.nixosConfigurations | keys[]'); do
@@ -88,3 +99,8 @@ jobs:
 
       - name: Build transporter toplevel
         run: nix build ".#nixosConfigurations.transporter.config.system.build.toplevel" --no-link
+
+      # Only modules/shared, no desktop stack: proves the shared layer builds
+      # for a headless consumer this repo can't see.
+      - name: Build shared-layer headless stand-in
+        run: nix build ".#checks.x86_64-linux.shared-headless" --no-link
