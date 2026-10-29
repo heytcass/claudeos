@@ -283,6 +283,28 @@ in
           url=$(gh pr create --base main --head "$branch" --fill) || exit 1
           pr=''${url##*/}
         fi
+        # main's ruleset refuses the merge until the required checks pass
+        # (host-build is a full toplevel build, ~40 min), so wait for them.
+        # They take a moment to register after a push; none after ~3 min
+        # means nothing is required.
+        echo "claudeos-land: PR #$pr open — waiting for its required checks…"
+        waited=0
+        while :; do
+          buckets=$(gh pr checks "$pr" --required --json bucket -q '.[].bucket' 2>/dev/null)
+          [[ -z "$buckets" && $waited -ge 180 ]] && break
+          [[ -n "$buckets" ]] && ! grep -qx pending <<<"$buckets" && break
+          if [[ $waited -ge 5400 ]]; then
+            echo "claudeos-land: PR #$pr's checks are still running after 90 min — it stays open; rerun claudeos-land to finish." >&2
+            exit 1
+          fi
+          sleep 30
+          waited=$((waited + 30))
+        done
+        if grep -qxE 'fail|cancel' <<<"$buckets"; then
+          echo "claudeos-land: PR #$pr failed required checks — it stays open; main and this host are unchanged:" >&2
+          gh pr checks "$pr" --required >&2
+          exit 1
+        fi
         # --match-head-commit: merge exactly the tree that was just validated.
         if ! gh pr merge "$pr" --squash --match-head-commit "$(git rev-parse HEAD)"; then
           echo "claudeos-land: PR #$pr was not merged — it stays open; main and this host are unchanged." >&2
