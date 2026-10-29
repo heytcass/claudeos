@@ -157,7 +157,7 @@ jobs:
 
       - name: Checkout the tested commit
         if: steps.gates.outputs.verdict == 'pass'
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v4
         with:
           ref: ${{ env.HEAD_SHA }}
           fetch-depth: 0
@@ -179,7 +179,7 @@ jobs:
       - name: Machine review
         if: steps.gates.outputs.verdict == 'pass'
         continue-on-error: true
-        uses: anthropics/claude-code-action@e90deca47693f9457b72f2b53c17d7c445a87342 # v1
+        uses: anthropics/claude-code-action@8041f1d17e0e7d2f2cfe35002962e9f26237c0bb # v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           claude_args: >-
