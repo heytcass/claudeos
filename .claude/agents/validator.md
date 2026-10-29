@@ -29,52 +29,44 @@ claudeos-validate
 
 **Expected:** exits 0 with "all hosts eval clean"
 
-### 2. Format Check
+From a worktree, note that `claudeos-validate` `cd`s to `$CLAUDEOS_DIR`
+(the main checkout) — run its flake-check + per-host dry-run loop by hand
+in the worktree instead.
+
+### 2. Format, lint, and dead-code check (one command)
+
+`nix fmt` is treefmt running nixfmt + statix + deadnix together. The gate
+form is `--ci` (exit 1 if any file would change); treefmt has no `--check`
+flag, so that spelling fails on every run.
 
 ```bash
-nix fmt -- --check .
+nix fmt -- --ci
 ```
 
-If files need formatting:
-```bash
-nix fmt
-```
+If it reports changes, run `nix fmt` and re-check.
 
-### 3. Lint Check
-
-```bash
-statix check
-```
-
-### 4. Dead Code Check
-
-```bash
-deadnix -e
-```
+This agent covers rungs 1 and 4 of CLAUDE.md's *Validation economy* ladder.
+It does not build, and it cannot see Hyprland or QML errors — say which
+higher rungs the change still needs (full build, `hypr_config_check`,
+`quickshell_check`, VM boot) rather than reporting "ready to apply".
 
 ## Output Format
 
 ```
-Flake check: PASSED
-Format check: PASSED
-Lint check: PASSED
-Dead code check: PASSED
+Flake check + host dry-runs: PASSED
+Format/lint/dead-code (nix fmt -- --ci): PASSED
 
-Configuration is valid and ready to apply.
+Evaluates clean. Still needed for this change: <higher rungs, or none>
 ```
 
 Or if issues found:
 
 ```
-Flake check: FAILED
+Flake check + host dry-runs: FAILED
 Error: <error message>
 
-Lint check: 3 warnings
-- Warning 1
-- Warning 2
-
-Format check: PASSED
-Dead code check: PASSED
+Format/lint/dead-code (nix fmt -- --ci): 3 findings
+- <file:line finding>
 
 Fix errors before applying.
 ```
