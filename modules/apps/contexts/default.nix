@@ -238,6 +238,8 @@ in
           rm)
             slug=$(_resolve_slug "''${1:-}") || { echo "no unique context matching '$1'" >&2; exit 1; }
             rm -f "$CLAUDEOS_CONTEXTS_DIR/$slug.json"
+            # The context's shelf goes with it, in the same commit.
+            rm -rf "$CLAUDEOS_CONTEXTS_DIR/shelf/$slug"
             _claudeos_context_commit "rm $slug"
             echo "removed context '$slug'"
             ;;

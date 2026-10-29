@@ -37,12 +37,17 @@ already exists:
 
 ```
 contexts/
-  refinance.json              # existing context manifest (unchanged)
-  refinance.shelf.json        # NEW: shelf manifest
-  shelf/refinance/<id>.png    # NEW: blobs captured by value
-  _loose.shelf.json
-  shelf/_loose/…
+  refinance.json                     # existing context manifest (unchanged)
+  shelf/refinance/shelf.json         # NEW: shelf manifest
+  shelf/refinance/blobs/<id>.png     # NEW: blobs captured by value
+  shelf/_loose/shelf.json
+  shelf/_loose/blobs/…
 ```
+
+Shelves live in a `shelf/` subdirectory, not beside the manifests as
+`<slug>.shelf.json`. Both `claudeos-context list` and the `Contexts.qml` probe
+glob `contexts/*.json`, so a sibling shelf file would show up as a context.
+The subdirectory keeps shelves in the same git repo but outside that glob.
 
 This repo is local state and is never pushed. That matters because the
 ClaudeOS repo is public: shelf contents never leave the machine through git.
@@ -59,7 +64,7 @@ ClaudeOS repo is public: shelf contents never leave the machine through git.
       "added": 1793234567,
       "payload": {                    // exactly one, matching kind
         "path": "/home/tom/Downloads/payoff.pdf",   // file: BY REFERENCE
-        "blob": "shelf/refinance/k3f9a2.png",       // image: BY VALUE
+        "blob": "blobs/k3f9a2.png",                 // image: BY VALUE, relative to the shelf dir
         "text": "…",                                // text: inline, size-capped
         "url": "https://…"                          // link
       },
@@ -159,8 +164,8 @@ titles and URLs; never blob bytes) and returns a new `groups` array plus a
 
 - `claudeos-context restore` doesn't need to change: the Shelf follows the
   active context automatically because it's keyed on the same slug.
-- `claudeos-context rm <name>` must also remove `<slug>.shelf.json` and
-  `shelf/<slug>/`, in one commit.
+- `claudeos-context rm <name>` must also remove `shelf/<slug>/`, in the same
+  commit.
 - `wherewasi` adds one line, e.g. "refinance shelf: 11 items, last added
   payoff.pdf 2h ago".
 
