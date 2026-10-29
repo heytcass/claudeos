@@ -178,12 +178,31 @@ let
     # the sops automation token as GH_TOKEN when it exists (gh and its git
     # credential helper both honor it); inside a session the keyring still
     # works without it. Safe no-op while the secret is a placeholder/absent.
+    #
+    # GH_TOKEN OVERRIDES the keyring, so a dead token is worse than none: it
+    # broke in-session pushes whose keyring login was fine (the Fractal wish,
+    # 2026-10-29 — the PAT had expired and every lane got 401). So probe it
+    # first; only a definite 401 drops it (offline keeps the old behavior),
+    # with a once-a-day nudge to rotate it (docs/SECRETS.md). The header goes
+    # via stdin so the token never appears in a process listing.
     claudeos_export_gh_token() {
-      local tok
-      if [[ -r /run/secrets/github_automation_token ]]; then
-        tok=$(</run/secrets/github_automation_token)
-        [[ -n "$tok" && "$tok" != PLACEHOLDER* ]] && export GH_TOKEN="$tok"
+      local tok code nudge="$STATE_DIR/gh-token-dead-notified"
+      [[ -r /run/secrets/github_automation_token ]] || return 0
+      tok=$(</run/secrets/github_automation_token)
+      [[ -n "$tok" && "$tok" != PLACEHOLDER* ]] || return 0
+      code=$(printf 'Authorization: Bearer %s\n' "$tok" |
+        curl -sS -o /dev/null -w '%{http_code}' --max-time 10 -H @- \
+          https://api.github.com/user 2>/dev/null) || true
+      if [[ "$code" == 401 ]]; then
+        mkdir -p "$STATE_DIR"
+        if claudeos_cooldown_ok "$nudge" 86400; then
+          touch "$nudge"
+          claudeos_notify --urgency=critical "GitHub automation token rejected" \
+            "github_automation_token is expired or revoked — falling back to the keyring. Rotate it (docs/SECRETS.md)."
+        fi
+        return 0
       fi
+      export GH_TOKEN="$tok"
       return 0
     }
 
