@@ -87,7 +87,7 @@ Variants {
 
                             Text {
                                 Layout.fillWidth: true
-                                text: card.modelData.summary
+                                text: Notifications.clean(card.modelData.summary)
                                 color: Theme.text
                                 font.family: Theme.fontSans
                                 font.bold: true
@@ -97,7 +97,7 @@ Variants {
                             Text {
                                 Layout.fillWidth: true
                                 visible: text !== ""
-                                text: card.modelData.body
+                                text: Notifications.clean(card.modelData.body)
                                 color: Theme.subtext
                                 font.family: Theme.fontSans
                                 font.pixelSize: 12

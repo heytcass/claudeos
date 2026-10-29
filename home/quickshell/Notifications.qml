@@ -124,6 +124,39 @@ Singleton {
         }
     }
 
+    // ── Metadata sanitising ────────────────────────────────────────────────
+    // Agent clients (the Claude desktop app) quote a turn's opening text, which
+    // for an automated turn is a machine wrapper like <ci-monitor-event>…. The
+    // tell is the hyphen: the markup a notification body may carry (b, i, u, a,
+    // img) never has one, so hyphenated tags are stripped for every app without
+    // needing to know the sender's appName. Known tags become a glyph; a null
+    // entry drops the element with its contents (never meant for the user).
+    readonly property var metaTags: ({
+            "ci-monitor-event": Icons.ci,
+            "side-sessions-event": Icons.sessions,
+            "task-notification": Icons.tasks,
+            "system-reminder": null
+        })
+    function clean(text) {
+        if (!text || text.indexOf("-") < 0)
+            return text;
+        // Clients may escape the brackets; unescape only hyphenated tags.
+        let s = text.replace(/&lt;(\/?[a-z]+(?:-[a-z]+)+[^&]*?)&gt;/gi, "<$1>");
+        if (!/<\/?[a-z]+(?:-[a-z]+)+/i.test(s))
+            return text;
+        for (const tag in root.metaTags) {
+            const glyph = root.metaTags[tag];
+            if (glyph === null) // a truncated body may lack the close tag: drop to the end
+                s = s.replace(new RegExp("<" + tag + "\\b[^>]*>[\\s\\S]*?(?:</" + tag + ">|$)", "gi"), " ");
+            else
+                s = s.replace(new RegExp("<" + tag + "\\b[^>]*>", "gi"), glyph + " ");
+        }
+        // Anything else hyphenated: drop the tag, keep its text. A tag cut off
+        // by the client's truncation (no closing >) goes too.
+        s = s.replace(/<\/?[a-z]+(?:-[a-z]+)+[^>]*(?:>|$)/gi, " ");
+        return s.replace(/\s+/g, " ").trim();
+    }
+
     NotificationServer {
         id: server
 
@@ -136,10 +169,12 @@ Singleton {
         keepOnReload: false
 
         onNotification: notif => {
+            const summary = root.clean(notif.summary);
+            const body = root.clean(notif.body);
             // History always retains a copy, independent of routing.
             historyModel.insert(0, {
-                summary: notif.summary,
-                body: notif.body,
+                summary: summary,
+                body: body,
                 appName: notif.appName,
                 urgency: notif.urgency
             });
@@ -160,18 +195,18 @@ Singleton {
                 break;
             case "quiet":
                 quietModel.append({
-                    summary: notif.summary,
-                    body: notif.body,
+                    summary: summary,
+                    body: body,
                     appName: notif.appName,
                     urgency: notif.urgency
                 });
-                console.log("[notif-router] held (quiet):", notif.summary, "— queue now", quietModel.count);
+                console.log("[notif-router] held (quiet):", summary, "— queue now", quietModel.count);
                 break;
             case "ledger":
                 break; // lane work product; history centre only
             case "peek":
             default:
-                root.posted(notif.summary, notif.body, notif.appName, notif.urgency);
+                root.posted(summary, body, notif.appName, notif.urgency);
                 Sonic.notify(notif.urgency);
                 break;
             }
