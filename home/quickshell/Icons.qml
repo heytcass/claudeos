@@ -36,4 +36,10 @@ Singleton {
     readonly property string coffee: String.fromCharCode(0xf0f4)
     readonly property string bluetooth: String.fromCharCode(0xf293)
     readonly property string power: String.fromCharCode(0xf011)
+
+    readonly property string shelf: String.fromCharCode(0xf187)
+    readonly property string file: String.fromCharCode(0xf15b)
+    readonly property string link: String.fromCharCode(0xf0c1)
+    readonly property string quote: String.fromCharCode(0xf10d)
+    readonly property string close: String.fromCharCode(0xf00d)
 }

@@ -22,10 +22,11 @@ refuse() { claudeos_notify "Shelf" "$*"; die "$*"; }
 
 usage() {
   cat >&2 <<'EOF'
-usage: claudeos-shelf add {file <path>|image <file>|text {-|<text>}|link <url>}
+usage: claudeos-shelf add {file <path>|image {<file>|<url>}|text {-|<text>}|link <url>}
                          [--context <name>] [--source-json <json>] [--ocr <text>]
        claudeos-shelf list [<context>]     # JSON for the bar
        claudeos-shelf rm <id>
+       claudeos-shelf note <id> [<text>]   # no text clears the note
        claudeos-shelf move <id> <context>  # "loose" moves it back out
        claudeos-shelf open <id>            # open file/link, copy text/image
 EOF
@@ -148,6 +149,22 @@ case "$cmd" in
         label="${path##*/}"
         ;;
       image)
+        # A URL is fetched first: an image dragged out of a page sometimes
+        # carries only its <img src>, not its bytes. The type comes from the
+        # server's Content-Type, never the URL's (often extension-less) path.
+        if [[ "$arg" =~ ^https?:// ]]; then
+          dl=$(mktemp -d)
+          ct=$(curl -fsSL --max-time 20 --max-filesize "$MAX_IMAGE" -o "$dl/img" -w '%{content_type}' -- "$arg" 2>/dev/null) ||
+            { rm -rf "$dl"; refuse "could not fetch the image"; }
+          case "${ct%%;*}" in
+            image/png) ext=png ;; image/jpeg) ext=jpg ;; image/webp) ext=webp ;;
+            image/gif) ext=gif ;; image/avif) ext=avif ;;
+            *) rm -rf "$dl"; refuse "not a supported image: ${ct:-unknown type}" ;;
+          esac
+          mv "$dl/img" "$dl/img.$ext"
+          source_json=$(jq -c --arg u "$arg" '.url //= $u' <<<"$source_json")
+          arg="$dl/img.$ext"
+        fi
         [[ -f "$arg" ]] || refuse "no such image: $arg"
         [[ $(stat -c %s -- "$arg") -le $MAX_IMAGE ]] || refuse "image is over 5 MB"
         ext="${arg##*.}"; ext="${ext,,}"
@@ -179,6 +196,7 @@ case "$cmd" in
 
     dir=$(_dir "$target")
     if [[ -n "$blob" ]]; then mkdir -p "$dir/blobs" && cp -- "$arg" "$dir/$blob"; fi
+    [[ -n "${dl:-}" ]] && rm -rf "$dl"
     if ! jq --argjson item "$item" '.items += [$item]' <<<"$shelf" | _install "$target"; then
       [[ -n "$blob" ]] && rm -f "$dir/$blob"
       refuse "could not shelve $label (see stderr)"
@@ -215,6 +233,17 @@ case "$cmd" in
     [[ -n "$blob" ]] && rm -f "$dir/$blob"
     _claudeos_context_commit "shelf: rm $id from $slug"
     echo "removed $id from $slug"
+    ;;
+
+  note)
+    id="${1:-}"; [[ -n "$id" ]] || usage
+    text="${2:-}"
+    _lock
+    slug=$(_find "$id") || die "no shelf item '$id'"
+    jq --arg id "$id" --arg t "$text" \
+      '.items |= map(if .id == $id then (if $t == "" then del(.note) else .note = $t end) else . end)' \
+      "$(_dir "$slug")/shelf.json" | _install "$slug" || die "note failed"
+    _claudeos_context_commit "shelf: note $id on $slug"
     ;;
 
   move)

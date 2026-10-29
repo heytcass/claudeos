@@ -82,6 +82,14 @@
     short = "Shelve a screen region";
   }
   {
+    name = "Open shelf";
+    binding = "<Super><Ctrl>s";
+    global = "quickshell:shelf";
+    display = "Super+Ctrl+S";
+    help = "Open the shelf for the current context — click to open, right-click a tile for note/move/remove";
+    short = "Open the shelf (also: right-click the island)";
+  }
+  {
     name = "Semantic clipboard";
     binding = "<Super><Shift>v";
     command = "claude-clip";

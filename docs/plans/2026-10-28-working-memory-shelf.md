@@ -97,6 +97,7 @@ the same way every context write goes through `claudeos_context_install`.
 claudeos-shelf add {file <path>|image <png>|text -|link <url>} [--source-json …]
 claudeos-shelf list [<context>]            # JSON for the bar
 claudeos-shelf rm <id>
+claudeos-shelf note <id> [<text>]          # set or clear (no text) a note
 claudeos-shelf move <id> <context>         # file a loose item into a context
 claudeos-shelf open <id>                   # xdg-open / wl-copy, by kind
 claudeos-shelf tidy [<context>]
@@ -144,6 +145,34 @@ notification redundant; revisit then.
   dial-in pass), plus a hotkey. When the shelf has items, a count chip appears
   on the clock face at the same low emphasis as the active-context name.
 
+**As built (Phase 3, 2026-10-28):**
+
+- **Opening it:** right-click the Island, or `Super+Ctrl+S` (the
+  `quickshell:shelf` global, owned by `Shelf.qml`). `qs ipc call shelf toggle`
+  does the same from scripts.
+- **The popup is a `PanelWindow`, not a `PopupWindow`.** A grabbing
+  `xdg_popup` needs an input serial on its parent. A hotkey gives it none, so
+  the popup failed to open ("parent window has received input"). It's an
+  anchored-top layer surface with `HyprlandFocusGrab` for click-away.
+- **Tiles:** left-click opens; right-click selects and shows Note… / Remove /
+  Move to. Move to lists the other contexts, plus loose when you're not
+  already on it. Tiles can also be dragged *out* (copy only). The **Tidy**
+  button waits for Phase 4.
+- **Drop detection order:**
+  1. image bytes (staged in `XDG_RUNTIME_DIR`, then `add image`);
+  2. an `<img src>` URL;
+  3. `file://` URLs;
+  4. an http URL as a link;
+  5. text (a lone URL becomes a link).
+
+  The drop target is a fixed 640px region over the bar centre, not the
+  resizing pill, so it doesn't shrink under the cursor. "Shelved" flashes
+  only after the CLI confirms the write.
+- **CLI additions:**
+  - `claudeos-shelf note <id> [<text>]` (no text clears the note);
+  - `add image <http(s)-url>`, which fetches with curl. The type comes from
+    the server's Content-Type.
+
 ### 4. Tidy (`claudeos-shelf tidy`)
 
 One `claude -p` Sonnet call. It receives the shelf JSON (text, OCR, source
@@ -174,9 +203,9 @@ titles and URLs; never blob bytes) and returns a new `groups` array plus a
 ## Phases
 
 0. **Spikes. Done 2026-10-28; both pass. Findings below.**
-1. Schema + `claudeos-shelf` CLI (add/list/rm/move/open) + context `rm` cleanup.
-2. Capture hotkeys.
-3. `Shelf.qml`, drop face, `ShelfPopup.qml` (dial in with the `qml-dial-in`
+1. **Done.** Schema + `claudeos-shelf` CLI (add/list/rm/move/open) + context `rm` cleanup.
+2. **Done.** Capture hotkeys.
+3. **Done.** `Shelf.qml`, drop face, `ShelfPopup.qml` (dial in with the `qml-dial-in`
    skill; `quickshell_check` before every rebuild).
 4. Tidy + the `untidy` revert + receipt card.
 5. Docs: CAPABILITIES.md (desktop integration + cards table), the

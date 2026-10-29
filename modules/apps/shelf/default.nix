@@ -20,14 +20,16 @@ in
       name = "claudeos-shelf";
       # check-jsonschema validates writes; xdg-utils opens files/links;
       # wl-clipboard copies text/images; attr reads the download-origin xattr;
-      # util-linux provides flock. hyprctl comes from the live session PATH
-      # (guarded), as in claudeos-context.
+      # util-linux provides flock; curl fetches an image dragged in by URL.
+      # hyprctl comes from the live session PATH (guarded), as in
+      # claudeos-context.
       runtimeInputs = [
         pkgs.check-jsonschema
         pkgs.xdg-utils
         pkgs.wl-clipboard
         pkgs.attr
         pkgs.util-linux
+        pkgs.curl
       ];
       text = ''
         SHELF_SCHEMA="${./shelf.schema.json}"
