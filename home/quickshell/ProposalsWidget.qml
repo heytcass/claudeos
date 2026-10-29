@@ -4,10 +4,8 @@
 // rung 1 means the machine proposes and the human merges, so the bar shows when
 // the machine is waiting on you.
 //
-// The gh poll and the PR list now live in the Presence singleton (one home for
-// the whole second-operator model); this widget is just its bar-side glyph.
-// Clicking opens the PresencePanel, where "waiting on you" lists the PRs
-// alongside what's working and what recently finished.
+// The gh poll and the PR list live in the Presence singleton; this widget is
+// just its bar-side glyph. Clicking opens ReviewPanel, which lists the PRs.
 import QtQuick
 import Quickshell
 

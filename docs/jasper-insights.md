@@ -110,6 +110,6 @@ When a run is notably good or notably bad:
 1. Append the verbatim run to `~/.config/jasper-companion/insight-log.md` —
    output, all three inputs, the previous insight, and clause-by-clause
    attribution. Recover inputs by re-running the collectors and reading
-   `~/.cache/claudeos-monitor/presence-done.jsonl` (last 20 lane results, which
-   is where insight history survives after `jasper-insight.txt` is overwritten).
+   `~/.cache/claudeos-monitor/presence-done.jsonl` (last 20 lane results — no longer shown in the bar, but
+   still where insight history survives after `jasper-insight.txt` is overwritten).
 2. Fold anything generalizable into the lists above, redacted.

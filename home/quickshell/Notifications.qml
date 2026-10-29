@@ -7,7 +7,7 @@
 //   · peek   — ambient/FYI, glance and gone (Island.qml listens to `posted`)
 //   · quiet  — FYI that shouldn't interrupt: held, then flushed as ONE summary
 //              peek at a boundary — leaving fullscreen, or returning from idle
-//   · ledger — lane work product; its home is the PresencePanel, no live surface
+//   · ledger — lane work product; history centre only, no live surface
 // Routing is deterministic: explicit x-claudeos-dest hint → per-app override
 // table (Routes.qml) → urgency/actions default. Arbitration then adjusts
 // per-destination TIMING: while a window is fullscreen, non-Critical toasts
@@ -168,7 +168,7 @@ Singleton {
                 console.log("[notif-router] held (quiet):", notif.summary, "— queue now", quietModel.count);
                 break;
             case "ledger":
-                break; // lane work product; the PresencePanel is its home
+                break; // lane work product; history centre only
             case "peek":
             default:
                 root.posted(notif.summary, notif.body, notif.appName, notif.urgency);

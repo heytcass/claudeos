@@ -169,6 +169,9 @@ line), what each is waiting on, with click-through to the audit trail.
 Interruption arbitration in the same pass: notifications ranked by lane and
 deferred to idle/task boundaries the OS can already detect (hypridle,
 focused-window changes). *Mostly a Quickshell + journal/state-file job.*
+*(2026-10-28: the second-operator surface was cut back to a PR review inbox,
+ReviewPanel.qml. Live lanes stay on the island; the finished-work list was
+dropped because it was mostly stale Jasper lines.)*
 
 **Stage 2 — the intent line.** Generalize the WishOverlay into the intent
 router: one overlay, a sentence in, routed to {open app, run command, answer

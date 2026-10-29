@@ -761,9 +761,8 @@ let
         cat ${tailHtml}
       } > "$DESK_DIR/index.html"
 
-      # The desk is the artifact — link it so the PresencePanel "recently
-      # finished" row opens it (claudeos-desk-open handles the Chrome app window;
-      # xdg-open falls back to the file for the panel's generic opener).
+      # The desk is the artifact — record it (with its link) in the presence
+      # ledger, the lane-completion history file.
       claudeos_agent_done "morning desk ready" "file://$DESK_DIR/index.html"
 
       # Phase 4 adopter: also drop a compact bar card — the brief at a glance,
