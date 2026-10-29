@@ -77,7 +77,7 @@ Match the cost of validation to the change. Run the cheapest check that can actu
 | 7 | **VM boot test** — `nix build .#nixosConfigurations.$(hostname).config.system.build.vm`, run `./result/bin/run-$(hostname)-vm`, grep the serial log for `CLAUDEOS-SMOKE-PASS`. Needs `/dev/kvm`. The weekly auto-update lane (`modules/common/auto-update.nix`) runs this for every lock bump before it may apply | minutes | Units that fail at boot, multi-user/display-manager not coming up; also prints a whole-config Hyprland `--verify-config` verdict (reported, not yet gating) | Real hardware (thermald, scx, fwupd, throttled, disko are stripped in the VM), GPU and the session (headless — QML never runs), sops secrets (cannot decrypt) |
 | 8 | **`nixos-rebuild switch`** — then `hypr_config_errors` and `failed_services` | real | Everything, on real hardware — the only rung that does | Nothing; rollback is a generation away, so for experimental components follow PHILOSOPHY.md's blast-radius rule |
 
-CI (`validate.yml`) runs rung 1, the rung-4 dry-runs, and rung 5 for transporter only, on every PR — so nothing merges below that, but CI never runs 3 or 7, and its rung 5 is on the host you're probably not on.
+CI (`validate.yml`) runs rung 1, the rung-4 dry-runs, and rung 5 for transporter on every PR. Its `lock-gate` job adds rung 5 for gti and rung 7 (the same VM boot, on a KVM-enabled runner) whenever a change touches `flake.lock`, `flake.nix` or `validate.yml`. CI never runs rung 3, and outside a lock bump its rung 5 is on the host you are probably not on.
 
 ### Minimum rung by change type
 
@@ -88,7 +88,7 @@ CI (`validate.yml`) runs rung 1, the rung-4 dry-runs, and rung 5 for transporter
 | Hyprland config (`home/hyprland.nix`) | 3 (`hypr_config_check` on each new line) + 4 | 2 to read the generated `hyprland.lua` before trialling it; `hyprctl eval` for any hook body |
 | Quickshell QML (`home/quickshell/`) | 3 (`quickshell_check`) | 4 if `home/hyprland.nix` changed too (Theme.qml is generated there) |
 | New package / overlay / input override | 5 | 6 if it differs per host |
-| `flake.lock` bump | 6 | 7 — or let the weekly auto-update lane do it; a Dependabot lock PR gets only CI's rungs |
+| `flake.lock` bump | 6 | 7 — CI's `lock-gate` runs it for gti on every lock PR (Dependabot included); locally, or let the weekly auto-update lane do it |
 | Boot, greeter, display manager, systemd units | 5 | 7 before switching — a broken greeter means no way to log in |
 
 Before `/deploy` and `switch`, the deploy skill runs 1, 4, and 5 on the target; rung 8 is the switch itself.
