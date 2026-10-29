@@ -238,6 +238,18 @@ advisory ones:
   may do is a reviewable diff.
 - Agents work on branches (`heal/*`) and open PRs. **A PR merges itself only
   inside the rung-2 window below; everything else waits for a human.**
+  Interactive sessions are the human-present case of that rule (decided
+  2026-10-29): Tom is in the conversation, so when a session's work is verified
+  it lands itself with `claudeos-land`. That means validate, merge its PR, fast-forward
+  `~/.config/claudeos`, switch this host, and sweep landed worktrees. Leaving
+  verified work unmerged was the bigger failure. Worktrees that never got
+  merged before a rebuild left the machine permanently half-built and the
+  checkout confusing. A Stop hook makes the session land or say what's open.
+  Unattended lanes (wish, self-heal) never call it: they open PRs and stop.
+- **One worktree per session.** The shared checkout (`~/.config/claudeos`) is
+  what hosts deploy from, so nobody edits or commits there. A PreToolUse hook
+  denies it. The 2026-10-29 incident: one session's commit swept up another's
+  staged work and deployed it half-finished.
 - Identity note: agents run as the user (a separate "agent user" fights
   Claude Code's per-user OAuth model — evaluated and rejected). Scoping comes
   from `--allowedTools` allowlists, systemd sandboxing where user units

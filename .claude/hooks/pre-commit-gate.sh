@@ -10,7 +10,10 @@ case "$cmd" in
 *) exit 0 ;;
 esac
 
-cd "${CLAUDE_PROJECT_DIR:-.}" 2>/dev/null || exit 0
+# The tree being committed is the session's cwd (its worktree), not
+# necessarily the project dir the session was launched from.
+cwd=$(echo "$input" | jq -r '.cwd // empty' 2>/dev/null)
+cd "${cwd:-${CLAUDE_PROJECT_DIR:-.}}" 2>/dev/null || exit 0
 git diff --cached --name-only 2>/dev/null | grep -q '\.nix$' || exit 0
 command -v nix >/dev/null 2>&1 || exit 0
 

@@ -18,33 +18,33 @@ tools: [Bash, Read, AskUserQuestion]
 
 Apply configuration on the current machine:
 
+Session work lives in a worktree; the host deploys **main** from the shared
+checkout `~/.config/claudeos`, which only ever pulls and deploys (CLAUDE.md,
+"Workflow"). Never commit, stash or switch branches there.
+
 ### 1. Pre-Deployment Checks
 
-```bash
-cd ~/.config/claudeos
-
-# Validate
-nix flake check
-
-# Check git status
-git status
-```
-
-**Stop if:** Validation fails or there are unstaged changes that affect the build.
-
-### 2. Apply Configuration
-
-Preferred (fish function — generation label, snapper pre/post snapshots, `nh os switch`, auto-commit):
+From the worktree:
 
 ```bash
-fish -c rebuild
+claudeos-validate   # validates the checkout you are in
+git status --short  # must be clean: commit with explicit paths first
 ```
 
-Raw fallback (skips labels and snapshots):
+**Stop if:** validation fails or there are uncommitted changes.
+
+### 2. Land and Apply
 
 ```bash
-sudo nixos-rebuild switch --flake ~/.config/claudeos#$(hostname)
+claudeos-land
 ```
+
+Merges the worktree branch to main, fast-forwards `~/.config/claudeos`,
+switches this host and sweeps landed worktrees (details: the deploy skill).
+Run it in the background. It refuses rather than deploy a half state.
+
+Redeploying main with nothing new to land, from the shared checkout: `fish -c rebuild`
+(generation label, snapper snapshots, `nh os switch`).
 
 ### 3. Verify
 
@@ -57,7 +57,7 @@ Deploy to another machine via SSH:
 ### Via git pull + rebuild
 
 ```bash
-ssh <hostname> "cd ~/.config/claudeos && git pull && sudo nixos-rebuild switch --flake ~/.config/claudeos#\$(hostname)"
+ssh <hostname> "cd ~/.config/claudeos && git pull --ff-only && sudo nixos-rebuild switch --flake ~/.config/claudeos#\$(hostname)"
 ```
 
 ### Via nixos-rebuild --target-host

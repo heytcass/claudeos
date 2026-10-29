@@ -10,7 +10,14 @@
 # Usage: qml-preview [screenshot-path]   (default /tmp/qs-preview.png)
 set -uo pipefail
 
-repo="${CLAUDEOS_DIR:-$HOME/.config/claudeos}/home/quickshell"
+# The checkout you stand in (a session worktree) wins over the shared one —
+# previewing ~/.config/claudeos from a worktree shows the wrong QML.
+root="${CLAUDEOS_DIR:-}"
+if [[ -z "$root" ]]; then
+  root=$(git rev-parse --show-toplevel 2>/dev/null) || root=""
+  [[ -n "$root" && -f "$root/flake.nix" ]] || root="$HOME/.config/claudeos"
+fi
+repo="$root/home/quickshell"
 deployed="$HOME/.config/quickshell"
 dest=/tmp/qs-preview
 shot="${1:-/tmp/qs-preview.png}"

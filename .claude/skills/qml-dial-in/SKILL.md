@@ -24,7 +24,8 @@ qml-preview            # copies deployed config + overlays repo QML, relaunches,
 It writes the shot to `/tmp/qs-preview.png` and **exits non-zero on a QML load
 error** (printing the offending file:line). If `qml-preview` isn't on PATH yet
 (needs one rebuild to install), run the script directly:
-`~/.config/claudeos/home/qml-preview.sh`.
+`"$(git rev-parse --show-toplevel)"/home/qml-preview.sh`. It overlays the QML of the
+checkout you run it from (your worktree); `CLAUDEOS_DIR` overrides.
 
 Under the hood it: copies the *deployed* `~/.config/quickshell` (for the
 generated `Theme.qml` + `cava.conf`), overlays the repo's `home/quickshell/*.qml`

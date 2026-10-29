@@ -208,8 +208,11 @@ in
         claudeos_notify "Wish received" "Working on it — a PR will arrive when it's ready."
 
         branch="wish/$(echo "$wish" | tr -c 'a-zA-Z0-9' '-' | tr -s '-' | head -c 24 | sed 's/-*$//')-$(date +%m%d-%H%M)"
-        cd "$CLAUDEOS_DIR" || exit 1
-        start=$(git symbolic-ref --short -q HEAD || true)
+        if ! claudeos_lane_worktree "$branch"; then
+          claudeos_agent_done "wish failed: couldn't create a worktree"
+          claudeos_notify --urgency=critical "Wish" "Couldn't create a worktree for $branch — nothing was changed."
+          exit 1
+        fi
 
         prompt="You are the ClaudeOS wish lane. The owner just wished, in natural language, for this machine to change. Wishes become pull requests, never direct changes (trust ladder rung 1: propose; the human merges).
 
@@ -218,9 +221,9 @@ in
         Your job:
         1. Interpret the wish as the SMALLEST configuration change that genuinely grants it, honoring docs/PHILOSOPHY.md's daily-driver rule and the CLAUDE.md house rules. If the wish is unsafe, destructive, needs new secrets, or is not expressible as NixOS/home-manager configuration in this repo, output exactly WISH-DECLINED: <one-line reason> and STOP.
         2. Verify every NixOS/home-manager option name with the nixos MCP server — never from memory.
-        3. Work ONLY on a new branch: git fetch origin, then git checkout -b $branch --no-track origin/main (--no-track matters: tracking origin/main under another name makes every later git push fail). Never commit to main. Stylix base16 tokens only — never hardcode hex.
+        3. You are already on a fresh branch, $branch, cut from origin/main in a worktree of your own (the current directory). Work only here; never switch branches and never commit to main. Stylix base16 tokens only — never hardcode hex.
         4. Validate: nix fmt, then a --dry-run build of BOTH hosts' config.system.build.toplevel (gti and transporter). Both must pass.
-        5. Stage exactly the files you changed (never git add -A), commit with a conventional message starting 'wish: ', push the branch with exactly: git push -u origin $branch — then: gh pr create --base main, title starting 'wish: ', body explaining the wish verbatim, what you changed, why that grants it, how you validated, and that this PR was authored by the wish lane. After the PR is open, return the checkout to its previous branch: git checkout -
+        5. Stage exactly the files you changed (never git add -A), commit with a conventional message starting 'wish: ', push the branch with exactly: git push -u origin $branch — then: gh pr create --base main, title starting 'wish: ', body explaining the wish verbatim, what you changed, why that grants it, how you validated, and that this PR was authored by the wish lane.
         6. Touch none of: flake.nix, flake.lock, .sops.yaml, secrets/, .github/, .claude/. If the wish truly requires them, decline with the reason.
         7. If the change is committed but the push or the PR fails (authentication, network, anything), do NOT decline and do NOT retry with other credentials — that is not a refusal, the work is done. Report it with WISH-STUCK.
         8. Your FINAL output line must be exactly one of:
@@ -229,23 +232,15 @@ in
         WISH-DECLINED: <reason — only for a wish you refuse or cannot express as config>"
 
         text=$(claude_headless sonnet "$prompt" \
-          --allowedTools 'Read,Grep,Glob,Edit,Write,Bash(git fetch*),Bash(git status*),Bash(git diff*),Bash(git log*),Bash(git checkout -b *),Bash(git checkout -),Bash(git add *),Bash(git commit *),Bash(git push *),Bash(gh pr create*),Bash(nix build*--dry-run*),Bash(nix fmt*),Bash(hostname),mcp__nixos__*')
+          --allowedTools 'Read,Grep,Glob,Edit,Write,Bash(git status*),Bash(git diff*),Bash(git log*),Bash(git add *),Bash(git commit *),Bash(git push *),Bash(gh pr create*),Bash(nix build*--dry-run*),Bash(nix fmt*),Bash(hostname),mcp__nixos__*')
 
-        # The agent only returns to the previous branch after a PR opens, so
-        # any earlier stop left the owner's checkout parked on the wish branch
-        # (the Fractal wish, 2026-10-29). Settled outcomes put it back here;
-        # unclear ones stay put so `approve` resumes where the agent stopped.
-        restore_checkout() {
-          [[ -n "$start" && "$(git symbolic-ref --short -q HEAD)" == "$branch" ]] || return 0
-          git checkout -q "$start" 2>/dev/null ||
-            claudeos_notify "Wish" "Couldn't switch the checkout back to $start — it's still on $branch."
-        }
-
+        # Settled outcomes drop the worktree (the branch keeps any commit);
+        # unclear ones keep it so `approve` resumes where the agent stopped.
         url=$(grep -oE 'WISH-PR: \S+' <<<"$text" | tail -1 | cut -d' ' -f2)
         stuck=$(grep -oE 'WISH-STUCK: .*' <<<"$text" | tail -1)
         declined=$(grep -oE 'WISH-DECLINED: .*' <<<"$text" | tail -1)
         if [[ -n "$url" ]]; then
-          restore_checkout
+          claudeos_lane_worktree_drop
           claudeos_agent_done "wish granted: $wish" "$url"
           # Durable record first (Phase 4): the PR link outlives the
           # notification below, which blocks and then evaporates unclicked.
@@ -259,21 +254,21 @@ in
         elif [[ -n "$stuck" ]]; then
           # Done but undelivered — not a refusal. The commit is safe on the
           # local branch; the card says exactly how to finish it by hand.
-          restore_checkout
+          claudeos_lane_worktree_drop
           claudeos_agent_done "wish ready, not pushed: ''${stuck#WISH-STUCK: }"
           claudeos_lane_card wish "Wish ready — push failed" "✨" normal \
             "$wish"$'\n\n'"Committed on $branch but not delivered: ''${stuck#WISH-STUCK: }"$'\n\n'"Finish it: git push -u origin $branch && gh pr create --base main --head $branch --fill"
           claudeos_notify --urgency=critical "Wish ready — push failed" \
             "''${stuck#WISH-STUCK: } — the change is committed on $branch."
         elif [[ -n "$declined" ]]; then
-          restore_checkout
+          claudeos_lane_worktree_drop --delete-branch
           claudeos_agent_done "wish declined: ''${declined#WISH-DECLINED: }"
           claudeos_lane_card wish "Wish declined" "✨" low \
             "$wish"$'\n\n'"Declined: ''${declined#WISH-DECLINED: }"
           claudeos_notify "Wish declined" "''${declined#WISH-DECLINED: }"
         elif [[ -z "$text" ]]; then
           claudeos_notify --urgency=critical "Wish" \
-            "The wish agent produced no result. Resume it with 'approve' in a terminal."
+            "The wish agent produced no result. Resume it with 'approve' in a terminal (its worktree: $LANE_WORKTREE)."
         else
           claudeos_notify "Wish" \
             "Unclear outcome — resume with 'approve'. Last output: ''${text: -160}"

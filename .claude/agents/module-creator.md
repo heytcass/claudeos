@@ -74,7 +74,7 @@ After creating module:
 
 2. **Validate:**
 ```bash
-cd ~/.config/claudeos
+cd "$(git rev-parse --show-toplevel)"   # your worktree — never the shared ~/.config/claudeos
 nix flake check
 ```
 

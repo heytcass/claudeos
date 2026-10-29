@@ -48,18 +48,19 @@ home-manager runs as a NixOS module (not standalone) — configured in `lib/mkSy
 
 ## Workflow
 
-All work is done directly on NixOS machines:
+**One worktree per session; the shared checkout only pulls and deploys.** `~/.config/claudeos` is the tree every host deploys from and every background lane reads, and sessions sharing it share one HEAD, one index and one working tree. On 2026-10-29 one session's `git add && git commit` swept in another session's staged bar work, pushed it, and deployed it half-finished to gti. So:
 
-1. **Stage** new files with `git add` — Nix flakes only see tracked files
-2. **Edit** configuration in `~/.config/claudeos`
-3. **Validate** with `nix build .#nixosConfigurations.<hostname>.config.system.build.toplevel --dry-run` (every host in the flake)
-4. **Check** with `nix flake check`
-5. **Format** with `nix fmt`
-6. **Apply** with `sudo nixos-rebuild switch --flake ~/.config/claudeos#$(hostname)`
-7. **Push** with `git push` — remote rebuilds pull from the repo, so never skip this
-8. **Sync** between machines with `git pull`
+- **Work in your own worktree.** App sessions get one automatically (`<repo>/.claude/worktrees/<name>`). A session that starts in `~/.config/claudeos` may read and diagnose there, but must `EnterWorktree` before editing. `.claude/hooks/shared-checkout-guard.sh` denies Edit/Write and every HEAD/index-moving git command (`add`, `commit`, `checkout`, `switch`, `reset`, `stash`, `rebase`, `merge`, …) in the shared checkout. Lanes that write the repo (wish, self-heal) create their own worktrees via `claudeos_lane_worktree`.
+- **Land when the work is verified: `claudeos-land`** (run it in the background, since the switch can take minutes). It rebases on origin/main, names the generation, runs `claudeos-validate`, pushes, opens or reuses the PR, squash-merges exactly the validated head, fast-forwards `~/.config/claudeos`, runs `nixos-rebuild switch` for `$(hostname)`, and sweeps landed worktrees. The session's own worktree goes when the app auto-archives the session on PR merge. Verified means it builds, and anything the user must see (bar visuals, a behavior check) has been seen. Until then, say what is still open.
+- **Never leave work unlanded silently.** `.claude/hooks/land-nudge.sh` (Stop) holds a session that stops with commits or changes not on main. It does this once per state: land, or tell the user what's open. Half-built is fine while you're working. Half-built and forgotten is the failure mode.
 
-**Important:** Always modify files in `~/.config/claudeos/` — never edit upstream module files or flake input sources directly.
+Inside the worktree:
+
+1. **Stage** new files with `git add <paths>`: Nix flakes only see tracked files. Commit with explicit paths, never `git add -A`.
+2. **Validate** with `claudeos-validate`, which checks the checkout you're in: flake check plus a dry-run of every host. Also run `nix fmt`. Check Hyprland/QML with the system-health tools (next section).
+3. **Land and apply** with `claudeos-land`. Use `--no-deploy` to merge without switching. Other hosts pick main up via `git pull --ff-only` and a rebuild (deploy skill).
+
+**Important:** Never edit upstream module files or flake input sources directly. Never deploy from a worktree (`--flake <worktree>#…`): a host runs main and nothing else.
 
 ## Compositor config isn't validated by the build
 
