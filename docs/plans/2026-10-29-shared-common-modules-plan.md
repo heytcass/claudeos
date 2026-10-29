@@ -101,14 +101,16 @@ per-host hardware profiles, networkd, `daemon*Sched*` idle builds,
 Disk-health is the one honest wave-2 candidate: the laptop has no SMART
 watching either. It would need its sink made pluggable (webhook vs.
 `notify-send`/journal-diary) before it could move, and it is ZFS-shaped today.
-Not in this plan's migration; listed in §5 as a later step to *propose*.
+Scheduled as wave 2 in §5, after the baseline has settled on both sides.
 
 ### 1e. Hardening — claudeos-only for now
 
 `boot.kernel.sysctl` hardening, `security.auditd`/`security.audit.rules`,
 `systemd-boot.editor = false`. All sensible on servers, but adopting them
-changes fleet behaviour, not just where the text lives. Out of scope for the
-extraction; a separate proposal once the layer exists.
+changes fleet behaviour, not just where the text lives, so it is not part of
+the wave-1 extraction. It is wave 2 (§5): the owner's standing preference is
+DRY — standardise whatever can honestly be shared — so every setting both
+sides *should* have is in scope, each as an intended, reviewed change.
 
 ---
 
@@ -226,8 +228,9 @@ claude-os.shared.user = { name = "…"; authorizedKeys = [ … ]; };
   one diff. Optionally a monthly reminder; never automatic.
 - **Version signal.** claudeos tags shared-layer releases (`shared-vN`) when
   the interface changes, and the fleet may pin `?ref=shared-vN&dir=…`
-  instead of a branch. Not required in wave 1 (the lock already pins a commit);
-  worth it the first time an option is renamed.
+  instead of a branch. **(decided)** The fleet pins plain commits (its lock
+  already does) until the first breaking interface change; from then on it
+  pins `shared-vN` tags, so a rename is something it opts into by name.
 
 ---
 
@@ -311,9 +314,12 @@ Steps 1–6 are claudeos-only; nothing reaches the fleet until step 7.
 | 7 | fleet | Add `claudeos-shared` input (held back from weekly updates). Import **only `nixosModules.locale`** on the least-critical server. | trivial | diff-closures empty |
 | 8 | fleet | `locale` fleet-wide via `modules/default.nix`; delete the duplicated lines from its base module. | trivial | diff-closures empty on every host |
 | 9 | fleet | `nix`, then `base-tools`, then `user` — one PR each, duplicated lines deleted. `wheelNeedsPassword` override and `mutableUsers` stay fleet-side. | low | diff-closures; deploy least-critical first |
-| 10 | fleet | `ssh` — the one intended behaviour change for servers (crypto allowlist). Verify every client that reaches the fleet (laptops, jump paths, any BMC-side tooling) negotiates the allowlisted algorithms *before* merge. ed25519 host-key path unchanged, so sops keeps decrypting. | medium | `ssh -vv` from each client against one host on `test`; then roll |
+| 10 | fleet | `ssh` — the one intended behaviour change for servers (crypto allowlist). The client that matters is the primary laptop (gti), which already runs the same allowlist as a server, so negotiation is expected to work; any other client still in use gets the same check *before* merge. ed25519 host-key path unchanged, so sops keeps decrypting. | medium | `ssh -vv` from gti against one host on `test`; then roll |
 | 11 | fleet | **VPS relay** last: it is too small to evaluate the flake, so its closure is built on another machine and copied in. Same diff-closures check, built off-box. Confirm the relay's port-22 posture is unchanged (the shared layer must not touch it — the VM test in claudeos asserts this). Keep its out-of-band console in reach for the first boot. | medium (remote, no physical access) | diff-closures; first boot watched |
-| — | later | Propose (don't schedule): journald cap shared; disk-health with pluggable sink; sysctl/audit hardening for the fleet. Each its own decision. | | |
+| 12 | both | **Wave 2 — journald cap:** move the fleet's `SystemMaxUse` into `shared/journald.nix` as `mkDefault`. Intended change on laptops (journal capped). | low | claudeos VM test; fleet diff-closures empty |
+| 13 | both | **Wave 2 — hardening:** move claudeos's sysctl + auditd rules into `shared/hardening.nix`, each knob `mkDefault`. Before the fleet adopts it, check every sysctl against what the servers need (VM hosts and routers need forwarding; containers may need unprivileged namespaces) and override there rather than weakening the shared default. | medium | `shared-vm` test; fleet `test` deploy, least-critical first |
+| 14 | both | **Wave 2 — disk health:** generalise the fleet's ZFS+SMART module into `shared/disk-health.nix` with a pluggable sink (webhook on servers, desktop notification/journal on laptops) and a btrfs path alongside ZFS. Largest wave-2 item; its own short design doc first. | medium | stand-in host with a fake sink; laptop sees a test alert |
+| — | ongoing | Anything else that turns out identical on both sides moves the same way: one concern per PR, pure-refactor gate for moves, explicit diff for changes. | | |
 
 Rollback at every step is the NixOS one: previous generation on the host,
 `git revert` in the repo, and on the fleet side simply not bumping the pin.
@@ -383,12 +389,11 @@ the cost doctrine (no new LLM calls), the proactivity doctrine.
 
 ---
 
-## Open questions for the owner
+## Answered questions (2026-10-29)
 
-1. **Which client machines must reach the fleet over SSH** after the crypto
-   allowlist lands (step 10)? Anything older than OpenSSH 6.5 — or an embedded
-   client on network gear — would be refused. Needs a one-time `ssh -vv` sweep.
-2. **Tagging:** pin the fleet to `shared-vN` tags from the start, or only
-   after the first breaking change? (Recommendation: commit pins until then.)
-3. **Wave 2 appetite:** is a shared journald cap / disk-health / hardening
-   proposal wanted at all, or is the wave-1 baseline the whole ambition?
+1. **SSH clients for the fleet:** mostly gti. Step 10's check is `ssh -vv`
+   from gti, plus any other client still in use.
+2. **Tagging:** commit pins until the first breaking change, then `shared-vN`
+   tags (§3).
+3. **Wave 2:** yes. The owner prefers DRY, so whatever can be standardised
+   should be: journald cap, hardening and disk health are steps 12–14 in §5.
