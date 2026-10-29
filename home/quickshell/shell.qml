@@ -25,6 +25,12 @@ ShellRoot {
         Sonic.dir;
     }
 
+    // The living wallpaper, one per monitor on the background layer.
+    Variants {
+        model: Quickshell.screens
+        Wallpaper {}
+    }
+
     // One bar per monitor.
     Variants {
         model: Quickshell.screens

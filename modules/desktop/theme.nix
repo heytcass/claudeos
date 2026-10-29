@@ -143,18 +143,31 @@ in
       base0F = "bd5d3a"; # Deep terracotta — hover state, embedded
     };
 
-    # Terracotta dune under a peach moon — ORIGINAL ClaudeOS artwork
-    # (AI-generated 2026-07, sky rebuilt + upscaled to 3840² in-session; no
-    # third-party rights, metadata-clean, safe to redistribute under MIT).
-    # Composition: many windswept paths converging into one luminous ridgeline
-    # walked by a tiny caretaker — branches merging to main, tended by lanes.
-    # Sunlit dune ≈ base0D/base0F terracotta, moon ≈ base09 peach. Square 1:1
-    # canvas: with imageScalingMode "fill", landscape monitors show the middle
-    # horizontal band and portrait monitors the middle vertical band, both at
-    # native res — key elements live in the center-safe square by design.
-    # Previous: same scene by Justin Wirtalla (replaced pre-go-public — its
-    # EXIF carried a third-party copyright); before that assets/chicago.jpg.
-    image = ../../assets/dune.jpg;
+    # Terracotta dune under a peach moon — ORIGINAL ClaudeOS artwork, drawn
+    # as vector art from the live palette by lib/wallpaper.nix and rasterised
+    # here (the session animates the same SVG — home/quickshell/Wallpaper.qml).
+    # Square 1:1 canvas: with imageScalingMode "fill", landscape monitors show
+    # the middle horizontal band and portrait monitors the middle vertical
+    # band; key elements live in the centre-safe square by design. Rendered at
+    # 3840² so a 1920-long screen edge is an exact 2× downscale either way.
+    # Previous: assets/dune.jpg (same scene, AI render upscaled — soft edges);
+    # before that a third-party dune and assets/chicago.jpg.
+    image =
+      let
+        wallpaper = import ../../lib/wallpaper.nix {
+          inherit lib;
+          inherit (config.lib.stylix) colors;
+        };
+      in
+      pkgs.runCommand "claudeos-wallpaper.png"
+        {
+          nativeBuildInputs = [ pkgs.resvg ];
+          passAsFile = [ "svg" ];
+          inherit (wallpaper) svg;
+        }
+        ''
+          resvg -w 3840 -h 3840 "$svgPath" "$out"
+        '';
     imageScalingMode = "fill";
 
     # Terracotta folder icons (see claudeosIconTheme above)
