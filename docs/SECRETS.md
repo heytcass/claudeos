@@ -40,7 +40,7 @@ plus `unifi_api_key` (fish exports `UNIFI_API_KEY` from its path for the UniFi M
 All other authentication is handled outside sops-nix:
 - **SSH keys:** Stored in `~/.ssh/` with proper permissions (not managed declaratively)
 - **GitHub, interactive:** `gh` CLI keyring auth; the `with-github-token <cmd>` wrapper materializes the token per-process (no global export)
-- **GitHub, headless automation:** the keyring is locked outside a graphical session, and lingering means auto-update/self-heal can run in exactly that state. The pending `github_automation_token` sops secret (fine-grained PAT, this repo only) is exported as `GH_TOKEN` by the agent-script preamble (`claudeos_export_gh_token` in `lib/claude-script.nix`) when present; until it's minted, headless runs degrade to commit-locally + notify.
+- **GitHub, headless automation:** the keyring is locked outside a graphical session, and lingering means auto-update/self-heal can run in exactly that state. The `github_automation_token` sops secret (fine-grained PAT, this repo only) is exported as `GH_TOKEN` by the agent-script preamble (`claudeos_export_gh_token` in `lib/claude-script.nix`) only after GitHub accepts it; a rejected token is dropped (keyring fallback) with a rotation nudge — see below.
 - **User passwords:** Set during NixOS installation with `passwd`
 
 ## Editing Secrets
@@ -70,15 +70,14 @@ The encrypted file is safe to commit and push. Hosts pick up new values on the n
 3. Reference it via `config.sops.secrets.my_secret.path` (resolves to `/run/secrets/my_secret`)
 4. Rebuild and verify the file exists with correct ownership
 
-## Planned: `github_automation_token`
+## Rotating `github_automation_token`
 
-The headless automation lane (see above) needs a GitHub credential that works with no session. Follow-up:
+The headless automation lane (see above) uses a fine-grained PAT, and those expire. `claudeos_export_gh_token` checks the token against the GitHub API before exporting it. If GitHub returns 401, it skips the token, so lanes use the keyring instead of the dead token taking priority over it, and sends a critical "GitHub automation token rejected" notification at most once a day. (Before this check, an expired token broke in-session pushes too: the Fractal wish, 2026-10-29.) To rotate:
 
-1. Mint a fine-grained PAT at github.com/settings/personal-access-tokens — scope it to the claudeos repo only, contents + pull-requests read/write
-2. Add it: `sops set secrets/secrets.yaml '["github_automation_token"]' '"<PAT>"'`
-3. Uncomment the `sops.secrets.github_automation_token` block in `modules/common/secrets.nix` and rebuild
+1. Mint a fine-grained PAT at github.com/settings/personal-access-tokens: scoped to the claudeos repo only, with contents + pull-requests read/write. Note the expiry date.
+2. Replace it: `sops set secrets/secrets.yaml '["github_automation_token"]' '"<PAT>"'`, then commit, push and rebuild.
 
-Until then, headless auto-update runs commit locally and notify instead of pushing, and headless self-heal runs skip with a notification instead of burning an agent session that can't open a PR.
+While the token is dead, headless auto-update runs commit locally and notify instead of pushing, and headless self-heal runs skip with a notification. In-session runs keep working through the keyring.
 
 ## Adding a New Host
 
