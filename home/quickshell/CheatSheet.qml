@@ -123,6 +123,10 @@ Scope {
                     {
                         keys: ["Super", "Tab"],
                         desc: "Overview — drag windows between"
+                    },
+                    {
+                        keys: ["Super", "O"],
+                        desc: "Pin window as live mini-window"
                     }
                 ]
             },
@@ -141,6 +145,14 @@ Scope {
                     {
                         keys: ["Media keys"],
                         desc: "Play · pause · next · prev"
+                    },
+                    {
+                        keys: ["Print"],
+                        desc: "Region shot — copy · save · ask Claude"
+                    },
+                    {
+                        keys: ["Shift", "Print"],
+                        desc: "Full-screen shot to ~/Pictures"
                     }
                 ]
             },

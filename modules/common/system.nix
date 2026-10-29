@@ -78,11 +78,30 @@ in
       '';
     })
 
+    # Ask about a region (the Print region tool's "Ask Claude", RegionShot.qml)
+    # — $1 is the cropped PNG, $2 the typed question (empty: just describe
+    # it). Opens the same one-shot terminal as Super+Ctrl+A; the image goes in
+    # as data via Read, and the file is removed once the terminal closes.
+    (claudeLib.mkClaudeScriptBin {
+      name = "claude-ask-region";
+      runtimeInputs = [ pkgs.ghostty ];
+      text = ''
+        SHOT="/tmp/claudeos-ask-region-$$.png"
+        mv -- "$1" "$SHOT" || exit 1
+        question="''${2:-}"
+        [[ -z "$question" ]] && question="Describe what you see. Focus on any errors, issues, or things that need attention. Be brief and actionable."
+        claude_interactive "Read the image at $SHOT — a region of my screen I just selected. $question" "Read" --model sonnet
+        rm -f "$SHOT"
+      '';
+    })
+
     # Grab Text (bound to Super+T) — drag a region, and whatever text is
     # inside it lands in the clipboard: screenshots in tweets, error dialogs
     # that won't select, code in videos. Live Text, but it's the OS reading
     # with its own eyes. The image goes to haiku as data; only the
     # transcription comes back, and nothing executes it.
+    # Given a PNG path instead (the Print region tool, RegionShot.qml), it
+    # reads that file and deletes it, skipping the slurp.
     (claudeLib.mkClaudeScriptBin {
       name = "claude-grab-text";
       runtimeInputs = [
@@ -91,10 +110,14 @@ in
         pkgs.wl-clipboard
       ];
       text = ''
-        region=$(slurp 2>/dev/null) || exit 0
-        [[ -z "$region" ]] && exit 0
         SHOT="/tmp/claudeos-grab-$$.png"
-        grim -g "$region" "$SHOT" || exit 0
+        if [[ -n "''${1:-}" ]]; then
+          mv -- "$1" "$SHOT" || exit 0
+        else
+          region=$(slurp 2>/dev/null) || exit 0
+          [[ -z "$region" ]] && exit 0
+          grim -g "$region" "$SHOT" || exit 0
+        fi
         claudeos_agent_begin "reading the screen"
         out=$(claude_text haiku "Read the image at $SHOT and transcribe ALL text in it, exactly as written, preserving line breaks. Output ONLY the transcribed text — no commentary, no code fences. If there is no legible text, output exactly NO-TEXT." --allowedTools "Read")
         rm -f "$SHOT"

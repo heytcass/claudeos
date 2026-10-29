@@ -803,6 +803,8 @@ in
         (mkBind "${mod} + H" (mkGlobal "quickshell:cheatsheet"))
         # live workspace overview (Overview.qml); also the 4-finger swipe up
         (mkBind "${mod} + Tab" (mkGlobal "quickshell:overview"))
+        # pin the focused window as a live corner mini-window (Pin.qml)
+        (mkBind "${mod} + O" (mkGlobal "quickshell:pin"))
         # idle-inhibit hold (Caffeine.qml)
         (mkBind "${mod} + I" (mkGlobal "quickshell:caffeine"))
         # Super+W (wish overlay) rides lib/keybindings.nix as a `global`
@@ -845,12 +847,15 @@ in
         # behaviour-preserving; switching to `uwsm stop` is a separate call.)
         (mkBind "${mod} + SHIFT + M" (mkLuaInline "hl.dsp.exit()"))
 
-        # Plain screenshot — grim only, no Claude hand-off (contrast with
-        # Super+Shift+A / Super+Ctrl+A in lib/keybindings.nix, which analyze
-        # the capture). Whole screen straight to a file; no region picker.
+        # Print: the region tool (RegionShot.qml) — freeze the monitor, click a
+        # window or drag a box, then copy / save / grab text / ask Claude.
         # The leading bare comma of the hyprlang form (",Print") is simply
         # absent under Lua — an unmodified key stands alone.
-        (mkBind "Print" (
+        (mkBind "Print" (mkGlobal "quickshell:regionshot"))
+        # Shift+Print: the old instant grab — whole screen straight to a file,
+        # grim only, no Claude hand-off (contrast with Super+Shift+A /
+        # Super+Ctrl+A in lib/keybindings.nix, which analyze the capture).
+        (mkBind "SHIFT + Print" (
           mkExec "grim \"$HOME/Pictures/Screenshot_$(date +%Y%m%d-%H%M%S).png\" && notify-send 'Screenshot saved' \"$HOME/Pictures\""
         ))
 

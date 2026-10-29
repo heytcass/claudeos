@@ -8,6 +8,7 @@
 //   click a window      → focus it (switching workspace) and close
 //   click a tile        → go to that workspace and close
 //   drag a window       → move it to the tile it's dropped on, silently
+//   right-click window  → pin it as the corner mini-window (Pin.qml)
 //   ← → / Return / Esc  → pick a tile / go there / dismiss
 //
 // Geometry comes from the raw hyprctl IPC payloads (`at`/`size` on clients),
@@ -15,8 +16,6 @@
 import QtQuick
 import Quickshell
 import Quickshell.Hyprland
-import Quickshell.Wayland
-import Quickshell.Widgets
 
 Scope {
     id: root
@@ -237,7 +236,6 @@ Scope {
                                 readonly property var ipc: modelData.lastIpcObject ?? {}
                                 readonly property real homeX: ((ipc.at?.[0] ?? 0) - (tile.mon?.x ?? 0)) * tile.k
                                 readonly property real homeY: ((ipc.at?.[1] ?? 0) - (tile.mon?.y ?? 0)) * tile.k
-                                readonly property var entry: DesktopEntries.heuristicLookup(ipc.class ?? "")
 
                                 x: homeX
                                 y: homeY
@@ -258,36 +256,11 @@ Scope {
                                 Drag.hotSpot.x: width / 2
                                 Drag.hotSpot.y: height / 2
 
-                                Rectangle {
+                                WindowThumb {
                                     anchors.fill: parent
-                                    radius: Theme.radius / 2
-                                    color: Theme.bgAlt
-                                    border.width: grab.containsMouse || grab.drag.active ? 2 : 0
-                                    border.color: Theme.accent
-                                    clip: true
-
-                                    ScreencopyView {
-                                        id: view
-                                        anchors.fill: parent
-                                        anchors.margins: parent.border.width
-                                        captureSource: root.shown ? thumb.toplevel.wayland : null
-                                        live: root.shown
-                                    }
-
-                                    // App icon: the whole face until the first
-                                    // frame lands, then a small corner badge.
-                                    // Plain x/y rather than toggled anchors:
-                                    // setting an anchor back to `undefined`
-                                    // doesn't release it, so the badge stuck
-                                    // in the centre.
-                                    IconImage {
-                                        readonly property real big: Math.min(parent.width, parent.height) * 0.4
-                                        implicitSize: view.hasContent ? Math.min(20, big) : big
-                                        x: view.hasContent ? parent.width - width - 4 : (parent.width - width) / 2
-                                        y: view.hasContent ? parent.height - height - 4 : (parent.height - height) / 2
-                                        source: thumb.entry ? Quickshell.iconPath(thumb.entry.icon, true) : ""
-                                        visible: source !== ""
-                                    }
+                                    toplevel: thumb.toplevel
+                                    active: root.shown
+                                    highlighted: grab.containsMouse || grab.drag.active
                                 }
 
                                 MouseArea {
@@ -307,7 +280,14 @@ Scope {
                                         thumb.x = Qt.binding(() => thumb.homeX);
                                         thumb.y = Qt.binding(() => thumb.homeY);
                                     }
-                                    onClicked: root.focusWindow(thumb.toplevel)
+                                    acceptedButtons: Qt.LeftButton | Qt.RightButton
+                                    onClicked: event => {
+                                        if (event.button === Qt.RightButton) {
+                                            PinState.toggle(thumb.toplevel);
+                                            root.close();
+                                        } else
+                                            root.focusWindow(thumb.toplevel);
+                                    }
                                 }
                             }
                         }

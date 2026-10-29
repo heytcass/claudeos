@@ -2,7 +2,8 @@
 // terracotta, springs on switch, and sits in a soft accent glow; occupied
 // pills sit warmer than empty ones. Click to switch, scroll anywhere on the
 // row to cycle, and a pill breathes urgent-red when a window on it demands
-// attention (until that workspace is visited).
+// attention (until that workspace is visited). Hover an occupied pill for a
+// live peek at it (WorkspacePeek.qml).
 import QtQuick
 import QtQuick.Layouts
 import Quickshell.Hyprland
@@ -40,6 +41,47 @@ RowLayout {
     // class as the hyprctl dispatch dpms breakage (docs/known-issues.md).
     WheelHandler {
         onWheel: event => Hyprland.dispatch("hl.dsp.focus({ workspace = \"" + (event.angleDelta.y > 0 ? "e-1" : "e+1") + "\" })")
+    }
+
+    // Hover peek: rest on an unfocused, occupied pill for a beat and its
+    // workspace drops down live (WorkspacePeek.qml). One popup for the row,
+    // re-anchored as the pointer crosses pills; a short grace on leave so
+    // sliding between neighbours doesn't flicker it shut.
+    property Item peekItem: null
+    property var peekWs: null
+    function hoverPill(item, ws, inside) {
+        if (inside && ws) {
+            root.peekItem = item;
+            root.peekWs = ws;
+            peekClose.stop();
+            if (peek.visible) {
+                peek.anchor.updateAnchor();
+            } else
+                peekOpen.restart();
+        } else if (root.peekItem === item || inside) {
+            peekOpen.stop();
+            peekClose.restart();
+        }
+    }
+    Timer {
+        id: peekOpen
+        interval: Motion.standard
+        onTriggered: peek.visible = root.peekWs !== null
+    }
+    Timer {
+        id: peekClose
+        interval: Motion.quick
+        onTriggered: {
+            peek.visible = false;
+            root.peekItem = null;
+            root.peekWs = null;
+        }
+    }
+    WorkspacePeek {
+        id: peek
+        anchorItem: root.peekItem
+        workspace: root.peekWs
+        visible: false
     }
 
     Repeater {
@@ -165,7 +207,13 @@ RowLayout {
 
                 MouseArea {
                     anchors.fill: parent
-                    onClicked: Hyprland.dispatch("hl.dsp.focus({ workspace = " + cell.modelData.id + " })")
+                    hoverEnabled: true
+                    // No peek at the workspace you're on, or at an empty one.
+                    onContainsMouseChanged: root.hoverPill(cell, cell.focused || !cell.occupied ? null : cell.modelData, containsMouse)
+                    onClicked: {
+                        root.hoverPill(cell, null, true);
+                        Hyprland.dispatch("hl.dsp.focus({ workspace = " + cell.modelData.id + " })");
+                    }
                 }
             }
         }

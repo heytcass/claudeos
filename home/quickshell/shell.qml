@@ -46,6 +46,12 @@ ShellRoot {
     // SUPER+Tab / four-finger swipe up: live workspace overview (own overlay).
     Overview {}
 
+    // SUPER+O / right-click in the Overview: a pinned live corner mini-window.
+    Pin {}
+
+    // Print: freeze the screen, pick a region, copy / save / read / ask Claude.
+    RegionShot {}
+
     // SUPER+W wish prompt — a sentence in, a wish/* PR out (its own overlay).
     WishOverlay {}
 
