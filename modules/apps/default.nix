@@ -11,6 +11,7 @@
     ./cards.nix
     ./intent.nix
     ./contexts
+    ./shelf
     ./unifi-endpoint.nix
   ];
 

@@ -1,0 +1,90 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "ClaudeOS working-memory shelf",
+  "description": "The MATERIAL gathered while working in a task context: files, images, text clips and links (docs/plans/2026-10-28-working-memory-shelf.md). One shelf per context slug plus `_loose`, stored at contexts/shelf/<slug>/shelf.json in the local context repo. Written only by `claudeos-shelf`, which validates every write against this schema.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["name", "items"],
+  "properties": {
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The context's display name, or \"_loose\" for the shelf outside any context."
+    },
+    "groups": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "uniqueItems": true,
+      "description": "Ordered group headers. Items without a group render first. Written by tidy or by hand."
+    },
+    "items": {
+      "type": "array",
+      "maxItems": 200,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "kind", "added", "payload"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z0-9]{6,16}$",
+            "description": "Short random id, stable for the item's life (it survives move and tidy)."
+          },
+          "kind": { "enum": ["file", "image", "text", "link"] },
+          "added": { "type": "integer", "description": "Unix epoch when shelved." },
+          "payload": {
+            "type": "object",
+            "minProperties": 1,
+            "maxProperties": 1,
+            "additionalProperties": false,
+            "properties": {
+              "path": {
+                "type": "string",
+                "pattern": "^/",
+                "description": "file: an absolute path, kept BY REFERENCE (the file is never copied)."
+              },
+              "blob": {
+                "type": "string",
+                "pattern": "^blobs/[a-z0-9]{6,16}\\.(png|jpg|jpeg|webp|gif|avif)$",
+                "description": "image: a copy kept BY VALUE, relative to the shelf directory."
+              },
+              "text": {
+                "type": "string",
+                "maxLength": 65536,
+                "description": "text: the clip itself, inline."
+              },
+              "url": {
+                "type": "string",
+                "pattern": "^https?://",
+                "description": "link: an http(s) URL."
+              }
+            }
+          },
+          "ocr": {
+            "type": "string",
+            "maxLength": 65536,
+            "description": "image: text recognised in the image, so tidy and search can read it."
+          },
+          "source": {
+            "type": "object",
+            "additionalProperties": false,
+            "description": "Best-effort provenance, structured fields only.",
+            "properties": {
+              "class": { "type": "string" },
+              "title": { "type": "string" },
+              "url": { "type": "string" }
+            }
+          },
+          "group": { "type": "string", "minLength": 1 },
+          "note": { "type": "string" }
+        },
+        "allOf": [
+          { "if": { "properties": { "kind": { "const": "file" } } }, "then": { "properties": { "payload": { "required": ["path"] } } } },
+          { "if": { "properties": { "kind": { "const": "image" } } }, "then": { "properties": { "payload": { "required": ["blob"] } } } },
+          { "if": { "properties": { "kind": { "const": "text" } } }, "then": { "properties": { "payload": { "required": ["text"] } } } },
+          { "if": { "properties": { "kind": { "const": "link" } } }, "then": { "properties": { "payload": { "required": ["url"] } } } }
+        ]
+      }
+    }
+  }
+}

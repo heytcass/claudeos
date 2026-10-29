@@ -41,7 +41,9 @@ Rectangle {
     // Face priority: a peek always wins (transient); media outranks agent —
     // while music plays the agent keeps the breathing border but not the stage.
     // The OSD outranks even a peek: it answers a key you just pressed.
-    state: osdShown ? "osd" : peeking ? "notif" : (playing ? "media" : Agent.active ? "agent" : "clock")
+    // A drag hovering the island outranks everything: it's the user's hand,
+    // right now, asking "can I put this here?" (the Shelf drop face).
+    state: (dropArea.containsDrag || shelvedFlash) ? "drop" : osdShown ? "osd" : peeking ? "notif" : (playing ? "media" : Agent.active ? "agent" : "clock")
 
     // Only the island on the FOCUSED output animates — see BarFocus.qml for
     // why (one QSGRenderThread per monitor, all breathing the same pulse).
@@ -324,7 +326,7 @@ Rectangle {
     // spring retargets carrying its current velocity, so back-to-back state
     // flips flow into each other instead of restarting from rest.
     implicitWidth: {
-        const w = state === "osd" ? osdContent.implicitWidth : state === "notif" ? notifContent.implicitWidth : state === "media" ? mediaContent.implicitWidth : state === "agent" ? agentContent.implicitWidth : clockContent.implicitWidth;
+        const w = state === "drop" ? dropContent.implicitWidth : state === "osd" ? osdContent.implicitWidth : state === "notif" ? notifContent.implicitWidth : state === "media" ? mediaContent.implicitWidth : state === "agent" ? agentContent.implicitWidth : clockContent.implicitWidth;
         return w + 26;
     }
     Behavior on implicitWidth {
@@ -384,6 +386,141 @@ Rectangle {
             font.family: Theme.fontSans
             font.pixelSize: Theme.fontSize
             font.italic: true
+        }
+        // The shelf's item count, at the same low emphasis — present only
+        // when the current shelf holds something. Right-click opens it.
+        Text {
+            anchors.verticalCenter: parent.verticalCenter
+            visible: Shelf.count > 0
+            text: Icons.shelf + " " + Shelf.count
+            color: Theme.muted
+            font.family: Theme.fontMono
+            font.pixelSize: Theme.fontSize - 1
+        }
+    }
+
+    // ---- drop face: "Shelve to <context>" while a drag hovers ----
+    // The face is only the VISUAL; the DropArea below covers a fixed region of
+    // the bar, so the island can widen under the cursor without the drop
+    // target bouncing exit/enter (Phase 0 spike finding).
+    property bool shelvedFlash: false
+    property bool awaitingShelve: false
+    Timer {
+        id: shelvedTimer
+        interval: 1400
+        onTriggered: root.shelvedFlash = false
+    }
+    Connections {
+        target: Shelf
+        function onShelved(name) {
+            if (!root.awaitingShelve)
+                return;     // another monitor's island took this drop
+            root.awaitingShelve = false;
+            root.shelvedFlash = true;
+            shelvedTimer.restart();
+            if (!Sonic.mediaPlaying)
+                Sonic.play("notif-low");
+        }
+        function onAddFailed(reason) {
+            root.awaitingShelve = false;    // the CLI already notified why
+        }
+    }
+
+    Row {
+        id: dropContent
+        anchors.centerIn: parent
+        spacing: 9
+        opacity: root.state === "drop" ? 1 : 0
+        visible: opacity > 0
+        Behavior on opacity {
+            NumberAnimation {
+                duration: Motion.quick
+                easing.type: Easing.BezierSpline
+                easing.bezierCurve: Motion.curveStandard
+            }
+        }
+        Text {
+            anchors.verticalCenter: parent.verticalCenter
+            text: Icons.shelf
+            color: root.shelvedFlash ? Theme.good : Theme.accent
+            font.family: Theme.fontMono
+            font.pixelSize: Theme.iconSize
+        }
+        Text {
+            anchors.verticalCenter: parent.verticalCenter
+            text: root.shelvedFlash ? "Shelved" : "Shelve to"
+            color: Theme.text
+            font.family: Theme.fontSans
+            font.pixelSize: Theme.fontSize
+        }
+        Text {
+            anchors.verticalCenter: parent.verticalCenter
+            visible: !root.shelvedFlash
+            text: Shelf.targetName
+            color: Theme.accent
+            font.family: Theme.fontSans
+            font.pixelSize: Theme.fontSize
+            font.italic: true
+            font.bold: true
+        }
+    }
+
+    // Route a drop to the right `claudeos-shelf add` kind. Order is from the
+    // spike's source table: image bytes first (never trust uri-list on an
+    // image drag — on a linked image it names the PAGE), then an <img src>
+    // when there's no text, then local files, then a web url, then text.
+    function shelveDrop(drop) {
+        const fmts = drop.formats || [];
+        for (const f of fmts) {
+            let m = f.match(/^application\/octet-stream;\s*name="?[^"]*\.(png|jpe?g|webp|gif|avif)"?$/i) || f.match(/^image\/(png|jpeg|webp|gif|avif)$/i);
+            if (!m)
+                continue;
+            const buf = drop.getDataAsArrayBuffer(f);
+            if (buf && buf.byteLength > 0) {
+                Shelf.addImageBytes(buf, m[1].toLowerCase().replace("jpeg", "jpg"));
+                return true;
+            }
+        }
+        if (!drop.hasText && drop.hasHtml) {
+            const m = drop.html.match(/<img[^>]+src="(https?:[^"]+)"/i);
+            if (m) {
+                Shelf.add("image", m[1].replace(/&amp;/g, "&"));
+                return true;
+            }
+        }
+        const urls = (drop.urls || []).map(u => u.toString());
+        const files = urls.filter(u => u.startsWith("file://"));
+        if (files.length) {
+            for (const u of files)
+                Shelf.add("file", decodeURIComponent(u.slice(7)));
+            return true;
+        }
+        const web = urls.find(u => /^https?:\/\//.test(u));
+        if (web) {
+            Shelf.add("link", web);
+            return true;
+        }
+        const t = (drop.text || "").trim();
+        if (t !== "") {
+            Shelf.add(/^https?:\/\/\S+$/.test(t) ? "link" : "text", t);
+            return true;
+        }
+        return false;
+    }
+
+    DropArea {
+        id: dropArea
+        // Fixed-size, centred on the bar — NOT the pill, which resizes.
+        parent: root.parent
+        width: 640
+        height: parent ? parent.height : Theme.barHeight
+        anchors.centerIn: parent
+        onEntered: drag => drag.accept(Qt.CopyAction)
+        onDropped: drop => {
+            if (root.shelveDrop(drop)) {
+                root.awaitingShelve = true;
+                drop.accept(Qt.CopyAction);
+            }
         }
     }
 
@@ -788,6 +925,29 @@ Rectangle {
             else
                 calPopup.visible = !calPopup.visible;
         }
+    }
+    // Right-click, in any state, opens the shelf (the hotkey drives the same
+    // Shelf.popupOpen flag).
+    TapHandler {
+        acceptedButtons: Qt.RightButton
+        onTapped: Shelf.popupOpen = !Shelf.popupOpen
+    }
+
+    // The flag is global; only the island on the focused monitor shows it.
+    Connections {
+        target: Shelf
+        function onPopupOpenChanged() {
+            shelfPopup.visible = Shelf.popupOpen && root.onFocusedScreen;
+        }
+    }
+    ShelfPopup {
+        id: shelfPopup
+        // one per bar, so pin it to this island's monitor
+        screen: root.QsWindow.window?.screen ?? null
+        // Click-away (its HyprlandFocusGrab) hides the window directly; fold that back
+        // into the flag so the next hotkey press opens rather than no-ops.
+        onVisibleChanged: if (!visible)
+            Shelf.popupOpen = false
     }
 
     CalendarPopup {

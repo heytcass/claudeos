@@ -21,6 +21,7 @@ ShellRoot {
         Presence.live;
         Cards.count;
         Contexts.contexts;
+        Shelf.count;
         Sonic.dir;
     }
 

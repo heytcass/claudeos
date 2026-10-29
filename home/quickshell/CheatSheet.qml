@@ -121,11 +121,11 @@ Scope {
                         desc: "Send window to workspace"
                     },
                     {
-                        keys: ["Super", "S"],
+                        keys: ["Super", "Z"],
                         desc: "Scratchpad — toggle"
                     },
                     {
-                        keys: ["Super", "Shift", "S"],
+                        keys: ["Super", "Shift", "Z"],
                         desc: "Stash window to scratchpad"
                     }
                 ]
