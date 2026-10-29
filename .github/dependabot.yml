@@ -1,0 +1,54 @@
+# Cloud FALLBACK for the weekly on-machine auto-update
+# (modules/common/auto-update.nix, Sat 03:00 — that unit remains primary: it
+# has the VM smoke-test gate and can actually stage the system). This covers
+# the one failure mode the local lane can't: both laptops off or asleep for
+# weeks. Monday noon UTC is deliberately offset from Saturday; when the local
+# run has already moved flake.lock, Dependabot rebases its PR or closes it as
+# up to date.
+#
+# Replaced .github/workflows/update-flake-lock.yml (2026-10-29). That workflow
+# needed a PAT because GITHUB_TOKEN-created PRs fire no pull_request workflows,
+# and it died for weeks when DeterminateSystems/update-flake-lock v27 nested
+# tag-pinned actions under this repo's transitive SHA-pinning rule. Dependabot
+# PRs trigger validate.yml normally and run no third-party action at all.
+#
+# Dependabot PRs receive Dependabot secrets, not Actions secrets, so
+# claude-code-review.yml skips them by actor; validate.yml is the gate.
+version: 2
+updates:
+  # Every flake.lock input. Without the group Dependabot opens one PR per
+  # input — ~10 a week with nixpkgs moving daily. One PR matches what the
+  # local lane does: a single coherent lock bump validated as a whole.
+  - package-ecosystem: nix
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "12:00"
+      timezone: Etc/UTC
+    groups:
+      flake-inputs:
+        patterns: ["*"]
+    labels:
+      - dependencies
+      - automated
+    commit-message:
+      prefix: chore
+
+  # Keeps the full-SHA `uses:` pins (required repo-wide) moving; Dependabot
+  # bumps the SHA and its trailing `# vX` comment together.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "12:00"
+      timezone: Etc/UTC
+    groups:
+      actions:
+        patterns: ["*"]
+    labels:
+      - dependencies
+      - automated
+    commit-message:
+      prefix: ci
