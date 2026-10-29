@@ -254,11 +254,26 @@ in
         fi
 
         git fetch -q origin || exit 1
-        if ! git rebase -q origin/main; then
-          git rebase --abort
-          echo "claudeos-land: $branch conflicts with origin/main — resolve with: git rebase origin/main" >&2
-          exit 1
-        fi
+        # Every land commits its own generation-label, so two lands in flight
+        # always collide on it. The label is rewritten just below anyway: take
+        # the replayed commit's side and carry on. Any other conflict is real.
+        git rebase -q origin/main >/dev/null 2>&1
+        while [[ -d "$(git rev-parse --git-path rebase-merge)" ]]; do
+          conflicts=$(git diff --name-only --diff-filter=U)
+          if [[ "$conflicts" != generation-label ]]; then
+            git rebase --abort
+            echo "claudeos-land: $branch conflicts with origin/main in:" >&2
+            echo "''${conflicts:-  (no conflicted files — the rebase stopped for another reason)}" >&2
+            echo "Resolve with: git rebase origin/main" >&2
+            exit 1
+          fi
+          git checkout -q --theirs -- generation-label && git add generation-label
+          if git diff --cached --quiet; then
+            git rebase --skip >/dev/null 2>&1
+          else
+            GIT_EDITOR=true git rebase --continue >/dev/null 2>&1
+          fi
+        done
         if [[ -z "$(git rev-list origin/main..HEAD)" ]]; then
           echo "claudeos-land: nothing to land — $branch has no commits beyond origin/main."
           sweep
