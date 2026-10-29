@@ -317,6 +317,8 @@ Ledger edits are committed by the normal rebuild auto-commit flow.
 
 - 2026-10-28 · `ucsi_acpi USBC000:00: con1: failed to get status` (1 occurrence) · Same USB-C port controller family as the existing GET_CONNECTOR_STATUS, PPM init, and re-enable-notifications entries: one missed connector status read during the Embedded Controller handshake. Benign if USB-C charging and attach keep working; only escalate if they start failing.
 
+- 2026-10-28 · `fwupdmgr: Unsupported daemon version 2.1.9, client version is 2.1.8` → `fwupd-refresh.service` failed, switch exited status 4 · Timing race on an fwupd version bump: `fwupd-refresh.timer` (hourly, `RandomizedDelaySec=1h`) fired on its own schedule about 150 ms before switch-to-configuration's daemon-reload, so the old 2.1.8 client ran against the 2.1.9 daemon that had just been restarted. The rest of the activation was fine. Neither `restartIfChanged` nor `X-OnlyManualStart` helps: the switch never touches the inactive oneshot or the running timer. `Restart=on-failure` doesn't help either, because the switch's failed-unit check also counts auto-restart units that have failed. Self-clears on the next timer tick. Benign unless it recurs without an fwupd version change.
+
 ## Resolved
 
 <!-- move entries here when fixed, with the fixing commit/PR -->

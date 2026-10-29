@@ -8,6 +8,8 @@ This is a NixOS system configuration repo optimized for tight Claude integration
 
 User runs NixOS with Hyprland on Wayland + a bespoke Quickshell bar (chosen 2026-07; GNOME was removed entirely in the rip-out — docs/plans/2026-07-11-gnome-ripout-plan.md). Session must be launched via the "Hyprland (UWSM)" entry at the regreet greeter. Fish shell with Starship prompt. Do not assume bash/PS1.
 
+**No system Python, by design.** `python3` is not on PATH, and that's deliberate. Use sed/awk/jq/heredocs for edits. When Python (or any other missing tool) is genuinely needed, run it ad hoc with `nix shell nixpkgs#<pkg> -c …` rather than adding it to the system.
+
 ## Theming & Styling
 
 **Always use Stylix/base16 palette references — never hardcode hex color values.** The system uses a unified theming approach via Stylix (defined in `modules/desktop/theme.nix`). When a module needs colors, reference the base16 scheme through `config.lib.stylix.colors` or equivalent — do not paste raw `#rrggbb` values.
