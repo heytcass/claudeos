@@ -1,6 +1,6 @@
 # ClaudeOS - NixOS Configuration
 
-This is a NixOS system configuration repo optimized for tight Claude integration throughout the OS. After any configuration changes, always run `nixos-rebuild build --flake .` (or equivalent) to verify the build succeeds before committing. Never commit untested NixOS changes.
+This is a NixOS system configuration repo optimized for tight Claude integration throughout the OS. Never commit untested NixOS changes — but "tested" means the cheapest check that can actually fail on your change, not the most expensive one available. See **Validation economy** below for which check that is.
 
 **Read `docs/PHILOSOPHY.md` before making design decisions.** It captures why ClaudeOS exists, the founding insight (the system is one git repo, so the OS can maintain itself via PRs), the two-ring rule, the proactivity doctrine, decided security trade-offs, and the cost doctrine. If a proposal changes one of its conclusions, update PHILOSOPHY.md in the same PR.
 
@@ -57,10 +57,44 @@ home-manager runs as a NixOS module (not standalone) — configured in `lib/mkSy
 Inside the worktree:
 
 1. **Stage** new files with `git add <paths>`: Nix flakes only see tracked files. Commit with explicit paths, never `git add -A`.
-2. **Validate** with `claudeos-validate`, which checks the checkout you're in: flake check plus a dry-run of every host. Also run `nix fmt`. Check Hyprland/QML with the system-health tools (next section).
+2. **Validate** by climbing the ladder in *Validation economy* to the rung your change needs — never below rung 4 (`claudeos-validate`, which checks the checkout you are in) for a `.nix` change.
 3. **Land and apply** with `claudeos-land`. Use `--no-deploy` to merge without switching. Other hosts pick main up via `git pull --ff-only` and a rebuild (deploy skill).
 
 **Important:** Never edit upstream module files or flake input sources directly. Never deploy from a worktree (`--flake <worktree>#…`): a host runs main and nothing else.
+
+## Validation economy
+
+Match the cost of validation to the change. Run the cheapest check that can actually fail on the kind of mistake you might have made; climb only when it passes and the next rung catches something it cannot. A green check that could never have gone red is not evidence. Equally, a pile of green evals is not a substitute for the one rung that exercises your failure mode — a dry-run will never find a QML typo.
+
+### The ladder (cheapest first)
+
+| # | Rung | Cost | Catches | Cannot catch |
+|---|------|------|---------|--------------|
+| 0 | **Edit-time hooks** (automatic) — `post-edit-check.sh` runs nixfmt, `nix-instantiate --parse`, and statix on every `.nix` you touch | free | Syntax errors, lint, formatting | Anything that needs evaluation |
+| 1 | **`nix fmt`** — treefmt: nixfmt + statix + deadnix. The gate form is `nix fmt -- --ci` (exit 1 if anything would change); `--check` does not exist and always fails | seconds | Formatting, lint, dead bindings — exactly what CI's first step rejects | Semantics |
+| 2 | **Targeted eval** — `nix eval .#nixosConfigurations.$(hostname).config.<path>`; for a generated file, `nix eval --raw` its `.text` | seconds | Wrong option name/type in *that* value; whether the rendered value is what you meant | Other hosts; anything outside that attribute; build failures |
+| 3 | **Runtime config checks** (`system-health` MCP, live session only) — `hypr_config_check` for new Hyprland lines, `quickshell_check` for QML (pass `qml_dir` from a worktree; briefly restarts the bar) | seconds | Config the Hyprland binary rejects; QML that fails to load and would blank the bar | Hook bodies (use `hyprctl eval`), bind option names (silently dropped — check by eye), how it *looks* (`/qml-dial-in`) |
+| 4 | **Eval every host** — `nix flake check --no-build` + `nix build .#nixosConfigurations.<host>.config.system.build.toplevel --dry-run` for each host. `claudeos-validate` does both, on the checkout you run it from (worktree included) | ~1 min | Eval errors, missing options, type errors and assertions on *every* host — including the one you aren't on. The pre-commit hook enforces the `--no-build` half for staged `.nix` | Derivations that fail to build; anything at runtime |
+| 5 | **Full build of the affected host** — `nix build .#nixosConfigurations.$(hostname).config.system.build.toplevel` | seconds to an hour (incremental on the running host; cold after a lock bump) | Build-time failures: patches that no longer apply, overrides/overlays that fail, `writeShellScriptBin` syntax checks on embedded scripts (every `mkClaudeScriptBin`), packages removed upstream | Boot and runtime behaviour |
+| 6 | **`nix flake check`** (no `--no-build`) — `checks` *are* every host's toplevel, so this builds all of them | rung 5 × hosts (toplevels already in the store are skipped) | Build failures on the host you aren't on | Same as rung 5 |
+| 7 | **VM boot test** — `nix build .#nixosConfigurations.$(hostname).config.system.build.vm`, run `./result/bin/run-$(hostname)-vm`, grep the serial log for `CLAUDEOS-SMOKE-PASS`. Needs `/dev/kvm`. The weekly auto-update lane (`modules/common/auto-update.nix`) runs this for every lock bump before it may apply | minutes | Units that fail at boot, multi-user/display-manager not coming up; also prints a whole-config Hyprland `--verify-config` verdict (reported, not yet gating) | Real hardware (thermald, scx, fwupd, throttled, disko are stripped in the VM), GPU and the session (headless — QML never runs), sops secrets (cannot decrypt) |
+| 8 | **`nixos-rebuild switch`** — then `hypr_config_errors` and `failed_services` | real | Everything, on real hardware — the only rung that does | Nothing; rollback is a generation away, so for experimental components follow PHILOSOPHY.md's blast-radius rule |
+
+CI (`validate.yml`) runs rung 1, the rung-4 dry-runs, and rung 5 for transporter on every PR. Its `lock-gate` job adds rung 5 for gti and rung 7 (the same VM boot, on a KVM-enabled runner) whenever a change touches `flake.lock`, `flake.nix` or `validate.yml`. CI never runs rung 3, and outside a lock bump its rung 5 is on the host you are probably not on.
+
+### Minimum rung by change type
+
+| Change | Minimum before commit | Add when |
+|--------|-----------------------|----------|
+| Docs-only (`*.md` no Nix expression reads) | none — `nix fmt -- --ci` if you touched anything else | — |
+| Nix module value / option | 4 | 5 if it adds or overrides a package, adds an overlay/patch, or edits an embedded shell script |
+| Hyprland config (`home/hyprland.nix`) | 3 (`hypr_config_check` on each new line) + 4 | 2 to read the generated `hyprland.lua` before trialling it; `hyprctl eval` for any hook body |
+| Quickshell QML (`home/quickshell/`) | 3 (`quickshell_check`) | 4 if `home/hyprland.nix` changed too (Theme.qml is generated there) |
+| New package / overlay / input override | 5 | 6 if it differs per host |
+| `flake.lock` bump | 6 | 7 — CI's `lock-gate` runs it for gti on every lock PR (Dependabot included); locally, or let the weekly auto-update lane do it |
+| Boot, greeter, display manager, systemd units | 5 | 7 before switching — a broken greeter means no way to log in |
+
+Before landing, the deploy skill runs 1, 4, and 5 in the worktree; `claudeos-land` reruns 4 and then performs rung 8 from the shared checkout.
 
 ## Compositor config isn't validated by the build
 
