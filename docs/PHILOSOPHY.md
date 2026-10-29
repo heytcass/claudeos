@@ -16,6 +16,12 @@ system's maintainer, narrator, and (increasingly) its hands. It is also,
 deliberately, a vehicle for experimentation: its owner runs it *because*
 trying bleeding-edge plumbing is the fun part.
 
+It is also, since 2026-10, **upstream of a small shared baseline**
+(`modules/shared/`) that a private fleet flake of headless servers consumes as
+a pinned input. The direction is one-way: settings both flakes would otherwise
+duplicate flow from here to there; nothing host-specific or private ever flows
+back. The desktop, the agents, and the lanes below stay claudeos's own.
+
 ## The daily-driver rule
 
 *Added 2026-07-13, from an explicit owner correction mid-overnight-run.*
@@ -249,7 +255,7 @@ explaining why, the moment any one of them does not:
    every host, and one real `system.build.toplevel` build.
 2. The diff touches **exactly one** `*.nix` file under `modules/` or `home/`.
 3. It touches none of `flake.nix`, `flake.lock`, `.sops.yaml`, `secrets/`,
-   `.github/`, `.claude/`.
+   `.github/`, `.claude/`, `modules/shared/`.
 4. Forty changed lines or fewer.
 5. A Claude machine-review returns exactly `VERDICT: APPROVE`.
 6. No `heal-hold` label. *(Applying it is the human's stop button.)*
@@ -261,6 +267,12 @@ secrets, the pinned inputs, or the rules governing agents — those are all
 either protected paths or beyond a one-file diff. And the blast radius has a
 floor NixOS gives us for free: a bad merge is one `git revert` or one reboot
 into the previous generation.
+
+`modules/shared/` is protected for the opposite reason: **a module with
+downstream consumers is not cheap to be wrong about, whatever its size.** A
+one-line change there can ride a pin bump onto machines this repo neither owns
+nor tests, where a reboot into the previous generation is someone else's
+recovery path.
 
 Three properties make this a graduation rather than a surrender, and a future
 change that breaks any of them un-earns the rung:
@@ -312,6 +324,10 @@ single-user):
   root services crossed the line).
 - What *is* enforced: sudo-rs, boot-editor off, LLMNR off, sops-nix for
   secrets, the constitution above.
+- **Scope: these trade-offs are decided for the single-user laptop.** They do
+  not travel with `modules/shared/`. A setting enters the shared layer only
+  when the fleet flake chose it independently too (e.g. `@wheel` as a trusted
+  user), never because the laptop's posture allows it.
 
 ## Cost doctrine
 
