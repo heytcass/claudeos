@@ -225,8 +225,10 @@ let
           claudeos_notify --urgency=critical \
             "Push Skipped" "flake.lock committed locally — no GitHub credential in this context (keyring locked, no sops automation token). Push manually."
         elif ! git push; then
-          git pull --rebase && git push || claudeos_notify --urgency=critical \
-            "Push Failed" "flake.lock committed locally but not pushed — push manually."
+          if ! { git pull --rebase && git push; }; then
+            claudeos_notify --urgency=critical \
+              "Push Failed" "flake.lock committed locally but not pushed — push manually."
+          fi
         fi
 
         date -Iseconds > "$STATE_DIR/last-update"

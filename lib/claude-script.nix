@@ -301,7 +301,7 @@ let
       mkdir -p "$STATE_DIR/worktrees"
       git -C "$CLAUDEOS_DIR" fetch -q origin &&
         git -C "$CLAUDEOS_DIR" worktree add -q --no-track -b "$branch" "$LANE_WORKTREE" origin/main &&
-        cd "$LANE_WORKTREE"
+        cd "$LANE_WORKTREE" || return
     }
     claudeos_lane_worktree_drop() {
       [[ -n "''${LANE_WORKTREE:-}" ]] || return 0
@@ -411,7 +411,7 @@ let
       [[ -d "$CLAUDEOS_DIR/.git" ]] || { echo "not a git repo"; return; }
       branch=$(git -C "$CLAUDEOS_DIR" branch --show-current 2>/dev/null || echo unknown)
       dirty=$(git -C "$CLAUDEOS_DIR" status --porcelain 2>/dev/null | wc -l)
-      unpushed=$(git -C "$CLAUDEOS_DIR" log @{u}..HEAD --oneline 2>/dev/null | wc -l)
+      unpushed=$(git -C "$CLAUDEOS_DIR" log "@{u}..HEAD" --oneline 2>/dev/null | wc -l)
       out="branch $branch"
       [[ $dirty -gt 0 ]] && out="$out, $dirty uncommitted changes"
       [[ $unpushed -gt 0 ]] && out="$out, $unpushed unpushed commits"
@@ -486,7 +486,7 @@ let
       ' > "$tmp" || { rm -f "$tmp"; return 1; }
       claudeos_card "$tmp" "$id" || rc=1
       rm -f "$tmp"
-      return $rc
+      return "$rc"
     }
 
     # ---- Task contexts — Phase 3 --------------------------------------------
@@ -573,11 +573,34 @@ let
       ...
     }:
     preamble runtimeInputs + "\n" + text;
+
+  # writeShellApplication rather than writeShellScriptBin so every script is
+  # shellchecked at build time (rung 5) — writeShellScriptBin only runs
+  # `bash -n`. The preamble owns PATH, so runtimeInputs is not passed through,
+  # and bashOptions is empty: these scripts were written without errexit/
+  # nounset and turning them on would change their behaviour, not check it.
+  #
+  # Excluded everywhere: SC2034 (unused variable) and SC2329 (uncalled
+  # function) fire on every preamble constant and helper a given script
+  # happens not to use — the preamble is a library, so those are expected.
+  # SC2129 (group repeated >> redirects) is style only.
+  mkApp =
+    args:
+    pkgs.writeShellApplication {
+      inherit (args) name;
+      text = mkBody args;
+      bashOptions = [ ];
+      excludeShellChecks = [
+        "SC2034"
+        "SC2129"
+        "SC2329"
+      ];
+    };
 in
 {
-  # writeShellScript with the agent preamble (systemd services etc.)
-  mkClaudeScript = args: pkgs.writeShellScript args.name (mkBody args);
+  # Store path of the script itself (systemd ExecStart etc.)
+  mkClaudeScript = args: lib.getExe (mkApp args);
 
   # Same, as a bin package on PATH (user-facing commands)
-  mkClaudeScriptBin = args: pkgs.writeShellScriptBin args.name (mkBody args);
+  mkClaudeScriptBin = mkApp;
 }

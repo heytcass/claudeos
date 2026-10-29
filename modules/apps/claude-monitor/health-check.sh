@@ -7,7 +7,7 @@
 CONTEXT_FILE="$MONITOR_CACHE_DIR/alert-context.txt"
 
 mkdir -p "$MONITOR_CACHE_DIR"
-> "$CONTEXT_FILE"
+: > "$CONTEXT_FILE"
 issues=0
 
 # --- Failed systemd services (system) ---
@@ -39,7 +39,7 @@ while IFS= read -r line; do
     printf '%s is %s%% full\n' "$mount" "$pct" >> "$CONTEXT_FILE"
     if [[ "$mount" == "/" ]]; then
       store_size=$(du -sh /nix/store 2>/dev/null | awk '{print $1}')
-      gen_count=$(ls -1d /nix/var/nix/profiles/system-*-link 2>/dev/null | wc -l)
+      gen_count=$(find /nix/var/nix/profiles -maxdepth 1 -name 'system-*-link' 2>/dev/null | wc -l)
       printf 'Nix store: %s, system generations: %s\n' "${store_size:-unknown}" "$gen_count" >> "$CONTEXT_FILE"
     fi
     printf '\n' >> "$CONTEXT_FILE"
