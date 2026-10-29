@@ -121,6 +121,10 @@ Scope {
                         desc: "Send window to workspace"
                     },
                     {
+                        keys: ["Super", "Tab"],
+                        desc: "Overview — drag windows between"
+                    },
+                    {
                         keys: ["Super", "Z"],
                         desc: "Scratchpad — toggle"
                     },

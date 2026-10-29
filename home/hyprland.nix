@@ -643,15 +643,14 @@ in
           direction = "up";
           action = "fullscreen";
         }
-        # Four fingers up = the "magic" scratchpad ($mod+Z / $mod+SHIFT+Z, in
-        # `bind` below). Deliberately a different finger count from the
-        # workspace swipe — the scratchpad is not part of the 1-5 rotation and
-        # shouldn't feel like it is.
+        # Four fingers up = the workspace overview, same as $mod+Tab
+        # (home/quickshell/Overview.qml). It replaced the "magic" scratchpad
+        # swipe, which stays on $mod+Z. `action` takes a Lua function as well
+        # as a built-in name — that's how a gesture fires a Quickshell global.
         {
           fingers = 4;
           direction = "up";
-          action = "special";
-          workspace_name = "magic";
+          action = mkLuaInline ''function() hl.dispatch(hl.dsp.global("quickshell:overview")) end'';
         }
       ];
 
@@ -802,6 +801,8 @@ in
         (mkBind "${mod} + P" (mkLuaInline "hl.dsp.window.pseudo()"))
         # floating keybind cheat sheet
         (mkBind "${mod} + H" (mkGlobal "quickshell:cheatsheet"))
+        # live workspace overview (Overview.qml); also the 4-finger swipe up
+        (mkBind "${mod} + Tab" (mkGlobal "quickshell:overview"))
         # idle-inhibit hold (Caffeine.qml)
         (mkBind "${mod} + I" (mkGlobal "quickshell:caffeine"))
         # Super+W (wish overlay) rides lib/keybindings.nix as a `global`

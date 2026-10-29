@@ -13,7 +13,9 @@
 # PRs trigger validate.yml normally and run no third-party action at all.
 #
 # Dependabot PRs receive Dependabot secrets, not Actions secrets, so
-# claude-code-review.yml skips them by actor; validate.yml is the gate.
+# claude-code-review.yml skips them by actor; validate.yml is the gate — its
+# lock-gate job fully builds gti and boots it in QEMU, the same verdict the
+# local lane reads before it may switch.
 version: 2
 updates:
   # Every flake.lock input. Without the group Dependabot opens one PR per

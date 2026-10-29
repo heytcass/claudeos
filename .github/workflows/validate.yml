@@ -65,26 +65,15 @@ jobs:
           done
 
   # Eval catches type errors; only a real build catches build-time breakage
-  # (patches that no longer apply, failing derivations). One host is enough —
-  # the two share almost the entire closure.
+  # (patches that no longer apply, failing derivations). One host is enough
+  # for an ordinary PR — the two share almost the entire closure. A lock bump
+  # gets the primary host on top: see lock-gate.
   host-build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v4
 
-      # The NixOS closure overflows the stock runner's ~14 GB free disk
-      # (first run died on ENOSPC) — purge the preinstalled toolchains.
-      # Inline rather than wimpysworld/nothing-but-nix: that action nests an
-      # unpinned srz-zumix/post-run-action@v3 (still in v10), which the
-      # repo-level sha_pinning_required enforcement rejects at job setup.
-      - name: Free runner disk
-        run: |
-          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc \
-            /opt/hostedtoolcache /usr/local/share/boost /usr/local/graalvm \
-            /usr/local/share/powershell /usr/local/lib/node_modules \
-            /usr/share/swift /usr/local/.ghcup
-          sudo docker image prune --all --force >/dev/null 2>&1 || true
-          df -h /
+      - uses: ./.github/actions/free-disk
 
       - uses: cachix/install-nix-action@75c75c31ebece974e48ebc36b4ad125bd97bd97b # v31
         with:
@@ -104,3 +93,88 @@ jobs:
       # for a headless consumer this repo can't see.
       - name: Build shared-layer headless stand-in
         run: nix build ".#checks.x86_64-linux.shared-headless" --no-link
+
+  # A flake.lock bump moves every input at once, so it gets the on-machine
+  # auto-update gate (modules/common/auto-update.nix) replayed in CI: a full
+  # build of gti — the primary, whose Hyprland/hardware closure transporter
+  # does not cover — then a headless boot of that generation in QEMU, which
+  # must print CLAUDEOS-SMOKE-PASS (multi-user.target reached, no failed
+  # units, display manager active). Rung 7 of the validation ladder.
+  #
+  # Scope: PRs and pushes that touch flake.lock or flake.nix, plus edits to
+  # this workflow so the gate tests its own changes. Everything else skips
+  # the steps but still reports, so the job can be a required check without
+  # leaving unrelated PRs pending forever.
+  lock-gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v4
+        with:
+          fetch-depth: 0
+
+      - name: Does this change move the lock?
+        id: scope
+        env:
+          BASE: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          if [[ -z "$BASE" || "$BASE" =~ ^0+$ ]]; then
+            run=true # new branch / unknown base: test rather than guess
+          elif git diff --name-only "$BASE" HEAD |
+            grep -qxE 'flake\.lock|flake\.nix|\.github/workflows/validate\.yml'; then
+            run=true
+          else
+            run=false
+          fi
+          echo "run=$run" >>"$GITHUB_OUTPUT"
+          echo "lock-gate: run=$run"
+
+      - if: steps.scope.outputs.run == 'true'
+        uses: ./.github/actions/free-disk
+
+      # Hosted Linux runners expose /dev/kvm but root-only; the VM boot needs
+      # it from the runner user. Without KVM, QEMU falls back to TCG and the
+      # boot blows through the timeout rather than failing honestly.
+      - name: Enable KVM
+        if: steps.scope.outputs.run == 'true'
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' |
+            sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+          test -r /dev/kvm && test -w /dev/kvm
+
+      - if: steps.scope.outputs.run == 'true'
+        uses: cachix/install-nix-action@75c75c31ebece974e48ebc36b4ad125bd97bd97b # v31
+        with:
+          extra_nix_config: |
+            experimental-features = nix-command flakes
+            system-features = nixos-test benchmark big-parallel kvm
+
+      # No cache-nix-action here: a lock bump invalidates nearly everything a
+      # restored store would hold, and host-build already spends the repo's
+      # cache budget. Substitution from cache.nixos.org covers the bulk.
+      - name: Build gti toplevel
+        if: steps.scope.outputs.run == 'true'
+        run: nix build ".#nixosConfigurations.gti.config.system.build.toplevel" --no-link
+
+      - name: Build gti smoke-test VM
+        if: steps.scope.outputs.run == 'true'
+        run: nix build ".#nixosConfigurations.gti.config.system.build.vm" --out-link result-vm
+
+      # Same verdict the local gate reads. 600 s rather than the local 300:
+      # nested KVM on a shared runner boots slower than bare metal.
+      - name: Boot gti in QEMU
+        if: steps.scope.outputs.run == 'true'
+        run: |
+          timeout 600 ./result-vm/bin/run-gti-vm </dev/null >vm.log 2>&1 || true
+          if grep -q CLAUDEOS-SMOKE-PASS vm.log; then
+            grep -m1 CLAUDEOS-SMOKE-PASS vm.log
+            exit 0
+          fi
+          fail=$(grep -m1 CLAUDEOS-SMOKE-FAIL vm.log ||
+            echo "VM never reported (timeout or boot hang)")
+          echo "::error title=VM smoke test::$fail"
+          echo "--- last 150 lines of VM serial console ---"
+          tail -n 150 vm.log
+          exit 1

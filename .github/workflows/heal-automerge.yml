@@ -8,7 +8,9 @@
 # A heal PR merges itself ONLY when every one of these holds:
 #   1. head branch is heal/*, from this repo (never a fork)
 #   2. the Validate workflow concluded success on this exact SHA
-#      (that workflow's own conclusion == flake-validate AND host-build green,
+#      (that workflow's own conclusion == flake-validate, host-build and
+#      lock-gate green — lock-gate skips its steps on a heal PR, which can never
+#      touch flake.lock;
 #      i.e. treefmt/statix/deadnix, a dry-run eval of every host, and one REAL
 #      toplevel build — we deliberately do not re-run Nix here)
 #   3. the PR is open, non-draft, mergeable, and unlabelled `heal-hold`
