@@ -123,14 +123,6 @@ Scope {
                     {
                         keys: ["Super", "Tab"],
                         desc: "Overview — drag windows between"
-                    },
-                    {
-                        keys: ["Super", "Z"],
-                        desc: "Scratchpad — toggle"
-                    },
-                    {
-                        keys: ["Super", "Shift", "Z"],
-                        desc: "Stash window to scratchpad"
                     }
                 ]
             },

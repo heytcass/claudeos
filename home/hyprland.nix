@@ -476,7 +476,6 @@ in
           # Workspaces slide a short way while fading — a direction cue
           # without sweeping the whole screen past your eyes.
           (anim "workspaces" "standard" "standard" { style = "slidefade 12%"; })
-          (anim "specialWorkspace" "standard" "standard" { style = "slidefadevert 12%"; })
         ];
 
       # The launcher (fuzzel, SUPER+Space — its layer namespace is `launcher`)
@@ -644,9 +643,10 @@ in
           action = "fullscreen";
         }
         # Four fingers up = the workspace overview, same as $mod+Tab
-        # (home/quickshell/Overview.qml). It replaced the "magic" scratchpad
-        # swipe, which stays on $mod+Z. `action` takes a Lua function as well
+        # (home/quickshell/Overview.qml). `action` takes a Lua function as well
         # as a built-in name — that's how a gesture fires a Quickshell global.
+        # (This slot was the "magic" scratchpad, removed 2026-10-29: unused,
+        # and its dimmed special-workspace overlay read as "the screen broke".)
         {
           fingers = 4;
           direction = "up";
@@ -837,12 +837,6 @@ in
         (mkBind "${mod} + CTRL + down" (
           mkLuaInline "hl.dsp.window.resize({ x = 0, y = 40, relative = true })"
         ))
-
-        # Scratchpad: SUPER+Z toggles a hidden "magic" workspace,
-        # SUPER+SHIFT+Z stashes the focused window into it. (Moved off S/Shift+S
-        # 2026-10-28 so the Shelf's capture keys could have them.)
-        (mkBind "${mod} + Z" (mkLuaInline ''hl.dsp.workspace.toggle_special("magic")''))
-        (mkBind "${mod} + SHIFT + Z" (mkLuaInline ''hl.dsp.window.move({ workspace = "special:magic" })''))
 
         # Graceful session exit. (The wiki warns UWSM sessions off the `exit`
         # dispatcher — it removes Hyprland from under its clients and
