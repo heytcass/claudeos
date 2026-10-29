@@ -95,7 +95,7 @@ let
 
       branch="heal/$(systemd-escape "$UNIT" | tr -c 'a-zA-Z0-9-' '-' | head -c 30)$(date +%m%d-%H%M)"
 
-      cd "$CLAUDEOS_DIR" || exit 1
+      claudeos_lane_worktree "$branch" || { claudeos_notify --urgency=critical "Self-Heal: $UNIT" "Could not create a worktree for $branch."; exit 1; }
 
       prompt="You are the ClaudeOS self-heal agent. The systemd user unit '$UNIT' on host $(hostname) just FAILED.
 
@@ -108,22 +108,24 @@ let
       Your job:
       1. Decide whether this failure is rooted in the NixOS configuration in this repo (the unit is defined somewhere under modules/ or home/). If it is transient (network blip, the machine was suspending, an external service was down) or you cannot determine a config-level cause, output exactly SKIP: <one-line reason> and STOP — do not edit anything.
       2. If config-rooted: find the owning module (grep for the unit name), make the minimal fix, and validate it with: nix build .#nixosConfigurations.\$(hostname).config.system.build.toplevel --dry-run
-      3. Work ONLY on a new branch named $branch — never commit to main. Stage, commit (conventional message, mention the unit), push the branch, then open a PR with: gh pr create --base main --fill
+      3. You are already on a fresh branch, $branch, in a worktree of your own (the current directory) — never switch branches, never commit to main. Stage, commit (conventional message, mention the unit), push with exactly: git push -u origin $branch — then open a PR with: gh pr create --base main --fill
       4. Your final output: the PR URL, or SKIP: <reason>.
 
       A PR that changes exactly one *.nix file under modules/ or home/, by 40 lines or fewer, touching none of flake.nix / flake.lock / .sops.yaml / secrets/ / .github/ / .claude/, may be auto-merged once CI is green and a machine review approves it (trust ladder rung 2 — see the header of modules/common/self-heal.nix). Prefer the minimal, single-file fix when that IS the correct fix. Never contort a fix to fit the window: if the right change spans several files or exceeds 40 lines, make the right change and let a human review it. Widening a diff to dodge review, or narrowing one to court auto-merge, are the same failure."
 
       text=$(claude_headless opus "$prompt" \
-        --allowedTools 'Read,Grep,Glob,Edit,Bash(git status*),Bash(git diff*),Bash(git log*),Bash(git checkout -b *),Bash(git add *),Bash(git commit *),Bash(git push *),Bash(gh pr create*),Bash(nix build*--dry-run*),Bash(journalctl*),Bash(systemctl status*),Bash(systemctl --user status*),Bash(hostname)')
+        --allowedTools 'Read,Grep,Glob,Edit,Bash(git status*),Bash(git diff*),Bash(git log*),Bash(git add *),Bash(git commit *),Bash(git push *),Bash(gh pr create*),Bash(nix build*--dry-run*),Bash(journalctl*),Bash(systemctl status*),Bash(systemctl --user status*),Bash(hostname)')
 
       if [[ -z "$text" ]]; then
         claudeos_notify --urgency=critical \
           "Self-Heal" "$UNIT failed; heal agent produced no result. Check journalctl --user -u claude-heal@*."
       elif [[ "$text" == SKIP:* ]]; then
+        claudeos_lane_worktree_drop --delete-branch
         claudeos_agent_done "$UNIT: transient, no fix"
         claudeos_notify \
           "Self-Heal: $UNIT" "Failure judged transient — no fix attempted. ''${text#SKIP:}"
       else
+        claudeos_lane_worktree_drop
         # The heal agent's final output is the PR URL — carry it as the artifact
         # link when it looks like one, else just the result text.
         # Per-unit card id: two units healing in the same window must not

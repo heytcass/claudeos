@@ -20,7 +20,7 @@ tools: [Bash, Read]
 ### Build Current Machine
 
 ```bash
-cd ~/.config/claudeos
+cd "$(git rev-parse --show-toplevel)"   # your worktree — never the shared ~/.config/claudeos
 nix build .#nixosConfigurations.$(hostname).config.system.build.toplevel
 ```
 

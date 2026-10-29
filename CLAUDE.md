@@ -48,16 +48,19 @@ home-manager runs as a NixOS module (not standalone) — configured in `lib/mkSy
 
 ## Workflow
 
-All work is done directly on NixOS machines:
+**One worktree per session; the shared checkout only pulls and deploys.** `~/.config/claudeos` is the tree every host deploys from and every background lane reads, and sessions sharing it share one HEAD, one index and one working tree. On 2026-10-29 one session's `git add && git commit` swept in another session's staged bar work, pushed it, and deployed it half-finished to gti. So:
 
-1. **Edit** configuration in `~/.config/claudeos` (or a worktree of it)
-2. **Stage** new files with `git add` — Nix flakes only see tracked files, so an unstaged new file is invisible to every check below
-3. **Validate** by climbing the ladder in *Validation economy* to the rung your change needs — never below rung 4 for a `.nix` change
-4. **Apply** with `sudo nixos-rebuild switch --flake ~/.config/claudeos#$(hostname)` (or `/deploy`)
-5. **Push** with `git push` — remote rebuilds pull from the repo, so never skip this
-6. **Sync** between machines with `git pull`
+- **Work in your own worktree.** App sessions get one automatically (`<repo>/.claude/worktrees/<name>`). A session that starts in `~/.config/claudeos` may read and diagnose there, but must `EnterWorktree` before editing. `.claude/hooks/shared-checkout-guard.sh` denies Edit/Write and every HEAD/index-moving git command (`add`, `commit`, `checkout`, `switch`, `reset`, `stash`, `rebase`, `merge`, …) in the shared checkout. Lanes that write the repo (wish, self-heal) create their own worktrees via `claudeos_lane_worktree`.
+- **Land when the work is verified: `claudeos-land`** (run it in the background, since the switch can take minutes). It rebases on origin/main, names the generation, runs `claudeos-validate`, pushes, opens or reuses the PR, squash-merges exactly the validated head, fast-forwards `~/.config/claudeos`, runs `nixos-rebuild switch` for `$(hostname)`, and sweeps landed worktrees. The session's own worktree goes when the app auto-archives the session on PR merge. Verified means it builds, and anything the user must see (bar visuals, a behavior check) has been seen. Until then, say what is still open.
+- **Never leave work unlanded silently.** `.claude/hooks/land-nudge.sh` (Stop) holds a session that stops with commits or changes not on main. It does this once per state: land, or tell the user what's open. Half-built is fine while you're working. Half-built and forgotten is the failure mode.
 
-**Important:** Always modify files in `~/.config/claudeos/` — never edit upstream module files or flake input sources directly.
+Inside the worktree:
+
+1. **Stage** new files with `git add <paths>`: Nix flakes only see tracked files. Commit with explicit paths, never `git add -A`.
+2. **Validate** by climbing the ladder in *Validation economy* to the rung your change needs — never below rung 4 (`claudeos-validate`, which checks the checkout you are in) for a `.nix` change.
+3. **Land and apply** with `claudeos-land`. Use `--no-deploy` to merge without switching. Other hosts pick main up via `git pull --ff-only` and a rebuild (deploy skill).
+
+**Important:** Never edit upstream module files or flake input sources directly. Never deploy from a worktree (`--flake <worktree>#…`): a host runs main and nothing else.
 
 ## Validation economy
 
@@ -71,7 +74,7 @@ Match the cost of validation to the change. Run the cheapest check that can actu
 | 1 | **`nix fmt`** — treefmt: nixfmt + statix + deadnix. The gate form is `nix fmt -- --ci` (exit 1 if anything would change); `--check` does not exist and always fails | seconds | Formatting, lint, dead bindings — exactly what CI's first step rejects | Semantics |
 | 2 | **Targeted eval** — `nix eval .#nixosConfigurations.$(hostname).config.<path>`; for a generated file, `nix eval --raw` its `.text` | seconds | Wrong option name/type in *that* value; whether the rendered value is what you meant | Other hosts; anything outside that attribute; build failures |
 | 3 | **Runtime config checks** (`system-health` MCP, live session only) — `hypr_config_check` for new Hyprland lines, `quickshell_check` for QML (pass `qml_dir` from a worktree; briefly restarts the bar) | seconds | Config the Hyprland binary rejects; QML that fails to load and would blank the bar | Hook bodies (use `hyprctl eval`), bind option names (silently dropped — check by eye), how it *looks* (`/qml-dial-in`) |
-| 4 | **Eval every host** — `nix flake check --no-build` + `nix build .#nixosConfigurations.<host>.config.system.build.toplevel --dry-run` for each host. `claudeos-validate` does both, but it `cd`s to `$CLAUDEOS_DIR` — from a worktree, run the loop by hand or you validate the main checkout | ~1 min | Eval errors, missing options, type errors and assertions on *every* host — including the one you aren't on. The pre-commit hook enforces the `--no-build` half for staged `.nix` | Derivations that fail to build; anything at runtime |
+| 4 | **Eval every host** — `nix flake check --no-build` + `nix build .#nixosConfigurations.<host>.config.system.build.toplevel --dry-run` for each host. `claudeos-validate` does both, on the checkout you run it from (worktree included) | ~1 min | Eval errors, missing options, type errors and assertions on *every* host — including the one you aren't on. The pre-commit hook enforces the `--no-build` half for staged `.nix` | Derivations that fail to build; anything at runtime |
 | 5 | **Full build of the affected host** — `nix build .#nixosConfigurations.$(hostname).config.system.build.toplevel` | seconds to an hour (incremental on the running host; cold after a lock bump) | Build-time failures: patches that no longer apply, overrides/overlays that fail, `writeShellScriptBin` syntax checks on embedded scripts (every `mkClaudeScriptBin`), packages removed upstream | Boot and runtime behaviour |
 | 6 | **`nix flake check`** (no `--no-build`) — `checks` *are* every host's toplevel, so this builds all of them | rung 5 × hosts (toplevels already in the store are skipped) | Build failures on the host you aren't on | Same as rung 5 |
 | 7 | **VM boot test** — `nix build .#nixosConfigurations.$(hostname).config.system.build.vm`, run `./result/bin/run-$(hostname)-vm`, grep the serial log for `CLAUDEOS-SMOKE-PASS`. Needs `/dev/kvm`. The weekly auto-update lane (`modules/common/auto-update.nix`) runs this for every lock bump before it may apply | minutes | Units that fail at boot, multi-user/display-manager not coming up; also prints a whole-config Hyprland `--verify-config` verdict (reported, not yet gating) | Real hardware (thermald, scx, fwupd, throttled, disko are stripped in the VM), GPU and the session (headless — QML never runs), sops secrets (cannot decrypt) |
@@ -91,7 +94,7 @@ CI (`validate.yml`) runs rung 1, the rung-4 dry-runs, and rung 5 for transporter
 | `flake.lock` bump | 6 | 7 — CI's `lock-gate` runs it for gti on every lock PR (Dependabot included); locally, or let the weekly auto-update lane do it |
 | Boot, greeter, display manager, systemd units | 5 | 7 before switching — a broken greeter means no way to log in |
 
-Before `/deploy` and `switch`, the deploy skill runs 1, 4, and 5 on the target; rung 8 is the switch itself.
+Before landing, the deploy skill runs 1, 4, and 5 in the worktree; `claudeos-land` reruns 4 and then performs rung 8 from the shared checkout.
 
 ## Compositor config isn't validated by the build
 

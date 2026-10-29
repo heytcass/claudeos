@@ -29,9 +29,8 @@ claudeos-validate
 
 **Expected:** exits 0 with "all hosts eval clean"
 
-From a worktree, note that `claudeos-validate` `cd`s to `$CLAUDEOS_DIR`
-(the main checkout) — run its flake-check + per-host dry-run loop by hand
-in the worktree instead.
+It validates the checkout you run it from (your worktree), or `$CLAUDEOS_DIR`
+when run outside the repo. Pass a directory to check another checkout.
 
 ### 2. Format, lint, and dead-code check (one command)
 

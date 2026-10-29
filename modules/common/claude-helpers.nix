@@ -12,6 +12,9 @@
 #   deploy/add-module skills, and the validator/builder agents all defer to
 #   this instead of re-spelling the loop (the old hand-rolled `ls hosts/`
 #   variants broke as soon as a non-host file landed in hosts/).
+# claudeos-land: finish a session worktree in one move — validate, squash-merge
+#   its PR, fast-forward the shared checkout, switch this host, and sweep
+#   landed worktrees. The shared checkout only ever pulls and deploys.
 { pkgs, lib, ... }:
 
 let
@@ -22,18 +25,22 @@ in
     (claudeLib.mkClaudeScriptBin {
       name = "claude-name-generation";
       text = ''
-        # Usage: claude-name-generation [--local] [--fallback SLUG] < input
-        # Writes the slug to $CLAUDEOS_DIR/generation-label and prints it.
+        # Usage: claude-name-generation [--local] [--fallback SLUG] [--out FILE] < input
+        # Writes the slug to FILE (default $CLAUDEOS_DIR/generation-label) and prints it.
         #   default: haiku summarizes a DIFF into a slug (fish rebuild path)
         #   --local: derive the slug from input that is ALREADY a summary
         #            (auto-update's changelog) — no second model call for
         #            text a model just wrote (cost doctrine)
+        #   --out:   label a worktree's tree instead (claudeos-land) — never
+        #            dirty the shared checkout from a session's branch
         fallback="rebuild-$(date +%m%d-%H%M)"
         local_mode=false
+        out="$CLAUDEOS_DIR/generation-label"
         while [[ $# -gt 0 ]]; do
           case "$1" in
             --local) local_mode=true; shift ;;
             --fallback) fallback="$2"; shift 2 ;;
+            --out) out="$2"; shift 2 ;;
             *) shift ;;
           esac
         done
@@ -61,7 +68,7 @@ in
         fi
         [[ -z "$slug" ]] && slug="$fallback"
 
-        echo "$slug" > "$CLAUDEOS_DIR/generation-label"
+        echo "$slug" > "$out"
         echo "$slug"
       '';
     })
@@ -143,10 +150,19 @@ in
       name = "claudeos-validate";
       runtimeInputs = [ pkgs.nix ];
       text = ''
-        # Usage: claudeos-validate — validate the claudeos repo: stage
+        # Usage: claudeos-validate [DIR] — validate a claudeos checkout: stage
         # untracked files (flakes only see tracked ones), nix flake check,
         # then a --dry-run eval of every host the flake actually defines.
-        cd "$CLAUDEOS_DIR" || exit 1
+        # DIR defaults to the checkout you're standing in (a session
+        # worktree), else the shared one — validating ~/.config/claudeos from
+        # a worktree would green-light a tree the change isn't even in.
+        dir="''${1:-}"
+        if [[ -z "$dir" ]]; then
+          dir=$(git rev-parse --show-toplevel 2>/dev/null) || dir=""
+          [[ -n "$dir" && -f "$dir/flake.nix" ]] || dir="$CLAUDEOS_DIR"
+        fi
+        cd "$dir" || exit 1
+        echo "claudeos-validate: $dir"
 
         untracked=$(git ls-files --others --exclude-standard)
         if [[ -n "$untracked" ]]; then
@@ -164,6 +180,159 @@ in
         done
 
         echo "claudeos-validate: all hosts eval clean"
+      '';
+    })
+
+    (claudeLib.mkClaudeScriptBin {
+      name = "claudeos-land";
+      runtimeInputs = [ pkgs.gh ];
+      text = ''
+        # Usage: claudeos-land [--no-deploy] — run inside a session worktree
+        # once its work is verified. Lands it end to end so the machine is
+        # never left half-built: rebase on origin/main → label the generation
+        # → claudeos-validate → push → PR → squash-merge → fast-forward the
+        # shared checkout → nixos-rebuild switch here → sweep landed worktrees.
+        #        claudeos-land --gc — only the sweep.
+        # The session's own worktree goes when the app archives the session
+        # (auto-archive on PR merge); everything else merged is removed here.
+        deploy=true
+        gc_only=false
+        case "''${1:-}" in
+          --no-deploy) deploy=false ;;
+          --gc) gc_only=true ;;
+        esac
+
+        # Remove worktrees whose work is on main. App session worktrees
+        # (.claude/worktrees/) belong to the app — a live session may sit in
+        # one — so they're reported, never removed.
+        sweep() {
+          git -C "$CLAUDEOS_DIR" worktree prune
+          git -C "$CLAUDEOS_DIR" worktree list --porcelain |
+            awk '/^worktree /{p=$2} /^branch /{print p, $2}' |
+            while read -r wt ref; do
+              [[ "$wt" == "$CLAUDEOS_DIR" || "$wt" == "''${top:-}" ]] && continue
+              b=''${ref#refs/heads/}
+              head=$(git -C "$wt" rev-parse HEAD 2>/dev/null) || continue
+              landed=false
+              # Squash merges leave no ancestry, so a merged PR at this exact
+              # head counts too. A branch with commits past its merged PR is
+              # new work and stays.
+              if git -C "$CLAUDEOS_DIR" merge-base --is-ancestor "$head" origin/main ||
+                gh pr list --head "$b" --state merged --json headRefOid -q '.[].headRefOid' 2>/dev/null | grep -qx "$head"; then
+                landed=true
+              fi
+              $landed || continue
+              if [[ -n "$(git -C "$wt" status --porcelain 2>/dev/null)" ]]; then
+                echo "sweep: keeping $wt — landed, but has uncommitted changes"
+              elif [[ "$wt" == */.claude/worktrees/* ]]; then
+                echo "sweep: $wt is landed — the app removes it when its session is archived"
+              else
+                git -C "$CLAUDEOS_DIR" worktree remove "$wt" && git -C "$CLAUDEOS_DIR" branch -D "$b" >/dev/null &&
+                  echo "sweep: removed $wt ($b)"
+              fi
+            done
+        }
+
+        if $gc_only; then
+          cd "$CLAUDEOS_DIR" || exit 1
+          git -C "$CLAUDEOS_DIR" fetch -q origin
+          sweep
+          exit 0
+        fi
+
+        top=$(git rev-parse --show-toplevel 2>/dev/null) || { echo "claudeos-land: not in a git checkout" >&2; exit 1; }
+        cd "$top" || exit 1
+        if [[ "$(git rev-parse --git-dir)" == "$(git rev-parse --git-common-dir)" ]]; then
+          echo "claudeos-land: $top is the shared checkout — land from a session worktree; the shared checkout only pulls and deploys." >&2
+          exit 1
+        fi
+        branch=$(git symbolic-ref --short -q HEAD) || { echo "claudeos-land: detached HEAD — check out a branch first" >&2; exit 1; }
+        if [[ -n "$(git status --porcelain)" ]]; then
+          echo "claudeos-land: uncommitted changes — commit them (explicit paths) or drop them first:" >&2
+          git status --short >&2
+          exit 1
+        fi
+
+        git fetch -q origin || exit 1
+        if ! git rebase -q origin/main; then
+          git rebase --abort
+          echo "claudeos-land: $branch conflicts with origin/main — resolve with: git rebase origin/main" >&2
+          exit 1
+        fi
+        if [[ -z "$(git rev-list origin/main..HEAD)" ]]; then
+          echo "claudeos-land: nothing to land — $branch has no commits beyond origin/main."
+          sweep
+          exit 0
+        fi
+
+        # Name the generation this work becomes, from its own commit subjects
+        # (--local: no model call for text a model already wrote).
+        git log --reverse --format=%s origin/main..HEAD |
+          sed -E 's/^[a-z]+(\([^)]*\))?!?: //' |
+          claude-name-generation --local --out "$top/generation-label" \
+            --fallback "land-$(date +%m%d-%H%M)" >/dev/null
+        if [[ -n "$(git status --porcelain -- generation-label)" ]]; then
+          git commit -q -m "chore: set generation label to $(cat generation-label)" -- generation-label
+        fi
+
+        claudeos-validate "$top" || { echo "claudeos-land: validation failed — nothing pushed." >&2; exit 1; }
+
+        git push -q --force-with-lease -u origin "HEAD:refs/heads/$branch" || exit 1
+        pr=$(gh pr list --head "$branch" --state open --json number -q '.[0].number // empty')
+        if [[ -z "$pr" ]]; then
+          url=$(gh pr create --base main --head "$branch" --fill) || exit 1
+          pr=''${url##*/}
+        fi
+        # --match-head-commit: merge exactly the tree that was just validated.
+        if ! gh pr merge "$pr" --squash --match-head-commit "$(git rev-parse HEAD)"; then
+          echo "claudeos-land: PR #$pr was not merged — it stays open; main and this host are unchanged." >&2
+          exit 1
+        fi
+        git push -q origin --delete "$branch" 2>/dev/null || true
+        # The squash commit now holds this branch's content. Re-point the
+        # branch at main so a follow-up round starts clean instead of
+        # replaying already-merged commits.
+        git fetch -q origin
+        git reset -q --hard origin/main
+        git branch -q --unset-upstream 2>/dev/null || true
+        echo "claudeos-land: PR #$pr merged into main."
+
+        # Deploy from the shared checkout — the only tree that tracks main.
+        shared_branch=$(git -C "$CLAUDEOS_DIR" symbolic-ref --short -q HEAD || true)
+        if [[ "$shared_branch" != main ]]; then
+          echo "claudeos-land: $CLAUDEOS_DIR is on '$shared_branch', not main — not touching it. Landed, NOT deployed." >&2
+          exit 1
+        fi
+        # Uncommitted config here would ride into the deploy unreviewed — the
+        # 2026-10-29 failure. Only docs/ may be dirty (the journal diary's
+        # ledger edits wait there for the next rebuild auto-commit).
+        stray=$(git -C "$CLAUDEOS_DIR" status --porcelain --untracked-files=no | cut -c4- | grep -v '^docs/' || true)
+        if [[ -n "$stray" ]]; then
+          echo "claudeos-land: $CLAUDEOS_DIR has uncommitted config changes — not deploying them. Landed, NOT deployed:" >&2
+          echo "$stray" >&2
+          exit 1
+        fi
+        git -C "$CLAUDEOS_DIR" pull -q --ff-only origin main ||
+          { echo "claudeos-land: $CLAUDEOS_DIR can't fast-forward to origin/main. Landed, NOT deployed." >&2; exit 1; }
+
+        if $deploy; then
+          host=$(hostname)
+          # Scoped NOPASSWD rule (auto-update.nix) — no prompt to hang on.
+          if /run/wrappers/bin/sudo -n /run/current-system/sw/bin/nixos-rebuild switch --flake "$CLAUDEOS_DIR#$host"; then
+            echo "claudeos-land: $host switched to $(cat /run/current-system/nixos-version)"
+          else
+            echo "claudeos-land: nixos-rebuild switch failed on $host — main has the change, this host does not. Fix forward from a worktree, or: sudo nixos-rebuild switch --rollback" >&2
+            exit 1
+          fi
+        else
+          echo "claudeos-land: not deployed (--no-deploy) — run 'rebuild' when ready."
+        fi
+
+        sweep
+        case "$top" in
+          */.claude/worktrees/*) echo "claudeos-land: this worktree goes when the app archives the session (auto-archive on PR merge)." ;;
+          *) echo "claudeos-land: remove this worktree when you're done: git worktree remove $top" ;;
+        esac
       '';
     })
   ];

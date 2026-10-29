@@ -276,7 +276,9 @@ let
       local model="$1" prompt="$2" result session
       shift 2
       _claudeos_pulse_begin
-      result=$("$CLAUDE_BIN" -p "$prompt" --model "$model" --output-format json "$@" 2>/dev/null) || result=""
+      # CLAUDEOS_HEADLESS: the repo's session hooks (shared-checkout guard,
+      # land nudge) are for interactive sessions — lanes run their own git.
+      result=$(CLAUDEOS_HEADLESS=1 "$CLAUDE_BIN" -p "$prompt" --model "$model" --output-format json "$@" 2>/dev/null) || result=""
       _claudeos_pulse_end
       session=$(echo "$result" | jq -r '.session_id // empty' 2>/dev/null)
       if [[ -n "$session" ]]; then
@@ -284,6 +286,31 @@ let
         echo "$session" > "$STATE_DIR/last-agent-session"
       fi
       echo "$result" | jq -r '.result // empty' 2>/dev/null
+    }
+
+    # claudeos_lane_worktree BRANCH — a lane that writes the repo (wish,
+    # self-heal) works in a worktree of its own, cut from origin/main, never
+    # in the shared checkout whose HEAD the owner's sessions and the deploy
+    # path depend on (the Fractal wish parked it on a wish branch,
+    # 2026-10-29). cds into it and sets LANE_WORKTREE.
+    # claudeos_lane_worktree_drop [--delete-branch] removes it; the branch
+    # and its commits stay unless asked, so undelivered work is never lost.
+    claudeos_lane_worktree() {
+      local branch="$1"
+      LANE_WORKTREE="$STATE_DIR/worktrees/''${branch//\//-}"
+      mkdir -p "$STATE_DIR/worktrees"
+      git -C "$CLAUDEOS_DIR" fetch -q origin &&
+        git -C "$CLAUDEOS_DIR" worktree add -q --no-track -b "$branch" "$LANE_WORKTREE" origin/main &&
+        cd "$LANE_WORKTREE"
+    }
+    claudeos_lane_worktree_drop() {
+      [[ -n "''${LANE_WORKTREE:-}" ]] || return 0
+      local branch
+      branch=$(git -C "$LANE_WORKTREE" symbolic-ref --short -q HEAD)
+      cd "$CLAUDEOS_DIR" || return 1
+      git worktree remove --force "$LANE_WORKTREE"
+      [[ "''${1:-}" == --delete-branch && -n "$branch" ]] && git branch -q -D "$branch"
+      LANE_WORKTREE=""
     }
 
     # claude_interactive PROMPT ALLOWED_TOOLS [extra claude args...] — Claude
