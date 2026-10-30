@@ -340,6 +340,11 @@ in
           echo "claudeos-land: $CLAUDEOS_DIR is on '$shared_branch', not main — not touching it. Landed, NOT deployed." >&2
           exit 1
         fi
+        # A `rebuild` whose auto-commit was skipped leaves its slug staged in
+        # generation-label. It's machine-written and this land's own label
+        # commit supersedes it, so drop it rather than let it block the
+        # deploy (and the fast-forward, since main just changed that file).
+        git -C "$CLAUDEOS_DIR" restore --staged --worktree generation-label 2>/dev/null || true
         # Uncommitted config here would ride into the deploy unreviewed — the
         # 2026-10-29 failure. Only docs/ may be dirty (the journal diary's
         # ledger edits wait there for the next rebuild auto-commit).
