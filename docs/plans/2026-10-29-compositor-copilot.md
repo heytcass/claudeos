@@ -245,5 +245,5 @@ lines → `hypr_config_check` each + rung 4; hook change (embedded shell in
 1. ~~C on the desktop app window~~ — **decided:** deferred; only the persisted
    `waiting` state is built.
 2. ~~Working = motion?~~ — moot while C is deferred.
-3. **Submap entry keys** — e.g. SUPER+M for `window`, SUPER+G for `context`.
-4. **Share redaction depth** — hide notifications entirely, or titles-only?
+3. ~~Submap entry keys~~ — **decided:** SUPER+M opens `window`, SUPER+G opens `context`.
+4. ~~Share redaction depth~~ — **decided:** titles only; bodies are held until the share ends.
