@@ -12,7 +12,7 @@
 #   deploy/add-module skills, and the validator/builder agents all defer to
 #   this instead of re-spelling the loop (the old hand-rolled `ls hosts/`
 #   variants broke as soon as a non-host file landed in hosts/).
-# claudeos-land: finish a session worktree in one move — validate, squash-merge
+# claudeos-land: finish a session worktree in one move — push, wait for CI, squash-merge
 #   its PR, fast-forward the shared checkout, switch this host, and sweep
 #   landed worktrees. The shared checkout only ever pulls and deploys.
 { pkgs, lib, ... }:
@@ -190,7 +190,7 @@ in
         # Usage: claudeos-land [--no-deploy] — run inside a session worktree
         # once its work is verified. Lands it end to end so the machine is
         # never left half-built: rebase on origin/main → label the generation
-        # → claudeos-validate → push → PR → squash-merge → fast-forward the
+        # → push → PR → wait for CI validation → squash-merge → fast-forward the
         # shared checkout → nixos-rebuild switch here → sweep landed worktrees.
         #        claudeos-land --gc — only the sweep.
         # The session's own worktree goes when the app archives the session
@@ -290,8 +290,9 @@ in
           git commit -q -m "chore: set generation label to $(cat generation-label)" -- generation-label
         fi
 
-        claudeos-validate "$top" || { echo "claudeos-land: validation failed — nothing pushed." >&2; exit 1; }
-
+        # No local claudeos-validate here: CI's required flake-validate runs the
+        # same rung-4 check on this exact head and the merge below waits for it.
+        # Running it here too cost ~3.5 min per land for no added safety.
         git push -q --force-with-lease -u origin "HEAD:refs/heads/$branch" || exit 1
         pr=$(gh pr list --head "$branch" --state open --json number -q '.[0].number // empty')
         if [[ -z "$pr" ]]; then

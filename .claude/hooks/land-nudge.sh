@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
 # Stop hook: a session worktree with work that isn't on main is how the
 # machine ends up half-built — branches nobody merged, worktrees nobody
-# removed. When a session stops with unlanded work, hold the stop ONCE and
+# removed. When a session stops with unlanded commits, hold the stop ONCE and
 # make Claude decide: land it (claudeos-land) or tell the user why not.
+# Uncommitted edits alone are work in progress, not forgotten work, so they
+# never trigger a nudge — that cost an extra round on every mid-work turn.
 # Nudges once per distinct state (HEAD + dirty tree), so a turn that ends on
 # a question to the user costs one extra round, not one per turn.
 # Headless lanes (CLAUDEOS_HEADLESS) are exempt — the wish lane only proposes.
@@ -20,7 +22,7 @@ cd_=$(git rev-parse --path-format=absolute --git-common-dir 2>/dev/null) || exit
 
 ahead=$(git rev-list --count origin/main..HEAD 2>/dev/null || echo 0)
 dirty=$(git status --porcelain 2>/dev/null)
-[[ "$ahead" -eq 0 && -z "$dirty" ]] && exit 0
+[[ "$ahead" -eq 0 ]] && exit 0
 
 # A squash merge leaves the branch's own commits off main forever, so "ahead"
 # alone misreads a PR merged outside claudeos-land as unlanded. A clean tree

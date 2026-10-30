@@ -53,16 +53,16 @@ Commit with explicit paths (never `git add -A`), then from the worktree:
 claudeos-land
 ```
 
-It rebases on origin/main, names the generation, re-runs
-`claudeos-validate`, pushes, opens or reuses the PR, waits for its required
-CI (about a minute; a PR touching flake.lock, flake.nix or validate.yml also waits on lock-gate's gti build and VM boot), squash-merges it
+It rebases on origin/main, names the generation, pushes, opens or reuses
+the PR, waits for its required CI — `flake-validate` is the rung-4 gate, so
+land doesn't rerun `claudeos-validate` locally (about two minutes; a PR touching flake.lock, flake.nix or validate.yml also waits on lock-gate's gti build and VM boot), squash-merges it
 (only the exact validated head), fast-forwards `~/.config/claudeos`, runs
 `nixos-rebuild switch` there for `$(hostname)` (scoped NOPASSWD — no prompt),
 and sweeps landed worktrees. Run it in the background; CI and the switch take
 minutes. `--no-deploy` stops after the merge.
 
 It refuses — and says why — rather than deploy a half state: uncommitted
-changes in the worktree, a rebase conflict, a failed validation, a PR that
+changes in the worktree, a rebase conflict, failed required checks, a PR that
 won't merge, or uncommitted config in the shared checkout.
 
 Never deploy from a worktree (`nixos-rebuild --flake <worktree>#…`): the
