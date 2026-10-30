@@ -22,7 +22,7 @@ Four directions, smallest first:
 |---|------|----------|
 | A | Screen-share privacy mode | Sharing your screen hides what shouldn't be shared, and says so |
 | B | Submap HUD | Modal keybindings you can see while you're in them |
-| C | Agent-state chrome | A window's *border* tells you its Claude session is working or waiting on you |
+| C | Agent-state chrome | A window's *border* tells you its Claude session is working or waiting on you — **deferred** (see C) |
 | D | Intent layouts | `compare`, `reading`, `focus` as real Lua layouts, carried by contexts |
 
 ## The one design rule: rules live in Nix, the shell only moves tags
@@ -119,9 +119,25 @@ mouse-free version of SUPER-drag), and `context` (save / resume / shelf).
 thing `--verify-config` doesn't check — read them by eye) + 4. Behaviour: enter
 and leave every mode by keyboard before landing.
 
-## C. Agent-state chrome
+## C. Agent-state chrome — deferred
 
-**What you get.** The window that hosts a Claude session changes its border by
+**Decision (2026-10-29): not building the borders.** All Claude work happens
+in the desktop app, so every session collapses onto one window, and that
+window already shows its own state. A border on it would repeat the app
+to someone who is usually looking straight at it.
+
+**What survives:** persisting `waiting`. Today it is only a sound, so the bar
+can't tell "working" from "waiting on you". Writing `state = "waiting"` in the
+hook (cleared on `refresh`/`end`) lets `Agent.qml`/`Presence.qml` say *waiting
+on you* when the app is on another workspace or behind something. That's a
+small change to `claudeos-agent-hook` (rung 5, since it's an embedded script) and
+two QML bindings, and it needs no compositor work. Fold it into Phase 1.
+
+**Revisit if** Claude sessions start living in their own windows (terminal
+`claude`, or lanes that open a window). The design below then works unchanged,
+and the tag-rule spike already proved the mechanism.
+
+**What it would have done.** The window that hosts a Claude session changes its border by
 the session's state:
 
 | State | Border | Source |
@@ -203,10 +219,9 @@ unplaced — Phase 0 checks what Hyprland does when a Lua layout errors.
 
 | Phase | Contents | Needs you |
 |-------|----------|-----------|
-| 0 · spikes | Watch the spinning border; measure its power cost; start one screen share and read the `screencast` payload; apply the spike layout on a scratch workspace with three throwaway windows; make a layout throw on purpose; check whether `layout_msg`'s return reaches `hyprctl` | yes — ~15 min, mostly looking |
-| 1 · A + B | `Sharing.qml` + arbiter boundary + rule; `submap` field, generated submaps + Esc, HUD face | final look |
-| 2 · C | hook state + ancestors, `AgentChrome`, tag diffing, sweep, rules | final look |
-| 3 · D | layout file, context manifest field, intent routes, previews if possible | design review of the three layouts |
+| 0 · spikes | Start one screen share and read the `screencast` payload; apply the spike layout on a scratch workspace with three throwaway windows; make a layout throw on purpose; check whether `layout_msg`'s return reaches `hyprctl` | yes — ~10 min, mostly looking |
+| 1 · A + B | `Sharing.qml` + arbiter boundary + rule; `submap` field, generated submaps + Esc, HUD face; persisted `waiting` state in the bar (from C) | final look |
+| 2 · D | layout file, context manifest field, intent routes, previews if possible | design review of the three layouts |
 
 Validation per phase follows CLAUDE.md's table: QML → rung 3; new Hyprland
 lines → `hypr_config_check` each + rung 4; hook change (embedded shell in
@@ -227,10 +242,8 @@ lines → `hypr_config_check` each + rung 4; hook change (embedded shell in
 
 ## Decisions needed
 
-1. **C on the desktop app window** — is "most urgent session wins" on the one
-   app window worth having, or should C wait until sessions also live in
-   terminals?
-2. **Working = motion?** Rotating gradient (expressive, costs power) or a static
-   two-tone border (free)?
+1. ~~C on the desktop app window~~ — **decided:** deferred; only the persisted
+   `waiting` state is built.
+2. ~~Working = motion?~~ — moot while C is deferred.
 3. **Submap entry keys** — e.g. SUPER+M for `window`, SUPER+G for `context`.
 4. **Share redaction depth** — hide notifications entirely, or titles-only?
