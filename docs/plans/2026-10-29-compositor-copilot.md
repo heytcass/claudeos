@@ -47,8 +47,11 @@ on windows (and, for D, picks a workspace's layout). Consequences:
 | A tag added **at runtime** re-triggers a tag-matched rule | Registered `match = { tag = "agent-waiting" }` rule via `hyprctl eval`, tagged the Claude window with `hl.dsp.window.tag({ tag = "+agent-waiting", window = "address:…" })`, read `hyprctl getprop address:… active_border_color` | ✅ `ffd97757` → `ffff0000` → back to `ffd97757` on `-agent-waiting`. Spike rule disabled after |
 | `hyprctl getprop` reads a window's *effective* border | same | ✅ — this is the verification hook for C's tests |
 | Gradient border + `borderangle` loop animation parses | `hypr_config_check`: `hl.animation({ leaf = "borderangle", style = "loop", … })` + two-colour `border_color` | ✅ parses; **not yet seen** (visual check is Phase 0) |
-| `hl.layout.register(name, { recalculate, layout_msg })` | `hyprctl eval` with a trivial column layout | ✅ registers; **not yet applied** to a workspace |
-| Per-workspace layout | stub: `HL.WorkspaceRuleSpec` has `layout` + `layout_opts`; `hl.dsp.layout` dispatcher exists | ✅ in API; untested |
+| `hl.layout.register(name, { recalculate, layout_msg })` | `hyprctl eval` with a trivial column layout | ✅ registers |
+| Per-workspace layout, applied live | `hl.workspace_rule({ workspace = "9", layout = … })` on an existing workspace with three throwaway windows | ✅ takes effect immediately — **but a Lua layout must be named `lua:<name>`**. The bare registered name is silently ignored (workspace stays `dwindle`, rule shows no layout); `"master"` and `"lua:spike-cols"` both switch `tiledLayout` at once |
+| `layout_msg` return reaches the caller | `hl.dispatch(hl.dsp.layout("ping"))` with ws 9 focused | ⚠️ yes, but a **string return is reported as failure**: `{ ok = false, code = "invalid_argument", error = "…got ping \| 1:3844,961 637x1036 …" }`. Return `true` for success; use `hl.dsp.event` (next row) to ship data out |
+| `hl.dsp.event` emits a custom event | `socat` on socket2, then `hl.dispatch(hl.dsp.event("claudeos-spike hello"))` | ✅ socket2 receives `custom>>claudeos-spike hello`; dispatch returns `{ ok = true }`. A clean Lua→bar channel |
+| A throwing `recalculate` | layout raises `error()`, then a fourth window opens on the workspace | ✅ safe: no crash, windows fall back to an even 2×2 grid, nothing logged. Visible as "layout looks generic", not as lost windows |
 | Submaps in use today | `hyprctl binds -j` | **None.** 58 binds, all root, 0 with descriptions |
 | Windows carry `pid` and `tags` | `hl.get_windows()` via `hyprctl eval` | ✅ |
 | Where Claude sessions live | `ps` | Every live `claude` is a child of the **desktop app** (pid 1477 → `disclaimer` → `claude`). No terminal sessions right now |
@@ -194,7 +197,8 @@ it's meaningful, keep the rotation but run it only while a window is tagged
 Say "compare these" in the intent line (SUPER+R), or let a context restore
 with its layout. Saved contexts carry `layout` in their manifest; `restore`
 already names the workspace after the context, so it sets a workspace rule
-`{ workspace = "name:<slug>", layout = "compare" }` alongside.
+`{ workspace = "name:<slug>", layout = "lua:compare" }` alongside (the `lua:`
+prefix is required — see spike findings).
 
 **Wiring.**
 - One Lua file of layouts, rendered by `home/hyprland.nix`, each a
@@ -204,14 +208,17 @@ already names the workspace after the context, so it sets a workspace rule
 - Claude-authored layouts are **data, not Lua**: a ratio spec (`{ primary =
   0.62, rest = "column-right" }`) interpreted by one hand-written engine
   layout — the same "never evaluate model output" rule `CardRenderer.qml` keeps.
-- Preview: if `layout_msg` can return the computed boxes as a string to the
-  caller (unconfirmed), the bar draws ghost outlines from the *same* geometry
-  before you commit. If it can't, skip previews rather than duplicating the
-  math in QML.
+- Preview: a `preview <layout>` message makes the engine compute the boxes
+  *without placing them* and emit them with `hl.dsp.event("layout-preview …")`;
+  the bar hears `custom>>layout-preview …` and draws ghost outlines from the
+  same geometry before you commit. `layout_msg` itself returns `true` (a string
+  return is reported as an error — spike findings).
 
 **Blast radius.** Layouts are opt-in per workspace, never `general.layout`.
-dwindle stays the default. A `recalculate` that throws must not leave windows
-unplaced — Phase 0 checks what Hyprland does when a Lua layout errors.
+dwindle stays the default. Verified: a `recalculate` that throws leaves windows
+in a plain 2×2 grid, not unplaced — so a layout bug is cosmetic. The engine
+should still `pcall` the spec interpreter and emit a `custom>>layout-error`
+event, so the bar can say why the layout looks wrong.
 
 ---
 
@@ -219,7 +226,7 @@ unplaced — Phase 0 checks what Hyprland does when a Lua layout errors.
 
 | Phase | Contents | Needs you |
 |-------|----------|-----------|
-| 0 · spikes | Start one screen share and read the `screencast` payload; apply the spike layout on a scratch workspace with three throwaway windows; make a layout throw on purpose; check whether `layout_msg`'s return reaches `hyprctl` | yes — ~10 min, mostly looking |
+| 0 · spikes | ~~Layout on a scratch workspace, deliberate throw, `layout_msg` return, `hl.dsp.event`~~ done 2026-10-29. **Remaining:** start one screen share and read the `screencast` payload | yes — one share, ~2 min |
 | 1 · A + B | `Sharing.qml` + arbiter boundary + rule; `submap` field, generated submaps + Esc, HUD face; persisted `waiting` state in the bar (from C) | final look |
 | 2 · D | layout file, context manifest field, intent routes, previews if possible | design review of the three layouts |
 
@@ -229,9 +236,10 @@ lines → `hypr_config_check` each + rung 4; hook change (embedded shell in
 
 ## Leads not taken (yet)
 
-- **`hl.dsp.event`** — a dispatcher that appears to emit a custom event. If it
-  lands on socket2, it's a clean Lua→bar channel for hooks that live in the
-  compositor. Untested.
+- **`hl.dsp.event` as a general channel** — verified (spike findings). Beyond
+  layout previews, any Lua hook in `hyprland.nix` can now tell the bar
+  something: `custom>><topic> <payload>`. Worth a small convention (topic
+  prefix, one QML router) before a second user appears.
 - **`decoration.screen_shader`** — screen-wide ambient state (desaturate all but
   the focused window in focus mode; bedtime grayscale). Costs direct scanout.
 - **`input.keyboard.key`** — typing cadence as a flow signal for the arbiter.
