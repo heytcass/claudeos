@@ -322,6 +322,15 @@ in
         fi
         # --match-head-commit: merge exactly the tree that was just validated.
         if ! gh pr merge "$pr" --squash --match-head-commit "$(git rev-parse HEAD)"; then
+          # Another land merged during the checks wait, so main moved under us.
+          # Usually that's only the generation-label race, which the rebase at
+          # the top resolves: start over, a few times at most. A real conflict
+          # stops at that rebase with its file list, as always.
+          retries=''${CLAUDEOS_LAND_RETRIES:-0}
+          if [[ $(gh pr view "$pr" --json mergeable -q .mergeable 2>/dev/null) == CONFLICTING && $retries -lt 3 ]]; then
+            echo "claudeos-land: main moved during the checks wait — rebasing and retrying ($((retries + 1))/3)…" >&2
+            CLAUDEOS_LAND_RETRIES=$((retries + 1)) exec "$0" "$@"
+          fi
           echo "claudeos-land: PR #$pr was not merged — it stays open; main and this host are unchanged." >&2
           exit 1
         fi
