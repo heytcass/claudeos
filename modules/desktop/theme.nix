@@ -282,6 +282,14 @@ in
         # Unlike the GNOME target it writes no dconf keys we depend on, so
         # this is a clean removal with nothing to re-home.
         stylix.targets.kde.enable = false;
+
+        # The rofi target is inert (rofi isn't installed — the launcher lives
+        # in the Quickshell bar), but it still sets `programs.rofi.font`,
+        # which home-manager renamed to `programs.rofi.settings.font`; the
+        # rename shim warns on every eval regardless of programs.rofi.enable.
+        # Upstream (nix-community/stylix modules/rofi/hm.nix) still writes the
+        # old name as of 2026-10-31, so disable the target.
+        stylix.targets.rofi.enable = false;
       }
     )
   ];
