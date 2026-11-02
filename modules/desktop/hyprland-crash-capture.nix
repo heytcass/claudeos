@@ -17,6 +17,20 @@
 #      If the successor booted in safe mode, it archives the dead predecessor's
 #      log with the journal/audit/coredump window around the death, then
 #      notifies.
+#
+# 2026-11-01, second death (22:39): the sender audit came back empty, and
+# hypridle never fired its 5-minute lock in the 25 minutes between the log's
+# last line and the restart (it did so normally all evening). Idle events come
+# from the compositor, so Hyprland was hung, not dead, long before it died —
+# and a post-mortem cannot say where. Two more gaps:
+#
+#   3. Hang — a watchdog probes the live instance over its IPC socket. When it
+#      stops answering, it snapshots every thread's backtrace (gdb) and kernel
+#      wait point while the hang is still in progress. It runs as a system
+#      service under the user with CAP_SYS_PTRACE only: yama ptrace_scope=1
+#      forbids attaching to a non-descendant otherwise.
+#   4. SIGTERM/SIGINT — also audited, since neither SIGKILL nor SIGHUP
+#      explained the 22:39 exit.
 {
   lib,
   pkgs,
@@ -76,6 +90,7 @@ let
           echo "log last write $(date -d "@$last_log")"
           echo "safe restart:  $(date -d "@$restart")"
           echo "crash reports: $(find "''${XDG_CACHE_HOME:-$HOME/.cache}/hyprland" -name "hyprlandCrashReport$pid*" 2>/dev/null)"
+          echo "hang captures: $(find "$STATE_DIR/hyprland-hangs" -maxdepth 1 -name "*-pid$pid" 2>/dev/null)"
         } >"$dest/summary.txt"
         cp -a "''${XDG_CACHE_HOME:-$HOME/.cache}"/hyprland/hyprlandCrashReport"$pid"* "$dest/" 2>/dev/null || true
         journalctl --user --since "$since" --until "$until" -o short-precise --no-pager \
@@ -118,11 +133,102 @@ let
       mv "$seen.tmp" "$seen"
     '';
   };
+
+  hangWatchScript = claudeLib.mkClaudeScript {
+    name = "claudeos-hyprland-hang-watch";
+    runtimeInputs = [
+      pkgs.gdb
+      # hyprctl must speak the running compositor's IPC.
+      config.programs.hyprland.package
+    ];
+    text = ''
+      hypr_dir="/run/user/$(id -u)/hypr"
+      hang_root="$STATE_DIR/hyprland-hangs"
+      interval=5
+      # Consecutive failed probes before a hang is declared (~15-25 s).
+      threshold=3
+      keep=10
+
+      snapshot() { # <pid> <file>
+        local pid=$1 out=$2 t
+        {
+          echo "### $(date -Is) pid $pid"
+          echo "### /proc/$pid/status"
+          cat "/proc/$pid/status"
+          echo "### per-thread state / wchan / syscall"
+          for t in /proc/"$pid"/task/*; do
+            printf '%s %-16s state=%s wchan=%s syscall=%s\n' "''${t##*/}" \
+              "$(cat "$t/comm")" "$(awk '{print $3}' "$t/stat")" \
+              "$(cat "$t/wchan" 2>/dev/null)" "$(cat "$t/syscall" 2>/dev/null)"
+          done
+          echo "### open fds"
+          find "/proc/$pid/fd" -mindepth 1 -printf '%l\n' | sed 's/:\[[0-9]*\]$//' \
+            | sort | uniq -c | sort -rn | head -40
+          echo "### gdb: all threads"
+          timeout 90 gdb -p "$pid" -batch -nx \
+            -ex 'set pagination off' -ex 'thread apply all bt 40' 2>&1
+        } >"$out" 2>&1
+      }
+
+      failures=0
+      captured="" # instance already snapshotted during the current hang
+      while sleep "$interval"; do
+        # Newest instance whose lock names a live process.
+        sig="" pid=""
+        while read -r name; do
+          p=$(head -n1 "$hypr_dir/$name/hyprland.lock" 2>/dev/null || true)
+          if [[ -n "$p" ]] && kill -0 "$p" 2>/dev/null; then
+            sig=$name pid=$p
+            break
+          fi
+        done < <(find "$hypr_dir" -mindepth 1 -maxdepth 1 -type d -printf '%f\n' 2>/dev/null \
+          | sort -t_ -k2,2nr -k3,3nr)
+        if [[ -z "$pid" ]]; then
+          failures=0
+          continue
+        fi
+
+        if HYPRLAND_INSTANCE_SIGNATURE=$sig timeout 3 hyprctl -j version >/dev/null 2>&1; then
+          if [[ "$captured" == "$sig" ]]; then
+            echo "instance $sig responsive again after a captured hang"
+            echo "recovered $(date -Is)" >>"$dest/summary.txt"
+          fi
+          failures=0 captured=""
+          continue
+        fi
+        failures=$((failures + 1))
+        ((failures >= threshold)) || continue
+        [[ "$captured" == "$sig" ]] && continue
+
+        captured=$sig
+        dest="$hang_root/$(date +%Y-%m-%dT%H%M%S)-pid$pid"
+        mkdir -p "$dest"
+        echo "Hyprland $pid unresponsive for $failures probes; capturing to $dest"
+        {
+          echo "instance:     $sig"
+          echo "pid:          $pid"
+          echo "detected:     $(date -Is) after $failures failed probes ''${interval}s apart"
+        } >"$dest/summary.txt"
+        snapshot "$pid" "$dest/stack-1.txt"
+        # A second look separates a deadlock (same stacks) from a livelock.
+        sleep 30
+        if kill -0 "$pid" 2>/dev/null; then
+          snapshot "$pid" "$dest/stack-2.txt"
+        fi
+        cp -a "$hypr_dir/$sig/hyprland.log" "$dest/" 2>/dev/null || true
+        journalctl --since "-5min" -o short-precise --no-pager \
+          >"$dest/journal.txt" 2>&1 || true
+
+        find "$hang_root" -mindepth 1 -maxdepth 1 -type d -printf '%f\n' | sort -r \
+          | tail -n +$((keep + 1)) | while read -r old; do rm -rf "''${hang_root:?}/$old"; done
+      done
+    '';
+  };
 in
 {
   config = lib.mkIf config.claude-os.hyprland.enable {
     # Who sent the signal. kill/tkill/pidfd_send_signal carry the signal in a1,
-    # tgkill in a2. 9 = SIGKILL, 1 = SIGHUP.
+    # tgkill in a2. 9 = SIGKILL, 1 = SIGHUP, 15 = SIGTERM, 2 = SIGINT.
     security.audit.rules =
       lib.concatMap
         (sig: [
@@ -132,7 +238,26 @@ in
         [
           "9"
           "1"
+          "15"
+          "2"
         ];
+
+    # A system unit (not a user one) so it can hold CAP_SYS_PTRACE; it runs as
+    # the user so the IPC socket and state dir are its own.
+    systemd.services.claudeos-hyprland-hang-watch = {
+      description = "Snapshot Hyprland's stacks when it stops answering IPC";
+      wantedBy = [ "multi-user.target" ];
+      serviceConfig = {
+        ExecStart = hangWatchScript;
+        User = user;
+        AmbientCapabilities = [ "CAP_SYS_PTRACE" ];
+        CapabilityBoundingSet = [ "CAP_SYS_PTRACE" ];
+        Restart = "always";
+        RestartSec = 10;
+        Nice = 10;
+        SyslogIdentifier = "hyprland-hang-watch";
+      };
+    };
 
     systemd.user.paths.claudeos-hyprland-crash-archive = {
       description = "Watch for new Hyprland instances (crash evidence)";
