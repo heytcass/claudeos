@@ -7,6 +7,7 @@ let
 in
 {
   imports = [
+    ./hyprland-crash-capture.nix # inert unless claude-os.hyprland.enable
     ./hyprland.nix # inert unless claude-os.hyprland.enable (default false)
     ./greeter.nix # inert unless claude-os.greeter.enable (default false)
     ./audio.nix
