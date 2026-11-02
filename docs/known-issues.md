@@ -319,6 +319,8 @@ Ledger edits are committed by the normal rebuild auto-commit flow.
 
 - 2026-10-28 · `fwupdmgr: Unsupported daemon version 2.1.9, client version is 2.1.8` → `fwupd-refresh.service` failed, switch exited status 4 · Timing race on an fwupd version bump: `fwupd-refresh.timer` (hourly, `RandomizedDelaySec=1h`) fired on its own schedule about 150 ms before switch-to-configuration's daemon-reload, so the old 2.1.8 client ran against the 2.1.9 daemon that had just been restarted. The rest of the activation was fine. Neither `restartIfChanged` nor `X-OnlyManualStart` helps: the switch never touches the inactive oneshot or the running timer. `Restart=on-failure` doesn't help either, because the switch's failed-unit check also counts auto-restart units that have failed. Self-clears on the next timer tick. Benign unless it recurs without an fwupd version change.
 
+- 2026-11-01 · `GLib-GIO: g_dbus_interface_skeleton_get_object_path` / `g_dbus_interface_skeleton_get_connection` / `g_dbus_connection_emit_signal: assertion 'G_IS_DBUS_INTERFACE_SKELETON|G_IS_DBUS_CONNECTION' failed` (1 occurrence each) · A GLib D-Bus object was used after its export/connection was torn down, typically a service exiting or re-registering during a session transition. These are CRITICAL assertions, not aborts; the process keeps running and no core was logged. The source process is not named in the signature, so the verdict is provisional: benign if no `dumped core` line or user-facing D-Bus failure accompanies it. If it recurs, run `journalctl -b -p err -g GLib-GIO -o verbose` to identify the emitting unit and file it upstream or fix that unit's lifecycle.
+
 ## Resolved
 
 <!-- move entries here when fixed, with the fixing commit/PR -->
