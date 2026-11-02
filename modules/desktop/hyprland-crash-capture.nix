@@ -117,8 +117,12 @@ let
         done
         if busctl --user status org.freedesktop.Notifications >/dev/null 2>&1; then
           while read -r dest; do
-            claudeos_notify --urgency=critical "Hyprland crashed and restarted in safe mode" \
-              "Evidence saved to $dest"
+            # Delivery can lag the crash by a whole safe-mode session, so say
+            # when it happened. The archive is named for the restart time.
+            base=''${dest##*/}
+            when=$(date -d "''${base:0:10} ''${base:11:2}:''${base:13:2}" '+%a %b %-d, %H:%M' 2>/dev/null || echo "$base")
+            claudeos_notify --urgency=critical "Hyprland crashed — $when" \
+              "Restarted in safe mode. Evidence saved to $dest"
           done <"$pending"
           : >"$pending"
         fi
