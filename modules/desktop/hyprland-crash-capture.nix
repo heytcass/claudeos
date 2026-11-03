@@ -38,8 +38,7 @@
 #
 #   5. Probe — also do a Wayland roundtrip on the instance's display socket,
 #      which only the compositor's main loop can answer.
-#   6. Log — send it to the journal too (stdout), which outlives a reboot.
-#   7. Lockout — the 07:25 death happened under hyprlock, and safe mode came
+#   6. Lockout — the 07:25 death happened under hyprlock, and safe mode came
 #      back on the crashed-lockscreen screen with no locker and no way in but
 #      a reboot. Re-arm hyprlock in the successor (the relock that
 #      misc.allow_session_lock_restore permits — see home/hyprland.nix).
@@ -316,12 +315,12 @@ in
       };
     };
 
-    # Timestamps in hyprland.log so it lines up with the journal, and a copy
-    # of the log on stdout, i.e. in the journal under uwsm's app unit: the file
-    # lives on tmpfs and is lost with any death safe mode doesn't follow.
-    home-manager.users.${user}.wayland.windowManager.hyprland.settings.config.debug = {
-      disable_time = false;
-      enable_stdout_logs = true;
-    };
+    # Timestamps in hyprland.log so it lines up with the journal.
+    #
+    # Not debug.enable_stdout_logs: tried 2026-11-03, and on 0.57 it is inert —
+    # the option reads true but nothing past init reaches stdout. The archive
+    # above is the log's only way off tmpfs.
+    home-manager.users.${user}.wayland.windowManager.hyprland.settings.config.debug.disable_time =
+      false;
   };
 }
