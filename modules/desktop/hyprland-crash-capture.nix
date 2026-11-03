@@ -31,6 +31,18 @@
 #      forbids attaching to a non-descendant otherwise.
 #   4. SIGTERM/SIGINT — also audited, since neither SIGKILL nor SIGHUP
 #      explained the 22:39 exit.
+#
+# 2026-11-03, deaths at 07:25 and 08:46: same shape (log stops minutes early,
+# no lock in the gap, no core, no audited sender), yet the watchdog never
+# fired: hyprctl kept answering while the compositor had stopped. So:
+#
+#   5. Probe — also do a Wayland roundtrip on the instance's display socket,
+#      which only the compositor's main loop can answer.
+#   6. Log — send it to the journal too (stdout), which outlives a reboot.
+#   7. Lockout — the 07:25 death happened under hyprlock, and safe mode came
+#      back on the crashed-lockscreen screen with no locker and no way in but
+#      a reboot. Re-arm hyprlock in the successor (the relock that
+#      misc.allow_session_lock_restore permits — see home/hyprland.nix).
 {
   lib,
   pkgs,
@@ -40,9 +52,11 @@
 }:
 let
   claudeLib = import ../../lib/claude-script.nix { inherit pkgs lib; };
+  hmCfg = config.home-manager.users.${user};
 
   archiveScript = claudeLib.mkClaudeScript {
     name = "claudeos-hyprland-crash-archive";
+    runtimeInputs = [ config.programs.hyprland.package ];
     text = ''
       hypr_dir="''${XDG_RUNTIME_DIR:?}/hypr"
       archive_root="$STATE_DIR/hyprland-crashes"
@@ -73,6 +87,16 @@ let
         [[ -n "$next" ]] || continue
         echo "$name" >>"$seen"
         [[ -f "$hypr_dir/$next/recoverycfg.lua" ]] || continue # clean exit
+
+        # Give safe mode a working lock prompt. recoverycfg.lua leaves
+        # allow_session_lock_restore off, so a session locked at the crash
+        # shows a dead lockscreen; with it on, hyprlock takes the lock over.
+        # If the session was not locked, this locks it, which a crash
+        # restart should do anyway.
+        export HYPRLAND_INSTANCE_SIGNATURE=$next
+        hyprctl eval 'hl.config({ misc = { allow_session_lock_restore = true } })' || true
+        hyprctl dispatch 'hl.dsp.exec_cmd("${lib.getExe hmCfg.programs.hyprlock.package}")' || true
+        unset HYPRLAND_INSTANCE_SIGNATURE
 
         start=$(cut -d_ -f2 <<<"$name")
         restart=$(cut -d_ -f2 <<<"$next")
@@ -144,12 +168,14 @@ let
       pkgs.gdb
       # hyprctl must speak the running compositor's IPC.
       config.programs.hyprland.package
+      pkgs.wayland-utils
     ];
     text = ''
       hypr_dir="/run/user/$(id -u)/hypr"
       hang_root="$STATE_DIR/hyprland-hangs"
-      interval=5
-      # Consecutive failed probes before a hang is declared (~15-25 s).
+      # 5 s cost ~1.2% CPU in process spawns; a hang is minutes long anyway.
+      interval=10
+      # Consecutive failed probes before a hang is declared (~30-40 s).
       threshold=3
       keep=10
 
@@ -192,7 +218,18 @@ let
           continue
         fi
 
-        if HYPRLAND_INSTANCE_SIGNATURE=$sig timeout 3 hyprctl -j version >/dev/null 2>&1; then
+        # hyprctl alone kept answering through both 2026-11-03 stalls; the
+        # Wayland roundtrip needs the main loop. Line 2 of the lock is the
+        # instance's display socket.
+        wl=$(sed -n 2p "$hypr_dir/$sig/hyprland.lock" 2>/dev/null || true)
+        failed=""
+        HYPRLAND_INSTANCE_SIGNATURE=$sig timeout 3 hyprctl -j version >/dev/null 2>&1 \
+          || failed+=" hyprctl"
+        if [[ -n "$wl" ]]; then
+          XDG_RUNTIME_DIR="/run/user/$(id -u)" WAYLAND_DISPLAY=$wl timeout 3 wayland-info >/dev/null 2>&1 \
+            || failed+=" wayland"
+        fi
+        if [[ -z "$failed" ]]; then
           if [[ "$captured" == "$sig" ]]; then
             echo "instance $sig responsive again after a captured hang"
             echo "recovered $(date -Is)" >>"$dest/summary.txt"
@@ -212,6 +249,7 @@ let
           echo "instance:     $sig"
           echo "pid:          $pid"
           echo "detected:     $(date -Is) after $failures failed probes ''${interval}s apart"
+          echo "failing:     $failed"
         } >"$dest/summary.txt"
         snapshot "$pid" "$dest/stack-1.txt"
         # A second look separates a deadlock (same stacks) from a livelock.
@@ -278,8 +316,12 @@ in
       };
     };
 
-    # Timestamps in hyprland.log so it lines up with the journal.
-    home-manager.users.${user}.wayland.windowManager.hyprland.settings.config.debug.disable_time =
-      false;
+    # Timestamps in hyprland.log so it lines up with the journal, and a copy
+    # of the log on stdout, i.e. in the journal under uwsm's app unit: the file
+    # lives on tmpfs and is lost with any death safe mode doesn't follow.
+    home-manager.users.${user}.wayland.windowManager.hyprland.settings.config.debug = {
+      disable_time = false;
+      enable_stdout_logs = true;
+    };
   };
 }
