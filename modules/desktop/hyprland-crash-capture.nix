@@ -102,6 +102,11 @@ let
         export HYPRLAND_INSTANCE_SIGNATURE=$next
         hyprctl eval 'hl.config({ misc = { allow_session_lock_restore = true } })' || true
         hyprctl dispatch 'hl.dsp.exec_cmd("${lib.getExe hmCfg.programs.hyprlock.package}")' || true
+        # recoverycfg.lua's SUPER+Q tries a fixed list (kitty, alacritty,
+        # foot, …) that ghostty isn't on, and the list isn't configurable.
+        # Binds on one key stack, so clear it before rebinding.
+        hyprctl eval 'hl.unbind("SUPER + Q")' || true
+        hyprctl eval 'hl.bind("SUPER + Q", hl.dsp.exec_cmd("${lib.getExe hmCfg.programs.ghostty.package}"))' || true
         unset HYPRLAND_INSTANCE_SIGNATURE
 
         start=$(cut -d_ -f2 <<<"$name")
