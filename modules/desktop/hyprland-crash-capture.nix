@@ -42,6 +42,13 @@
 #      back on the crashed-lockscreen screen with no locker and no way in but
 #      a reboot. Re-arm hyprlock in the successor (the relock that
 #      misc.allow_session_lock_restore permits — see home/hyprland.nix).
+#
+# 2026-11-03, cause found (12:32 death): the kernel SIGKILLs Hyprland when
+# its rtkit-granted SCHED_RR main thread overruns RLIMIT_RTTIME. A kernel
+# signal bypasses the audit rules below and leaves no core, which is why
+# every capture came back empty. Fixed by HYPRLAND_NO_RT in
+# modules/desktop/hyprland.nix. This module stays as the net for whatever
+# kills it next.
 {
   lib,
   pkgs,

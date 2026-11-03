@@ -69,6 +69,13 @@ in
       # Hyprland's own input config overrides these env defaults.
       XKB_DEFAULT_LAYOUT = "us";
       XKB_DEFAULT_VARIANT = "colemak";
+      # Keep Hyprland off realtime scheduling. 0.57 has rtkit make its main
+      # thread SCHED_RR with RLIMIT_RTTIME 150/200 ms; one long kernel call
+      # (a DRM connector probe, say) blows the hard limit and the kernel
+      # SIGKILLs it — no core, no crash report, no audited sender, safe-mode
+      # restart. Five deaths on gti 2026-11-01..03. Upstream:
+      # omacom/omarchy#17102. See docs/known-issues.md 2026-11-03.
+      HYPRLAND_NO_RT = "1";
     };
 
     # Login manager: greetd + the bespoke Quickshell greeter
