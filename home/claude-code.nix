@@ -139,7 +139,16 @@ let
               export CLAUDEOS_AGENT_SUMMARIZER=1
               summary=$(timeout 30 "$HOME/.local/bin/claude" -p "Summarize this request as a short activity phrase for a status pill: 3-4 words, present-participle verb first (like: fixing login bug / reviewing PR 58 / tuning bar colors). Output ONLY the phrase — no quotes, no punctuation, no markdown.
 
-    Request: $prompt" --model haiku --strict-mcp-config 2>/dev/null | head -n 1)
+    Request: $prompt" --model haiku --strict-mcp-config 2>/dev/null) || exit 0
+              # `claude -p` prints auth/API failures ("Failed to authenticate:
+              # …", "API Error: …") on STDOUT and exits non-zero, so the exit
+              # status gate above is what keeps an error out of the pill; the
+              # pattern check is a second fence for a failure reported with a
+              # zero exit. Either way the placeholder stays.
+              summary=$(printf '%s\n' "$summary" | head -n 1)
+              case "$summary" in
+                *"Failed to authenticate"* | *"API Error"* | *"Invalid API key"* | *"/login"*) exit 0 ;;
+              esac
               [ -n "$summary" ] && [ -f "$f" ] && printf '%s\n' "$summary" > "$f"
             ) </dev/null >/dev/null 2>&1 &
           fi
