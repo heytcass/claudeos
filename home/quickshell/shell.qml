@@ -51,6 +51,7 @@ ShellRoot {
 
     // Print: freeze the screen, pick a region, copy / save / read / ask Claude.
     RegionShot {}
+    Spotlight {} // "Claude points": `claudeos-spotlight` dims all but a target
 
     // SUPER+W wish prompt — a sentence in, a wish/* PR out (its own overlay).
     WishOverlay {}

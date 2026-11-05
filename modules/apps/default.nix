@@ -10,6 +10,7 @@
     ./morning-desk.nix
     ./cards.nix
     ./intent.nix
+    ./spotlight.nix
     ./contexts
     ./shelf
     ./unifi-endpoint.nix
