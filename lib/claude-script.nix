@@ -271,7 +271,10 @@ let
 
     # claude_headless MODEL PROMPT [extra claude args...] — headless agent
     # call. Records the session id so the fish `approve` function can resume
-    # it, then prints the result text (empty on failure).
+    # it, then prints the result text (empty on failure). A caller that must
+    # resume its own run later (the wish reply path) sets CLAUDEOS_SESSION_OUT
+    # to a file: last-agent-session is shared by every lane and the last
+    # writer wins, and this runs in $(…), so a variable can't carry it back.
     claude_headless() {
       local model="$1" prompt="$2" result session
       shift 2
@@ -284,6 +287,7 @@ let
       if [[ -n "$session" ]]; then
         mkdir -p "$STATE_DIR"
         echo "$session" > "$STATE_DIR/last-agent-session"
+        [[ -n "''${CLAUDEOS_SESSION_OUT:-}" ]] && echo "$session" > "$CLAUDEOS_SESSION_OUT"
       fi
       echo "$result" | jq -r '.result // empty' 2>/dev/null
     }
@@ -471,18 +475,24 @@ let
     # the lane's previous card rather than stacking. Same degradation contract
     # as claudeos_card: an invalid card is never installed, a notification
     # carries the reason. Empty ICON/URGENCY/URL are simply omitted.
+    # RUN_NAME [RUN_LABEL] adds a `run` button before Dismiss; the name must be
+    # in lib/card-actions.nix (claudeos_card rejects anything else).
     claudeos_lane_card() {
-      local id="$1" title="$2" icon="$3" urgency="$4" body="$5" url="''${6:-}" label="''${7:-Open}" tmp rc=0
+      local id="$1" title="$2" icon="$3" urgency="$4" body="$5" url="''${6:-}" label="''${7:-Open}" \
+        run="''${8:-}" run_label="''${9:-Run}" tmp rc=0
       tmp=$(mktemp)
       # Truncation mirrors the schema's limits (title 120, text 2000, url 2000,
       # label 100) so a long changelog degrades to a clipped card, not a reject.
       jq -n --arg title "''${title:0:120}" --arg icon "$icon" --arg urgency "$urgency" \
-            --arg body "''${body:0:1900}" --arg url "''${url:0:2000}" --arg label "''${label:0:100}" '
+            --arg body "''${body:0:1900}" --arg url "''${url:0:2000}" --arg label "''${label:0:100}" \
+            --arg run "$run" --arg run_label "''${run_label:0:60}" '
         {title: $title, sections: [{type: "text", text: $body}]}
         | if $icon != "" then .icon = $icon else . end
         | if $urgency != "" then .urgency = $urgency else . end
         | if $url != "" then .sections += [{type: "links", links: [{label: $label, url: $url}]}] else . end
-        | .sections += [{type: "actions", actions: [{type: "dismiss", label: "Dismiss"}]}]
+        | .sections += [{type: "actions", actions:
+            ((if $run != "" then [{type: "run", name: $run, label: $run_label}] else [] end)
+             + [{type: "dismiss", label: "Dismiss"}])}]
       ' > "$tmp" || { rm -f "$tmp"; return 1; }
       claudeos_card "$tmp" "$id" || rc=1
       rm -f "$tmp"

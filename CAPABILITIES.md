@@ -73,7 +73,7 @@ These scripts run outside Claude Code — they're Hyprland keybindings (generate
 | `Super+A` | `claude-ask-desktop` | Zenity popup prompt → Claude answer → desktop notification |
 | `Super+Shift+A` | `claude-screenshot` | grim capture → Claude analysis (Haiku) → notification |
 | `Super+Ctrl+A` | `claude-screenshot-interactive` | Screenshot → Claude analysis (Sonnet) → terminal for follow-up |
-| `Super+W` | `claude-wish` | Wish lane: plain-language wish → agent writes the Nix, validates both hosts, opens a `wish/*` PR (rung 1: propose-only). Bar island shows "✨ wishing" while it runs; `approve` resumes the session |
+| `Super+W` | `claude-wish` | Wish lane: plain-language wish → agent writes the Nix, validates both hosts, opens a `wish/*` PR (rung 1: propose-only). Bar island shows "✨ wishing" while it runs. Every wish card carries **Reply**: it reopens this prompt aimed at the latest wish, and `claude-wish --reply` resumes that wish's own agent session in its own worktree (kept until the PR merges or closes), so a revision lands on the same PR. The agent can also stop with a question (`WISH-NOTE`) for you to answer the same way |
 | `Super+R` | intent line → `claudeos-intent` | One input that routes itself (`home/quickshell/IntentLine.qml`). Deterministic first, zero model calls: an app name launches, `$cmd` opens a terminal, a `question?` answers as a notification, `save as <name>` / `resume <name>` snapshot and reassemble a **task context** (below). Anything else hands to the haiku router (`claudeos-intent`), which picks **wish** (→ `claude-wish`, a `wish/*` PR) vs **task** (→ the task lane: one scoped Sonnet call producing a reviewable artifact under `~/.local/state/claudeos/tasks/`, never a sent message or pushed commit — rung 1); unroutable input fails open into an interactive Claude with the text preloaded |
 | _(intent line)_ | `claudeos-context` | **Task contexts** (Phase 3): named, durable, git-tracked working contexts. `save as <name>` snapshots the active workspace — window classes + a durable relaunch argv per app, and the cwds of shells in terminals — to a manifest (`~/.local/state/claudeos/contexts/<slug>.json`, its own auto-committing git repo). `resume <name>` switches to a workspace named after the slug and reassembles the windows into it, idempotently (already-present apps/cwds are skipped; it never closes a window). The island shows the active context beside the clock; lanes can *prepare* a context via `claudeos_context_emit`. Restores tools and places, not pixel-perfect app state |
 | `Super+Shift+V` | `claude-clip` | Semantic clipboard: transform clipboard content (fix grammar, condense, to shell command, to table, summarize, translate, free-form) and copy the result back — paste anywhere |
@@ -106,7 +106,7 @@ the schema — deliberate).
 | Producer | Card | When |
 |----------|------|------|
 | Morning desk | Today's brief at a glance (kv + link + `open-desk` run action) | 05:30 daily, with the dashboard build |
-| Wish lane | Wish granted (PR link) / declined (reason), id `wish` | When a wish run ends |
+| Wish lane | Wish granted / revised (PR link), declined, a question from the agent, stalled — each with a **Reply** button (`run wish-reply`), id `wish` | When a wish run ends |
 | Task lane | Task ready (artifact link) / declined (reason), id `task` | When an intent-line task ends |
 | Self-heal | Fix proposed — heal PR link, id `self-heal-<unit>` (per-unit) | When a heal agent proposes a fix |
 | Auto-update | Flake updated / applied / build failed / VM-gate blocked, id `auto-update` | Sat 3 AM weekly, at each terminal state |
@@ -124,7 +124,7 @@ Fish shell functions available in any terminal. Defined in `home/shell/fish.nix`
 | `approve` | Resume the last background agent session (self-heal, journal diary) and authorize its proposed action |
 | `today` | Open the morning desk dashboard in Chrome app mode (`today --refresh` rebuilds it first) |
 | `usage` | Claude subscription limits (session/weekly percent + reset times) — terminal twin of the bar's fuel-gauge ring (`home/quickshell/ClaudeWidget.qml`) |
-| `wish "..."` | The wish lane from the terminal — same agent Super+W runs; wish in, `wish/*` PR out |
+| `wish "..."` | The wish lane from the terminal — same agent Super+W runs; wish in, `wish/*` PR out. `wish --reply "..."` continues the latest wish |
 | `why "..."` | Natural-language diagnostics — an agent investigates the running system (system-health MCP, journals, units) and answers with cited evidence |
 | `wherewasi` | "Where was I?" from structured state only (windows, repo status, recent commands) — the no-surveillance answer to Copilot Recall |
 | `claudeos` | Show the capability quick reference |

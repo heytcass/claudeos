@@ -13,6 +13,12 @@ Scope {
     id: root
     property bool shown: false
     property bool sent: false
+    // Reply mode: the wish card's Reply button (`qs ipc call wish reply`, the
+    // `wish-reply` entry in lib/card-actions.nix) opens this same prompt
+    // aimed at the latest wish; Enter hands it to `claude-wish --reply`,
+    // which resumes that wish's agent session. Super+W always opens a fresh wish.
+    property bool replying: false
+    property string replyTo: ""
 
     GlobalShortcut {
         appid: "quickshell"
@@ -20,7 +26,29 @@ Scope {
         description: "Make a wish — the OS writes itself a PR"
         onPressed: {
             root.sent = false;
+            root.replying = false;
             root.shown = !root.shown;
+        }
+    }
+
+    IpcHandler {
+        target: "wish"
+        function reply(): void {
+            latest.running = true;
+        }
+    }
+
+    // The latest wish's own words, so the prompt shows what you are replying to.
+    Process {
+        id: latest
+        command: ["sh", "-c", "d=\"${XDG_STATE_HOME:-$HOME/.local/state}/claudeos/wishes\"; s=$(cat \"$d/latest\" 2>/dev/null) && jq -r '.wish // empty' \"$d/$s.json\" 2>/dev/null"]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                root.replyTo = text.trim();
+                root.sent = false;
+                root.replying = true;
+                root.shown = true;
+            }
         }
     }
 
@@ -206,11 +234,23 @@ Scope {
                     }
                     Text {
                         anchors.verticalCenter: parent.verticalCenter
-                        text: root.sent ? "wish received" : "make a wish"
+                        text: root.replying ? (root.sent ? "reply received" : "reply to your wish") : (root.sent ? "wish received" : "make a wish")
                         color: Theme.text
                         font.family: Theme.fontSans
                         font.pixelSize: Theme.fontSize + 6
                     }
+                }
+
+                Text {
+                    visible: root.replying && !root.sent
+                    width: parent.width
+                    text: "↩ " + (root.replyTo !== "" ? root.replyTo : "the latest wish")
+                    color: Theme.subtext
+                    font.family: Theme.fontSans
+                    font.pixelSize: Theme.fontSize - 1
+                    elide: Text.ElideRight
+                    maximumLineCount: 2
+                    wrapMode: Text.Wrap
                 }
 
                 Rectangle {
@@ -237,7 +277,7 @@ Scope {
                             const w = text.trim();
                             if (w === "")
                                 return;
-                            granter.command = ["claude-wish", w];
+                            granter.command = root.replying ? ["claude-wish", "--reply", w] : ["claude-wish", w];
                             granter.running = true;
                             root.sent = true;
                             flight.start();
@@ -246,7 +286,7 @@ Scope {
                         Text {
                             anchors.verticalCenter: parent.verticalCenter
                             visible: input.text === ""
-                            text: "what should this machine become?"
+                            text: root.replying ? "change it, ask about it, or answer its question" : "what should this machine become?"
                             color: Theme.subtext
                             font.family: Theme.fontSans
                             font.pixelSize: Theme.fontSize + 1
@@ -256,7 +296,7 @@ Scope {
 
                 Text {
                     visible: !root.sent
-                    text: "Enter to wish  ·  Esc to dismiss  ·  it arrives as a pull request"
+                    text: root.replying ? "Enter to reply  ·  Esc to dismiss  ·  the same agent picks it up" : "Enter to wish  ·  Esc to dismiss  ·  it arrives as a pull request"
                     color: Theme.subtext
                     font.family: Theme.fontSans
                     font.pixelSize: Theme.fontSize - 2

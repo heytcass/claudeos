@@ -208,8 +208,15 @@ in
     # becomes a reviewed OS change. The founding insight, user-initiated: the
     # system is a repo, so "I wish my machine did X" reduces to an agent
     # writing the Nix for X and opening a wish/* PR. Trust ladder rung 1:
-    # the agent only ever proposes; the human merges. `approve` resumes the
-    # recorded session if the run needs a follow-up.
+    # the agent only ever proposes; the human merges.
+    #
+    # Wishes are conversations, not one-shots: `claude-wish --reply TEXT`
+    # (the wish card's Reply button → Super+W in reply mode) resumes the
+    # latest wish's own agent session in its own worktree, so a revision
+    # lands on the same PR with full context. Each wish keeps a record in
+    # $STATE_DIR/wishes/<slug>.json (wish, branch, worktree, session, url,
+    # outcome) and its worktree until its PR merges or closes; the sweep at
+    # the start of each new wish clears the settled ones.
     (claudeLib.mkClaudeScriptBin {
       name = "claude-wish";
       runtimeInputs = [
@@ -218,83 +225,229 @@ in
         pkgs.check-jsonschema # validator for the bar card (claudeos_lane_card)
       ];
       text = ''
-        wish="$*"
-        if [[ -z "$wish" ]]; then
-          wish=$(zenity --entry --title "Wish" --width 420 \
-            --text "What should this machine become? ❯" 2>/dev/null)
-        fi
-        [[ -z "$wish" ]] && exit 0
+        wish_dir="$STATE_DIR/wishes"
+        mkdir -p "$wish_dir"
+        wish_rec() { echo "$wish_dir/$1.json"; }
+        wish_set() { # SLUG KEY VALUE
+          local f
+          f=$(wish_rec "$1")
+          [[ -f "$f" ]] || echo '{}' >"$f"
+          jq --arg k "$2" --arg v "$3" '.[$k] = $v' "$f" >"$f.tmp" && mv "$f.tmp" "$f"
+        }
+        wish_get() { jq -r --arg k "$2" '.[$k] // empty' "$(wish_rec "$1")" 2>/dev/null; }
+        pr_state() { gh pr view "$1" --json state -q .state 2>/dev/null; }
 
+        # Drop settled wishes: a PR that merged or closed, or a PR-less
+        # outcome (declined, a question, a failure) that is no longer the
+        # latest wish, so nothing can reply to it. Offline, gh answers
+        # nothing and the record stays. A stuck wish's branch is kept — its
+        # commit was never pushed.
+        wish_sweep() {
+          local f slug url wt branch outcome latest state
+          latest=$(cat "$wish_dir/latest" 2>/dev/null)
+          for f in "$wish_dir"/*.json; do
+            [[ -e "$f" ]] || continue
+            slug=$(basename "$f" .json)
+            url=$(wish_get "$slug" url)
+            if [[ -n "$url" ]]; then
+              state=$(pr_state "$url")
+              [[ "$state" == MERGED || "$state" == CLOSED ]] || continue
+            else
+              [[ "$slug" == "$latest" ]] && continue
+            fi
+            wt=$(wish_get "$slug" worktree)
+            branch=$(wish_get "$slug" branch)
+            outcome=$(wish_get "$slug" outcome)
+            [[ -n "$wt" && -d "$wt" ]] && git -C "$CLAUDEOS_DIR" worktree remove --force "$wt" 2>/dev/null
+            if [[ -n "$branch" && "$outcome" != stuck ]]; then
+              git -C "$CLAUDEOS_DIR" branch -q -D "$branch" 2>/dev/null
+            fi
+            rm -f "$f"
+          done
+          git -C "$CLAUDEOS_DIR" worktree prune 2>/dev/null
+        }
+
+        mode=new
+        if [[ "''${1:-}" == --reply ]]; then
+          mode=reply
+          shift
+        fi
+        input="$*"
         claudeos_export_gh_token
         CLAUDEOS_LANE=wish
-        claudeos_agent_begin "✨ wishing: $wish"
-        claudeos_notify "Wish received" "Working on it — a PR will arrive when it's ready."
 
-        branch="wish/$(echo "$wish" | tr -c 'a-zA-Z0-9' '-' | tr -s '-' | head -c 24 | sed 's/-*$//')-$(date +%m%d-%H%M)"
-        if ! claudeos_lane_worktree "$branch"; then
-          claudeos_agent_done "wish failed: couldn't create a worktree"
-          claudeos_notify --urgency=critical "Wish" "Couldn't create a worktree for $branch — nothing was changed."
-          exit 1
-        fi
-
-        prompt="You are the ClaudeOS wish lane. The owner just wished, in natural language, for this machine to change. Wishes become pull requests, never direct changes (trust ladder rung 1: propose; the human merges).
-
-        THE WISH: $wish
-
-        Your job:
-        1. Interpret the wish as the SMALLEST configuration change that genuinely grants it, honoring docs/PHILOSOPHY.md's daily-driver rule and the CLAUDE.md house rules. If the wish is unsafe, destructive, needs new secrets, or is not expressible as NixOS/home-manager configuration in this repo, output exactly WISH-DECLINED: <one-line reason> and STOP.
+        rules="Your job:
+        1. Interpret the wish as the SMALLEST configuration change that genuinely grants it, honoring docs/PHILOSOPHY.md's daily-driver rule and the CLAUDE.md house rules. If the wish is unsafe, destructive, needs new secrets, or is not expressible as NixOS/home-manager configuration in this repo, output exactly WISH-DECLINED: <one-line reason> and STOP. If it is ambiguous in a way that would change what you build, do not guess: output WISH-NOTE: <one clarifying question> and STOP — the owner can reply.
         2. Verify every NixOS/home-manager option name with the nixos MCP server — never from memory.
-        3. You are already on a fresh branch, $branch, cut from origin/main in a worktree of your own (the current directory). Work only here; never switch branches and never commit to main. Stylix base16 tokens only — never hardcode hex.
+        3. You work in a worktree of your own (the current directory) on the branch named below. Work only here; never switch branches and never commit to main. Stylix base16 tokens only — never hardcode hex.
         4. Validate: nix fmt, then a --dry-run build of BOTH hosts' config.system.build.toplevel (gti and transporter). Both must pass.
-        5. Stage exactly the files you changed (never git add -A), commit with a conventional message starting 'wish: ', push the branch with exactly: git push -u origin $branch — then: gh pr create --base main, title starting 'wish: ', body explaining the wish verbatim, what you changed, why that grants it, how you validated, and that this PR was authored by the wish lane.
+        5. Stage exactly the files you changed (never git add -A), commit with a conventional message starting 'wish: ', push the branch with exactly: git push -u origin BRANCH — then: gh pr create --base main, title starting 'wish: ', body explaining the wish verbatim, what you changed, why that grants it, how you validated, and that this PR was authored by the wish lane.
         6. Touch none of: flake.nix, flake.lock, .sops.yaml, secrets/, .github/, .claude/. If the wish truly requires them, decline with the reason.
         7. If the change is committed but the push or the PR fails (authentication, network, anything), do NOT decline and do NOT retry with other credentials — that is not a refusal, the work is done. Report it with WISH-STUCK.
         8. Your FINAL output line must be exactly one of:
         WISH-PR: <url>
         WISH-STUCK: <one-line reason the push or PR failed>
-        WISH-DECLINED: <reason — only for a wish you refuse or cannot express as config>"
+        WISH-DECLINED: <reason — only for a wish you refuse or cannot express as config>
+        WISH-NOTE: <a message for the owner — one clarifying question, or the answer to theirs>"
 
-        text=$(claude_headless sonnet "$prompt" \
-          --allowedTools 'Read,Grep,Glob,Edit,Write,Bash(git status*),Bash(git diff*),Bash(git log*),Bash(git add *),Bash(git commit *),Bash(git push *),Bash(gh pr create*),Bash(nix build*--dry-run*),Bash(nix fmt*),Bash(hostname),mcp__nixos__*')
+        if [[ "$mode" == reply ]]; then
+          slug=$(cat "$wish_dir/latest" 2>/dev/null)
+          if [[ -z "$slug" || ! -f "$(wish_rec "$slug")" ]]; then
+            claudeos_notify "Wish" "There's no recent wish to reply to."
+            exit 1
+          fi
+          wish=$(wish_get "$slug" wish)
+          if [[ -z "$input" ]]; then
+            input=$(zenity --entry --title "Reply to wish" --width 420 \
+              --text "Re: $wish ❯" 2>/dev/null)
+          fi
+          [[ -z "$input" ]] && exit 0
+          branch=$(wish_get "$slug" branch)
+          url=$(wish_get "$slug" url)
+          session=$(wish_get "$slug" session)
+          LANE_WORKTREE=$(wish_get "$slug" worktree)
 
-        # Settled outcomes drop the worktree (the branch keeps any commit);
-        # unclear ones keep it so `approve` resumes where the agent stopped.
-        url=$(grep -oE 'WISH-PR: \S+' <<<"$text" | tail -1 | cut -d' ' -f2)
+          # A merged or closed PR's branch is finished: the reply becomes a
+          # fresh wish that carries the history in its words.
+          if [[ -n "$url" ]]; then
+            state=$(pr_state "$url")
+            if [[ "$state" == MERGED || "$state" == CLOSED ]]; then
+              exec claude-wish "Follow-up to an earlier wish (\"$wish\", $url, now ''${state,,}): $input"
+            fi
+          fi
+          if [[ -z "$session" ]]; then
+            claudeos_notify --urgency=critical "Wish" "No agent session was recorded for \"$wish\" — make it a new wish instead."
+            exit 1
+          fi
+          # The session is stored under its worktree's path, so the worktree
+          # must come back at exactly that path (land's sweep may have taken it).
+          if [[ ! -d "$LANE_WORKTREE" ]]; then
+            git -C "$CLAUDEOS_DIR" worktree prune
+            if git -C "$CLAUDEOS_DIR" rev-parse -q --verify "refs/heads/$branch" >/dev/null; then
+              git -C "$CLAUDEOS_DIR" worktree add -q "$LANE_WORKTREE" "$branch"
+            else
+              git -C "$CLAUDEOS_DIR" fetch -q origin &&
+                git -C "$CLAUDEOS_DIR" worktree add -q --no-track -b "$branch" "$LANE_WORKTREE" origin/main
+            fi || {
+              claudeos_notify --urgency=critical "Wish" "Couldn't restore the worktree for $branch — nothing was changed."
+              exit 1
+            }
+          fi
+          cd "$LANE_WORKTREE" || exit 1
+
+          claudeos_agent_begin "✨ revising: $wish"
+          claudeos_notify "Reply received" "Revising the wish — the PR updates when it's ready."
+          prompt="The owner replied to your work on this wish.
+
+        THE REPLY: $input
+
+        Address it under exactly the same rules as before. You are still in your worktree on branch $branch.
+        - If a PR already exists for this branch ($url — check with gh pr view $branch if unsure), commit on top and update it with exactly: git push origin $branch — never open a second PR — then end with WISH-PR: <that PR's url>.
+        - If there is no PR yet, finish the original steps (push with git push -u origin $branch, then gh pr create).
+        - If the reply is a question rather than a request for a change, answer it and end with WISH-NOTE: <the answer, in one or two sentences>.
+        Your FINAL output line must be one of WISH-PR, WISH-STUCK, WISH-DECLINED or WISH-NOTE, as before."
+          resume=(--resume "$session")
+        else
+          wish="$input"
+          if [[ -z "$wish" ]]; then
+            wish=$(zenity --entry --title "Wish" --width 420 \
+              --text "What should this machine become? ❯" 2>/dev/null)
+          fi
+          [[ -z "$wish" ]] && exit 0
+
+          claudeos_agent_begin "✨ wishing: $wish"
+          claudeos_notify "Wish received" "Working on it — a PR will arrive when it's ready."
+          wish_sweep
+
+          branch="wish/$(echo "$wish" | tr -c 'a-zA-Z0-9' '-' | tr -s '-' | head -c 24 | sed 's/-*$//')-$(date +%m%d-%H%M)"
+          if ! claudeos_lane_worktree "$branch"; then
+            claudeos_agent_done "wish failed: couldn't create a worktree"
+            claudeos_notify --urgency=critical "Wish" "Couldn't create a worktree for $branch — nothing was changed."
+            exit 1
+          fi
+          slug="''${branch//\//-}"
+          url=""
+          wish_set "$slug" wish "$wish"
+          wish_set "$slug" branch "$branch"
+          wish_set "$slug" worktree "$LANE_WORKTREE"
+          echo "$slug" >"$wish_dir/latest"
+
+          prompt="You are the ClaudeOS wish lane. The owner just wished, in natural language, for this machine to change. Wishes become pull requests, never direct changes (trust ladder rung 1: propose; the human merges).
+
+        THE WISH: $wish
+
+        THE BRANCH: $branch — already cut from origin/main; in step 5, BRANCH means this.
+
+        ''${rules}"
+          resume=()
+        fi
+
+        export CLAUDEOS_SESSION_OUT="$wish_dir/$slug.session"
+        text=$(claude_headless sonnet "$prompt" "''${resume[@]}" \
+          --allowedTools 'Read,Grep,Glob,Edit,Write,Bash(git status*),Bash(git diff*),Bash(git log*),Bash(git add *),Bash(git commit *),Bash(git push *),Bash(gh pr create*),Bash(gh pr view*),Bash(nix build*--dry-run*),Bash(nix fmt*),Bash(hostname),mcp__nixos__*')
+        if [[ -s "$CLAUDEOS_SESSION_OUT" ]]; then
+          wish_set "$slug" session "$(cat "$CLAUDEOS_SESSION_OUT")"
+        fi
+        rm -f "$CLAUDEOS_SESSION_OUT"
+
+        # Every outcome keeps the worktree and offers Reply: the card is
+        # where the conversation continues. The sweep cleans up later.
+        about="$wish"
+        [[ "$mode" == reply ]] && about+=$'\n\n'"↩ $input"
+        pr=$(grep -oE 'WISH-PR: \S+' <<<"$text" | tail -1 | cut -d' ' -f2)
         stuck=$(grep -oE 'WISH-STUCK: .*' <<<"$text" | tail -1)
         declined=$(grep -oE 'WISH-DECLINED: .*' <<<"$text" | tail -1)
-        if [[ -n "$url" ]]; then
-          claudeos_lane_worktree_drop
-          claudeos_agent_done "wish granted: $wish" "$url"
+        note=$(grep -oE 'WISH-NOTE: .*' <<<"$text" | tail -1)
+        if [[ -n "$pr" ]]; then
+          wish_set "$slug" url "$pr"
+          wish_set "$slug" outcome granted
+          title="Wish granted"
+          [[ "$mode" == reply && "$pr" == "$url" ]] && title="Wish revised"
+          claudeos_agent_done "''${title,,}: $wish" "$pr"
           # Durable record first (Phase 4): the PR link outlives the
           # notification below, which blocks and then evaporates unclicked.
-          claudeos_lane_card wish "Wish granted" "✨" normal \
-            "$wish" "$url" "Open the PR"
+          claudeos_lane_card wish "$title" "✨" normal \
+            "$about" "$pr" "Open the PR" wish-reply "Reply"
           choice=$(claudeos_notify_action --urgency=critical -A open="Open PR" \
-            "Wish granted ✨" "$url")
+            "$title ✨" "$pr")
           if [[ "$choice" == open ]]; then
-            xdg-open "$url" >/dev/null 2>&1 || true
+            xdg-open "$pr" >/dev/null 2>&1 || true
           fi
         elif [[ -n "$stuck" ]]; then
           # Done but undelivered — not a refusal. The commit is safe on the
-          # local branch; the card says exactly how to finish it by hand.
-          claudeos_lane_worktree_drop
+          # branch; the card says exactly how to finish it by hand.
+          wish_set "$slug" outcome stuck
           claudeos_agent_done "wish ready, not pushed: ''${stuck#WISH-STUCK: }"
           claudeos_lane_card wish "Wish ready — push failed" "✨" normal \
-            "$wish"$'\n\n'"Committed on $branch but not delivered: ''${stuck#WISH-STUCK: }"$'\n\n'"Finish it: git push -u origin $branch && gh pr create --base main --head $branch --fill"
+            "$about"$'\n\n'"Committed on $branch but not delivered: ''${stuck#WISH-STUCK: }"$'\n\n'"Finish it: git push -u origin $branch && gh pr create --base main --head $branch --fill" \
+            "" "" wish-reply "Reply"
           claudeos_notify --urgency=critical "Wish ready — push failed" \
             "''${stuck#WISH-STUCK: } — the change is committed on $branch."
         elif [[ -n "$declined" ]]; then
-          claudeos_lane_worktree_drop --delete-branch
+          wish_set "$slug" outcome declined
           claudeos_agent_done "wish declined: ''${declined#WISH-DECLINED: }"
           claudeos_lane_card wish "Wish declined" "✨" low \
-            "$wish"$'\n\n'"Declined: ''${declined#WISH-DECLINED: }"
+            "$about"$'\n\n'"Declined: ''${declined#WISH-DECLINED: }" "" "" wish-reply "Reply"
           claudeos_notify "Wish declined" "''${declined#WISH-DECLINED: }"
+        elif [[ -n "$note" ]]; then
+          wish_set "$slug" outcome note
+          claudeos_agent_done "wish: ''${note#WISH-NOTE: }"
+          claudeos_lane_card wish "The wish agent says" "✨" normal \
+            "$about"$'\n\n'"''${note#WISH-NOTE: }" "$url" "Open the PR" wish-reply "Reply"
+          claudeos_notify "Wish" "''${note#WISH-NOTE: }"
         elif [[ -z "$text" ]]; then
+          wish_set "$slug" outcome failed
+          claudeos_agent_done "wish failed: no result"
+          claudeos_lane_card wish "Wish stalled" "✨" normal \
+            "$about"$'\n\n'"The agent produced no result. Reply to nudge it on." "" "" wish-reply "Reply"
           claudeos_notify --urgency=critical "Wish" \
-            "The wish agent produced no result. Resume it with 'approve' in a terminal (its worktree: $LANE_WORKTREE)."
+            "The wish agent produced no result — Reply from the wish card to nudge it on."
         else
-          claudeos_notify "Wish" \
-            "Unclear outcome — resume with 'approve'. Last output: ''${text: -160}"
+          wish_set "$slug" outcome unclear
+          claudeos_agent_done "wish stopped: unclear outcome"
+          claudeos_lane_card wish "Wish needs you" "✨" normal \
+            "$about"$'\n\n'"The agent stopped without finishing: ''${text: -600}" "$url" "Open the PR" wish-reply "Reply"
+          claudeos_notify "Wish" "Unclear outcome — Reply from the wish card. Last output: ''${text: -160}"
         fi
       '';
     })
