@@ -1,0 +1,18 @@
+--- a/shell.qml
++++ b/shell.qml
+@@ -353,6 +353,15 @@
+             }
+         }
+ 
++        // ---- extras: power actions + last-boot health --------------------
++        // Optional and dynamically loaded ON PURPOSE: an error in Extras.qml
++        // leaves this Loader empty instead of taking the login card with it.
++        // Sized to the stage so the extras sit on the same screen as the card.
++        Loader {
++            anchors.fill: stage
++            source: "Extras.qml"
++        }
++
+         // ---- greetd wiring ---------------------------------------------
+         Connections {
+             target: Greetd
