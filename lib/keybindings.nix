@@ -66,6 +66,14 @@
     short = "Grab text from a screen region";
   }
   {
+    name = "Circle to ask";
+    binding = "<Super><Shift>c";
+    global = "quickshell:circle";
+    display = "Super+Shift+C";
+    help = "Drag a region, type a question — Claude's answer appears beside it (the region is sent to Claude)";
+    short = "Circle to ask — answer beside the region";
+  }
+  {
     name = "Shelve clipboard";
     binding = "<Super>s";
     command = "claudeos-shelve-clipboard";

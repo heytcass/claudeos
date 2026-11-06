@@ -10,6 +10,11 @@
 //   A               → ask Claude about it — type the question, Return to send
 //   Esc             → back out (a selection first, then the whole thing)
 //
+// Circle to ask (Super+Shift+C) is the same selector in "circle" mode: once the
+// box is chosen the question input opens straight away, and Return sends the
+// crop to claudeos-circle-ask. The window then shrinks to a click-through
+// overlay holding only a pending/answer/error card anchored beside the box.
+//
 // The crop is cut in QML (grabToImage of a clipped copy of the frozen frame)
 // at the monitor's real pixel density, so nothing outside the box ever leaves
 // the shell. Shift+Print keeps the old instant full-screen grab.
@@ -33,15 +38,28 @@ Scope {
     property point anchorPt: Qt.point(0, 0)
     property var mon: null
     readonly property string runDir: Quickshell.env("XDG_RUNTIME_DIR") || "/tmp"
+    // Circle to ask: ask Claude about the box, answer shown beside it.
+    property bool circle: false
+    // "waiting" → "answer" | "error": the card that replaces the frozen frame.
+    readonly property bool replying: root.mode === "waiting" || root.mode === "answer" || root.mode === "error"
+    property string answer: ""
+    property string circleShot: ""
 
     GlobalShortcut {
         appid: "quickshell"
         name: "regionshot"
         description: "Freeze the screen and capture a region"
-        onPressed: root.shown ? root.close() : root.open()
+        onPressed: root.shown ? root.close() : root.open(false)
+    }
+    GlobalShortcut {
+        appid: "quickshell"
+        name: "circle"
+        description: "Circle to ask: drag a region, ask Claude about it"
+        onPressed: root.shown ? root.close() : root.open(true)
     }
 
-    function open() {
+    function open(circle) {
+        root.circle = circle;
         Hyprland.refreshToplevels();
         Hyprland.refreshMonitors();
         root.mon = Hyprland.focusedMonitor;
@@ -50,6 +68,13 @@ Scope {
         freeze.running = true;
     }
     function close() {
+        // Dismissing mid-wait kills the helper; its EXIT trap removes the crop.
+        circleProc.running = false;
+        if (root.circleShot !== "")
+            Quickshell.execDetached(["rm", "-f", root.circleShot]);
+        root.circleShot = "";
+        root.answer = "";
+        root.circle = false;
         root.shown = false;
         root.mode = "pick";
         root.sel = Qt.rect(0, 0, 0, 0);
@@ -129,6 +154,52 @@ Scope {
         const q = ask.text.trim();
         crop(f => Quickshell.execDetached(["claude-ask-region", f, q]));
     }
+    // A box is chosen. In circle mode the question input opens straight away.
+    function chosen() {
+        root.mode = "chosen";
+        if (root.circle) {
+            root.mode = "asking";
+            ask.forceActiveFocus();
+        }
+    }
+    // Circle to ask: cut the box into the (0700) runtime dir, hand it to the
+    // helper, and show the pending card beside the box. The window stays up.
+    function askCircle() {
+        const q = ask.text.trim();
+        const out = root.runDir + "/claudeos-circle-" + Date.now() + ".png";
+        const px = (root.mon?.scale ?? 1);
+        cut.grabToImage(result => {
+            if (!result.saveToFile(out)) {
+                root.answer = "Couldn't capture that region.";
+                root.mode = "error";
+                keys.forceActiveFocus();
+                return;
+            }
+            root.circleShot = out;
+            root.answer = "";
+            root.mode = "waiting";
+            keys.forceActiveFocus();
+            circleProc.command = ["claudeos-circle-ask", out, q];
+            circleProc.running = true;
+        }, Qt.size(Math.round(root.sel.width * px), Math.round(root.sel.height * px)));
+    }
+
+    // The helper prints the answer, or a short readable error with exit 1.
+    Process {
+        id: circleProc
+        stdout: StdioCollector {
+            id: circleOut
+        }
+        onExited: code => {
+            if (!root.shown || !root.circle)
+                return;
+            root.circleShot = "";
+            const t = circleOut.text.trim();
+            root.answer = t !== "" ? t : "Claude didn't answer.";
+            root.mode = code === 0 ? "answer" : "error";
+            keys.forceActiveFocus();
+        }
+    }
 
     PanelWindow {
         id: win
@@ -138,7 +209,13 @@ Scope {
         exclusiveZone: -1
         focusable: true
         WlrLayershell.layer: WlrLayer.Overlay
-        WlrLayershell.keyboardFocus: WlrKeyboardFocus.Exclusive
+        WlrLayershell.keyboardFocus: root.replying ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.Exclusive
+        // While a reply card is up, only the card takes input; the rest of the screen is live.
+        mask: root.replying ? replyMask : null
+        Region {
+            id: replyMask
+            item: reply
+        }
         anchors {
             top: true
             bottom: true
@@ -175,6 +252,7 @@ Scope {
         // The frozen frame.
         Image {
             id: frame
+            visible: !root.replying
             anchors.fill: parent
             source: root.frameUrl
             cache: false
@@ -183,7 +261,7 @@ Scope {
         // Dim everything but the box: four panes around it.
         Item {
             anchors.fill: parent
-            readonly property color shade: Qt.rgba(Theme.base00.r, Theme.base00.g, Theme.base00.b, 0.5)
+            readonly property color shade: Qt.rgba(Theme.base00.r, Theme.base00.g, Theme.base00.b, root.replying ? 0 : 0.5)
             readonly property rect r: win.shownRect
             readonly property bool any: r.width > 0 && r.height > 0
             Rectangle {
@@ -230,7 +308,7 @@ Scope {
             }
             // Size readout, tucked above the box's top-left corner.
             Rectangle {
-                visible: parent.any && root.mode !== "pick"
+                visible: parent.any && root.mode !== "pick" && !root.replying
                 x: parent.r.x
                 y: Math.max(0, parent.r.y - height - 6)
                 width: dims.implicitWidth + 12
@@ -270,14 +348,14 @@ Scope {
             }
             onReleased: event => {
                 if (win.hasSel) {
-                    root.mode = "chosen";
+                    root.chosen();
                     return;
                 }
                 // No real drag: a click takes the window under it.
                 const r = root.windowAt(event.x, event.y);
                 if (r) {
                     root.sel = r;
-                    root.mode = "chosen";
+                    root.chosen();
                 } else
                     root.mode = "pick";
             }
@@ -445,18 +523,148 @@ Scope {
                 font.family: Theme.fontSans
                 font.pixelSize: 13
                 clip: true
-                Keys.onReturnPressed: root.askClaude()
-                Keys.onEnterPressed: root.askClaude()
+                Keys.onReturnPressed: root.circle ? root.askCircle() : root.askClaude()
+                Keys.onEnterPressed: root.circle ? root.askCircle() : root.askClaude()
                 Keys.onEscapePressed: {
+                    if (root.circle) {
+                        root.close();
+                        return;
+                    }
                     root.mode = "chosen";
                     keys.forceActiveFocus();
                 }
                 Text {
                     visible: ask.text === ""
                     anchors.verticalCenter: parent.verticalCenter
-                    text: "Ask Claude about this… (Return with nothing to just describe it)"
+                    text: root.circle ? "Ask about this… (Return with nothing for \"explain this\")" : "Ask Claude about this… (Return with nothing to just describe it)"
                     color: Theme.muted
                     font: ask.font
+                }
+            }
+        }
+
+        // Circle to ask: the pending / answer / error card, beside the box.
+        // Right of it if there is room, else left, else below or above.
+        Rectangle {
+            id: reply
+            visible: root.replying
+            readonly property real pw: Math.min(400, win.width - 16)
+            readonly property real gap: 12
+            readonly property bool roomRight: root.sel.x + root.sel.width + gap + pw + 8 <= win.width
+            readonly property bool roomLeft: root.sel.x - gap - pw >= 8
+            readonly property bool roomBelow: root.sel.y + root.sel.height + gap + height + 8 <= win.height
+            readonly property bool beside: roomRight || roomLeft
+            width: pw
+            height: Math.min(body.implicitHeight + head.height + 32, win.height * 0.6)
+            x: beside ? (roomRight ? root.sel.x + root.sel.width + gap : root.sel.x - gap - pw) : Math.max(8, Math.min(win.width - pw - 8, root.sel.x))
+            y: beside ? Math.max(8, Math.min(win.height - height - 8, root.sel.y)) : (roomBelow ? root.sel.y + root.sel.height + gap : Math.max(8, root.sel.y - height - gap))
+            radius: 12
+            color: Theme.bgGlass
+            border.width: 1
+            border.color: root.mode === "error" ? Theme.urgent : Theme.surface
+
+            // Click anywhere on the card to dismiss (Copy sits above this).
+            MouseArea {
+                anchors.fill: parent
+                onClicked: root.close()
+            }
+
+            Row {
+                id: head
+                x: 14
+                y: 12
+                width: parent.width - 28
+                height: 22
+                spacing: 8
+                Row {
+                    id: dots
+                    visible: root.mode === "waiting"
+                    anchors.verticalCenter: parent.verticalCenter
+                    spacing: 4
+                    Repeater {
+                        model: 3
+                        Rectangle {
+                            width: 6
+                            height: 6
+                            radius: 3
+                            color: Theme.accent
+                            SequentialAnimation on opacity {
+                                running: root.mode === "waiting"
+                                loops: Animation.Infinite
+                                PauseAnimation {
+                                    duration: index * 160
+                                }
+                                NumberAnimation {
+                                    to: 0.25
+                                    duration: 400
+                                }
+                                NumberAnimation {
+                                    to: 1
+                                    duration: 400
+                                }
+                            }
+                        }
+                    }
+                }
+                Text {
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: root.mode === "waiting" ? "Claude is looking…" : (root.mode === "error" ? "Couldn't answer" : "Claude")
+                    color: root.mode === "error" ? Theme.urgent : Theme.accent
+                    font.family: Theme.fontSans
+                    font.pixelSize: 12
+                    font.bold: true
+                }
+            }
+            Rectangle {
+                id: copyBtn
+                visible: root.mode === "answer"
+                property bool done: false
+                onVisibleChanged: done = false
+                anchors.right: parent.right
+                anchors.rightMargin: 12
+                y: 10
+                width: copyLabel.implicitWidth + 18
+                height: 24
+                radius: 12
+                color: copyHov.containsMouse ? Theme.surface : "transparent"
+                Text {
+                    id: copyLabel
+                    anchors.centerIn: parent
+                    text: copyBtn.done ? "Copied" : "Copy"
+                    color: Theme.subtext
+                    font.family: Theme.fontSans
+                    font.pixelSize: 12
+                }
+                MouseArea {
+                    id: copyHov
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    onClicked: {
+                        Quickshell.execDetached(["wl-copy", root.answer]);
+                        copyBtn.done = true;
+                    }
+                }
+            }
+            Flickable {
+                anchors.top: head.bottom
+                anchors.topMargin: 8
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.bottom: parent.bottom
+                anchors.leftMargin: 14
+                anchors.rightMargin: 14
+                anchors.bottomMargin: 14
+                contentHeight: body.implicitHeight
+                clip: true
+                interactive: contentHeight > height
+                Text {
+                    id: body
+                    width: parent.width
+                    text: root.mode === "waiting" ? "Reading the selected region and your question." : root.answer
+                    wrapMode: Text.Wrap
+                    color: root.mode === "waiting" ? Theme.subtext : Theme.text
+                    font.family: Theme.fontSans
+                    font.pixelSize: 13
                 }
             }
         }
