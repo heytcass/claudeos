@@ -100,6 +100,22 @@
   # generation in the boot menu.
   claude-os.greeter.enable = true;
 
+  # TESTBED TRIAL (2026-11-05): two additions to that greeter, here first and
+  # NOT on gti, whose login screen evaluates exactly as it did before them.
+  #   fallback — the greeter runs through a wrapper that becomes greetd's
+  #     agreety (text login on tty1) if the graphical greeter exits non-zero.
+  #     Without it, greetd restarts the same dead greeter in a loop.
+  #   extras   — restart / shut-down buttons and a failed-units line, in a
+  #     separately loaded QML file that cannot break the login card. Also
+  #     carries the fix for the wrong-password dead end (one bad password
+  #     leaves the stable greeter stuck on "Authenticating…").
+  # Promote by setting the same two options in hosts/gti/default.nix (or by
+  # flipping their defaults in modules/desktop/greeter.nix) once a real boot
+  # here has shown: the greeter appears, a login reaches the desktop, the
+  # buttons work, and nothing new is in `coredumpctl list`.
+  claude-os.greeter.fallback.enable = true;
+  claude-os.greeter.extras.enable = true;
+
   # TESTBED TRIAL (2026-08-06): give the GREETER its own portal routing, so
   # xdg-desktop-portal-hyprland never starts in the greeter session.
   #

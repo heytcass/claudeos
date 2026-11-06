@@ -225,11 +225,23 @@ The OS files its own fix PRs (`claude-os.selfHeal`, enabled by default).
 
 ## modules/desktop/ -- Desktop Environment
 
-Hyprland + Quickshell bar, greetd/regreet, audio, fonts, theming. Imported via `modules/desktop/default.nix` which pulls in: `hyprland.nix`, `audio.nix`, `fonts.nix`, `theme.nix`.
+Hyprland + Quickshell bar, greetd with a Quickshell greeter, audio, fonts, theming. Imported via `modules/desktop/default.nix` which pulls in: `hyprland.nix`, `audio.nix`, `fonts.nix`, `theme.nix`.
 
 ### modules/desktop/gnome.nix (deleted)
 
 Deleted in the GNOME rip-out, Phase 3 (2026-07-12) — see `docs/plans/2026-07-11-gnome-ripout-plan.md`. Hyprland (`modules/desktop/hyprland.nix`, with greetd/regreet as the login manager) is the sole desktop module.
+
+### modules/desktop/greeter.nix
+
+The login screen: a Quickshell greeter under `cage`, as greetd's default session (`greetd -> cage -> quickshell`). On both hosts since 2026-08-15; regreet is forced off whenever it is enabled. It reads the same generated `Theme.qml` as the bar (`lib/quickshell-theme.nix`), preselects the configured user, and launches the "Hyprland (UWSM)" session. History and rationale: `docs/plans/2026-08-15-quickshell-greeter-plan.md`.
+
+| Option | Default | What it does |
+|---|---|---|
+| `claude-os.greeter.enable` | off (on for `gti` and `transporter`) | Replace regreet with the Quickshell greeter (`modules/desktop/greeter/shell.qml`). |
+| `claude-os.greeter.fallback.enable` | off (on for `transporter`) | Run the greeter through a wrapper that becomes greetd's `agreety` text login on tty1 when the graphical greeter exits non-zero. Without it greetd restarts a broken greeter in a loop. Detects exits only: a greeter that stays alive but draws nothing is not caught (ctrl+alt+F3 still reaches a text console). |
+| `claude-os.greeter.extras.enable` | off (on for `transporter`) | Restart / shut-down buttons (two taps: arm, then confirm) and a failed-units line, from `modules/desktop/greeter-extras/Extras.qml`, loaded separately so an error there cannot break the login card. Also applies the wrong-password fix (see `docs/known-issues.md`, 2026-11-05). |
+
+Hosts with the two sub-options off evaluate to the same greetd command and QML tree as before the options existed. To promote them, set both in the host's `default.nix`.
 
 ### modules/desktop/audio.nix
 

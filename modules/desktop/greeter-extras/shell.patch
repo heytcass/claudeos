@@ -1,0 +1,127 @@
+--- a/shell.qml
++++ b/shell.qml
+@@ -38,13 +38,45 @@
+ 
+         readonly property var session: GreeterConfig.sessions[win.sessionIndex]
+ 
+-        function resetSession() {
+-            win.busy = false;
+-            win.prompt = "";
+-            pw.text = "";
++        // ---- recovering from a failed attempt ---------------------------
++        // A wrong password must leave a working prompt. It did not: asking
++        // for a new session from inside onAuthFailure is a no-op, and the
++        // greeter then sat on "Authenticating…" until a reboot (seen in the
++        // transporter VM 2026-11-05, quickshell 0.3.2 + greetd 0.10.3).
++        //
++        // Why, from quickshell's services/greetd/connection.cpp: on an
++        // auth_error it emits authFailure FIRST, while its state is still
++        // Authenticating — so createSession() there returns without sending
++        // anything — and only THEN sends cancel_session and goes Inactive.
++        // greetd answers that cancel with an error of its own ("unable to
++        // send message: Connection refused": the PAM worker is already
++        // gone), and quickshell goes Inactive once more on receiving it.
++        //
++        // So the new session may only be requested AFTER that reply has been
++        // handled; asked for any sooner, the reply would knock the new
++        // session's state back to Inactive and the eventual success would be
++        // dropped as unexpected. Hence: wait for the error, then one more
++        // trip round the event loop (Qt.callLater). The timer covers a cancel
++        // that succeeds, which produces no signal at all.
++        //
++        // `busy` stays true meanwhile, so nothing can be typed into a prompt
++        // that has no session behind it; the next authMessage re-opens it.
++        property bool recovering: false
++
++        function recoverSession() {
++            if (!win.recovering)
++                return;
++            win.recovering = false;
++            recoverTimeout.stop();
+             Greetd.createSession(GreeterConfig.user);
+         }
+ 
++        Timer {
++            id: recoverTimeout
++            interval: 2000
++            onTriggered: win.recoverSession()
++        }
++
+         // ---- background ------------------------------------------------
+         // The Stylix wallpaper, same image the session and lock screen use.
+         // (Measured 2026-08-15: this decodes in ~189ms even at 3840² on Kaby
+@@ -262,6 +294,7 @@
+                                 return;
+                             win.busy = true;
+                             win.status = "";
++                            win.isError = false;
+                             Greetd.respond(pw.text);
+                         }
+ 
+@@ -320,14 +353,24 @@
+             }
+         }
+ 
++        // ---- extras: power actions + last-boot health --------------------
++        // Optional and dynamically loaded ON PURPOSE: an error in Extras.qml
++        // leaves this Loader empty instead of taking the login card with it.
++        // Sized to the stage so the extras sit on the same screen as the card.
++        Loader {
++            anchors.fill: stage
++            source: "Extras.qml"
++        }
++
+         // ---- greetd wiring ---------------------------------------------
+         Connections {
+             target: Greetd
+ 
+             function onAuthMessage(message, error, responseRequired, echoResponse) {
+                 win.echoResponse = echoResponse;
+-                win.isError = error;
+                 if (responseRequired) {
++                    // A prompt leaves the status line alone: after a failed
++                    // attempt it still says why the field is empty again.
+                     win.prompt = message;
+                     win.busy = false;
+                     pw.text = "";
+@@ -335,15 +378,22 @@
+                 } else {
+                     // Informational only (e.g. "Password expired") — show it and
+                     // let greetd drive the next step.
++                    win.isError = error;
+                     win.status = message;
+                 }
+             }
+ 
+             function onAuthFailure(message) {
++                // greetd's text is PAM-speak ("pam_authenticate: AUTH_ERR");
++                // keep it for the journal and say something readable.
++                console.warn("greeter: authentication failed:", message);
+                 win.isError = true;
+-                win.status = message !== "" ? message : "Authentication failed";
+-                win.resetSession();
+-                pw.forceActiveFocus();
++                win.status = "Authentication failed — try again";
++                win.prompt = "";
++                pw.text = "";
++                win.busy = true;
++                win.recovering = true;
++                recoverTimeout.restart();
+             }
+ 
+             function onReadyToLaunch() {
+@@ -353,6 +403,14 @@
+             }
+ 
+             function onError(error) {
++                if (win.recovering) {
++                    // The reply to quickshell's own cancel after a failed
++                    // attempt — expected, see recoverSession above. Keep the
++                    // "Authentication failed" line and reopen the prompt.
++                    console.warn("greeter: greetd error while recovering:", error);
++                    Qt.callLater(win.recoverSession);
++                    return;
++                }
+                 win.isError = true;
+                 win.status = error;
+                 win.busy = false;

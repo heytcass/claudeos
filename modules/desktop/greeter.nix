@@ -68,11 +68,42 @@ let
     Singleton {
       readonly property string user: ${builtins.toJSON user}
       readonly property string wallpaper: ${builtins.toJSON "file://${config.stylix.image}"}
-      readonly property var sessions: (${builtins.toJSON sessions})
+      readonly property var sessions: (${builtins.toJSON sessions})${extrasProps}
     }
   '';
 
-  greeterQml =
+  # Extra GreeterConfig properties for Extras.qml. Empty when extras are off,
+  # so a host that has not opted in generates a byte-identical GreeterConfig.
+  # Absolute store paths: the greeter's PATH is not something to rely on.
+  systemctl = "${config.systemd.package}/bin/systemctl";
+  extrasProps = lib.optionalString cfg.extras.enable ''
+
+    readonly property var poweroffCommand: (${
+      builtins.toJSON [
+        systemctl
+        "poweroff"
+      ]
+    })
+    readonly property var rebootCommand: (${
+      builtins.toJSON [
+        systemctl
+        "reboot"
+      ]
+    })
+    readonly property var failedUnitsCommand: (${
+      builtins.toJSON [
+        systemctl
+        "list-units"
+        "--state=failed"
+        "--no-legend"
+        "--plain"
+        "--no-pager"
+      ]
+    })'';
+
+  # The stable tree: shell.qml plus the two generated singletons. Hosts without
+  # `extras.enable` get exactly this derivation, unchanged.
+  stableQml =
     pkgs.runCommand "claudeos-greeter-qml"
       {
         inherit themeQml greeterConfigQml;
@@ -83,11 +114,121 @@ let
         printf '%s' "$themeQml" > "$out/Theme.qml"
         printf '%s' "$greeterConfigQml" > "$out/GreeterConfig.qml"
       '';
+
+  # The extras tree: the SAME shell.qml with a patch applied, plus Extras.qml.
+  # A patch rather than a second copy of shell.qml so there is one login
+  # screen to maintain: if shell.qml changes under the patch, this fails at
+  # BUILD time (loudly, before any boot) instead of drifting silently.
+  #
+  # The patch does two things:
+  #   1. adds one Loader for Extras.qml;
+  #   2. fixes the wrong-password dead end in the stable shell.qml. There, one
+  #      failed attempt leaves the card on "Authenticating…" for good: the
+  #      handler calls createSession() while quickshell is still mid-cancel
+  #      (a no-op), so no new prompt ever arrives. The patched handler waits
+  #      for greetd's reply to the cancel and only then opens a new session.
+  #      Reproduced and fixed in a VM, 2026-11-05 (docs/known-issues.md).
+  #      It rides in the patch only so that hosts which have not opted in keep
+  #      a byte-identical greeter; when extras are promoted, fold it into
+  #      greeter/shell.qml and shrink the patch back to the Loader.
+  extrasQml =
+    pkgs.runCommand "claudeos-greeter-qml-extras"
+      {
+        inherit themeQml greeterConfigQml;
+      }
+      ''
+        mkdir -p "$out"
+        cp ${./greeter}/shell.qml "$out/"
+        chmod u+w "$out/shell.qml"
+        patch --no-backup-if-mismatch -d "$out" -p1 < ${./greeter-extras/shell.patch}
+        cp ${./greeter-extras/Extras.qml} "$out/Extras.qml"
+        printf '%s' "$themeQml" > "$out/Theme.qml"
+        printf '%s' "$greeterConfigQml" > "$out/GreeterConfig.qml"
+      '';
+
+  # greetd -> cage -> quickshell. Kept as one string, in this exact shape, so
+  # that a host with `fallback.enable` off evaluates to the same
+  # default_session.command it had before the fallback existed.
+  graphicalCommand = lib.concatStringsSep " " [
+    # XDG_CURRENT_DESKTOP=Greeter is load-bearing, and predates this
+    # module — it was a transporter trial (2026-08-06) that this cutover
+    # would otherwise have silently thrown away, since the mkForce below
+    # overrides the host's own default_session.command.
+    #
+    # Why it matters: xdg-desktop-portal picks its config file by
+    # XDG_CURRENT_DESKTOP (portals.conf(5)), and the greeter otherwise
+    # inherits "Hyprland" from pam_env — so greeter and user session read
+    # the SAME portals.conf and cannot be told apart. xdp then EAGERLY
+    # starts every backend in that file's `default` list, handing the
+    # greeter the hyprland backend under cage, a compositor it was never
+    # meant to drive. On gti that segfaulted at teardown every boot
+    # (SIGSEGV in ~CCZxdgOutputV1, an upstream xdp-hyprland 1.4.1 shutdown
+    # bug), writing a coredump each time. Giving the greeter its own
+    # desktop name is what separates the two configs.
+    #
+    # Rejected alternatives are recorded in the original trial: PAM
+    # setEnvironment=false also drops XKB_DEFAULT_* and breaks Colemak at
+    # the password prompt; systemd.services.greetd.environment never
+    # reaches cage; a ConditionUser does nothing because the greeter is
+    # activated via dbus-run-session, not systemd.
+    "${pkgs.coreutils}/bin/env XDG_CURRENT_DESKTOP=Greeter"
+    "${pkgs.dbus}/bin/dbus-run-session"
+    # -s: allow VT switching (so ctrl+alt+F3 to a TTY still works if the
+    # greeter misbehaves). -d: don't draw client decorations.
+    "${pkgs.cage}/bin/cage -s -d --"
+    "${pkgs.quickshell}/bin/quickshell -p ${cfg.qmlDir}/shell.qml"
+  ];
+
+  # Fallback wrapper: run the graphical greeter; if it ends any way other than
+  # a clean exit, become agreety on the same VT.
+  #
+  # WHY THIS IS NEEDED. greetd has no second greeter to try. When the greeter
+  # process exits without having started a session, greetd exits too and
+  # systemd restarts the unit — into the same broken greeter. Seen in a VM
+  # (2026-11-05, broken shell.qml, no wrapper): "greetd.service: Scheduled
+  # restart job, restart counter is at 15" within a minute, tty1 flickering
+  # and no login there, ever. A QML error is exactly that case: quickshell
+  # prints "Failed to load configuration" and exits non-zero (measured with
+  # quickshell 0.3.2 under cage 0.3.1: syntax error -> 255, SIGSEGV -> 139,
+  # SIGKILL -> 137; cage passes its client's status through). With the wrapper
+  # the same VM shows agreety's login prompt on tty1, and a login from it
+  # reaches the Hyprland session.
+  #
+  # WHY EXIT STATUS IS THE SIGNAL. After a successful login quickshell quits
+  # by itself (Greetd.launch) and the chain exits 0; greetd then starts the
+  # session. Running agreety at that point would talk to a greetd that is
+  # already launching a session, so status 0 must mean "done, get out of the
+  # way". Every other status means nobody is logged in and nothing is drawing.
+  #
+  # agreety, not tuigreet: it ships inside the greetd package itself, so the
+  # fallback adds no dependency that could itself be broken or missing, and it
+  # needs nothing but the VT that greetd already hands the greeter.
+  #
+  # No `set -e`, deliberately: there is no step here whose failure should end
+  # the script before it reaches a greeter.
+  fallbackSession = pkgs.writeShellScript "claudeos-greeter-session" ''
+    # Being stopped (shutdown, greetd restart) is not a greeter failure: do not
+    # start a second greeter on the way down.
+    trap 'exit 0' TERM HUP INT
+
+    ${graphicalCommand}
+    rc=$?
+    if [ "$rc" -eq 0 ]; then
+      exit 0
+    fi
+
+    msg="claudeos-greeter: graphical greeter exited with status $rc; falling back to agreety (text login)"
+    # Helpers started on the greeter's private session bus (the portal, for
+    # one) complain to this VT as the bus goes away, burying the login prompt.
+    # Let them finish, then start agreety on a clean screen.
+    ${pkgs.coreutils}/bin/sleep 1
+    printf '\033[H\033[2J\033[3J\n%s\n\n' "$msg"
+    exec ${config.services.greetd.package}/bin/agreety --cmd ${lib.escapeShellArg (lib.escapeShellArgs (lib.head sessions).command)}
+  '';
 in
 {
-  options.claude-os.greeter.enable =
-    lib.mkEnableOption "the Quickshell login greeter (replaces regreet)"
-    // {
+  options.claude-os.greeter = {
+    enable = lib.mkEnableOption "the Quickshell login greeter (replaces regreet)" // {
       description = ''
         Replace regreet with a Quickshell greeter reading the same generated
         Theme.qml as the bar.
@@ -96,9 +237,50 @@ in
         that means no way to log in. Load-check with the `quickshell_check` MCP
         tool (or `qs -p <dir>/shell.qml`) before enabling, keep the previous
         generation reachable in the boot menu, and remember greetd's agreety
-        fallback on a VT.
+        fallback on a VT (automatic with `fallback.enable`).
       '';
     };
+
+    fallback.enable = lib.mkEnableOption "the text-greeter fallback" // {
+      description = ''
+        Run the Quickshell greeter through a wrapper that falls back to
+        greetd's own `agreety` text greeter, on the same VT, when the graphical
+        greeter exits with a non-zero status (QML that fails to load, a crash,
+        cage unable to start). Without it greetd restarts the same dead greeter
+        in a loop and the only way in is a login on another VT.
+
+        Off by default so a host's greeter command only changes when the host
+        asks for it; proven on the testbed first (PHILOSOPHY.md, blast-radius
+        rule).
+      '';
+    };
+
+    extras.enable = lib.mkEnableOption "greeter power actions and health line" // {
+      description = ''
+        Add restart / shut-down buttons and a line counting failed system units
+        to the login screen. They live in their own dynamically loaded QML file
+        (modules/desktop/greeter-extras/Extras.qml), so an error there cannot
+        take the login card down.
+
+        The same switch also carries the fix for the wrong-password dead end
+        (one failed attempt leaves the stable greeter stuck on
+        "Authenticating…"); see the comment on `extrasQml`.
+      '';
+    };
+
+    qmlDir = lib.mkOption {
+      type = lib.types.package;
+      internal = true;
+      default = if cfg.extras.enable then extrasQml else stableQml;
+      defaultText = lib.literalMD "the generated greeter QML directory";
+      description = ''
+        The directory holding the greeter's shell.qml. Internal: it exists so
+        the generated tree can be built on its own for a `qs -p` load check,
+        and so a VM test can substitute a deliberately broken tree to exercise
+        the fallback. Hosts should not set it.
+      '';
+    };
+  };
 
   config = lib.mkIf cfg.enable {
     # regreet and this module both write services.greetd.settings, so exactly
@@ -109,36 +291,10 @@ in
 
     services.greetd = {
       enable = true;
+      # mkForce: the regreet module and hosts/transporter (an older,
+      # regreet-era trial) both define this option too.
       settings.default_session.command = lib.mkForce (
-        lib.concatStringsSep " " [
-          # XDG_CURRENT_DESKTOP=Greeter is load-bearing, and predates this
-          # module — it was a transporter trial (2026-08-06) that this cutover
-          # would otherwise have silently thrown away, since the mkForce below
-          # overrides the host's own default_session.command.
-          #
-          # Why it matters: xdg-desktop-portal picks its config file by
-          # XDG_CURRENT_DESKTOP (portals.conf(5)), and the greeter otherwise
-          # inherits "Hyprland" from pam_env — so greeter and user session read
-          # the SAME portals.conf and cannot be told apart. xdp then EAGERLY
-          # starts every backend in that file's `default` list, handing the
-          # greeter the hyprland backend under cage, a compositor it was never
-          # meant to drive. On gti that segfaulted at teardown every boot
-          # (SIGSEGV in ~CCZxdgOutputV1, an upstream xdp-hyprland 1.4.1 shutdown
-          # bug), writing a coredump each time. Giving the greeter its own
-          # desktop name is what separates the two configs.
-          #
-          # Rejected alternatives are recorded in the original trial: PAM
-          # setEnvironment=false also drops XKB_DEFAULT_* and breaks Colemak at
-          # the password prompt; systemd.services.greetd.environment never
-          # reaches cage; a ConditionUser does nothing because the greeter is
-          # activated via dbus-run-session, not systemd.
-          "${pkgs.coreutils}/bin/env XDG_CURRENT_DESKTOP=Greeter"
-          "${pkgs.dbus}/bin/dbus-run-session"
-          # -s: allow VT switching (so ctrl+alt+F3 to a TTY still works if the
-          # greeter misbehaves). -d: don't draw client decorations.
-          "${pkgs.cage}/bin/cage -s -d --"
-          "${pkgs.quickshell}/bin/quickshell -p ${greeterQml}/shell.qml"
-        ]
+        if cfg.fallback.enable then "${fallbackSession}" else graphicalCommand
       );
     };
 
