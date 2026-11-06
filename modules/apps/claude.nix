@@ -53,6 +53,14 @@
       socat
       qemu_kvm
       virtiofsd
+
+      # Runtime for Claude-ecosystem MCP servers, not a dev environment.
+      # Plugins launch their servers as `node …` (open-design) or `npx -y …`
+      # (pdf-viewer, most of the official catalog), and Claude Desktop spawns
+      # them from its own PATH, so a per-project devshell or `,` never reaches
+      # them. Two-ring split: Nix supplies the interpreter (ring 1), the plugins
+      # keep fetching their own unpinned servers via npx (ring 2).
+      nodejs
     ];
 
     # Cowork resolves qemu-system-x86_64 via PATH, but hardcodes FHS paths for
