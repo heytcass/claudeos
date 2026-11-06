@@ -111,6 +111,30 @@ the schema — deliberate).
 | Self-heal | Fix proposed — heal PR link, id `self-heal-<unit>` (per-unit) | When a heal agent proposes a fix |
 | Auto-update | Flake updated / applied / build failed / VM-gate blocked, id `auto-update` | Sat 3 AM weekly, at each terminal state |
 
+## Spotlight (Claude Points)
+
+Show the user *where* something is instead of describing it. The bar's
+Spotlight overlay (`home/quickshell/Spotlight.qml`) dims every monitor except
+the target, rings it with a breathing accent ring, and puts a short callout
+beside it (right, else left, below, above; always kept on screen and clear of
+the bar). It never traps the user: it takes no keyboard focus, clicks pass
+through to the apps underneath (the input mask is the callout bubble alone;
+clicking the callout dismisses), and it always times out (8 s default, 60 s
+cap). A new call replaces the current spotlight. CLI: `claudeos-spotlight`
+(`modules/apps/spotlight.nix`).
+
+| Command | What it does |
+|---------|-------------|
+| `claudeos-spotlight rect X Y W H ["text"] [--for SECONDS]` | Spotlight a rectangle in Hyprland global layout px (the `at`/`size` space of `hyprctl clients -j`) |
+| `claudeos-spotlight window ADDRESS\|CLASS ["text"] [--for SECONDS]` | Spotlight a window: address (`0x…`), else exact class/initialClass, else class substring; visible workspaces only, most recently focused wins. Prints the resolved `x y w h`; exits 1 if nothing visible matches |
+| `claudeos-spotlight clear` | Dismiss now |
+
+Raw IPC (what the CLI calls; `ms` 0 = default): `qs ipc call spotlight rect X Y W H TEXT MS`,
+`qs ipc call spotlight window QUERY TEXT MS` (resolves in the bar; a miss only logs),
+`qs ipc call spotlight clear`. **Proactive:** when the user asks where
+something is on screen, or an answer refers to a specific window or region,
+point at it rather than only describing it.
+
 ## Shell Commands
 
 Fish shell functions available in any terminal. Defined in `home/shell/fish.nix` (`claudeos` lives in `home/claudeos-help.nix`).
