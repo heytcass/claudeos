@@ -239,9 +239,9 @@ The login screen: a Quickshell greeter under `cage`, as greetd's default session
 |---|---|---|
 | `claude-os.greeter.enable` | off (on for `gti` and `transporter`) | Replace regreet with the Quickshell greeter (`modules/desktop/greeter/shell.qml`). |
 | `claude-os.greeter.fallback.enable` | off (on for `transporter`) | Run the greeter through a wrapper that becomes greetd's `agreety` text login on tty1 when the graphical greeter exits non-zero. Without it greetd restarts a broken greeter in a loop. Detects exits only: a greeter that stays alive but draws nothing is not caught (ctrl+alt+F3 still reaches a text console). |
-| `claude-os.greeter.extras.enable` | off (on for `transporter`) | Restart / shut-down buttons (two taps: arm, then confirm) and a failed-units line, from `modules/desktop/greeter-extras/Extras.qml`, loaded separately so an error there cannot break the login card. Also applies the wrong-password fix (see `docs/known-issues.md`, 2026-11-05). |
+| `claude-os.greeter.extras.enable` | off (on for `transporter`) | Restart / shut-down buttons (two taps: arm, then confirm) and a failed-units line, from `modules/desktop/greeter-extras/Extras.qml`, loaded separately so an error there cannot break the login card. |
 
-Hosts with the two sub-options off evaluate to the same greetd command and QML tree as before the options existed. To promote them, set both in the host's `default.nix`.
+Hosts with the two sub-options off keep the plain greetd command and the stable QML tree. To promote them, set both in the host's `default.nix`. The wrong-password fix (see `docs/known-issues.md`, 2026-11-05) is in the stable `shell.qml`, so every host has it.
 
 ### modules/desktop/audio.nix
 

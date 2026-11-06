@@ -120,17 +120,9 @@ let
   # screen to maintain: if shell.qml changes under the patch, this fails at
   # BUILD time (loudly, before any boot) instead of drifting silently.
   #
-  # The patch does two things:
-  #   1. adds one Loader for Extras.qml;
-  #   2. fixes the wrong-password dead end in the stable shell.qml. There, one
-  #      failed attempt leaves the card on "Authenticating…" for good: the
-  #      handler calls createSession() while quickshell is still mid-cancel
-  #      (a no-op), so no new prompt ever arrives. The patched handler waits
-  #      for greetd's reply to the cancel and only then opens a new session.
-  #      Reproduced and fixed in a VM, 2026-11-05 (docs/known-issues.md).
-  #      It rides in the patch only so that hosts which have not opted in keep
-  #      a byte-identical greeter; when extras are promoted, fold it into
-  #      greeter/shell.qml and shrink the patch back to the Loader.
+  # The patch does one thing: it adds the Loader for Extras.qml. (It briefly
+  # also carried the wrong-password fix; that now lives in greeter/shell.qml
+  # itself, so every host has it. See docs/known-issues.md, 2026-11-05.)
   extrasQml =
     pkgs.runCommand "claudeos-greeter-qml-extras"
       {
@@ -261,10 +253,6 @@ in
         to the login screen. They live in their own dynamically loaded QML file
         (modules/desktop/greeter-extras/Extras.qml), so an error there cannot
         take the login card down.
-
-        The same switch also carries the fix for the wrong-password dead end
-        (one failed attempt leaves the stable greeter stuck on
-        "Authenticating…"); see the comment on `extrasQml`.
       '';
     };
 
