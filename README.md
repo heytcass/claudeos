@@ -9,6 +9,21 @@ This is one person's real, lived-in machine — general surfing, AI workflow,
 productivity — not a tech demo. Every augmentation below had to earn its place
 on a system its owner actually depends on.
 
+## What you won't find anywhere else
+
+| | |
+|---|---|
+| 🔦 **Claude points** | Ask where something is and the answer is the screen itself. **Spotlight** dims the whole desktop except one window or region, rings it, and sets a short callout beside it. It takes no keyboard focus, clicks pass straight through, and it fades by itself. Agents drive it through an MCP tool. |
+| ✨ **Wishes become pull requests** | Press `Super+W` and say what you want in plain language. An agent writes the Nix, validates every host, and opens a `wish/*` PR. Reply to the result card and the same agent revises the same PR. |
+| 🩹 **The OS heals itself, in git** | A failed systemd unit spawns an agent that reads the journal, finds the root cause, and opens a PR with the fix. Small, safe fixes merge themselves behind mechanical gates; the rest wait for a human. |
+| 📖 **A boot menu that reads like a changelog** | Every generation is named by a model summarizing what actually changed, and the btrfs snapshots carry the same names. |
+| 🧪 **Updates that prove themselves first** | The weekly flake update boots the freshly built system in a throwaway VM, and only applies itself if that boot comes up green. |
+| 🪜 **Autonomy that is earned, not configured** | Every autonomous lane starts at *propose only* and buys each step up with a machine check. The gate lives in a path agents are forbidden to edit, so an agent cannot widen its own window. |
+| 🧭 **"Where was I?" without surveillance** | `wherewasi` answers from structured state only (windows, repo status, recent commands). Named task contexts save and reassemble a whole workspace. Nothing records the screen to make it work. |
+| ☀️ **A desk prepared overnight** | While the laptop sleeps, the day's errors are triaged and a dashboard of calendar, weather and system state is built, ready at first login. |
+
+Details for each are below and in [`CAPABILITIES.md`](CAPABILITIES.md).
+
 ## The founding insight
 
 > **NixOS is the only operating system where the entire system state is one git
@@ -56,6 +71,13 @@ and paired snapshots, `today` to reopen the dashboard. `Super+A` for a popup
 answer, `Super+Shift+A` for screenshot analysis. A health monitor sweeps every
 15 minutes and only speaks when something is wrong — interruptions must earn
 their moment.
+
+**When you want something changed.** `Super+W` opens the wish prompt: say it
+in plain language ("make the clock show seconds") and an agent writes the
+Nix, validates both hosts, and opens a `wish/*` PR. The result arrives as a
+card in the bar with a **Reply** button, and a reply resumes the same agent
+on the same PR. `Super+R` is one input that routes itself: an app name
+launches, a question gets answered, anything bigger becomes a wish or a task.
 
 **When it needs to show you.** Ask where something is and Claude doesn't
 describe it — it *points*. **Spotlight** dims the whole desktop except one
