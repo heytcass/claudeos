@@ -286,6 +286,89 @@ $(grep -iE 'error|caused|unavailable' "$log" | head -20)"
       echo "$verdict"
       echo "(live bar restarted)"
       ;;
+    spotlight)
+      # "Claude points": the tool face of the bar's Spotlight overlay
+      # (home/quickshell/Spotlight.qml), via the claudeos-spotlight CLI. Two
+      # things the raw CLI leaves to the caller are done here, because both
+      # were got wrong by hand on day one (2026-11-05):
+      #   - rect coordinates are MONITOR-relative (what a screenshot of that
+      #     monitor shows), then offset into Hyprland's global layout. The
+      #     laptop panel is not at 0,0 once a second monitor has ever been
+      #     arranged, so a "global" 600,300 can be entirely off screen.
+      #   - a window miss answers with the windows that ARE visible, so the
+      #     next call can name one instead of guessing a class again.
+      if ! hypr_available; then
+        echo "Not in a Hyprland session (hyprctl unreachable) — nothing to point at from here."
+        return
+      fi
+      if ! command -v claudeos-spotlight >/dev/null 2>&1; then
+        echo "claudeos-spotlight is not on PATH (needs a rebuild that includes modules/apps/spotlight.nix)."
+        return
+      fi
+      local window text seconds monitor out for_args=()
+      window=$(printf '%s' "$args" | jq -r '.window // ""')
+      text=$(printf '%s' "$args" | jq -r '.text // ""')
+      seconds=$(printf '%s' "$args" | jq -r '.seconds // 0')
+      monitor=$(printf '%s' "$args" | jq -r '.monitor // ""')
+      if [[ "$seconds" =~ ^[0-9]+([.][0-9]+)?$ && "$seconds" != 0 ]]; then
+        for_args=(--for "$seconds")
+      fi
+
+      if [[ -n "$window" ]]; then
+        if out=$(claudeos-spotlight window "$window" "$text" "${for_args[@]}" 2>&1); then
+          echo "Spotlight on window '$window' (layout rect: $out)."
+        else
+          echo "No visible window matches '$window'. Windows on the visible workspaces (class — title):"
+          jq -nr --argjson c "$(hyprctl -j clients)" --argjson m "$(hyprctl -j monitors)" '
+            ([$m[] | .activeWorkspace.id, (.specialWorkspace.id // empty)]) as $shown
+            | $c[] | select(.mapped and (.hidden | not) and (.workspace.id as $w | $shown | index($w)))
+            | "  \(.class) — \(.title)"' 2>/dev/null
+        fi
+        return
+      fi
+
+      local x y w h
+      x=$(printf '%s' "$args" | jq -r '.x // ""')
+      y=$(printf '%s' "$args" | jq -r '.y // ""')
+      w=$(printf '%s' "$args" | jq -r '.width // ""')
+      h=$(printf '%s' "$args" | jq -r '.height // ""')
+      local n
+      for n in "$x" "$y" "$w" "$h"; do
+        if ! [[ "$n" =~ ^-?[0-9]+$ ]]; then
+          echo "Provide either 'window', or integer 'x', 'y', 'width' and 'height' (px relative to the monitor's top-left)."
+          return
+        fi
+      done
+
+      # Monitor origin and logical size (px / scale; a 90°/270° transform
+      # swaps the axes).
+      local mon mname mx my mw mh
+      mon=$(hyprctl -j monitors | jq -r --arg name "$monitor" '
+        [ .[] | select(if $name == "" then .focused else .name == $name end) ] | first // empty
+        | (if (.transform % 2) == 1 then [.height, .width] else [.width, .height] end) as $px
+        | "\(.name) \(.x) \(.y) \($px[0] / .scale | floor) \($px[1] / .scale | floor)"')
+      if [[ -z "$mon" ]]; then
+        echo "No monitor named '$monitor'. Connected: $(hyprctl -j monitors | jq -r '[.[].name] | join(", ")')"
+        return
+      fi
+      read -r mname mx my mw mh <<<"$mon"
+      if (( w <= 0 || h <= 0 || x >= mw || y >= mh || x + w <= 0 || y + h <= 0 )); then
+        echo "That rectangle is not on $mname (${mw}x${mh} logical px, origin at its top-left) — nothing shown."
+        return
+      fi
+      if out=$(claudeos-spotlight rect "$(( mx + x ))" "$(( my + y ))" "$w" "$h" "$text" "${for_args[@]}" 2>&1); then
+        echo "Spotlight on $mname at ${x},${y} ${w}x${h}."
+      else
+        echo "claudeos-spotlight failed: $out"
+      fi
+      ;;
+    spotlight_clear)
+      if ! hypr_available || ! command -v claudeos-spotlight >/dev/null 2>&1; then
+        echo "No live Spotlight to clear here."
+        return
+      fi
+      claudeos-spotlight clear >/dev/null 2>&1 && echo "Spotlight cleared." || echo "Could not reach the bar."
+      ;;
     *)
       echo "Unknown tool: ${name}"
       ;;
@@ -293,6 +376,42 @@ $(grep -iE 'error|caused|unavailable' "$log" | head -20)"
 }
 
 TOOLS='[{"name":"disk_usage","description":"Show btrfs filesystem usage and disk space","inputSchema":{"type":"object","properties":{}}},{"name":"failed_services","description":"List any failed systemd services","inputSchema":{"type":"object","properties":{}}},{"name":"recent_errors","description":"Show recent error-level journal entries","inputSchema":{"type":"object","properties":{"count":{"type":"integer","description":"Number of entries (default 50)","default":50}}}},{"name":"system_status","description":"System overview: uptime, load, memory, CPU temp, battery","inputSchema":{"type":"object","properties":{}}},{"name":"snapshot_list","description":"List btrfs snapshots managed by snapper","inputSchema":{"type":"object","properties":{}}},{"name":"network_status","description":"NetworkManager status and active connections","inputSchema":{"type":"object","properties":{}}},{"name":"nix_store_size","description":"Nix store free space, system generation count, and nh-clean GC timer status. Reports instantly the numbers that actually answer whether a GC is needed. Pass exact=true to additionally walk the store with du for a precise deduplicated size (slow, 10-30s).","inputSchema":{"type":"object","properties":{"exact":{"type":"boolean","description":"Also measure exact store size with du (slow: walks millions of store paths)","default":false}}}},{"name":"scrub_status","description":"Last btrfs scrub result","inputSchema":{"type":"object","properties":{}}},{"name":"hypr_config_check","description":"Validate Hyprland config against the Hyprland binary with --verify-config (nix build cannot check generated config contents). Appends a trial line to the deployed config in a temp copy and parses it — nothing is mutated, no reload, no live session needed. Works for both hyprlang (.conf) and Lua (.lua); the deployed format is auto-detected. Verdicts are OK / REJECTED / UNVERIFIABLE — UNVERIFIABLE means the verifier itself could not run and is NOT a statement about the config.","inputSchema":{"type":"object","properties":{"field":{"type":"string","description":"hyprlang keyword, e.g. windowrule, general:gaps_in (hyprlang configs only; use snippet for Lua)"},"value":{"type":"string","description":"Value to trial, e.g. \"float on, match:class ^(foo)$\""},"snippet":{"type":"string","description":"Raw config text to append verbatim — required for Lua, e.g. hl.config{ general = { gaps_in = 2 } }. Takes precedence over field/value."}},"required":[]}},{"name":"hypr_config_errors","description":"Report hyprctl configerrors for the running Hyprland session (empty = green). Optionally hyprctl reload first to re-parse the deployed config. Only works inside the Hyprland session.","inputSchema":{"type":"object","properties":{"reload":{"type":"boolean","description":"Run hyprctl reload before checking (default false)","default":false}}}},{"name":"quickshell_check","description":"Load-check the bespoke Quickshell bar QML from repo source without a NixOS rebuild: overlays repo *.qml onto a copy of the deployed config (generated Theme.qml/cava.conf) and runs qs -p. One broken QML file blanks the whole bar, so run this before rebuilding. Briefly restarts the live bar. Only works inside the Hyprland session.","inputSchema":{"type":"object","properties":{"qml_dir":{"type":"string","description":"QML source dir to check (default $CLAUDEOS_DIR/home/quickshell — pass explicitly from worktrees)"}}}}]'
+
+# The Spotlight tools, kept apart from the one-line list above so their
+# descriptions stay readable: the description is the whole of what tells an
+# agent WHEN to point. It is deliberately conservative (PHILOSOPHY.md:
+# "interruptions must earn their moment") — dimming the user's screen is an
+# interruption, so it is for when they are looking for something, not for
+# every mention of a window.
+SPOTLIGHT_TOOLS=$(jq -cn '[
+  {
+    name: "spotlight",
+    description: ("Point at something on the screen for the user: dims everything except one window or rectangle, rings it, and shows a short callout beside it. "
+      + "Use it when the user asks where something is, or cannot find a thing you told them to look at or click — showing beats describing. "
+      + "Do not use it for routine mentions of a window; dimming the screen is an interruption. "
+      + "Harmless by design: takes no keyboard focus, clicks pass through to the apps underneath, and it always times out. A new call replaces the previous spotlight. "
+      + "Target EITHER a window (preferred — its position is looked up for you) OR a rectangle. Only works inside the live Hyprland session."),
+    inputSchema: {
+      type: "object",
+      properties: {
+        window: {type: "string", description: "Window to point at: a class (e.g. firefox, com.mitchellh.ghostty; a substring is enough) or a Hyprland address (0x…). Must be on a visible workspace. On a miss the reply lists the visible windows."},
+        x: {type: "integer", description: "Rectangle left edge, px from the left edge of the monitor (the coordinates a screenshot of that monitor shows)"},
+        y: {type: "integer", description: "Rectangle top edge, px from the top edge of the monitor"},
+        width: {type: "integer", description: "Rectangle width in px"},
+        height: {type: "integer", description: "Rectangle height in px"},
+        monitor: {type: "string", description: "Monitor the rectangle is on, e.g. eDP-1 (default: the focused monitor). Ignored for window targets."},
+        text: {type: "string", description: "Short callout shown beside the target — one line, a few words (e.g. \"The save button is here\")"},
+        seconds: {type: "number", description: "How long it stays (default 8, max 60)"}
+      }
+    }
+  },
+  {
+    name: "spotlight_clear",
+    description: "Dismiss the current spotlight immediately (it also times out by itself).",
+    inputSchema: {type: "object", properties: {}}
+  }
+]')
+TOOLS=$(jq -cn --argjson a "$TOOLS" --argjson b "$SPOTLIGHT_TOOLS" '$a + $b')
 
 while IFS= read -r msg; do
   [[ -z "$msg" ]] && continue

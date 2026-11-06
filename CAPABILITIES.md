@@ -29,6 +29,8 @@ System diagnostics plus runtime config validation — checks `nix build` cannot 
 | `hypr_config_check` | Parse a trial config line with `Hyprland --verify-config` (hyprlang or Lua; mutates nothing) |
 | `hypr_config_errors` | `hyprctl configerrors` (optionally after reload) — empty = green |
 | `quickshell_check` | Load-check repo bar QML against deployed Theme.qml (briefly restarts the bar) |
+| `spotlight` | Point at a window or rectangle on screen (see *Spotlight* below): window by class/address, or a monitor-relative rectangle; a window miss lists the visible windows |
+| `spotlight_clear` | Dismiss the current spotlight |
 
 **When to use:** Investigating build failures, system issues, disk space, or any diagnostic question. **Proactive:** If the user mentions a build error or system issue, check `failed_services` and `recent_errors` before guessing at the cause. The three `hypr_*`/`quickshell_*` tools run the CLAUDE.md "validate against the running binary" workflow — use them before rebuilding any Hyprland/QML change (session-only; they degrade gracefully in headless lanes).
 
@@ -131,9 +133,18 @@ cap). A new call replaces the current spotlight. CLI: `claudeos-spotlight`
 
 Raw IPC (what the CLI calls; `ms` 0 = default): `qs ipc call spotlight rect X Y W H TEXT MS`,
 `qs ipc call spotlight window QUERY TEXT MS` (resolves in the bar; a miss only logs),
-`qs ipc call spotlight clear`. **Proactive:** when the user asks where
-something is on screen, or an answer refers to a specific window or region,
-point at it rather than only describing it.
+`qs ipc call spotlight clear`.
+
+**From an agent, use the `system-health` MCP tools `spotlight` / `spotlight_clear`
+rather than the CLI.** The tool takes rectangle coordinates relative to a
+monitor (what a screenshot of it shows) and adds the monitor origin itself —
+the laptop panel is not at 0,0 in the global layout once a second monitor has
+been arranged, so a hand-written global `rect` can land entirely off screen.
+
+**When to point:** when the user asks where something is on screen, or
+cannot find a thing an answer told them to look at or click. Not for every
+mention of a window — dimming the screen is an interruption and has to earn
+it (PHILOSOPHY.md, proactivity doctrine).
 
 ## Shell Commands
 

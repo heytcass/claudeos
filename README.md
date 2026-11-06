@@ -57,6 +57,15 @@ answer, `Super+Shift+A` for screenshot analysis. A health monitor sweeps every
 15 minutes and only speaks when something is wrong — interruptions must earn
 their moment.
 
+**When it needs to show you.** Ask where something is and Claude doesn't
+describe it — it *points*. **Spotlight** dims the whole desktop except one
+window or region, draws a breathing ring around it, and sets a short
+callout beside it: "the setting is here." It is an overlay in the bar, not
+a mode: it takes no keyboard focus, clicks pass straight through to the app
+underneath, and it fades by itself after a few seconds. Claude drives it
+through an MCP tool (`spotlight`), so an agent working on the system can
+answer "where?" with the screen itself.
+
 ## The trust ladder
 
 Autonomy is earned per-lane, never configured globally. Every autonomous lane
@@ -129,7 +138,7 @@ quiet voice. Full inventory: [`CAPABILITIES.md`](CAPABILITIES.md).
 | Layer | Choice |
 |-------|--------|
 | OS | NixOS unstable, flakes, disko, sops-nix |
-| Desktop | Hyprland (Wayland) + bespoke Quickshell bar, greetd/regreet |
+| Desktop | Hyprland (Wayland) + bespoke Quickshell bar, greetd + Quickshell greeter |
 | Theme | Stylix base16, Claude brand palette — no hardcoded hex anywhere |
 | Shell | Fish + Starship; eza, bat, zoxide, atuin, yazi, fzf |
 | Oxidized ring | sudo-rs, uutils coreutils, scx_lavd scheduler, dbus-broker, envfs |
