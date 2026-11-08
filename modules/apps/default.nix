@@ -11,6 +11,7 @@
     ./cards.nix
     ./intent.nix
     ./spotlight.nix
+    ./pick.nix
     ./contexts
     ./shelf
     ./unifi-endpoint.nix

@@ -15,6 +15,14 @@
 // crop to claudeos-circle-ask. The window then shrinks to a click-through
 // overlay holding only a pending/answer/error card anchored beside the box.
 //
+// Point at it (`qs ipc call regionshot pick TOKEN PROMPT`) is the same
+// selector driven by an agent: the prompt is shown in the hint pill, and the
+// first click or drag ends it — nothing is captured; the chosen window's
+// identity (address, class, title) and geometry are written as JSON to
+// $XDG_RUNTIME_DIR/claudeos-pick/TOKEN.json (Esc writes {"cancelled":true})
+// for claudeos-pick, which is waiting on that file. IPC is synchronous, so a
+// file handoff is the only way the bar can answer after the user has acted.
+//
 // The crop is cut in QML (grabToImage of a clipped copy of the frozen frame)
 // at the monitor's real pixel density, so nothing outside the box ever leaves
 // the shell. Shift+Print keeps the old instant full-screen grab.
@@ -44,6 +52,36 @@ Scope {
     readonly property bool replying: root.mode === "waiting" || root.mode === "answer" || root.mode === "error"
     property string answer: ""
     property string circleShot: ""
+    // Point at it: non-empty while an agent is waiting for a pick.
+    property string pickToken: ""
+    property string pickPrompt: ""
+    readonly property bool picking: root.pickToken !== ""
+    // The window a click took (its hyprctl object), null for a dragged box.
+    property var pickedWin: null
+
+    IpcHandler {
+        target: "regionshot"
+        // Open the selector for an agent. TOKEN names the answer file (a safe
+        // name only — it becomes a path); PROMPT is shown to the user.
+        function pick(token: string, prompt: string): void {
+            if (!/^[A-Za-z0-9._-]{1,64}$/.test(token))
+                return;
+            if (root.shown)
+                root.close();
+            root.pickToken = token;
+            root.pickPrompt = prompt;
+            root.open(false);
+        }
+        // Withdraw a pending pick: the waiting CLI timed out or was killed, so
+        // nobody is listening — drop the token first so close() writes nothing.
+        function cancel(token: string): void {
+            if (root.pickToken !== token)
+                return;
+            root.pickToken = "";
+            root.pickPrompt = "";
+            root.close();
+        }
+    }
 
     GlobalShortcut {
         appid: "quickshell"
@@ -68,6 +106,10 @@ Scope {
         freeze.running = true;
     }
     function close() {
+        // Backing out of a pick tells the waiting CLI so, instead of leaving
+        // it to its timeout.
+        if (root.picking)
+            root.finishPick(null, true);
         // Dismissing mid-wait kills the helper; its EXIT trap removes the crop.
         circleProc.running = false;
         if (root.circleShot !== "")
@@ -98,17 +140,62 @@ Scope {
     }
 
     // Snap candidates: the windows on the frozen monitor's active workspace,
-    // topmost first (floating above tiled, then most recently focused), as
-    // rects relative to the monitor.
-    readonly property var windows: {
+    // topmost first (floating above tiled, then most recently focused), each
+    // as {r: rect relative to the monitor, o: its hyprctl object}.
+    readonly property var windowInfos: {
         const m = root.mon;
         if (!m || !root.shown)
             return [];
         const wid = m.activeWorkspace?.id;
-        return (Hyprland.toplevels?.values ?? []).filter(t => t.workspace?.id === wid).map(t => t.lastIpcObject ?? {}).filter(o => o.at && o.size).sort((a, b) => ((b.floating ? 1 : 0) - (a.floating ? 1 : 0)) || ((a.focusHistoryID ?? 99) - (b.focusHistoryID ?? 99))).map(o => Qt.rect(o.at[0] - m.x, o.at[1] - m.y, o.size[0], o.size[1]));
+        return (Hyprland.toplevels?.values ?? []).filter(t => t.workspace?.id === wid).map(t => t.lastIpcObject ?? {}).filter(o => o.at && o.size).sort((a, b) => ((b.floating ? 1 : 0) - (a.floating ? 1 : 0)) || ((a.focusHistoryID ?? 99) - (b.focusHistoryID ?? 99))).map(o => ({
+                    r: Qt.rect(o.at[0] - m.x, o.at[1] - m.y, o.size[0], o.size[1]),
+                    o: o
+                }));
+    }
+    readonly property var windows: root.windowInfos.map(w => w.r)
+    function windowInfoAt(x, y) {
+        return root.windowInfos.find(w => x >= w.r.x && x < w.r.x + w.r.width && y >= w.r.y && y < w.r.y + w.r.height) ?? null;
     }
     function windowAt(x, y) {
-        return root.windows.find(r => x >= r.x && x < r.x + r.width && y >= r.y && y < r.y + r.height) ?? null;
+        return root.windowInfoAt(x, y)?.r ?? null;
+    }
+    // Point at it: write the answer for the waiting CLI. `win` is the clicked
+    // window's hyprctl object, or null for a plain box; `cancelled` is Esc. Written
+    // via a temp file + rename so the reader never sees a partial file.
+    function finishPick(win, cancelled) {
+        const token = root.pickToken;
+        root.pickToken = "";
+        root.pickPrompt = "";
+        const m = root.mon;
+        const s = root.sel;
+        const result = cancelled ? {
+            cancelled: true
+        } : {
+            cancelled: false,
+            monitor: m?.name ?? "",
+            scale: m?.scale ?? 1,
+            x: Math.round(s.x),
+            y: Math.round(s.y),
+            width: Math.round(s.width),
+            height: Math.round(s.height),
+            global: {
+                x: Math.round(s.x + (m?.x ?? 0)),
+                y: Math.round(s.y + (m?.y ?? 0)),
+                width: Math.round(s.width),
+                height: Math.round(s.height)
+            },
+            window: win === null ? null : {
+                address: win.address ?? "",
+                class: win.class ?? "",
+                initialClass: win.initialClass ?? "",
+                title: win.title ?? "",
+                pid: win.pid ?? 0,
+                workspace: win.workspace?.id ?? 0,
+                floating: !!win.floating
+            }
+        };
+        const path = root.runDir + "/claudeos-pick/" + token + ".json";
+        Quickshell.execDetached(["sh", "-c", "mkdir -p \"$(dirname \"$2\")\" && printf '%s\\n' \"$1\" > \"$2.tmp\" && mv -f \"$2.tmp\" \"$2\"", "sh", JSON.stringify(result), path]);
     }
     // Pull a coordinate onto the nearest window/screen edge within reach.
     readonly property real reach: 10
@@ -156,6 +243,13 @@ Scope {
     }
     // A box is chosen. In circle mode the question input opens straight away.
     function chosen() {
+        if (root.picking) {
+            // A dragged box that lands exactly on a window is that window.
+            const w = root.pickedWin ?? (root.windowInfos.find(i => Math.abs(i.r.x - root.sel.x) <= 1 && Math.abs(i.r.y - root.sel.y) <= 1 && Math.abs(i.r.width - root.sel.width) <= 1 && Math.abs(i.r.height - root.sel.height) <= 1)?.o ?? null);
+            root.finishPick(w, false);
+            root.close();
+            return;
+        }
         root.mode = "chosen";
         if (root.circle) {
             root.mode = "asking";
@@ -344,6 +438,7 @@ Scope {
                 // A fresh press starts over, even with a box already chosen.
                 root.anchorPt = Qt.point(root.snap(event.x, true, win.width), root.snap(event.y, false, win.height));
                 root.sel = Qt.rect(root.anchorPt.x, root.anchorPt.y, 0, 0);
+                root.pickedWin = null;
                 root.mode = "drag";
             }
             onReleased: event => {
@@ -352,9 +447,10 @@ Scope {
                     return;
                 }
                 // No real drag: a click takes the window under it.
-                const r = root.windowAt(event.x, event.y);
-                if (r) {
-                    root.sel = r;
+                const w = root.windowInfoAt(event.x, event.y);
+                if (w) {
+                    root.sel = w.r;
+                    root.pickedWin = w.o;
                     root.chosen();
                 } else
                     root.mode = "pick";
@@ -397,19 +493,37 @@ Scope {
             anchors.horizontalCenter: parent.horizontalCenter
             anchors.bottom: parent.bottom
             anchors.bottomMargin: Theme.edgeGap * 6
-            width: hint.implicitWidth + 28
-            height: hint.implicitHeight + 14
-            radius: height / 2
+            width: Math.min(win.width - 2 * Theme.edgeGap * 6, hintCol.implicitWidth + 36)
+            height: hintCol.implicitHeight + 18
+            radius: root.picking ? 12 : height / 2
             color: Theme.bgGlass
             border.width: 1
-            border.color: Theme.surface
-            Text {
-                id: hint
+            border.color: root.picking ? Theme.accent : Theme.surface
+            Column {
+                id: hintCol
                 anchors.centerIn: parent
-                text: "click a window or drag a box · Esc to cancel"
-                color: Theme.subtext
-                font.family: Theme.fontSans
-                font.pixelSize: 13
+                width: Math.min(parent.width - 36, implicitWidth)
+                spacing: 4
+                // Point at it: the agent's prompt, so the user knows what is wanted.
+                Text {
+                    visible: root.picking
+                    width: parent.width
+                    text: "Claude asks: " + (root.pickPrompt !== "" ? root.pickPrompt : "point at it")
+                    color: Theme.text
+                    font.family: Theme.fontSans
+                    font.pixelSize: 14
+                    font.weight: Font.DemiBold
+                    wrapMode: Text.Wrap
+                    horizontalAlignment: Text.AlignHCenter
+                }
+                Text {
+                    id: hint
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    text: "click a window or drag a box · Esc to cancel"
+                    color: Theme.subtext
+                    font.family: Theme.fontSans
+                    font.pixelSize: 13
+                }
             }
         }
 

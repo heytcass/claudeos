@@ -362,6 +362,41 @@ $(grep -iE 'error|caused|unavailable' "$log" | head -20)"
         echo "claudeos-spotlight failed: $out"
       fi
       ;;
+    pick_target)
+      # "Point at it": the inverse of spotlight. Freezes the focused monitor
+      # with the selector (home/quickshell/RegionShot.qml, pick mode) showing
+      # the prompt; the user clicks a window or drags a box, and the window's
+      # identity and geometry come back. The CLI (claudeos-pick) blocks on a
+      # file the bar writes, so this call takes as long as the user does.
+      if ! hypr_available; then
+        echo "Not in a Hyprland session (hyprctl unreachable) — nobody can point at anything from here."
+        return
+      fi
+      if ! command -v claudeos-pick >/dev/null 2>&1; then
+        echo "claudeos-pick is not on PATH (needs a rebuild that includes modules/apps/pick.nix)."
+        return
+      fi
+      local prompt seconds out rc
+      prompt=$(printf '%s' "$args" | jq -r '.prompt // ""')
+      seconds=$(printf '%s' "$args" | jq -r '.seconds // 120')
+      [[ "$seconds" =~ ^[0-9]+$ ]] || seconds=120
+      (( seconds > 600 )) && seconds=600
+      out=$(claudeos-pick --prompt "$prompt" --timeout "$seconds" 2>&1)
+      rc=$?
+      case "$rc" in
+        0)
+          printf '%s' "$out" | jq -r '
+            if .window == null then
+              "The user dragged a box on \(.monitor): \(.x),\(.y) \(.width)x\(.height) (monitor-relative px; layout: \(.global.x),\(.global.y)). No single window matches it."
+            else
+              "The user picked a window on \(.monitor):\n  address: \(.window.address)\n  class: \(.window.class) (initialClass \(.window.initialClass))\n  title: \(.window.title)\n  pid: \(.window.pid)  workspace: \(.window.workspace)  floating: \(.window.floating)\n  geometry: \(.x),\(.y) \(.width)x\(.height) monitor-relative px (layout: \(.global.x),\(.global.y))"
+            end' 2>/dev/null || echo "$out"
+          ;;
+        1) echo "The user cancelled the pick (Esc) — ask, do not retry on your own." ;;
+        2) echo "No pick within ${seconds}s: $out" ;;
+        *) echo "claudeos-pick failed (exit $rc): $out" ;;
+      esac
+      ;;
     spotlight_clear)
       if ! hypr_available || ! command -v claudeos-spotlight >/dev/null 2>&1; then
         echo "No live Spotlight to clear here."
@@ -412,6 +447,26 @@ SPOTLIGHT_TOOLS=$(jq -cn '[
   }
 ]')
 TOOLS=$(jq -cn --argjson a "$TOOLS" --argjson b "$SPOTLIGHT_TOOLS" '$a + $b')
+# Point at it: the one tool here that WAITS on the user. Its description says
+# so, and says when a click beats a guess.
+PICK_TOOLS=$(jq -cn '[
+  {
+    name: "pick_target",
+    description: ("Ask the user to point at something on their screen: freezes the focused monitor, shows your prompt, and waits while they click a window or drag a box. "
+      + "Returns the picked window (Hyprland address, class, title, pid, workspace, floating) and its geometry, or just the geometry for a box that is not one window. "
+      + "Use it when the user says this window / that one / over here, when several windows share a class and you cannot tell which they mean, or when you need an exact region (a window rule, a spotlight target, a crop). "
+      + "It BLOCKS until they act or the timeout, so say what you need in the prompt and call it once; a cancel (Esc) means stop and ask, not retry. Only works inside the live Hyprland session."),
+    inputSchema: {
+      type: "object",
+      properties: {
+        prompt: {type: "string", description: "What to point at, shown on screen beside the selector — short, e.g. \"the terminal you want pinned\""},
+        seconds: {type: "integer", description: "How long to wait for a pick (default 120, max 600)"}
+      },
+      required: ["prompt"]
+    }
+  }
+]')
+TOOLS=$(jq -cn --argjson a "$TOOLS" --argjson b "$PICK_TOOLS" '$a + $b')
 
 while IFS= read -r msg; do
   [[ -z "$msg" ]] && continue
