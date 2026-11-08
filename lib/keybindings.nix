@@ -74,6 +74,14 @@
     short = "Circle to ask — answer beside the region";
   }
   {
+    name = "Point at it";
+    binding = "<Super><Shift>p";
+    global = "quickshell:pick";
+    display = "Super+Shift+P";
+    help = "When Claude has asked you to point at something: freeze this monitor and click the window or drag a box (nothing is captured)";
+    short = "Point at it — pick what Claude asked about";
+  }
+  {
     name = "Shelve clipboard";
     binding = "<Super>s";
     command = "claudeos-shelve-clipboard";

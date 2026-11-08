@@ -31,7 +31,7 @@ System diagnostics plus runtime config validation — checks `nix build` cannot 
 | `quickshell_check` | Load-check repo bar QML against deployed Theme.qml (briefly restarts the bar) |
 | `spotlight` | Point at a window or rectangle on screen (see *Spotlight* below): window by class/address, or a monitor-relative rectangle; a window miss lists the visible windows |
 | `spotlight_clear` | Dismiss the current spotlight |
-| `pick_target` | Ask the user to point at something (see *Point at it* below): freezes the screen with a prompt, waits for a click or drag, returns the window identity and geometry |
+| `pick_target` | Ask the user to point at something (see *Point at it* below): a pill with the prompt on every monitor, `Super+Shift+P` freezes the monitor they are on, a click or drag returns the window identity and geometry |
 
 **When to use:** Investigating build failures, system issues, disk space, or any diagnostic question. **Proactive:** If the user mentions a build error or system issue, check `failed_services` and `recent_errors` before guessing at the cause. The three `hypr_*`/`quickshell_*` tools run the CLAUDE.md "validate against the running binary" workflow — use them before rebuilding any Hyprland/QML change (session-only; they degrade gracefully in headless lanes).
 
@@ -82,6 +82,7 @@ These scripts run outside Claude Code — they're Hyprland keybindings (generate
 | `Super+Shift+V` | `claude-clip` | Semantic clipboard: transform clipboard content (fix grammar, condense, to shell command, to table, summarize, translate, free-form) and copy the result back — paste anywhere |
 | `Super+T` | `claude-grab-text` | Grab Text: drag a region of the screen; any text inside (images, videos, unselectable dialogs) lands in the clipboard |
 | `Super+Shift+C` | `claudeos-circle-ask` | Circle to ask: the Print region selector (`RegionShot.qml`) in circle mode. Drag a box (or click a window), type a question (Return on an empty line means "explain this"), and Claude's answer appears in a card beside the box (pending dots while it works, a short readable error if the CLI fails, is signed out, or exceeds 120 s). Esc or a click dismisses; Copy puts the answer in the clipboard. **The selected region and your question are sent to Claude** (one `claude -p --model sonnet` call on the subscription, Read as the only tool; text in the image is treated as content, never instructions). The crop lives in a 0700 dir under `$XDG_RUNTIME_DIR` and is deleted when the call ends or the card is dismissed. While the card is up the layer takes keyboard focus on demand, so click it once before Esc |
+| `Super+Shift+P` | — (`quickshell:pick`) | Point at it: only meaningful while an agent is waiting on `pick_target` / `claudeos-pick` (the prompt pill is up). Freezes the monitor you are on and opens the selector in pick mode; click a window or drag a box, Esc cancels. Nothing is captured. Does nothing when no pick is armed |
 
 ## Cards (Generated Surfaces)
 
@@ -153,29 +154,39 @@ it (PHILOSOPHY.md, proactivity doctrine).
 
 The inverse of Spotlight: when an agent needs to know *which* window or
 region the user means, it asks them to show it. `pick_target` (or the CLI
-`claudeos-pick`, `modules/apps/pick.nix`) opens the Print/circle selector
-(`home/quickshell/RegionShot.qml`) in pick mode on the focused monitor with
-the agent's prompt in the hint pill; the first click takes the window under
-the pointer, a drag takes a box, Esc cancels. Nothing is captured — the
-answer is identity and geometry only.
+`claudeos-pick`, `modules/apps/pick.nix`) runs in two phases so the user can
+get to the right window first — the question usually arrives while they are
+looking at Claude, not at the thing:
+
+1. **Armed.** Nothing is frozen. A small pill at the bottom of every monitor
+   shows "Claude asks: *prompt*" with the shortcut and a Cancel button. It is
+   click-through except for the pill itself and takes no keyboard focus, so
+   the desktop stays live while the user switches to what Claude means.
+2. **Picking.** `Super+Shift+P` (`quickshell:pick`, `lib/keybindings.nix`),
+   or a click on the pill, freezes the monitor the user is on at that moment
+   and opens the Print/circle selector (`home/quickshell/RegionShot.qml`) in
+   pick mode with the prompt in its hint; the first click takes the window
+   under the pointer, a drag takes a box, Esc cancels. Nothing is captured —
+   the answer is identity and geometry only.
 
 Quickshell IPC is synchronous, so the bar cannot reply after the user has
-acted: `qs ipc call regionshot pick TOKEN PROMPT` returns at once and the bar
-later renames `$XDG_RUNTIME_DIR/claudeos-pick/TOKEN.json` into place, which
-the CLI waits on (inotify; `--timeout` default 120 s, after which it tells the
-bar to withdraw with `qs ipc call regionshot cancel TOKEN`).
+acted: `qs ipc call regionshot pick TOKEN PROMPT` arms and returns at once,
+and the bar later renames `$XDG_RUNTIME_DIR/claudeos-pick/TOKEN.json` into
+place, which the CLI waits on (inotify; `--timeout` default 300 s, after which
+it tells the bar to withdraw with `qs ipc call regionshot cancel TOKEN`). A
+newer pick supersedes an older one, which is reported as cancelled.
 
 | Exit | Meaning | stdout |
 |------|---------|--------|
 | 0 | picked | `{"cancelled":false,"monitor","scale","x","y","width","height","global":{…},"window":{address,class,initialClass,title,pid,workspace,floating}}` — `x`/`y` monitor-relative logical px, `global` in Hyprland layout space; `window` is `null` for a box that is not exactly one window |
-| 1 | the user pressed Esc | `{"cancelled":true}` |
+| 1 | the user cancelled (Esc, or Cancel on the pill) | `{"cancelled":true}` |
 | 2 | timed out, or no bar | — |
 
 **From an agent, use the `system-health` MCP tool `pick_target`** (`prompt`,
-`seconds`). It blocks until the user acts, so write the prompt as the thing
-you need ("the terminal you want pinned") and call it once; a cancel means
-stop and ask, not retry. Pairs with `spotlight`: the address it returns is a
-valid `window` target.
+`seconds`, default 300, max 900). It blocks until the user acts, so write the
+prompt as the thing you need ("the terminal you want pinned") and call it
+once; a cancel means stop and ask, not retry. Pairs with `spotlight`: the
+address it returns is a valid `window` target.
 
 ## Shell Commands
 

@@ -114,6 +114,7 @@ let
     map (b: {
       keys = lib.init (bindTokens b) ++ [ (lib.toUpper (lib.last (bindTokens b))) ];
       desc = b.short or b.help;
+      global = b.global or null;
     }) claudeBinds
   );
 
