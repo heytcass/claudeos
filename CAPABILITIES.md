@@ -31,6 +31,7 @@ System diagnostics plus runtime config validation — checks `nix build` cannot 
 | `quickshell_check` | Load-check repo bar QML against deployed Theme.qml (briefly restarts the bar) |
 | `spotlight` | Point at a window or rectangle on screen (see *Spotlight* below): window by class/address, or a monitor-relative rectangle; a window miss lists the visible windows |
 | `spotlight_clear` | Dismiss the current spotlight |
+| `pick_target` | Ask the user to point at something (see *Point at it* below): freezes the screen with a prompt, waits for a click or drag, returns the window identity and geometry |
 
 **When to use:** Investigating build failures, system issues, disk space, or any diagnostic question. **Proactive:** If the user mentions a build error or system issue, check `failed_services` and `recent_errors` before guessing at the cause. The three `hypr_*`/`quickshell_*` tools run the CLAUDE.md "validate against the running binary" workflow — use them before rebuilding any Hyprland/QML change (session-only; they degrade gracefully in headless lanes).
 
@@ -146,6 +147,35 @@ been arranged, so a hand-written global `rect` can land entirely off screen.
 cannot find a thing an answer told them to look at or click. Not for every
 mention of a window — dimming the screen is an interruption and has to earn
 it (PHILOSOPHY.md, proactivity doctrine).
+
+
+## Point at it (the user points for Claude)
+
+The inverse of Spotlight: when an agent needs to know *which* window or
+region the user means, it asks them to show it. `pick_target` (or the CLI
+`claudeos-pick`, `modules/apps/pick.nix`) opens the Print/circle selector
+(`home/quickshell/RegionShot.qml`) in pick mode on the focused monitor with
+the agent's prompt in the hint pill; the first click takes the window under
+the pointer, a drag takes a box, Esc cancels. Nothing is captured — the
+answer is identity and geometry only.
+
+Quickshell IPC is synchronous, so the bar cannot reply after the user has
+acted: `qs ipc call regionshot pick TOKEN PROMPT` returns at once and the bar
+later renames `$XDG_RUNTIME_DIR/claudeos-pick/TOKEN.json` into place, which
+the CLI waits on (inotify; `--timeout` default 120 s, after which it tells the
+bar to withdraw with `qs ipc call regionshot cancel TOKEN`).
+
+| Exit | Meaning | stdout |
+|------|---------|--------|
+| 0 | picked | `{"cancelled":false,"monitor","scale","x","y","width","height","global":{…},"window":{address,class,initialClass,title,pid,workspace,floating}}` — `x`/`y` monitor-relative logical px, `global` in Hyprland layout space; `window` is `null` for a box that is not exactly one window |
+| 1 | the user pressed Esc | `{"cancelled":true}` |
+| 2 | timed out, or no bar | — |
+
+**From an agent, use the `system-health` MCP tool `pick_target`** (`prompt`,
+`seconds`). It blocks until the user acts, so write the prompt as the thing
+you need ("the terminal you want pinned") and call it once; a cancel means
+stop and ask, not retry. Pairs with `spotlight`: the address it returns is a
+valid `window` target.
 
 ## Shell Commands
 

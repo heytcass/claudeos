@@ -1,6 +1,7 @@
 # modules/apps/mcp-system-health — MCP server exposing system diagnostics and
 # runtime config validation (hyprctl / quickshell load checks) to Claude Code,
-# plus the `spotlight` tools that let it point at things on screen.
+# plus the `spotlight` tools that let it point at things on screen and
+# `pick_target`, which lets the user point for it.
 # Registered in the repo's .mcp.json as the "system-health" server (project
 # scope — the ~/.claude/.mcp.json seed it once used is a path Claude Code
 # never reads). Bash + jq to avoid a Python runtime dependency.
