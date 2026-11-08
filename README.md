@@ -14,6 +14,7 @@ on a system its owner actually depends on.
 | | |
 |---|---|
 | 🔦 **Claude points** | Ask where something is and the answer is the screen itself. **Spotlight** dims the whole desktop except one window or region, rings it, and sets a short callout beside it. It takes no keyboard focus, clicks pass straight through, and it fades by itself. Agents drive it through an MCP tool. |
+| ⭕ **Circle to ask** | `Super+Shift+C` freezes the screen. Drag a box around anything, type a question, and the answer appears in a card beside the box. Only the box you drew is sent, and the crop is deleted the moment the call ends. |
 | ✨ **Wishes become pull requests** | Press `Super+W` and say what you want in plain language. An agent writes the Nix, validates every host, and opens a `wish/*` PR. Reply to the result card and the same agent revises the same PR. |
 | 🩹 **The OS heals itself, in git** | A failed systemd unit spawns an agent that reads the journal, finds the root cause, and opens a PR with the fix. Small, safe fixes merge themselves behind mechanical gates; the rest wait for a human. |
 | 📖 **A boot menu that reads like a changelog** | Every generation is named by a model summarizing what actually changed, and the btrfs snapshots carry the same names. |
