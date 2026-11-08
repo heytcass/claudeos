@@ -14,7 +14,7 @@ on a system its owner actually depends on.
 | | |
 |---|---|
 | 🔦 **Claude points** | Ask where something is and the answer is the screen itself. **Spotlight** dims the whole desktop except one window or region, rings it, and sets a short callout beside it. It takes no keyboard focus, clicks pass straight through, and it fades by itself. Agents drive it through an MCP tool. |
-| 👉 **You point, Claude reads** | When an agent needs to know *which* window you mean, it asks you to show it: the screen freezes with its question, you click a window or drag a box, and the agent gets the window's identity and geometry back. The inverse of Spotlight, driven by the same MCP server. |
+| 👉 **You point, Claude reads** | When an agent needs to know *which* window you mean, it asks you to show it: its question appears as a pill on every monitor, you walk to the window and press `Super+Shift+P`, that screen freezes, you click a window or drag a box, and the agent gets the window's identity and geometry back. The inverse of Spotlight, driven by the same MCP server. |
 | ⭕ **Circle to ask** | `Super+Shift+C` freezes the screen. Drag a box around anything, type a question, and the answer appears in a card beside the box. Only the box you drew is sent, and the crop is deleted the moment the call ends. |
 | ✨ **Wishes become pull requests** | Press `Super+W` and say what you want in plain language. An agent writes the Nix, validates every host, and opens a `wish/*` PR. Reply to the result card and the same agent revises the same PR. |
 | 🩹 **The OS heals itself, in git** | A failed systemd unit spawns an agent that reads the journal, finds the root cause, and opens a PR with the fix. Small, safe fixes merge themselves behind mechanical gates; the rest wait for a human. |

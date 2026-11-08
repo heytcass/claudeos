@@ -1,6 +1,9 @@
 # modules/apps/pick.nix — `claudeos-pick`: "point at it". The CLI face of the
 # selector's pick mode (home/quickshell/RegionShot.qml), so an agent can ask
-# the user to click a window or drag a box and get its identity back:
+# the user to click a window or drag a box and get its identity back. The
+# pick is armed first (a pill with the prompt on every monitor, nothing
+# frozen) so the user can walk to the right window; Super+Shift+P, or a
+# click on the pill, then freezes that monitor and opens the selector:
 #
 #   claudeos-pick [--prompt TEXT] [--timeout SECONDS]
 #
@@ -12,7 +15,9 @@
 # shows); `global` is Hyprland's layout space (`hyprctl clients -j`). `window`
 # is null for a dragged box that is not exactly a window.
 #
-# Exit 0 picked · 1 the user pressed Esc · 2 timed out / no bar · 3 usage.
+# Exit 0 picked · 1 the user cancelled (Esc, or the pill's Cancel) · 2 timed
+# out / no bar · 3 usage. The default timeout is 300 s: the user may first
+# have to get to the window.
 #
 # Quickshell IPC is synchronous and cannot block on the user, so the bar
 # answers through a file: this script picks a token, calls the IPC, and waits
@@ -31,15 +36,16 @@ in
         usage() {
           cat >&2 <<'EOF'
         usage: claudeos-pick [--prompt TEXT] [--timeout SECONDS]
-        Freezes the focused monitor and asks the user to click a window or drag
-        a box. Prints the choice as JSON (window identity + geometry).
-        Exit 0 picked, 1 cancelled with Esc, 2 timed out or no bar, 3 usage.
+        Shows the prompt on every monitor; when the user presses Super+Shift+P
+        (or clicks it) that monitor freezes and they click a window or drag a
+        box. Prints the choice as JSON (window identity + geometry).
+        Exit 0 picked, 1 cancelled, 2 timed out (default 300 s) or no bar, 3 usage.
         EOF
           exit 3
         }
 
         prompt=""
-        timeout=120
+        timeout=300
         while [[ $# -gt 0 ]]; do
           case "$1" in
             --prompt) prompt="''${2:-}"; shift 2 ;;

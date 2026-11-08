@@ -16,12 +16,17 @@
 // overlay holding only a pending/answer/error card anchored beside the box.
 //
 // Point at it (`qs ipc call regionshot pick TOKEN PROMPT`) is the same
-// selector driven by an agent: the prompt is shown in the hint pill, and the
-// first click or drag ends it — nothing is captured; the chosen window's
-// identity (address, class, title) and geometry are written as JSON to
-// $XDG_RUNTIME_DIR/claudeos-pick/TOKEN.json (Esc writes {"cancelled":true})
-// for claudeos-pick, which is waiting on that file. IPC is synchronous, so a
-// file handoff is the only way the bar can answer after the user has acted.
+// selector driven by an agent, in two phases. First it is only *armed*: a
+// small click-through pill at the bottom of every monitor shows the prompt
+// and nothing is frozen, so the user can switch to whatever Claude is asking
+// about. Then Super+Shift+P (quickshell:pick), or a click on the pill,
+// freezes the monitor the user is on at that moment and opens the selector
+// with the prompt in its hint; the first click or drag ends it — nothing is
+// captured; the chosen window's identity (address, class, title) and
+// geometry are written as JSON to $XDG_RUNTIME_DIR/claudeos-pick/TOKEN.json
+// (Esc, or the pill's Cancel, writes {"cancelled":true}) for claudeos-pick,
+// which is waiting on that file. IPC is synchronous, so a file handoff is the
+// only way the bar can answer after the user has acted.
 //
 // The crop is cut in QML (grabToImage of a clipped copy of the frozen frame)
 // at the monitor's real pixel density, so nothing outside the box ever leaves
@@ -55,34 +60,51 @@ Scope {
     // Point at it: non-empty while an agent is waiting for a pick.
     property string pickToken: ""
     property string pickPrompt: ""
-    readonly property bool picking: root.pickToken !== ""
+    // Armed: the prompt pill is up, nothing frozen yet (see startPick).
+    property bool pickArmed: false
+    // Picking: the selector itself is open on behalf of the agent.
+    readonly property bool picking: root.pickToken !== "" && !root.pickArmed
+    // The shortcut that turns armed into picking, as the cheat sheet spells it.
+    readonly property string pickKeys: (Keybinds.claude.find(k => k.global === "quickshell:pick")?.keys ?? ["Super", "Shift", "P"]).join("+")
     // The window a click took (its hyprctl object), null for a dragged box.
     property var pickedWin: null
 
     IpcHandler {
         target: "regionshot"
-        // Open the selector for an agent. TOKEN names the answer file (a safe
-        // name only — it becomes a path); PROMPT is shown to the user.
+        // Arm a pick for an agent. TOKEN names the answer file (a safe name
+        // only — it becomes a path); PROMPT is shown to the user. A newer pick
+        // supersedes an older one, whose CLI is told it was cancelled.
         function pick(token: string, prompt: string): void {
             if (!/^[A-Za-z0-9._-]{1,64}$/.test(token))
                 return;
+            if (root.pickToken !== "")
+                root.finishPick(null, true);
             if (root.shown)
                 root.close();
             root.pickToken = token;
             root.pickPrompt = prompt;
-            root.open(false);
+            root.pickArmed = true;
         }
         // Withdraw a pending pick: the waiting CLI timed out or was killed, so
         // nobody is listening — drop the token first so close() writes nothing.
         function cancel(token: string): void {
             if (root.pickToken !== token)
                 return;
+            const wasPicking = root.picking;
             root.pickToken = "";
             root.pickPrompt = "";
-            root.close();
+            root.pickArmed = false;
+            if (wasPicking)
+                root.close();
         }
     }
 
+    GlobalShortcut {
+        appid: "quickshell"
+        name: "pick"
+        description: "Point at it: freeze this monitor and pick what Claude asked about"
+        onPressed: root.startPick("")
+    }
     GlobalShortcut {
         appid: "quickshell"
         name: "regionshot"
@@ -96,11 +118,30 @@ Scope {
         onPressed: root.shown ? root.close() : root.open(true)
     }
 
-    function open(circle) {
+    // Armed → picking: freeze MON (a monitor name; "" means the focused one)
+    // and open the selector with the agent's prompt. No-op unless armed. The
+    // pill is hidden first and the freeze waits a beat, or grim would catch
+    // the pill itself in the frozen frame.
+    function startPick(mon) {
+        if (!root.pickArmed)
+            return;
+        root.pickArmed = false;
+        if (root.shown)
+            root.close();
+        armGap.mon = mon;
+        armGap.restart();
+    }
+    Timer {
+        id: armGap
+        interval: 80
+        property string mon: ""
+        onTriggered: root.open(false, mon)
+    }
+    function open(circle, monName) {
         root.circle = circle;
         Hyprland.refreshToplevels();
         Hyprland.refreshMonitors();
-        root.mon = Hyprland.focusedMonitor;
+        root.mon = (monName ? (Hyprland.monitors?.values ?? []).find(m => m.name === monName) : null) ?? Hyprland.focusedMonitor;
         root.frozen = root.runDir + "/claudeos-freeze-" + Date.now() + ".png";
         freeze.command = ["grim", "-o", root.mon?.name ?? "", root.frozen];
         freeze.running = true;
@@ -166,6 +207,7 @@ Scope {
         const token = root.pickToken;
         root.pickToken = "";
         root.pickPrompt = "";
+        root.pickArmed = false;
         const m = root.mon;
         const s = root.sel;
         const result = cancelled ? {
@@ -502,10 +544,12 @@ Scope {
             Column {
                 id: hintCol
                 anchors.centerIn: parent
-                width: Math.min(parent.width - 36, implicitWidth)
+                // Wide enough for the longer line, capped to the screen (not parent.width: that loops).
+                width: Math.min(win.width - 2 * Theme.edgeGap * 6 - 36, Math.max(root.picking ? promptText.implicitWidth : 0, hint.implicitWidth))
                 spacing: 4
                 // Point at it: the agent's prompt, so the user knows what is wanted.
                 Text {
+                    id: promptText
                     visible: root.picking
                     width: parent.width
                     text: "Claude asks: " + (root.pickPrompt !== "" ? root.pickPrompt : "point at it")
@@ -779,6 +823,109 @@ Scope {
                     color: root.mode === "waiting" ? Theme.subtext : Theme.text
                     font.family: Theme.fontSans
                     font.pixelSize: 13
+                }
+            }
+        }
+    }
+
+    // Point at it, armed: a click-through pill at the bottom of every monitor
+    // carrying the agent's prompt. Only the pill takes clicks (the mask), it
+    // never takes keyboard focus, and the rest of the screen stays live, so the
+    // user can walk to the right window before freezing anything. Clicking the
+    // pill picks on that pill's monitor; the shortcut picks on the focused one.
+    Variants {
+        model: Quickshell.screens
+        PanelWindow {
+            id: armWin
+            required property ShellScreen modelData
+            screen: modelData
+            visible: root.pickArmed
+            color: "transparent"
+            exclusionMode: ExclusionMode.Ignore
+            WlrLayershell.layer: WlrLayer.Overlay
+            WlrLayershell.namespace: "claudeos-pick"
+            WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
+            anchors {
+                top: true
+                bottom: true
+                left: true
+                right: true
+            }
+            mask: Region {
+                item: armPill
+            }
+
+            Rectangle {
+                id: armPill
+                anchors.horizontalCenter: parent.horizontalCenter
+                anchors.bottom: parent.bottom
+                anchors.bottomMargin: Theme.edgeGap * 6
+                width: Math.min(armWin.width - 2 * Theme.edgeGap * 6, armCol.implicitWidth + 36)
+                height: armCol.implicitHeight + 18
+                radius: 12
+                color: Theme.bgGlass
+                border.width: 1
+                border.color: Theme.accent
+
+                MouseArea {
+                    anchors.fill: parent
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: root.startPick(armWin.modelData.name)
+                }
+
+                Column {
+                    id: armCol
+                    anchors.centerIn: parent
+                    width: Math.min(armWin.width - 2 * Theme.edgeGap * 6 - 36, Math.max(armPrompt.implicitWidth, armRow.implicitWidth))
+                    spacing: 4
+                    Text {
+                        id: armPrompt
+                        width: parent.width
+                        text: "Claude asks: " + (root.pickPrompt !== "" ? root.pickPrompt : "point at it")
+                        color: Theme.text
+                        font.family: Theme.fontSans
+                        font.pixelSize: 14
+                        font.weight: Font.DemiBold
+                        wrapMode: Text.Wrap
+                        horizontalAlignment: Text.AlignHCenter
+                    }
+                    Row {
+                        id: armRow
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        spacing: 10
+                        Text {
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: "go to it, then press " + root.pickKeys + " · or click here"
+                            color: Theme.subtext
+                            font.family: Theme.fontSans
+                            font.pixelSize: 13
+                        }
+                        Rectangle {
+                            anchors.verticalCenter: parent.verticalCenter
+                            width: armCancelText.implicitWidth + 16
+                            height: 24
+                            radius: 12
+                            color: armCancelHov.containsMouse ? Theme.surface : "transparent"
+                            border.width: 1
+                            border.color: Theme.surface
+                            Text {
+                                id: armCancelText
+                                anchors.centerIn: parent
+                                text: "Cancel"
+                                color: Theme.urgent
+                                font.family: Theme.fontSans
+                                font.pixelSize: 12
+                            }
+                            MouseArea {
+                                id: armCancelHov
+                                anchors.fill: parent
+                                hoverEnabled: true
+                                cursorShape: Qt.PointingHandCursor
+                                // Tells the waiting CLI it was cancelled (exit 1).
+                                onClicked: root.finishPick(null, true)
+                            }
+                        }
+                    }
                 }
             }
         }
