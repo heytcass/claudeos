@@ -79,6 +79,83 @@ PopupWindow {
                 }
             }
 
+            // Live Claude sessions, by their app title — the island's "✳ N"
+            // unpacked. Title over status, the way Claude Duet stacks its pill:
+            // what each one is, then whether it is working and for how long.
+            ColumnLayout {
+                Layout.fillWidth: true
+                visible: Sessions.live.length > 0
+                spacing: 6
+
+                RowLayout {
+                    Layout.fillWidth: true
+                    Text {
+                        text: "Claude sessions"
+                        color: Theme.subtext
+                        font.family: Theme.fontSans
+                        font.bold: true
+                        font.pixelSize: 12
+                    }
+                    Item {
+                        Layout.fillWidth: true
+                    }
+                    Text {
+                        visible: Sessions.busy > 0
+                        text: "✳ " + Sessions.busy + " busy"
+                        color: Theme.accent
+                        font.family: Theme.fontMono
+                        font.pixelSize: 11
+                    }
+                }
+
+                Repeater {
+                    model: Sessions.live
+                    delegate: RowLayout {
+                        id: sessionRow
+                        required property var modelData
+                        readonly property bool busy: modelData.status === "busy"
+                        Layout.fillWidth: true
+                        spacing: 8
+
+                        Text {
+                            Layout.alignment: Qt.AlignTop
+                            Layout.topMargin: 1
+                            text: "✳"
+                            color: sessionRow.busy ? Theme.accent : Theme.muted
+                            opacity: sessionRow.busy ? 1 : 0.5
+                            font.pixelSize: Theme.fontSize
+                        }
+                        ColumnLayout {
+                            Layout.fillWidth: true
+                            spacing: 1
+                            Text {
+                                Layout.fillWidth: true
+                                text: sessionRow.modelData.name
+                                color: sessionRow.busy ? Theme.text : Theme.subtext
+                                font.family: Theme.fontSans
+                                font.pixelSize: 12
+                                elide: Text.ElideRight
+                                maximumLineCount: 1
+                            }
+                            Text {
+                                Layout.fillWidth: true
+                                text: (sessionRow.busy ? "Working · " : "Idle · ") + Sessions.ago(sessionRow.modelData.since)
+                                color: Theme.muted
+                                font.family: Theme.fontSans
+                                font.pixelSize: 11
+                                elide: Text.ElideRight
+                            }
+                        }
+                    }
+                }
+
+                Rectangle {
+                    Layout.fillWidth: true
+                    height: 1
+                    color: Theme.surface
+                }
+            }
+
             Calendar {
                 Layout.fillWidth: true
             }

@@ -2,8 +2,12 @@
 // A floating pill that MORPHS by context instead of being a static clock:
 //   · idle       → clock / date
 //   · media      → now-playing (spectrum + title/artist), width springs open
-//   · agent      → ClaudeOS is working on itself: breathing spark + what it's
-//                  doing (Agent.activity) + a dim clock so time isn't lost
+//   · agent      → a headless lane is working on the machine (Agent.activity,
+//                  a curated phrase), or one interactive Claude session has
+//                  been busy long enough to be the thing you wait on
+//                  (Sessions.promoted, its app title). Busy sessions short of
+//                  that only add a spark + count to the clock face, so the
+//                  clock — and Jasper — stay the default (2026-11-08).
 //   · notif      → a new notification peeks inline for a few seconds, then
 //                  collapses back (takes priority over clock/media while shown);
 //                  peeks arriving mid-peek queue behind it with a "+N" badge
@@ -43,7 +47,7 @@ Rectangle {
     // The OSD outranks even a peek: it answers a key you just pressed.
     // A drag hovering the island outranks everything: it's the user's hand,
     // right now, asking "can I put this here?" (the Shelf drop face).
-    state: (dropArea.containsDrag || shelvedFlash) ? "drop" : osdShown ? "osd" : peeking ? "notif" : (playing ? "media" : Agent.active ? "agent" : "clock")
+    state: (dropArea.containsDrag || shelvedFlash) ? "drop" : osdShown ? "osd" : peeking ? "notif" : (playing ? "media" : root.agentFace ? "agent" : "clock")
 
     // Only the island on the FOCUSED output animates — see BarFocus.qml for
     // why (one QSGRenderThread per monitor, all breathing the same pulse).
@@ -51,14 +55,19 @@ Rectangle {
     // per-frame work.
     readonly property bool onFocusedScreen: BarFocus.isFocused(QsWindow.window)
     // The border/halo breath runs under any face while the agent works …
-    readonly property bool agentAnimating: Agent.active && root.onFocusedScreen
+    readonly property bool agentAnimating: root.working && root.onFocusedScreen
     // … whereas the agent FACE's own motion only exists in that state.
     readonly property bool agentFaceAnimating: root.state === "agent" && root.onFocusedScreen
 
+    // Who may take the stage. Headless lanes always do (they have no window of
+    // their own); an interactive session only once Sessions promotes it. Any
+    // busy session still breathes the border — "working" — without the face.
+    readonly property bool working: Agent.active || Sessions.busy > 0
+    readonly property bool agentFace: Agent.active || Sessions.promoted !== ""
     // Agent-face phrase. One lane → its own phrase (Agent.activity, the newest
-    // marker). More than one → "N lanes" with that newest phrase riding along,
-    // so the island tells you several lanes are working at once.
-    readonly property string agentPhrase: Presence.laneCount > 1 ? (Presence.laneCount + " lanes · " + Agent.activity) : Agent.activity
+    // marker). More than one → "N lanes" with that newest phrase riding along.
+    // No lane → the promoted session's title.
+    readonly property string agentPhrase: Agent.active ? (Presence.laneCount > 1 ? (Presence.laneCount + " lanes · " + Agent.activity) : Agent.activity) : Sessions.promoted
     states: [
         State {
             name: "clock"
@@ -148,6 +157,35 @@ Rectangle {
         onTriggered: root.nextPeek()
     }
 
+    // Jasper's peek: when a fresh insight lands, the sentence rides through
+    // the island once, the way a notification does, then the clock returns
+    // with the new emoji. What Jasper.qml reads on its first poll after a bar
+    // start is not news — only a change after that settles is (the poll is
+    // every 20 s, so a 30 s grace covers the first read).
+    property bool jasperSettled: false
+    Timer {
+        interval: 30000
+        running: true
+        onTriggered: root.jasperSettled = true
+    }
+    Connections {
+        target: Jasper
+        function onTextChanged() {
+            if (!root.jasperSettled || Jasper.text === "" || Jasper.stale || Jasper.sentence === "")
+                return;
+            const n = {
+                summary: Jasper.emoji + " Jasper",
+                body: Jasper.sentence,
+                appName: "jasper",
+                urgency: 1
+            };
+            if (root.peeking)
+                root.peekQueue = root.admitPeek(root.peekQueue, n);
+            else
+                root.showPeek(n);
+        }
+    }
+
     // OSD: every island shows the level, each holding it on its own timer,
     // restarted by every change so a held key keeps the face up.
     property bool osdShown: false
@@ -231,12 +269,9 @@ Rectangle {
     // is, so it lands cleanly on the breathing border (start) and on the idle
     // one (finish). Focused output only, like the breath.
     property real flare: 0
-    Connections {
-        target: Agent
-        function onActiveChanged() {
-            if (root.onFocusedScreen)
-                flareAnim.restart();
-        }
+    onWorkingChanged: {
+        if (root.onFocusedScreen)
+            flareAnim.restart();
     }
     SequentialAnimation {
         id: flareAnim
@@ -258,8 +293,8 @@ Rectangle {
         }
     }
 
-    border.width: Agent.active || root.flare > 0 ? 2 : 1
-    border.color: Qt.tint(Agent.active ? Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.3 + 0.6 * root.glow) : (root.state === "notif" ? peekColor : Qt.rgba(Theme.muted.r, Theme.muted.g, Theme.muted.b, playing ? 0.5 : 0.25)), Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, root.flare))
+    border.width: root.working || root.flare > 0 ? 2 : 1
+    border.color: Qt.tint(root.working ? Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.3 + 0.6 * root.glow) : (root.state === "notif" ? peekColor : Qt.rgba(Theme.muted.r, Theme.muted.g, Theme.muted.b, playing ? 0.5 : 0.25)), Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, root.flare))
 
     // Outer glow while the agent works: two soft halo layers behind the pill
     // (negative z paints below the parent's own fill), swelling and fading on
@@ -292,7 +327,7 @@ Rectangle {
             height: root.height + halo.modelData.pad
             // Outer item owns the on/off fade, so the Behavior never sees the
             // per-frame breath and try to animate towards each frame's value.
-            opacity: Agent.active || root.flare > 0 ? 1 : 0
+            opacity: root.working || root.flare > 0 ? 1 : 0
             visible: opacity > 0
             Behavior on opacity {
                 NumberAnimation {
@@ -309,8 +344,8 @@ Rectangle {
                 // The breath only counts while working (after finish, `glow`
                 // strands mid-cycle); the flare adds on top, brighter and wider
                 // than any breath so the edge of the work reads as an event.
-                readonly property real breath: Agent.active ? root.glow : 0
-                opacity: Math.min(1, halo.modelData.alpha * ((Agent.active ? 0.4 : 0) + 0.6 * breath + 1.6 * root.flare))
+                readonly property real breath: root.working ? root.glow : 0
+                opacity: Math.min(1, halo.modelData.alpha * ((root.working ? 0.4 : 0) + 0.6 * breath + 1.6 * root.flare))
                 transform: Scale {
                     origin.x: halo.width / 2
                     origin.y: halo.height / 2
@@ -394,6 +429,18 @@ Rectangle {
             visible: Shelf.count > 0
             text: Icons.shelf + " " + Shelf.count
             color: Theme.muted
+            font.family: Theme.fontMono
+            font.pixelSize: Theme.fontSize - 1
+        }
+        // Busy Claude sessions: the spark and how many, in the accent at the
+        // border's breath. The count is the whole message here — which ones
+        // is the popup's job (click) — so the clock keeps the stage.
+        Text {
+            anchors.verticalCenter: parent.verticalCenter
+            visible: Sessions.busy > 0
+            text: "✳ " + Sessions.busy
+            color: Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 1)
+            opacity: 0.55 + 0.45 * root.glow
             font.family: Theme.fontMono
             font.pixelSize: Theme.fontSize - 1
         }

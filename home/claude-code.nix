@@ -95,71 +95,23 @@ let
     printf "''${white}''${dir_display}''${reset}''${git_info} ''${purple}''${model_short}''${reset}''${context_info}''${cost}\n"
   '';
 
-  # Agent-pulse hook — the bar island's "✳ working" breath for interactive
-  # Claude Code sessions (headless automations pulse via lib/claude-script.nix
-  # instead, and pass their phrase through CLAUDEOS_AGENT_ACTIVITY, which the
-  # claude CLI's child processes — including this hook — inherit).
-  # begin on UserPromptSubmit, refresh (mtime) on every PostToolUse so turns
-  # longer than the bar's 60-min staleness backstop keep breathing, end on
-  # Stop/SessionEnd. Marker per session id, so concurrent sessions coexist.
-  # begin derives its phrase from the submitted prompt itself (UserPromptSubmit's
-  # JSON payload includes `.prompt`): the first four words go up instantly as a
-  # placeholder, then a backgrounded haiku call rewrites the marker with a
-  # bespoke 3-4 word summary a moment later. UserPromptSubmit hooks BLOCK the
-  # turn, so the LLM call must never run in the foreground; and the summarizer
-  # is itself a claude session whose hooks would recurse, so it exports
-  # CLAUDEOS_AGENT_SUMMARIZER and the hook mutes itself under that flag.
-  # The generic "working with Tom" fallback only fires when no prompt text is
-  # available at all.
+  # Claude Code → bar hook. Since 2026-11-08 this carries ONE signal, the
+  # "blocked on you" twinkle: the bar's Sonic plays it when a session asks a
+  # question or waits on a permission. Everything else the bar wants to know
+  # about interactive sessions — which exist, their titles, busy or idle — it
+  # reads from the files the app already publishes (~/.claude/sessions/
+  # <pid>.json, see home/quickshell/Sessions.qml). The per-prompt marker
+  # files and the haiku phrase summarizer this hook used to run were retired
+  # with that: an app title is stable where a per-prompt phrase churned, and
+  # several sessions no longer fight over one island phrase by mtime.
+  # Headless lanes still pulse through lib/claude-script.nix.
+  # begin/refresh/end are accepted as no-ops so a live settings.json that
+  # still carries the old stanzas (until the prune below runs) stays silent.
   agentHookScript = pkgs.writeShellScriptBin "claudeos-agent-hook" ''
-    [ -n "''${CLAUDEOS_AGENT_SUMMARIZER:-}" ] && exit 0
-    dir="''${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/claudeos-agent.d"
-    input=$(cat)
-    sid=$(printf '%s' "$input" | ${pkgs.jq}/bin/jq -r '.session_id // empty' 2>/dev/null)
-    [ -n "$sid" ] || exit 0
-    f="$dir/claude-$sid"
+    cat >/dev/null
     case "''${1:-}" in
-      begin)
-        mkdir -p "$dir"
-        activity="''${CLAUDEOS_AGENT_ACTIVITY:-}"
-        if [ -z "$activity" ]; then
-          activity=$(printf '%s' "$input" | ${pkgs.jq}/bin/jq -r '(.prompt // "") | [scan("\\S+")] | .[0:4] | join(" ")' 2>/dev/null)
-        fi
-        printf '%s\n' "''${activity:-working with Tom}" > "$f"
-        # Sharpen the placeholder asynchronously: a detached haiku call writes
-        # the bespoke phrase over the marker when it returns. Skipped when a
-        # curated phrase came in via CLAUDEOS_AGENT_ACTIVITY (headless lanes).
-        # The [ -f ] re-check keeps a slow summary from resurrecting a marker
-        # the Stop hook already removed (which would pin a ghost pill until
-        # the bar's 60-min backstop). Failures/timeouts leave the placeholder.
-        if [ -z "''${CLAUDEOS_AGENT_ACTIVITY:-}" ] && [ -x "$HOME/.local/bin/claude" ]; then
-          prompt=$(printf '%s' "$input" | ${pkgs.jq}/bin/jq -r '.prompt // empty' 2>/dev/null | head -c 1500)
-          if [ -n "$prompt" ]; then
-            (
-              export CLAUDEOS_AGENT_SUMMARIZER=1
-              summary=$(timeout 30 "$HOME/.local/bin/claude" -p "Summarize this request as a short activity phrase for a status pill: 3-4 words, present-participle verb first (like: fixing login bug / reviewing PR 58 / tuning bar colors). Output ONLY the phrase — no quotes, no punctuation, no markdown.
-
-    Request: $prompt" --model haiku --strict-mcp-config 2>/dev/null) || exit 0
-              # `claude -p` prints auth/API failures ("Failed to authenticate:
-              # …", "API Error: …") on STDOUT and exits non-zero, so the exit
-              # status gate above is what keeps an error out of the pill; the
-              # pattern check is a second fence for a failure reported with a
-              # zero exit. Either way the placeholder stays.
-              summary=$(printf '%s\n' "$summary" | head -n 1)
-              case "$summary" in
-                *"Failed to authenticate"* | *"API Error"* | *"Invalid API key"* | *"/login"*) exit 0 ;;
-              esac
-              [ -n "$summary" ] && [ -f "$f" ] && printf '%s\n' "$summary" > "$f"
-            ) </dev/null >/dev/null 2>&1 &
-          fi
-        fi
-        ;;
-      refresh) [ -f "$f" ] && touch "$f" ;;
-      # Blocked on the user mid-turn (a question, a permission): the bar's
-      # Sonic plays the "hello" twinkle. Detached so a missing/slow bar never
-      # holds the hook up.
+      # Detached so a missing/slow bar never holds the hook up.
       waiting) (${pkgs.quickshell}/bin/qs ipc call sonic waiting </dev/null >/dev/null 2>&1 &) ;;
-      end) rm -f "$f" ;;
     esac
     exit 0
   '';
@@ -169,27 +121,6 @@ let
   # session running before the rebuild that installs it) must never banner
   # the user or block a prompt.
   agentHooks = {
-    UserPromptSubmit = [
-      {
-        hooks = [
-          {
-            type = "command";
-            command = "claudeos-agent-hook begin 2>/dev/null || true";
-          }
-        ];
-      }
-    ];
-    PostToolUse = [
-      {
-        matcher = "*";
-        hooks = [
-          {
-            type = "command";
-            command = "claudeos-agent-hook refresh 2>/dev/null || true";
-          }
-        ];
-      }
-    ];
     # "Blocked on you": a question fires PreToolUse:AskUserQuestion the moment
     # it is asked; a permission or MCP elicitation dialog left unanswered for
     # 6 s fires a Notification of that type. (idle_prompt — a finished turn
@@ -212,26 +143,6 @@ let
           {
             type = "command";
             command = "claudeos-agent-hook waiting 2>/dev/null || true";
-          }
-        ];
-      }
-    ];
-    Stop = [
-      {
-        hooks = [
-          {
-            type = "command";
-            command = "claudeos-agent-hook end 2>/dev/null || true";
-          }
-        ];
-      }
-    ];
-    SessionEnd = [
-      {
-        hooks = [
-          {
-            type = "command";
-            command = "claudeos-agent-hook end 2>/dev/null || true";
           }
         ];
       }
@@ -308,6 +219,25 @@ in
     s="$HOME/.claude/settings.json"
     stamp="$HOME/.claude/claudeos-seeded-hooks"
     [ -e "$stamp" ] || : > "$stamp"
+    # Retire the marker hooks this seed planted before 2026-11-08 (begin /
+    # refresh / end): the per-hook seed never removes anything, so the live
+    # file keeps them until something does. Only stanzas whose command is
+    # exactly ours go; a user hook on the same event stays. An event left
+    # with no stanzas is dropped so Claude Code sees no empty list.
+    if [ -e "$s" ] && ${pkgs.jq}/bin/jq -e '
+        [.hooks // {} | .[][]? | .hooks[]? | .command // ""]
+        | any(test("^claudeos-agent-hook (begin|refresh|end) "))' "$s" >/dev/null 2>&1; then
+      if ${pkgs.jq}/bin/jq '
+          .hooks |= (to_entries
+            | map(.value |= (map(.hooks |= map(select((.command // "") | test("^claudeos-agent-hook (begin|refresh|end) ") | not)))
+                              | map(select(.hooks | length > 0))))
+            | map(select(.value | length > 0))
+            | from_entries)' "$s" > "$s.tmp" 2>/dev/null; then
+        $DRY_RUN_CMD mv "$s.tmp" "$s"
+      else
+        rm -f "$s.tmp"
+      fi
+    fi
     if [ -e "$s" ]; then
       if ${pkgs.jq}/bin/jq --slurpfile h ${agentHooksJson} --rawfile seen "$stamp" '
           ($seen | split("\n")) as $seen

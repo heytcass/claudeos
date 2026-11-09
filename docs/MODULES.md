@@ -330,7 +330,7 @@ Jasper, the personal-companion **lane** (`claude-os.jasper`, enabled by default)
 
 - **Poll (every 30 min during waking hours, configurable `schedule`):** a `oneshot` user service runs dumb collectors — weather (wttr.in) and calendar (gcalcli, if connected) — then a bash **significance gate** decides whether anything changed (hash of the day's stable weather + labelled agenda) or a morning/midday/evening heartbeat is due.
 - **One call, one insight:** only when the gate fires does a single `claude -p` **sonnet** call (riding the Claude subscription — **no dedicated API key**) synthesize ONE warm, ownership-aware sentence ("Alex has soccer," never "you have soccer"). Written to `~/.cache/claudeos-monitor/jasper-insight.txt` (the monitor-cache file contract).
-- **Face:** the `home/quickshell/Jasper.qml` singleton reads that file; the mood emoji joins the clock in the center island (`Island.qml`), and the sentence rides at the top of the calendar popup (`CalendarPopup.qml`) — one tap, one dropdown. One thing, never a feed.
+- **Face:** the `home/quickshell/Jasper.qml` singleton reads that file; the mood emoji joins the clock in the center island (`Island.qml`), the sentence rides at the top of the calendar popup (`CalendarPopup.qml`) — one tap, one dropdown — and when a fresh insight lands while the bar is up, the sentence peeks through the island once like a notification. One thing, never a feed. Interactive Claude sessions no longer take the face over (2026-11-08): they show as a "✳ N" busy count beside the clock (`Sessions.qml`, from `~/.claude/sessions/*.json`), list by app title in the popup, and only a session busy for more than 90 s is promoted to the face with its title. Headless lanes keep the agent face with their curated phrase (`Agent.qml`).
 - **Never touches `graphical-session.target`** — a plain `timers.target` oneshot, so the retired daemon's greeter-killing boot loop cannot recur.
 - **Calendar bootstrap (one-time, interactive):** `gcalcli init` with the Google OAuth client from sops (`jasper_google_client_id`/`secret`); until then it runs weather-only and never invents events.
 
@@ -464,6 +464,7 @@ Claude Code configuration, two-ring style: Nix SEEDS the config once, then the l
 - **Seeded settings:** statusline, globally-enabled plugins (github, learning-output-style, telegram), permissions, env
 - **Seeded MCP servers:** `nixos` (mcp-nixos via `nix run`), `system-health` (`mcp-system-health` binary)
 - **Statusline:** installed as a stable `claude-statusline` command on PATH (so the seeded settings never point at a GC-able store path); reads the Stylix palette for a themed status bar showing directory, git info, model, context usage, and cost estimate
+- **Hooks (`claudeos-agent-hook`):** merged into the live `settings.json` per (event, matcher, command) on every activation. Since 2026-11-08 only the *waiting* twinkle remains (PreToolUse `AskUserQuestion`, Notification `permission_prompt|elicitation_dialog` → `qs ipc call sonic waiting`). The per-prompt `begin`/`refresh`/`end` marker hooks and the haiku activity-phrase summarizer were retired: the bar now reads the app's own `~/.claude/sessions/<pid>.json` (title + busy/idle) through `home/quickshell/Sessions.qml`. The activation prunes the retired stanzas from the live file once
 
 ### home/shell/default.nix
 
