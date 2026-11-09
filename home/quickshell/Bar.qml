@@ -37,8 +37,27 @@ PanelWindow {
     implicitHeight: (Theme.barHeight - 6) + floatGap * 2
     color: "transparent"
 
+    // Tell the region tool where the three islands sit on this monitor, so it
+    // can hover, click and snap to them (see BarRegions.qml).
+    Component.onCompleted: BarRegions.register(modelData.name, [
+        {
+            label: "left",
+            item: leftPill
+        },
+        {
+            label: "island",
+            item: island
+        },
+        {
+            label: "right",
+            item: rightPill
+        }
+    ])
+    Component.onDestruction: BarRegions.unregister(modelData.name)
+
     // ---- left island ----
     Pill {
+        id: leftPill
         entranceDelay: 0
         anchors.left: parent.left
         anchors.leftMargin: Theme.edgeGap
@@ -55,11 +74,13 @@ PanelWindow {
 
     // ---- center: the adaptive island (clock ⇄ now-playing) ----
     Island {
+        id: island
         anchors.centerIn: parent
     }
 
     // ---- right island ----
     Pill {
+        id: rightPill
         entranceDelay: 180
         anchors.right: parent.right
         anchors.rightMargin: Theme.edgeGap

@@ -2,8 +2,8 @@
 // frozen first (grim to a file, shown full-screen), so menus and hover states
 // survive; then you pick the part you want and say what it's for.
 //
-//   hover + click   → take the window under the pointer
-//   drag            → a box; its edges snap to window and screen edges
+//   hover + click   → take the window (or bar island) under the pointer
+//   drag            → a box; its edges snap to window, island and screen edges
 //   C / Return      → copy the image
 //   S               → save it to ~/Pictures
 //   T               → grab the text in it (claude-grab-text, into the clipboard)
@@ -68,6 +68,9 @@ Scope {
     readonly property string pickKeys: (Keybinds.claude.find(k => k.global === "quickshell:pick")?.keys ?? ["Super", "Shift", "P"]).join("+")
     // The window a click took (its hyprctl object), null for a dragged box.
     property var pickedWin: null
+    // The bar's islands on the frozen monitor, snapshotted with the frame
+    // (BarRegions.qml) so they can be hovered, clicked and snapped to too.
+    property var barRects: []
 
     IpcHandler {
         target: "regionshot"
@@ -142,6 +145,7 @@ Scope {
         Hyprland.refreshToplevels();
         Hyprland.refreshMonitors();
         root.mon = (monName ? (Hyprland.monitors?.values ?? []).find(m => m.name === monName) : null) ?? Hyprland.focusedMonitor;
+        root.barRects = BarRegions.rectsFor(root.mon?.name ?? "");
         root.frozen = root.runDir + "/claudeos-freeze-" + Date.now() + ".png";
         freeze.command = ["grim", "-o", root.mon?.name ?? "", root.frozen];
         freeze.running = true;
@@ -180,18 +184,28 @@ Scope {
         }
     }
 
-    // Snap candidates: the windows on the frozen monitor's active workspace,
-    // topmost first (floating above tiled, then most recently focused), each
-    // as {r: rect relative to the monitor, o: its hyprctl object}.
+    // Snap candidates: the bar's islands, then the windows on the frozen
+    // monitor's active workspace, topmost first (floating above tiled, then
+    // most recently focused), each as {r: rect relative to the monitor, o: its
+    // hyprctl object — null for a bar island, which is a box, not a window}.
     readonly property var windowInfos: {
         const m = root.mon;
         if (!m || !root.shown)
             return [];
         const wid = m.activeWorkspace?.id;
-        return (Hyprland.toplevels?.values ?? []).filter(t => t.workspace?.id === wid).map(t => t.lastIpcObject ?? {}).filter(o => o.at && o.size).sort((a, b) => ((b.floating ? 1 : 0) - (a.floating ? 1 : 0)) || ((a.focusHistoryID ?? 99) - (b.focusHistoryID ?? 99))).map(o => ({
+        const wins = (Hyprland.toplevels?.values ?? []).filter(t => t.workspace?.id === wid).map(t => t.lastIpcObject ?? {}).filter(o => o.at && o.size).sort((a, b) => ((b.floating ? 1 : 0) - (a.floating ? 1 : 0)) || ((a.focusHistoryID ?? 99) - (b.focusHistoryID ?? 99))).map(o => ({
                     r: Qt.rect(o.at[0] - m.x, o.at[1] - m.y, o.size[0], o.size[1]),
                     o: o
                 }));
+        // The bar sits on the Top layer, above tiled and floating windows —
+        // but a true fullscreen window (bit 2 of `fullscreen`) covers it, and
+        // then the islands aren't in the frame to pick.
+        if (wins.some(w => ((w.o.fullscreen ?? 0) & 2) !== 0))
+            return wins;
+        return root.barRects.map(b => ({
+                    r: b.r,
+                    o: null
+                })).concat(wins);
     }
     readonly property var windows: root.windowInfos.map(w => w.r)
     function windowInfoAt(x, y) {
