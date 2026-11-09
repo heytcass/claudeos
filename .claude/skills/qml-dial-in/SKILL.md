@@ -45,6 +45,11 @@ faking it in the QML:
 - **notification peek / toast**: `gdbus call --session --dest org.freedesktop.Notifications --object-path /org/freedesktop/Notifications --method org.freedesktop.Notifications.Notify "App" 0 "" "Summary" "Body" "[]" "{}" 5000`
 - **agent pulse**: `echo "any phrase" > "$XDG_RUNTIME_DIR/claudeos-agent.d/manual"`
   (remove to clear; the island shows the file's first line).
+- **session count / promoted face**: driven by `~/.claude/sessions/*.json`
+  (`Sessions.qml`). Your own session is always busy while you work, so the
+  clock face shows at least "✳ 1" and, after 90 s, promotes your session's
+  title to the face. To see the plain clock face, raise `promoteAfter` in
+  the `/tmp/qs-preview/Sessions.qml` copy and relaunch `qs -p`.
 
 ### 4. Iterate
 Tweak, re-run `qml-preview`, re-review. Keep the loop tight — seconds, not a

@@ -13,6 +13,10 @@
 // (e.g. a monitoring loop — or this probe itself), pinning the pulse on.
 // NB: comm is kernel-truncated to 15 chars, and nixos-rebuild-ng's wrapper
 // shows as ".nixos-rebuild-" — hence the regex, not a literal name.
+//
+// Interactive Claude Code sessions are NOT in here since 2026-11-08: their
+// per-prompt marker hooks were retired and Sessions.qml reads the app's own
+// ~/.claude/sessions/<pid>.json instead. This file is for headless lanes.
 pragma Singleton
 import QtQuick
 import Quickshell

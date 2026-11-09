@@ -8,8 +8,9 @@ pragma Singleton
 // and each would otherwise play the same event once per screen.
 //
 // Moments:
-//   · agent start/finish — an agent joining/leaving Agent.agents, debounced by Motion.quick so
-//                          a flap never plays rise+fall back to back
+//   · agent start/finish — an id joining/leaving the working set (Agent.agents, the headless
+//                          lanes, plus Sessions.busyIds, the busy Claude sessions), debounced
+//                          by Motion.quick so a flap never plays rise+fall back to back
 //   · agent waiting      — the "hello" twinkle, via IPC from the Claude Code
 //                          hook when a session is blocked on you
 //   · notifications      — notify(urgency), called by Notifications.qml for
@@ -52,22 +53,20 @@ Singleton {
     // ---- agent ----
     // Per agent, not per machine (chosen 2026-10-28): with parallel Claude
     // sessions the machine is almost never idle, so whole-machine edges were
-    // near-silent. Each id joining Agent.agents is a start, each leaving is a
-    // finish — "a reply is ready" even while other sessions keep working.
+    // near-silent. Each id joining the working set is a start, each leaving is
+    // a finish — "a reply is ready" even while other sessions keep working.
+    // The set is the headless lanes (Agent.agents) plus the busy interactive
+    // sessions (Sessions.busyIds, from the app's own status files).
     // `sounded` is the set we last made a sound for; the first poll only
     // seeds it, so a bar restart doesn't announce agents it never saw begin.
     property var sounded: null
-    Connections {
-        target: Agent
-        function onAgentsChanged() {
-            agentSettle.restart();
-        }
-    }
+    readonly property var working: Agent.agents.concat(Sessions.busyIds)
+    onWorkingChanged: agentSettle.restart()
     Timer {
         id: agentSettle
         interval: Motion.quick
         onTriggered: {
-            const now = Agent.agents;
+            const now = root.working;
             const before = root.sounded;
             root.sounded = now;
             if (before === null)
