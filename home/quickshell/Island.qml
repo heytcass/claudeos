@@ -1,53 +1,31 @@
 // Island.qml — the adaptive center capsule (the bar's signature element).
-// A floating pill that MORPHS by context instead of being a static clock:
-//   · idle       → clock / date
-//   · media      → now-playing (spectrum + title/artist), width springs open
+// A floating pill that MORPHS by context instead of being a static clock — but
+// it speaks only for the time and for Claude (2026-11). Everything else it
+// used to carry moved to a surface that already existed: media to the right
+// pill's MediaWidget, notification peeks to toasts, the volume/brightness OSD
+// to the VolumeWidget, Jasper to a toast note + the calendar popup, the
+// shelf to its hotkey (Bar.qml). Three faces, highest priority first:
+//   · done       → an interactive session just finished a real turn
+//                  (Sessions.finished): a check and its title, for a moment
 //   · agent      → a headless lane is working on the machine (Agent.activity,
 //                  a curated phrase), or one interactive Claude session has
 //                  been busy long enough to be the thing you wait on
 //                  (Sessions.promoted, its app title). Busy sessions short of
 //                  that only add a spark + count to the clock face, so the
-//                  clock — and Jasper — stay the default (2026-11-08).
-//   · notif      → a new notification peeks inline for a few seconds, then
-//                  collapses back (takes priority over clock/media while shown);
-//                  peeks arriving mid-peek queue behind it with a "+N" badge
-//   · osd        → volume/brightness keys show their level for a moment (Osd.qml)
-// Click opens the media popup while playing, else the calendar/notification
-// centre. This is the deliberate break from the GNOME panel look.
+//                  clock stays the default (2026-11-08).
+//   · clock      → date and time, plus "✳ N" while sessions are busy
+// Click opens the calendar/notification centre. This is the deliberate break
+// from the GNOME panel look.
 import QtQuick
 import QtQuick.Effects
 import Quickshell
-import Quickshell.Services.Mpris
 
 Rectangle {
     id: root
 
-    // Active player: the one actually playing (first Playing MPRIS source).
-    readonly property var player: {
-        const ps = Mpris.players?.values ?? [];
-        return ps.find(p => p.playbackState === MprisPlaybackState.Playing) ?? null;
-    }
-    readonly property bool playing: player !== null
-
-    // Notification peek state (driven by Notifications.posted). One peek is
-    // shown; later ones wait in `peekQueue` (oldest first) instead of
-    // overwriting it, and the timer only runs while nobody is reading —
-    // hovering the island, or an OSD covering it, holds the current peek.
-    property bool peeking: false
-    property var peekQueue: []
-    readonly property bool peekHeld: hover.hovered || root.osdShown
-    property string peekTitle: ""
-    property string peekBody: ""
-    property int peekUrgency: 1
-    // Urgency → colour: the dot (and notif border) speak the severity.
-    readonly property color peekColor: peekUrgency === 2 ? Theme.urgent : peekUrgency === 0 ? Theme.muted : Theme.accent
-
-    // Face priority: a peek always wins (transient); media outranks agent —
-    // while music plays the agent keeps the breathing border but not the stage.
-    // The OSD outranks even a peek: it answers a key you just pressed.
-    // A drag hovering the island outranks everything: it's the user's hand,
-    // right now, asking "can I put this here?" (the Shelf drop face).
-    state: (dropArea.containsDrag || shelvedFlash) ? "drop" : osdShown ? "osd" : peeking ? "notif" : (playing ? "media" : root.agentFace ? "agent" : "clock")
+    // Face priority: a finished turn is news and brief, so it outranks the
+    // agent face; the agent face outranks the clock.
+    state: root.doneShown ? "done" : root.agentFace ? "agent" : "clock"
 
     // Only the island on the FOCUSED output animates — see BarFocus.qml for
     // why (one QSGRenderThread per monitor, all breathing the same pulse).
@@ -73,133 +51,31 @@ Rectangle {
             name: "clock"
         },
         State {
-            name: "media"
-        },
-        State {
             name: "agent"
         },
         State {
-            name: "notif"
-        },
-        State {
-            name: "osd"
+            name: "done"
         }
     ]
 
+    // Done face: Sessions.finished names a session whose turn just ended
+    // after real work. Every island shows it, each on its own hold timer; the
+    // face is static (no shimmer, no spin), so there is nothing to gate on
+    // focus. A second finish mid-hold replaces the title and restarts the hold.
+    property bool doneShown: false
+    property string doneName: ""
     Connections {
-        target: Notifications
-        function onPosted(summary, body, appName, urgency) {
-            const n = {
-                summary: summary,
-                body: body,
-                appName: appName,
-                urgency: urgency
-            };
-            if (root.peeking)
-                root.peekQueue = root.admitPeek(root.peekQueue, n);
-            else
-                root.showPeek(n);
-        }
-    }
-
-    // Queue policy: given the waiting peeks (oldest first) and a new one,
-    // return the new queue. Critical notifications never get here — they
-    // route to toasts (Notifications.qml route()) — so this only weighs
-    // normal/low FYIs.
-    //
-    // Two rules keep a flood calm:
-    //   · a burst from one app (a chat thread) collapses into ONE waiting
-    //     entry — the newest message, counting the ones it stands for;
-    //   · at most `peekQueueMax` entries wait; past that the OLDEST drops.
-    //     Everything is still in the notification centre — the peek is the
-    //     tell, not the record — so stale FYIs are the right thing to lose.
-    readonly property int peekQueueMax: 3
-    function admitPeek(queue, n) {
-        const last = queue.length > 0 ? queue[queue.length - 1] : null;
-        if (last && last.appName === n.appName) {
-            n.count = (last.count ?? 1) + 1;
-            return queue.slice(0, -1).concat([n]);
-        }
-        return queue.concat([n]).slice(-root.peekQueueMax);
-    }
-
-    function showPeek(n) {
-        root.peekTitle = n.summary;
-        // A collapsed burst says how many it stands for ahead of the newest body.
-        root.peekBody = (n.count ?? 1) > 1 ? n.count + " new · " + n.body : n.body;
-        root.peekUrgency = n.urgency;
-        root.peeking = true;
-        if (!root.peekHeld)
-            peekTimer.restart();
-    }
-    // Retire the current peek: the next waiting one takes its place, or the
-    // island collapses back. Both the timer and a tap land here.
-    function nextPeek() {
-        if (root.peekQueue.length > 0) {
-            const n = root.peekQueue[0];
-            root.peekQueue = root.peekQueue.slice(1);
-            root.showPeek(n);
-        } else {
-            root.peeking = false;
-        }
-    }
-    // Stopping and restarting a Timer resets it, so letting go of the island
-    // gives the peek a fresh five seconds rather than the remainder.
-    onPeekHeldChanged: {
-        if (root.peekHeld)
-            peekTimer.stop();
-        else if (root.peeking)
-            peekTimer.restart();
-    }
-    Timer {
-        id: peekTimer
-        interval: 5000
-        onTriggered: root.nextPeek()
-    }
-
-    // Jasper's peek: when a fresh insight lands, the sentence rides through
-    // the island once, the way a notification does, then the clock returns
-    // with the new emoji. What Jasper.qml reads on its first poll after a bar
-    // start is not news — only a change after that settles is (the poll is
-    // every 20 s, so a 30 s grace covers the first read).
-    property bool jasperSettled: false
-    Timer {
-        interval: 30000
-        running: true
-        onTriggered: root.jasperSettled = true
-    }
-    Connections {
-        target: Jasper
-        function onTextChanged() {
-            if (!root.jasperSettled || Jasper.text === "" || Jasper.stale || Jasper.sentence === "")
-                return;
-            const n = {
-                summary: Jasper.emoji + " Jasper",
-                body: Jasper.sentence,
-                appName: "jasper",
-                urgency: 1
-            };
-            if (root.peeking)
-                root.peekQueue = root.admitPeek(root.peekQueue, n);
-            else
-                root.showPeek(n);
-        }
-    }
-
-    // OSD: every island shows the level, each holding it on its own timer,
-    // restarted by every change so a held key keeps the face up.
-    property bool osdShown: false
-    Connections {
-        target: Osd
-        function onShown() {
-            root.osdShown = true;
-            osdTimer.restart();
+        target: Sessions
+        function onFinished(name) {
+            root.doneName = name;
+            root.doneShown = true;
+            doneTimer.restart();
         }
     }
     Timer {
-        id: osdTimer
-        interval: 1500
-        onTriggered: root.osdShown = false
+        id: doneTimer
+        interval: 4000
+        onTriggered: root.doneShown = false
     }
 
     implicitHeight: Theme.barHeight - 6
@@ -240,7 +116,7 @@ Rectangle {
     // Agent pulse: while ClaudeOS is working on itself (a rebuild/build), the
     // border breathes terracotta — the machine's "I'm alive and busy" tell.
     // Drives `pulse` 0→1→0; the border alpha follows it. Highest-priority border
-    // treatment (over notif/idle) because it's a persistent state, not transient.
+    // treatment (over idle) because it's a persistent state, not transient.
     property real pulse: 0
     // Everything visual reads `glow`, never `pulse` directly. A stopped
     // animation leaves its property wherever the last frame put it, so an
@@ -294,7 +170,7 @@ Rectangle {
     }
 
     border.width: root.working || root.flare > 0 ? 2 : 1
-    border.color: Qt.tint(root.working ? Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.3 + 0.6 * root.glow) : (root.state === "notif" ? peekColor : Qt.rgba(Theme.muted.r, Theme.muted.g, Theme.muted.b, playing ? 0.5 : 0.25)), Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, root.flare))
+    border.color: Qt.tint(root.working ? Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.3 + 0.6 * root.glow) : Qt.rgba(Theme.muted.r, Theme.muted.g, Theme.muted.b, 0.25), Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, root.flare))
 
     // Outer glow while the agent works: two soft halo layers behind the pill
     // (negative z paints below the parent's own fill), swelling and fading on
@@ -357,11 +233,12 @@ Rectangle {
     }
 
     // Width tracks the visible content; springs open/closed on morph. A real
-    // spring, not a duration+curve: when a peek interrupts a media morph the
-    // spring retargets carrying its current velocity, so back-to-back state
-    // flips flow into each other instead of restarting from rest.
+    // spring, not a duration+curve: when a finished turn interrupts an agent
+    // morph the spring retargets carrying its current velocity, so
+    // back-to-back state flips flow into each other instead of restarting
+    // from rest.
     implicitWidth: {
-        const w = state === "drop" ? dropContent.implicitWidth : state === "osd" ? osdContent.implicitWidth : state === "notif" ? notifContent.implicitWidth : state === "media" ? mediaContent.implicitWidth : state === "agent" ? agentContent.implicitWidth : clockContent.implicitWidth;
+        const w = state === "done" ? doneContent.implicitWidth : state === "agent" ? agentContent.implicitWidth : clockContent.implicitWidth;
         return w + 26;
     }
     Behavior on implicitWidth {
@@ -391,17 +268,6 @@ Rectangle {
                 easing.bezierCurve: Motion.curveStandard
             }
         }
-        // Jasper's mood emoji — the companion's whole bar presence. The
-        // sentence rides at the top of the calendar popup (one tap, one
-        // dropdown). Dimmed when the insight has gone stale.
-        Text {
-            anchors.verticalCenter: parent.verticalCenter
-            visible: Jasper.emoji !== ""
-            text: Jasper.emoji
-            opacity: Jasper.stale ? 0.5 : 1
-            font.family: Theme.fontSans
-            font.pixelSize: Theme.fontSize
-        }
         Text {
             id: clockLabel
             anchors.verticalCenter: parent.verticalCenter
@@ -409,28 +275,6 @@ Rectangle {
             color: Theme.text
             font.family: Theme.fontSans
             font.pixelSize: Theme.fontSize
-        }
-        // The context you're in (Phase 3), at low emphasis — the focused
-        // workspace is named after a saved context. Absent on numbered/scratch
-        // workspaces, so it only shows when you're actually inside one.
-        Text {
-            anchors.verticalCenter: parent.verticalCenter
-            visible: Contexts.activeName !== ""
-            text: "· " + Contexts.activeName
-            color: Theme.muted
-            font.family: Theme.fontSans
-            font.pixelSize: Theme.fontSize
-            font.italic: true
-        }
-        // The shelf's item count, at the same low emphasis — present only
-        // when the current shelf holds something. Right-click opens it.
-        Text {
-            anchors.verticalCenter: parent.verticalCenter
-            visible: Shelf.count > 0
-            text: Icons.shelf + " " + Shelf.count
-            color: Theme.muted
-            font.family: Theme.fontMono
-            font.pixelSize: Theme.fontSize - 1
         }
         // Busy Claude sessions: the spark and how many, in the accent at the
         // border's breath. The count is the whole message here — which ones
@@ -443,131 +287,6 @@ Rectangle {
             opacity: 0.55 + 0.45 * root.glow
             font.family: Theme.fontMono
             font.pixelSize: Theme.fontSize - 1
-        }
-    }
-
-    // ---- drop face: "Shelve to <context>" while a drag hovers ----
-    // The face is only the VISUAL; the DropArea below covers a fixed region of
-    // the bar, so the island can widen under the cursor without the drop
-    // target bouncing exit/enter (Phase 0 spike finding).
-    property bool shelvedFlash: false
-    property bool awaitingShelve: false
-    Timer {
-        id: shelvedTimer
-        interval: 1400
-        onTriggered: root.shelvedFlash = false
-    }
-    Connections {
-        target: Shelf
-        function onShelved(name) {
-            if (!root.awaitingShelve)
-                return;     // another monitor's island took this drop
-            root.awaitingShelve = false;
-            root.shelvedFlash = true;
-            shelvedTimer.restart();
-            if (!Sonic.mediaPlaying)
-                Sonic.play("notif-low");
-        }
-        function onAddFailed(reason) {
-            root.awaitingShelve = false;    // the CLI already notified why
-        }
-    }
-
-    Row {
-        id: dropContent
-        anchors.centerIn: parent
-        spacing: 9
-        opacity: root.state === "drop" ? 1 : 0
-        visible: opacity > 0
-        Behavior on opacity {
-            NumberAnimation {
-                duration: Motion.quick
-                easing.type: Easing.BezierSpline
-                easing.bezierCurve: Motion.curveStandard
-            }
-        }
-        Text {
-            anchors.verticalCenter: parent.verticalCenter
-            text: Icons.shelf
-            color: root.shelvedFlash ? Theme.good : Theme.accent
-            font.family: Theme.fontMono
-            font.pixelSize: Theme.iconSize
-        }
-        Text {
-            anchors.verticalCenter: parent.verticalCenter
-            text: root.shelvedFlash ? "Shelved" : "Shelve to"
-            color: Theme.text
-            font.family: Theme.fontSans
-            font.pixelSize: Theme.fontSize
-        }
-        Text {
-            anchors.verticalCenter: parent.verticalCenter
-            visible: !root.shelvedFlash
-            text: Shelf.targetName
-            color: Theme.accent
-            font.family: Theme.fontSans
-            font.pixelSize: Theme.fontSize
-            font.italic: true
-            font.bold: true
-        }
-    }
-
-    // Route a drop to the right `claudeos-shelf add` kind. Order is from the
-    // spike's source table: image bytes first (never trust uri-list on an
-    // image drag — on a linked image it names the PAGE), then an <img src>
-    // when there's no text, then local files, then a web url, then text.
-    function shelveDrop(drop) {
-        const fmts = drop.formats || [];
-        for (const f of fmts) {
-            let m = f.match(/^application\/octet-stream;\s*name="?[^"]*\.(png|jpe?g|webp|gif|avif)"?$/i) || f.match(/^image\/(png|jpeg|webp|gif|avif)$/i);
-            if (!m)
-                continue;
-            const buf = drop.getDataAsArrayBuffer(f);
-            if (buf && buf.byteLength > 0) {
-                Shelf.addImageBytes(buf, m[1].toLowerCase().replace("jpeg", "jpg"));
-                return true;
-            }
-        }
-        if (!drop.hasText && drop.hasHtml) {
-            const m = drop.html.match(/<img[^>]+src="(https?:[^"]+)"/i);
-            if (m) {
-                Shelf.add("image", m[1].replace(/&amp;/g, "&"));
-                return true;
-            }
-        }
-        const urls = (drop.urls || []).map(u => u.toString());
-        const files = urls.filter(u => u.startsWith("file://"));
-        if (files.length) {
-            for (const u of files)
-                Shelf.add("file", decodeURIComponent(u.slice(7)));
-            return true;
-        }
-        const web = urls.find(u => /^https?:\/\//.test(u));
-        if (web) {
-            Shelf.add("link", web);
-            return true;
-        }
-        const t = (drop.text || "").trim();
-        if (t !== "") {
-            Shelf.add(/^https?:\/\/\S+$/.test(t) ? "link" : "text", t);
-            return true;
-        }
-        return false;
-    }
-
-    DropArea {
-        id: dropArea
-        // Fixed-size, centred on the bar — NOT the pill, which resizes.
-        parent: root.parent
-        width: 640
-        height: parent ? parent.height : Theme.barHeight
-        anchors.centerIn: parent
-        onEntered: drag => drag.accept(Qt.CopyAction)
-        onDropped: drop => {
-            if (root.shelveDrop(drop)) {
-                root.awaitingShelve = true;
-                drop.accept(Qt.CopyAction);
-            }
         }
     }
 
@@ -645,8 +364,8 @@ Rectangle {
             }
 
             // The bright copy, revealed only where the mask band is opaque.
-            // Hidden-source + layered-mask is the pattern the album-art disc
-            // below already uses, so it is known good against this Qt build.
+            // Hidden-source + layered-mask is the pattern the island's old
+            // album-art disc used, so it is known good against this Qt build.
             Text {
                 id: peakText
                 text: shimmer.shown
@@ -659,7 +378,7 @@ Rectangle {
 
             // Stencil, not palette: only this subtree's ALPHA is read, so the
             // white/transparent stops are a mask ramp rather than a colour
-            // choice (same role as the album-art `artMask` rectangle).
+            // choice.
             Item {
                 id: shimmerMask
                 anchors.fill: parent
@@ -708,132 +427,14 @@ Rectangle {
         }
     }
 
-    // ---- now-playing face ----
+    // ---- done face: a session's turn just ended ----
+    // Static on purpose: the agent face's motion means "working"; this is the
+    // still beat after it. The title is cut like the agent phrase.
     Row {
-        id: mediaContent
-        anchors.centerIn: parent
-        spacing: 10
-        opacity: root.state === "media" ? 1 : 0
-        visible: opacity > 0
-        Behavior on opacity {
-            NumberAnimation {
-                duration: Motion.quick
-                easing.type: Easing.BezierSpline
-                easing.bezierCurve: Motion.curveStandard
-            }
-        }
-
-        // Inline album art — a coin-sized disc; the popup keeps the big one.
-        // A Rectangle's radius doesn't clip children, so the circle is cut by
-        // a MultiEffect mask (QtQuick.Effects) fed by a hidden round stencil.
-        Item {
-            anchors.verticalCenter: parent.verticalCenter
-            width: root.height - 10
-            height: width
-            visible: (root.player?.trackArtUrl ?? "") !== ""
-
-            Image {
-                id: artImage
-                anchors.fill: parent
-                source: root.player?.trackArtUrl ?? ""
-                fillMode: Image.PreserveAspectCrop
-                asynchronous: true
-                visible: false
-            }
-            Rectangle {
-                id: artMask
-                anchors.fill: parent
-                radius: width / 2
-                visible: false
-                layer.enabled: true
-            }
-            MultiEffect {
-                anchors.fill: parent
-                source: artImage
-                maskEnabled: true
-                maskSource: artMask
-            }
-        }
-        Spectrum {
-            anchors.verticalCenter: parent.verticalCenter
-            height: root.height - 8
-            bars: 14
-            active: root.playing
-        }
-        Column {
-            anchors.verticalCenter: parent.verticalCenter
-            spacing: 0
-            // Long titles scroll (pause → drift to the end → pause → snap back)
-            // instead of eliding; short ones sit still.
-            Item {
-                id: titleClip
-                clip: true
-                width: Math.min(titleText.implicitWidth, 260)
-                height: titleText.implicitHeight
-                Text {
-                    id: titleText
-                    text: root.player?.trackTitle ?? ""
-                    color: Theme.text
-                    font.family: Theme.fontSans
-                    font.pixelSize: Theme.fontSize
-                    font.bold: true
-                    readonly property real overflow: Math.max(0, implicitWidth - titleClip.width)
-                    onTextChanged: x = 0
-                    SequentialAnimation on x {
-                        running: titleText.overflow > 0 && root.state === "media"
-                        loops: Animation.Infinite
-                        // Marquee choreography — reading pauses and a pixel-rate scroll, not
-                        // motion vocabulary, so these stay literal rather than Motion tokens.
-                        PauseAnimation {
-                            duration: 2000
-                        }
-                        NumberAnimation {
-                            to: -titleText.overflow
-                            duration: Math.max(1200, titleText.overflow * 28)
-                            easing.type: Easing.Linear
-                        }
-                        PauseAnimation {
-                            duration: 1400
-                        }
-                        NumberAnimation {
-                            to: 0
-                            duration: Motion.standard
-                            easing.type: Easing.BezierSpline
-                            easing.bezierCurve: Motion.curveStandard
-                        }
-                    }
-                }
-            }
-            Text {
-                text: root.player?.trackArtist ?? ""
-                color: Theme.subtext
-                font.family: Theme.fontSans
-                font.pixelSize: Theme.fontSize - 2
-                width: Math.min(implicitWidth, 260)
-                elide: Text.ElideRight
-                visible: text.length > 0
-            }
-        }
-        // Music never costs you the time — demoted, as on the agent face.
-        Text {
-            anchors.verticalCenter: parent.verticalCenter
-            text: Qt.formatDateTime(clock.date, "h:mm AP")
-            color: Theme.subtext
-            font.family: Theme.fontSans
-            font.pixelSize: Theme.fontSize - 2
-        }
-    }
-
-    // ---- notification peek face ----
-    // A glanceable one-liner — pulsing urgency dot · bold title · muted body —
-    // on a single baseline, so it sits centred in the pill like the clock and
-    // agent faces instead of squeezing two lines into a single-line-tall island.
-    // The full text lives in the notification centre; the peek is just the tell.
-    Row {
-        id: notifContent
+        id: doneContent
         anchors.centerIn: parent
         spacing: 9
-        opacity: root.state === "notif" ? 1 : 0
+        opacity: root.state === "done" ? 1 : 0
         visible: opacity > 0
         Behavior on opacity {
             NumberAnimation {
@@ -842,119 +443,20 @@ Rectangle {
                 easing.bezierCurve: Motion.curveStandard
             }
         }
-
-        // pulsing dot marks it as a live alert, coloured by urgency
-        Rectangle {
+        Text {
             anchors.verticalCenter: parent.verticalCenter
-            width: 7
-            height: 7
-            radius: 3.5
-            color: root.peekColor
-            SequentialAnimation on opacity {
-                running: root.state === "notif"
-                loops: Animation.Infinite
-                NumberAnimation {
-                    to: 0.35
-                    duration: Motion.pulse
-                    easing.type: Easing.BezierSpline
-                    easing.bezierCurve: Motion.curveBreathe
-                }
-                NumberAnimation {
-                    to: 1
-                    duration: Motion.pulse
-                    easing.type: Easing.BezierSpline
-                    easing.bezierCurve: Motion.curveBreathe
-                }
-            }
+            text: Icons.check
+            color: Theme.good
+            font.family: Theme.fontMono
+            font.pixelSize: Theme.iconSize
         }
         Text {
             anchors.verticalCenter: parent.verticalCenter
-            text: root.peekTitle
+            text: root.doneName.length > 42 ? root.doneName.slice(0, 41) + "…" : root.doneName
             color: Theme.text
             font.family: Theme.fontSans
             font.pixelSize: Theme.fontSize
-            font.bold: true
-            elide: Text.ElideRight
-            width: Math.min(implicitWidth, 220)
-        }
-        Text {
-            anchors.verticalCenter: parent.verticalCenter
-            visible: text.length > 0
-            text: root.peekBody
-            color: Theme.subtext
-            font.family: Theme.fontSans
-            font.pixelSize: Theme.fontSize - 1
-            elide: Text.ElideRight
-            width: Math.min(implicitWidth, 300)
-        }
-        // How many more are waiting behind this one.
-        Text {
-            anchors.verticalCenter: parent.verticalCenter
-            visible: root.peekQueue.length > 0
-            text: "+" + root.peekQueue.length
-            color: Theme.muted
-            font.family: Theme.fontSans
-            font.pixelSize: Theme.fontSize - 2
-            font.bold: true
-        }
-    }
-
-    // ---- OSD face: glyph · level bar · percent ----
-    Row {
-        id: osdContent
-        anchors.centerIn: parent
-        spacing: 9
-        opacity: root.state === "osd" ? 1 : 0
-        visible: opacity > 0
-        Behavior on opacity {
-            NumberAnimation {
-                duration: Motion.quick
-                easing.type: Easing.BezierSpline
-                easing.bezierCurve: Motion.curveStandard
-            }
-        }
-        readonly property bool dim: Osd.muted || Osd.level === 0
-
-        Text {
-            anchors.verticalCenter: parent.verticalCenter
-            width: Theme.iconSize + 2
-            horizontalAlignment: Text.AlignHCenter
-            font.family: Theme.fontMono
-            font.pixelSize: Theme.iconSize
-            color: osdContent.dim ? Theme.muted : Theme.accent
-            text: Osd.kind === "brightness" ? Icons.brightness : Osd.muted ? Icons.volumeMute : Osd.level > 0.5 ? Icons.volumeHigh : Icons.volumeLow
-        }
-        Rectangle {
-            anchors.verticalCenter: parent.verticalCenter
-            width: 120
-            height: 4
-            radius: 2
-            color: Qt.rgba(Theme.muted.r, Theme.muted.g, Theme.muted.b, 0.35)
-            Rectangle {
-                anchors.left: parent.left
-                anchors.verticalCenter: parent.verticalCenter
-                width: Osd.level * parent.width
-                height: parent.height
-                radius: parent.radius
-                color: osdContent.dim ? Theme.muted : Theme.accent
-                Behavior on width {
-                    NumberAnimation {
-                        duration: Motion.instant
-                        easing.type: Easing.BezierSpline
-                        easing.bezierCurve: Motion.curveStandard
-                    }
-                }
-            }
-        }
-        // Fixed width so 9% → 10% → 100% doesn't jiggle the spring.
-        Text {
-            anchors.verticalCenter: parent.verticalCenter
-            width: 34
-            horizontalAlignment: Text.AlignRight
-            text: Osd.muted ? "mute" : Math.round(Osd.level * 100) + "%"
-            color: osdContent.dim ? Theme.muted : Theme.text
-            font.family: Theme.fontSans
-            font.pixelSize: Theme.fontSize - 1
+            font.italic: true
         }
     }
 
@@ -962,48 +464,10 @@ Rectangle {
         id: hover
     }
     TapHandler {
-        onTapped: {
-            if (root.state === "osd")
-                root.osdShown = false;          // tap clears the OSD early
-            else if (root.state === "notif")
-                root.nextPeek();                // tap dismisses → next waiting
-            else if (root.state === "media")
-                mediaPopup.visible = !mediaPopup.visible;
-            else
-                calPopup.visible = !calPopup.visible;
-        }
+        onTapped: calPopup.visible = !calPopup.visible
     }
-    // Right-click, in any state, opens the shelf (the hotkey drives the same
-    // Shelf.popupOpen flag).
-    TapHandler {
-        acceptedButtons: Qt.RightButton
-        onTapped: Shelf.popupOpen = !Shelf.popupOpen
-    }
-
-    // The flag is global; only the island on the focused monitor shows it.
-    Connections {
-        target: Shelf
-        function onPopupOpenChanged() {
-            shelfPopup.visible = Shelf.popupOpen && root.onFocusedScreen;
-        }
-    }
-    ShelfPopup {
-        id: shelfPopup
-        // one per bar, so pin it to this island's monitor
-        screen: root.QsWindow.window?.screen ?? null
-        // Click-away (its HyprlandFocusGrab) hides the window directly; fold that back
-        // into the flag so the next hotkey press opens rather than no-ops.
-        onVisibleChanged: if (!visible)
-            Shelf.popupOpen = false
-    }
-
     CalendarPopup {
         id: calPopup
         anchorItem: root
-    }
-    MediaPopup {
-        id: mediaPopup
-        anchorItem: root
-        player: root.player
     }
 }

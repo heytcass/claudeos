@@ -1,4 +1,4 @@
-// Spectrum.qml — a compact audio equalizer for the island's now-playing state.
+// Spectrum.qml — a compact audio equalizer for the right pill's MediaWidget.
 // Renders `levels` (an array of 0..1 values) as animated terracotta bars, driven
 // by REAL audio: cava captures the default output and streams normalized bar
 // heights (one frame per line, ';'-separated) which we parse here. cava only
@@ -32,9 +32,20 @@ Item {
             splitMarker: "\n"
             onRead: line => {
                 const parts = line.split(";");
+                // cava.conf fixes the band count (14); a narrower strip folds
+                // neighbouring bands together, loudest winning, rather than
+                // keeping only the first N — which would be all bass.
+                const n = parts[parts.length - 1] === "" ? parts.length - 1 : parts.length;
                 let a = [];
                 for (let i = 0; i < root.bars; i++) {
-                    const v = Number(parts[i]);
+                    const lo = Math.floor(i * n / root.bars);
+                    const hi = Math.max(lo + 1, Math.floor((i + 1) * n / root.bars));
+                    let v = NaN;
+                    for (let j = lo; j < hi && j < n; j++) {
+                        const x = Number(parts[j]);
+                        if (!isNaN(x) && (isNaN(v) || x > v))
+                            v = x;
+                    }
                     a.push(isNaN(v) ? 0 : Math.min(1, v / 1000));
                 }
                 root.levels = a;

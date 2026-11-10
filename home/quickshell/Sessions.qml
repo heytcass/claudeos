@@ -14,8 +14,9 @@ pragma Singleton
 // Headless lanes are a different thing — they still pulse through Agent.qml /
 // Presence.qml with a curated phrase and own the island's agent face. These
 // sessions only get a spark-and-count on the clock face, a listing in the
-// calendar popup, and — when one has been busy long enough to be the thing
-// you are waiting on — a promotion to the face with its title.
+// calendar popup, a promotion to the agent face with their title once one
+// has been busy long enough to be the thing you are waiting on, and — when a
+// real turn ends — the island's brief "done" face (`finished`).
 import QtQuick
 import Quickshell
 import Quickshell.Io
@@ -37,6 +38,17 @@ Singleton {
     // title does not churn like a marker's mtime did. "" when none qualifies.
     readonly property int promoteAfter: 90000
     property string promoted: ""
+
+    // A turn that was worth waiting on just ended: fired from commit() for a
+    // session busy at the previous poll that is now idle or gone, after at
+    // least `finishAfter` of work (a quick reply is not news). The island
+    // shows it as its "done" face.
+    signal finished(string name)
+    readonly property int finishAfter: 20000
+    // pid → {since, name} for the sessions busy at the previous poll; `since`
+    // is when that busy stretch began. Empty until the first poll commits, so
+    // the first poll after a bar start can never fire `finished`.
+    property var _busyStart: ({})
 
     // One probe per poll: "S<json>" per live session, then "END". The shell
     // only filters and concatenates; QML parses, as in Presence.qml.
@@ -82,6 +94,22 @@ Singleton {
         if (ids.join("\n") !== root.busyIds.join("\n"))
             root.busyIds = ids;
         const now = Date.now();
+        const prev = root._busyStart;
+        const nowBusy = {};
+        for (const s of list)
+            if (s.status === "busy")
+                nowBusy[s.pid] = {
+                    since: prev[s.pid]?.since ?? s.since,
+                    name: s.name
+                };
+        root._busyStart = nowBusy;
+        for (const pid in prev) {
+            if (nowBusy[pid] !== undefined || now - prev[pid].since < root.finishAfter)
+                continue;
+            // Still listed (now idle) → its current title; gone → the last one seen.
+            const cur = list.find(s => String(s.pid) === pid);
+            root.finished(cur ? cur.name : prev[pid].name);
+        }
         const long = list.filter(s => s.status === "busy" && now - s.since > root.promoteAfter).sort((a, b) => a.since - b.since);
         const next = long.length > 0 ? long[0].name : "";
         if (next !== root.promoted)

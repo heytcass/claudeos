@@ -1,8 +1,10 @@
+pragma Singleton
 // Agent.qml — "what is ClaudeOS doing to itself right now?" signal for the island.
 // The protocol (writer helpers in lib/claude-script.nix: claudeos_agent_begin):
 // automations drop a per-process file into $XDG_RUNTIME_DIR/claudeos-agent.d/
 // whose first line is the activity phrase — "healing …", "preparing the morning
-// desk" — and the island shows the newest one. Files older than 60 min are
+// desk" — and the island's agent face shows the newest one, prefixed
+// "N lanes ·" when several run. Files older than 60 min are
 // ignored (a killed -9 writer can't pulse forever). The legacy single marker
 // file $XDG_RUNTIME_DIR/claudeos-agent still works for quick manual use, and
 // rebuilds are detected by process as a fallback so plain `nixos-rebuild`/`nh`
@@ -17,7 +19,6 @@
 // Interactive Claude Code sessions are NOT in here since 2026-11-08: their
 // per-prompt marker hooks were retired and Sessions.qml reads the app's own
 // ~/.claude/sessions/<pid>.json instead. This file is for headless lanes.
-pragma Singleton
 import QtQuick
 import Quickshell
 import Quickshell.Io

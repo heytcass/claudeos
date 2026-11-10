@@ -255,7 +255,7 @@ Scope {
             // zenity prompt, still Super+A); pass the sentence straight through.
             Quickshell.execDetached(["claude-ask-desktop", t]);
             root.sent = true;
-            flight.start();               // the question flies into the island; the answer returns as a notification
+            flight.start();               // the question flies into the island; the answer returns as a toast
         } else if (r === "save") {
             // Snapshot the current workspace into a named context. Deterministic,
             // no model call — dismiss like the app/$cmd routes; the CLI toasts.

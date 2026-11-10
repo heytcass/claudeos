@@ -1,18 +1,26 @@
+pragma Singleton
 // Notifications.qml — the shell IS the notification daemon (replaces mako), and
 // since Phase 1b it is also the ROUTER + ARBITER. It owns
 // org.freedesktop.Notifications, so every notification flows through
 // onNotification, and the router resolves each to EXACTLY ONE live surface
 // (plus the history centre, always):
 //   · toast  — needs a decision now (Toasts.qml renders `tracked` server notifs)
-//   · peek   — ambient/FYI, glance and gone (Island.qml listens to `posted`)
+//   · peek   — ambient/FYI, glance and gone: now a short-lived toast too. It
+//              used to peek inside the center island, which since 2026-11
+//              speaks only for the time and for Claude; the route name stays
+//              so Routes.qml overrides keep meaning "an FYI, not a decision".
 //   · quiet  — FYI that shouldn't interrupt: held, then flushed as ONE summary
-//              peek at a boundary — leaving fullscreen, or returning from idle
+//              note at a boundary — leaving fullscreen, or returning from idle
 //   · ledger — lane work product; history centre only, no live surface
 // Routing is deterministic: explicit x-claudeos-dest hint → per-app override
 // table (Routes.qml) → urgency/actions default. Arbitration then adjusts
 // per-destination TIMING: while a window is fullscreen, non-Critical toasts
-// divert to the quiet queue (Critical punches through). Model output never
-// reaches here — it enters the bar only as the notification's own text.
+// and peeks divert to the quiet queue (Critical punches through). Model output
+// never reaches here — it enters the bar only as the notification's own text.
+//
+// Not everything the bar wants to say is a D-Bus notification: the quiet
+// flush and Jasper's fresh insight are the bar's own words. Those go through
+// announce() into `notes`, which Toasts.qml renders in the same stack.
 //
 // Verified live against Quickshell 0.3.0 (2026-07-18): `notify-send -u low`
 // surfaces as NotificationUrgency.Low (0), and client hints surface as plain JS
@@ -22,7 +30,6 @@
 // hypridle on-resume script poking a FileView-watched sentinel: in-process, no
 // filesystem watch, no Nix wiring — and the sentinel path was the piece that
 // never fired in the first arbitration attempt.
-pragma Singleton
 import QtQuick // ListModel
 import Quickshell
 import Quickshell.Hyprland // fullscreen boundary (rawEvent)
@@ -39,14 +46,53 @@ Singleton {
     // held FYIs awaiting a boundary flush; expose the count for any badge
     readonly property int quietCount: quietModel.count
 
-    // Fired for a peek — the center island listens and peeks it inline (Island.qml).
-    signal posted(string summary, string body, string appName, int urgency)
+    // The bar's own short notes ({uid, summary, body, urgency, at}) → toasts.
+    readonly property alias notes: noteModel
 
     ListModel {
         id: historyModel
     }
     ListModel {
         id: quietModel
+    }
+    ListModel {
+        id: noteModel
+    }
+
+    // ── Notes: the bar speaking for itself ─────────────────────────────────
+    // A card in the toast stack with no app behind it — no icon, no actions,
+    // not in history (what it summarises already is). Expiry lives here, not
+    // in Toasts.qml: every monitor renders the same model, and one owner
+    // means one removal rather than a race between per-screen timers.
+    property int _noteSeq: 0
+    readonly property int noteLife: 6000
+    function announce(summary, body, urgency) {
+        root._noteSeq += 1;
+        noteModel.append({
+            uid: root._noteSeq,
+            summary: summary,
+            body: body ?? "",
+            urgency: urgency ?? NotificationUrgency.Normal,
+            at: Date.now()
+        });
+    }
+    function dismissNote(uid) {
+        for (let i = 0; i < noteModel.count; i++)
+            if (noteModel.get(i).uid === uid) {
+                noteModel.remove(i);
+                return;
+            }
+    }
+    Timer {
+        interval: 500
+        repeat: true
+        running: noteModel.count > 0
+        onTriggered: {
+            const cutoff = Date.now() - root.noteLife;
+            for (let i = noteModel.count - 1; i >= 0; i--)
+                if (noteModel.get(i).at <= cutoff)
+                    noteModel.remove(i);
+        }
     }
 
     // ── Fullscreen boundary ────────────────────────────────────────────────
@@ -99,24 +145,25 @@ Singleton {
         return "peek";
     }
 
-    // Boundary flush: nothing held → no-op; one held FYI re-peeks as itself;
-    // several collapse into a single summary peek (tap opens the centre).
+    // Boundary flush: nothing held → no-op; one held FYI is announced as
+    // itself; several collapse into a single summary note pointing at the
+    // centre (which opens from the clock).
     function flushQuiet() {
         const n = quietModel.count;
         if (n === 0)
             return;
         if (n === 1) {
             const it = quietModel.get(0);
-            root.posted(it.summary, it.body, it.appName, it.urgency);
+            root.announce(it.summary, it.body, it.urgency);
         } else {
-            root.posted(n + " notifications while you were away", "tap to open the centre", "ClaudeOS", NotificationUrgency.Normal);
+            root.announce(n + " notifications while you were away", "click the clock to read them", NotificationUrgency.Normal);
         }
         console.log("[notif-router] flushed", n, "quiet notification(s)");
         quietModel.clear();
     }
 
     // The centre (CalendarPopup) opening IS the user looking at notifications —
-    // the held ones are already in history, so drop them without a summary peek.
+    // the held ones are already in history, so drop them without a summary note.
     function markQuietSeen() {
         if (quietModel.count > 0) {
             console.log("[notif-router] centre opened; cleared", quietModel.count, "quiet");
@@ -182,17 +229,13 @@ Singleton {
                 historyModel.remove(historyModel.count - 1);
 
             let dest = root.route(notif);
-            // Defer, don't drop: a would-be toast waits in the quiet queue while
-            // a window is fullscreen — except Critical, which always punches
-            // through immediately.
-            if (dest === "toast" && root.fullscreenActive && notif.urgency !== NotificationUrgency.Critical)
+            // Defer, don't drop: a would-be toast (a peek is one now) waits in
+            // the quiet queue while a window is fullscreen — except Critical,
+            // which always punches through immediately.
+            if ((dest === "toast" || dest === "peek") && root.fullscreenActive && notif.urgency !== NotificationUrgency.Critical)
                 dest = "quiet";
 
             switch (dest) {
-            case "toast":
-                notif.tracked = true; // Toasts.qml renders tracked notifs
-                Sonic.notify(notif.urgency);
-                break;
             case "quiet":
                 quietModel.append({
                     summary: summary,
@@ -204,9 +247,10 @@ Singleton {
                 break;
             case "ledger":
                 break; // lane work product; history centre only
-            case "peek":
+            case "toast":
+            case "peek": // a short-lived toast since the island stopped peeking
             default:
-                root.posted(summary, body, notif.appName, notif.urgency);
+                notif.tracked = true; // Toasts.qml renders tracked notifs
                 Sonic.notify(notif.urgency);
                 break;
             }
