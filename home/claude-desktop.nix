@@ -41,6 +41,14 @@ in
       # to prevent. Same reasoning, same knob as the wifi-undock-reconcile unit
       # in modules/common/networking.nix.
       StartLimitIntervalSec = 0;
+
+      # Never restart on a switch. This app hosts every Claude Code session
+      # on the machine, including the one that ran the switch: on 2026-11-10
+      # a claude-desktop-linux bump made home-manager's sd-switch stop it
+      # mid-`claudeos-land`, killing that session, the land script and the
+      # phone sessions. The running app keeps going on its old store path.
+      # The new build starts on the next quit (Restart=always) or login.
+      X-RestartIfChanged = false;
     };
 
     Service = {
@@ -66,6 +74,13 @@ in
       # for a bad reason.
       Restart = "always";
       RestartSec = 5;
+
+      # Electron doesn't exit on SIGTERM here: the 2026-11-10 stop sat out
+      # systemd's full 90s default before SIGKILL, and that wait blocked
+      # everything queued behind it (logout, or a switch if the knob above
+      # is ever removed). The long wait saved nothing, since it ended in
+      # SIGKILL anyway, so give up after 10s.
+      TimeoutStopSec = 10;
     };
 
     Install.WantedBy = [ "graphical-session.target" ];

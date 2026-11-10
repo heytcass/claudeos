@@ -119,6 +119,17 @@ in
   # Enable NetworkManager for easy network management
   networking.networkmanager.enable = true;
 
+  # Restart NetworkManager in one step on a switch instead of the default
+  # stop-before-activation / start-after. With stopIfChanged (the default)
+  # the radio stays down for the whole middle of switch-to-configuration,
+  # including the synchronous home-manager-tom restart. 2026-11-10: a lock
+  # bump changed the unit, home-manager then stalled 90s on claude-desktop,
+  # and wifi was down 10:58:24 → 11:00:10. wpa_supplicant, restarted in
+  # place in the same switch, was back within a second. Upstream's
+  # module sets neither knob; its ExecStop is trivial, so running the new
+  # one against the old daemon (the "less correct" case) costs nothing.
+  systemd.services.NetworkManager.stopIfChanged = false;
+
   # Scan with the real MAC. NixOS defaults this on, and on the QCA6174
   # (ath10k, "Killer 1435") per-scan MAC randomization is a known way to wedge
   # the scan state machine: 2026-08-07 08:21:46–08:27:20 the radio was up and
