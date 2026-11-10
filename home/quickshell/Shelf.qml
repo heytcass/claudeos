@@ -237,7 +237,8 @@ Singleton {
         }
     }
 
-    // --- the hotkey (lib/keybindings.nix: Super+Ctrl+S → quickshell:shelf) ---
+    // --- the global (lib/keybindings.nix "Open shelf": no key since 2026-11 —
+    // the summon sets popupOpen directly; the global stays for user binds) ---
     GlobalShortcut {
         appid: "quickshell"
         name: "shelf"

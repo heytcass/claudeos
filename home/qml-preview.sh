@@ -7,8 +7,20 @@
 # running bar, launches the preview, and grabs a screenshot. The next
 # `nixos-rebuild` restores the real bar. Must run inside the Hyprland session.
 #
-# Usage: qml-preview [screenshot-path]   (default /tmp/qs-preview.png)
+# Usage: qml-preview [--build] [screenshot-path]   (default /tmp/qs-preview.png)
+#
+# --build: start from the checkout's OWN generated config dir instead of the
+# deployed one — builds just `xdg.configFile.quickshell.source` for this host
+# (seconds when warm). Needed whenever a change touches a GENERATED file
+# (Keybinds.qml from lib/keybindings.nix, Theme.qml, CardActions.qml…), which
+# the deployed copy only has as of the last switch.
 set -uo pipefail
+
+build=0
+if [[ "${1:-}" == "--build" ]]; then
+  build=1
+  shift
+fi
 
 # The checkout you stand in (a session worktree) wins over the shared one —
 # previewing ~/.config/claudeos from a worktree shows the wrong QML.
@@ -30,6 +42,13 @@ fi
 if pgrep -x hyprlock >/dev/null 2>&1; then
   echo "qml-preview: hyprlock is up — grim would capture the lock screen, not the bar. Unlock first." >&2
   exit 1
+fi
+if [[ $build == 1 ]]; then
+  attr="$root#nixosConfigurations.$(hostname).config.home-manager.users.$USER.xdg.configFile.quickshell.source"
+  deployed=$(nix build --no-link --print-out-paths "$attr") || {
+    echo "qml-preview: building the quickshell config dir failed ($attr)" >&2
+    exit 1
+  }
 fi
 [ -d "$deployed" ] || { echo "qml-preview: no deployed config at $deployed" >&2; exit 1; }
 

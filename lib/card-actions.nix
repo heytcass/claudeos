@@ -16,7 +16,7 @@
     label = "Open the morning desk";
     command = [ "claudeos-desk-open" ];
   };
-  # Opens the Super+W overlay in reply mode for the latest wish
+  # Opens the wish overlay in reply mode for the latest wish
   # (WishOverlay.qml's `wish` IPC target); the typed reply goes to
   # `claude-wish --reply`, which resumes that wish's agent session.
   wish-reply = {

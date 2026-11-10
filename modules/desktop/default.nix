@@ -47,7 +47,7 @@ in
     '')
 
     # Hide unwanted .desktop entries from launchers, desktop-agnostic (GNOME
-    # Shell and fuzzel read the same entries). ONLY system-installed packages
+    # Shell and the summon read the same entries). ONLY system-installed packages
     # belong here: hides work by hiPrio collision within one profile, so an
     # override in the system profile CANNOT mask a home-managed package —
     # per-user profiles precede /run/current-system/sw in XDG_DATA_DIRS and

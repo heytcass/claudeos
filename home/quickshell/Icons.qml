@@ -44,6 +44,19 @@ Singleton {
     readonly property string close: String.fromCharCode(0xf00d)
     readonly property string check: String.fromCharCode(0xf00c)
 
+    // summon action glyphs — named by lib/keybindings.nix `icon`
+    readonly property string camera: String.fromCharCode(0xf030)
+    readonly property string crosshairs: String.fromCharCode(0xf05b)
+    readonly property string question: String.fromCharCode(0xf059)
+    readonly property string font: String.fromCharCode(0xf031)
+    readonly property string paste: String.fromCharCode(0xf0ea)
+    readonly property string magic: String.fromCharCode(0xf0d0)
+    readonly property string image: String.fromCharCode(0xf03e)
+    readonly property string terminal: String.fromCharCode(0xf120)
+    readonly property string comment: String.fromCharCode(0xf075)
+    readonly property string eye: String.fromCharCode(0xf06e)
+    readonly property string search: String.fromCharCode(0xf002)
+
     // metadata-tag glyphs (Notifications.clean)
     readonly property string ci: String.fromCharCode(0xf126)       // code-fork
     readonly property string sessions: String.fromCharCode(0xf0c0) // users

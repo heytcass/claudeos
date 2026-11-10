@@ -156,7 +156,7 @@ System packages, hardware, and kernel tuning.
 - Basic: `vim`, `micro`, `wget`, `curl`, `htop`, `tree`, `file`, `unzip`, `zip`, `pciutils`, `usbutils`
 - Network: `dig`, `traceroute`
 - Nix dev: `nixfmt`, `statix`, `deadnix`, `nixd` (flake-aware Nix LSP; replaced unmaintained `nil`), `nvd` (closure diffs), `nix-output-monitor` (nom)
-- Scripts: `claude-quick` (Super+C), `claude-ask-desktop` (Super+A, zenity prompt), `claude-screenshot` (Super+Shift+A), `claude-screenshot-interactive` (Super+Ctrl+A) — bound via Hyprland keybindings (generated from `lib/keybindings.nix` in `home/hyprland.nix`)
+- Scripts: `claude-quick` (Super+C), `claude-ask-desktop` (summon `ask`; zenity prompt when run bare), `claude-screenshot` (summon `screenshot`), `claude-screenshot-interactive` (summon `screenshot terminal`) — actions in the registry `lib/keybindings.nix`, which generates the Hyprland binds (`home/hyprland.nix`) and the summon's list (Super+Space, `home/quickshell/Summon.qml`)
 - `supabase-cli` (Open Brain deployments)
 
 **System configuration:**

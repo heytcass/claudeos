@@ -202,7 +202,7 @@
 
       # The wish lane from the terminal: `wish "my machine should ..."` →
       # an agent writes the Nix, validates both hosts, opens a wish/* PR.
-      # Same command Super+W runs (claude-wish, modules/common/system.nix).
+      # Same command the summon's Wish row runs (claude-wish, modules/common/system.nix).
       wish = ''
         if test (count $argv) -eq 0
           echo 'Usage: wish "describe what this machine should do"'

@@ -1,7 +1,7 @@
 # modules/apps/intent.nix — `claudeos-intent`: the haiku router + task lane that
-# sit behind the intent line's "otherwise" arm (Phase 2b).
+# sit behind the summon's "otherwise" arm (Phase 2b).
 #
-# The bar (home/quickshell/IntentLine.qml) resolves the easy cases with ZERO
+# The bar (home/quickshell/Summon.qml) resolves the easy cases with ZERO
 # model calls — a bare app name launches, `$cmd` opens a terminal, a question
 # answers as a notification. Only genuinely ambiguous input (a real sentence
 # that matched none of those) reaches this script, which spends ONE haiku call
@@ -149,7 +149,7 @@ in
             ;;
           cmd)
             # a held-open terminal so the command's output stays readable — the
-            # same shape as the intent line's deterministic $cmd route.
+            # same shape as the summon's deterministic $cmd route.
             exec ghostty -e bash -lc "$payload"'; echo; echo "[press enter to close]"; read'
             ;;
           app)

@@ -1,5 +1,6 @@
-// WishOverlay.qml — the wish lane's face. SUPER+W summons a centered prompt
-// (Hyprland: `bind = $mod, W, global, quickshell:wish`); type a wish, Enter
+// WishOverlay.qml — the wish lane's face. The summon's Wish row (Super+Space,
+// "wish") opens a centered prompt via open(); the `quickshell:wish` global
+// still toggles it for anyone who binds it. Type a wish, Enter
 // hands it to claude-wish (modules/common/system.nix), which returns as a
 // wish/* PR announced by notification and the bar's ProposalsWidget. Carries
 // the island's agent-glow language: breathing accent border, soft halo,
@@ -16,19 +17,24 @@ Scope {
     // Reply mode: the wish card's Reply button (`qs ipc call wish reply`, the
     // `wish-reply` entry in lib/card-actions.nix) opens this same prompt
     // aimed at the latest wish; Enter hands it to `claude-wish --reply`,
-    // which resumes that wish's agent session. Super+W always opens a fresh wish.
+    // which resumes that wish's agent session. The summon always opens a fresh wish.
     property bool replying: false
     property string replyTo: ""
+
+    // A fresh wish prompt. The summon's Wish row calls this directly (no
+    // keybind of its own since 2026-11); the global stays so scripts and a
+    // user bind can still reach it.
+    function open() {
+        root.sent = false;
+        root.replying = false;
+        root.shown = true;
+    }
 
     GlobalShortcut {
         appid: "quickshell"
         name: "wish"
         description: "Make a wish — the OS writes itself a PR"
-        onPressed: {
-            root.sent = false;
-            root.replying = false;
-            root.shown = !root.shown;
-        }
+        onPressed: root.shown ? (root.shown = false) : root.open()
     }
 
     IpcHandler {

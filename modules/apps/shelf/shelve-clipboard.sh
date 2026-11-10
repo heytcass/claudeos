@@ -1,4 +1,4 @@
-# claudeos-shelve-clipboard (Super+S) — put whatever is on the clipboard on
+# claudeos-shelve-clipboard (summon: "shelve") — put whatever is on the clipboard on
 # the active shelf. The clipboard's own MIME types pick the kind: an image is
 # kept by value, a uri-list becomes a file (file://) or a link (http/https),
 # and anything else is text, unless the text is a single bare URL.

@@ -10,7 +10,7 @@ pragma Singleton
 //     workspace after the context slug, so the focused workspace's name IS the
 //     active context. No extra state file, no polling for it — it rides
 //     Hyprland's reactive focusedWorkspace binding.
-//   · contexts  → [{slug, name}] of everything saved, for the intent line's
+//   · contexts  → [{slug, name}] of everything saved, for the summon's
 //     `resume <name>` route to prefix-match against (so "resume the refi" knows
 //     it's a context and not a task). This IS polled — the manifest dir changes
 //     only on save/rm, so a lazy 12s cadence is plenty.
@@ -45,7 +45,7 @@ Singleton {
 
     // Resolve the text after "resume " to a context slug, or "" if it matches
     // none. Exact name/slug wins; otherwise a UNIQUE prefix (ambiguous → "",
-    // so the intent line leaves it as a task rather than guessing). The CLI
+    // so the summon leaves it as a task rather than guessing). The CLI
     // resolves independently too — this is only for the bar's route prediction.
     function resolveResume(text) {
         const q = (text || "").trim().toLowerCase();

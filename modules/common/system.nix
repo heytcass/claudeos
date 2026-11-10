@@ -44,7 +44,7 @@ in
       exec claude-desktop claude://code/new
     '')
 
-    # Screenshot → Claude analysis (notification, bound to Super+Shift+A)
+    # Screenshot → Claude analysis (notification, summon: "screenshot")
     (claudeLib.mkClaudeScriptBin {
       name = "claude-screenshot";
       runtimeInputs = [
@@ -63,7 +63,7 @@ in
       '';
     })
 
-    # Screenshot → Claude analysis (interactive terminal, bound to Super+Ctrl+A)
+    # Screenshot → Claude analysis (interactive terminal, summon: "screenshot terminal")
     (claudeLib.mkClaudeScriptBin {
       name = "claude-screenshot-interactive";
       runtimeInputs = [
@@ -80,7 +80,7 @@ in
 
     # Ask about a region (the Print region tool's "Ask Claude", RegionShot.qml)
     # — $1 is the cropped PNG, $2 the typed question (empty: just describe
-    # it). Opens the same one-shot terminal as Super+Ctrl+A; the image goes in
+    # it). Opens the same one-shot terminal as "Screenshot to terminal"; the image goes in
     # as data via Read, and the file is removed once the terminal closes.
     (claudeLib.mkClaudeScriptBin {
       name = "claude-ask-region";
@@ -158,7 +158,7 @@ in
       '';
     })
 
-    # Grab Text (bound to Super+T) — drag a region, and whatever text is
+    # Grab Text (summon: "grab") — drag a region, and whatever text is
     # inside it lands in the clipboard: screenshots in tweets, error dialogs
     # that won't select, code in videos. Live Text, but it's the OS reading
     # with its own eyes. The image goes to haiku as data; only the
@@ -193,7 +193,7 @@ in
       '';
     })
 
-    # The semantic clipboard (bound to Super+Shift+V) — transform whatever is
+    # The semantic clipboard (summon: "clipboard") — transform whatever is
     # in the clipboard and put the result straight back: fix grammar, make
     # concise, to shell command, to table, summarize, translate, or free-form.
     # Clipboard content is untrusted input (often from the web) — it only ever
@@ -248,10 +248,10 @@ in
       '';
     })
 
-    # Claude-powered desktop search (bound to Super+A). Takes an optional query
-    # as arguments: the intent line's ask route (home/quickshell/IntentLine.qml)
+    # Claude-powered desktop search (the summon's Ask row). Takes an optional query
+    # as arguments: the summon's ask route (home/quickshell/Summon.qml)
     # passes the sentence straight through, so it isn't re-prompted; with no
-    # arguments (Super+A) it opens its own zenity entry, unchanged.
+    # arguments it opens its own zenity entry, unchanged.
     (claudeLib.mkClaudeScriptBin {
       name = "claude-ask-desktop";
       runtimeInputs = [ pkgs.zenity ];
@@ -267,14 +267,14 @@ in
       '';
     })
 
-    # The wish lane (bound to Super+W; `wish` in fish) — natural language
+    # The wish lane (the summon's Wish row; `wish` in fish) — natural language
     # becomes a reviewed OS change. The founding insight, user-initiated: the
     # system is a repo, so "I wish my machine did X" reduces to an agent
     # writing the Nix for X and opening a wish/* PR. Trust ladder rung 1:
     # the agent only ever proposes; the human merges.
     #
     # Wishes are conversations, not one-shots: `claude-wish --reply TEXT`
-    # (the wish card's Reply button → Super+W in reply mode) resumes the
+    # (the wish card's Reply button → the wish prompt in reply mode) resumes the
     # latest wish's own agent session in its own worktree, so a revision
     # lands on the same PR with full context. Each wish keeps a record in
     # $STATE_DIR/wishes/<slug>.json (wish, branch, worktree, session, url,
