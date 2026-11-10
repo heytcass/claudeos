@@ -8,7 +8,8 @@
 //
 // Destinations:
 //   "toast"  — corner toast (Toasts.qml); needs a decision now
-//   "peek"   — island peek (Island.qml); ambient/FYI, glance and gone
+//   "peek"   — ambient/FYI, glance and gone: a short-lived toast (it was an
+//              island peek until 2026-11; the name stays so overrides hold)
 //   "quiet"  — held, flushed as one summary at a boundary (leave fullscreen /
 //              return from idle); FYI that shouldn't interrupt
 //   "ledger" — no live surface; it lands only in the history centre

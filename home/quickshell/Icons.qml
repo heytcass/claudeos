@@ -42,6 +42,7 @@ Singleton {
     readonly property string link: String.fromCharCode(0xf0c1)
     readonly property string quote: String.fromCharCode(0xf10d)
     readonly property string close: String.fromCharCode(0xf00d)
+    readonly property string check: String.fromCharCode(0xf00c)
 
     // metadata-tag glyphs (Notifications.clean)
     readonly property string ci: String.fromCharCode(0xf126)       // code-fork

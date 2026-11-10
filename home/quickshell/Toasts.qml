@@ -1,5 +1,8 @@
 // Toasts.qml — live notification popups, top-right, one stack per monitor.
 // Auto-expire (except Critical); click to dismiss; action buttons invoke.
+// Below the server's notifications sit the bar's own notes (Notifications.
+// announce: the quiet-queue flush, a fresh Jasper insight) — same card, no
+// icon, no actions; Notifications.qml expires them, a click dismisses.
 import QtQuick
 import QtQuick.Layouts
 import Quickshell
@@ -14,7 +17,7 @@ Variants {
         required property var modelData
         screen: modelData
 
-        visible: Notifications.list.values.length > 0
+        visible: Notifications.list.values.length > 0 || Notifications.notes.count > 0
         anchors {
             top: true
             right: true
@@ -138,6 +141,62 @@ Variants {
                                     }
                                 }
                             }
+                        }
+                    }
+                }
+            }
+
+            // The bar's own notes — the same card, minus icon and actions.
+            Repeater {
+                model: Notifications.notes
+
+                delegate: Rectangle {
+                    id: note
+                    required property int uid
+                    required property string summary
+                    required property string body
+                    required property int urgency
+                    Layout.fillWidth: true
+                    implicitHeight: ncol.implicitHeight + 20
+                    radius: 12
+                    color: Theme.bgGlass
+                    border.width: note.urgency === NotificationUrgency.Critical ? 2 : 1
+                    border.color: note.urgency === NotificationUrgency.Critical ? Theme.urgent : Theme.surface
+
+                    MouseArea {
+                        anchors.fill: parent
+                        acceptedButtons: Qt.LeftButton
+                        onClicked: Notifications.dismissNote(note.uid)
+                    }
+
+                    ColumnLayout {
+                        id: ncol
+                        anchors.left: parent.left
+                        anchors.right: parent.right
+                        anchors.verticalCenter: parent.verticalCenter
+                        anchors.margins: 10
+                        spacing: 2
+
+                        Text {
+                            Layout.fillWidth: true
+                            text: note.summary
+                            color: Theme.text
+                            font.family: Theme.fontSans
+                            font.bold: true
+                            font.pixelSize: 13
+                            elide: Text.ElideRight
+                        }
+                        Text {
+                            Layout.fillWidth: true
+                            visible: text !== ""
+                            text: note.body
+                            color: Theme.subtext
+                            font.family: Theme.fontSans
+                            font.pixelSize: 12
+                            textFormat: Text.StyledText
+                            wrapMode: Text.WordWrap
+                            maximumLineCount: 4
+                            elide: Text.ElideRight
                         }
                     }
                 }

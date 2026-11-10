@@ -212,9 +212,10 @@ let
         }
         EOF
 
-        # cava config for the island's audio spectrum (Spectrum.qml runs
+        # cava config for the bar's audio spectrum (Spectrum.qml runs
         # `cava -p cava.conf`). Raw ascii on stdout: `bars` values 0..1000 per line,
-        # ';'-separated, one frame per newline. bars here MUST match Spectrum.bars.
+        # ';'-separated, one frame per newline. Spectrum folds these bands down
+        # when it draws fewer bars (MediaWidget draws 8), never more.
         cat > "$out/cava.conf" <<'EOF'
         [general]
         mode = normal

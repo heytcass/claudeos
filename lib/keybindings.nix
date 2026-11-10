@@ -103,7 +103,7 @@
     global = "quickshell:shelf";
     display = "Super+Ctrl+S";
     help = "Open the shelf for the current context — click to open, right-click a tile for note/move/remove";
-    short = "Open the shelf (also: right-click the island)";
+    short = "Open the shelf";
   }
   {
     name = "Semantic clipboard";

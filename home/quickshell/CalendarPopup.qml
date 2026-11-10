@@ -10,8 +10,8 @@ PopupWindow {
     property Item anchorItem
 
     anchor.item: anchorItem
-    anchor.edges: Edges.Bottom | Edges.Left
-    anchor.gravity: Edges.Bottom | Edges.Right
+    anchor.edges: Edges.Bottom
+    anchor.gravity: Edges.Bottom
     anchor.margins.top: 6
 
     implicitWidth: 340
@@ -22,7 +22,7 @@ PopupWindow {
 
     // Opening the centre means the user is now looking at notifications, so any
     // held (quiet) FYIs are already visible in the history list below — drop
-    // them from the queue without a redundant summary peek (Phase 1b).
+    // them from the queue without a redundant summary note (Phase 1b).
     onVisibleChanged: if (visible)
         Notifications.markQuietSeen()
 
@@ -44,8 +44,8 @@ PopupWindow {
             spacing: 12
 
             // Jasper's insight — the one most important thing, above the day it
-            // was derived from. The island shows only the emoji; this is where
-            // the sentence lives.
+            // was derived from. This is where Jasper lives in the bar; a fresh
+            // insight is also announced once as a toast note (Jasper.qml).
             Rectangle {
                 Layout.fillWidth: true
                 visible: Jasper.text !== ""

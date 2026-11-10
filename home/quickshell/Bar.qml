@@ -1,7 +1,8 @@
 // Bar.qml — the ClaudeOS top bar, one PanelWindow per monitor.
 // No longer a strip: the window is transparent and hosts three floating islands
 // with wallpaper showing between them — left (workspaces · window),
-// center (the adaptive Island · Jasper's emoji), right (volume · network · battery · tray).
+// center (the adaptive Island: the time and Claude), right (media · volume ·
+// network · battery · tray).
 // Colors/fonts/metrics from Theme.
 import QtQuick
 import QtQuick.Layouts
@@ -72,10 +73,31 @@ PanelWindow {
         }
     }
 
-    // ---- center: the adaptive island (clock ⇄ now-playing) ----
+    // ---- center: the adaptive island (clock ⇄ agent ⇄ done) ----
     Island {
         id: island
         anchors.centerIn: parent
+    }
+
+    // The Shelf popup, opened by its hotkey (Shelf.popupOpen). It used to hang
+    // off the island, which also took drag-to-shelve drops and a right-click;
+    // both went with the island's slimming (2026-11), so shelving is the
+    // hotkeys only now. The flag is global; only the focused monitor's bar
+    // shows it.
+    Connections {
+        target: Shelf
+        function onPopupOpenChanged() {
+            shelfPopup.visible = Shelf.popupOpen && BarFocus.isFocused(bar);
+        }
+    }
+    ShelfPopup {
+        id: shelfPopup
+        // one per bar, so pin it to this bar's monitor
+        screen: bar.screen
+        // Click-away (its HyprlandFocusGrab) hides the window directly; fold that back
+        // into the flag so the next hotkey press opens rather than no-ops.
+        onVisibleChanged: if (!visible)
+            Shelf.popupOpen = false
     }
 
     // ---- right island ----
@@ -110,6 +132,10 @@ PanelWindow {
             // breakdowns. Hidden entirely when both are offline/no-data.
             ClaudeWidget {}
 
+            // Now playing — exists only while a player plays; click for
+            // the media popup.
+            MediaWidget {}
+            // Also the volume/brightness OSD: it widens briefly on Osd.shown.
             VolumeWidget {}
             NetworkWidget {}
             BluetoothWidget {}

@@ -5,8 +5,8 @@ pragma Singleton
 // the bar just reads undefined off the type reference.
 // Contexts.qml — the task-contexts model (Phase 3). One small singleton the bar
 // reads two ways:
-//   · activeName → the context you're currently IN, shown at low emphasis in the
-//     island's idle face. Derived, not stored: `restore` names the Hyprland
+//   · activeName → the context you're currently IN, which the Shelf uses as
+//     its target (it no longer shows on the island). Derived, not stored: `restore` names the Hyprland
 //     workspace after the context slug, so the focused workspace's name IS the
 //     active context. No extra state file, no polling for it — it rides
 //     Hyprland's reactive focusedWorkspace binding.

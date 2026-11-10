@@ -15,7 +15,9 @@ ShellRoot {
     // rather than lazily when a popup first reads it (which would drop any
     // notifications fired before then). Touch Presence too so its polls start
     // now rather than when the panel is first opened. Sonic listens for agent
-    // and OSD edges, so it must exist before the first one.
+    // and OSD edges, so it must exist before the first one. Jasper announces
+    // fresh insights itself, and nothing on screen reads it until the calendar
+    // popup does, so it is touched here too.
     Component.onCompleted: {
         Notifications.list;
         Presence.live;
@@ -23,6 +25,7 @@ ShellRoot {
         Contexts.contexts;
         Shelf.count;
         Sonic.dir;
+        Jasper.text;
     }
 
     // The living wallpaper, one per monitor on the background layer.

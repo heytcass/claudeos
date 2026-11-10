@@ -1,6 +1,7 @@
-// ShelfPopup.qml — the working-memory Shelf, dropped down from the island
-// (docs/plans/2026-10-28-working-memory-shelf.md, Phase 3). A grid of tiles for
-// the active context's shelf, ungrouped first, then each group under a header.
+// ShelfPopup.qml — the working-memory Shelf, dropped down from the top of the
+// focused screen by its hotkey; Bar.qml owns one per monitor
+// (docs/plans/2026-10-28-working-memory-shelf.md, Phase 3). A grid of tiles
+// for the active context's shelf, ungrouped first, then each group under a header.
 //   · click        → open it (file/link) or copy it (text/image) — Shelf.open
 //   · right-click  → actions below the grid: remove, note…, move to a context
 //   · drag a tile  → out into another app, COPY ONLY: file items are kept by
@@ -175,7 +176,7 @@ PanelWindow {
                 Layout.topMargin: 6
                 Layout.bottomMargin: 6
                 visible: Shelf.count === 0
-                text: "Nothing on this shelf yet. Drag something onto the island, or press Super+S to shelve the clipboard."
+                text: "Nothing on this shelf yet. Press Super+S to shelve the clipboard."
                 color: Theme.muted
                 wrapMode: Text.Wrap
                 horizontalAlignment: Text.AlignHCenter

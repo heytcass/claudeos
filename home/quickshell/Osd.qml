@@ -1,9 +1,9 @@
 pragma Singleton
-// Osd.qml — the level the island's OSD face shows (volume, brightness).
+// Osd.qml — the level the right pill's VolumeWidget flashes (volume, brightness).
 //
 // The media/brightness keys stay plain Hyprland exec binds (home/hyprland.nix)
 // so they keep working with the bar dead or the session locked; this singleton
-// only OBSERVES the result and asks every island to show it:
+// only OBSERVES the result and asks every bar's VolumeWidget to show it:
 //
 //   · volume     — the default sink's volume/mute, watched over Pipewire, so
 //                  the keys, the VolumeWidget's scroll and any app that moves
@@ -12,8 +12,10 @@ pragma Singleton
 //                  inotify), so the bind follows brightnessctl with
 //                  `qs ipc call osd brightness` and we read the level back.
 //
-// One singleton rather than per-island logic: an IpcHandler target must be
-// unique, and Bar.qml instantiates an island per monitor.
+// One singleton rather than per-widget logic: an IpcHandler target must be
+// unique, and Bar.qml instantiates a VolumeWidget per monitor. (Until 2026-11
+// this was a face of the center island; the island now speaks only for the
+// time and for Claude.)
 import QtQuick
 import Quickshell
 import Quickshell.Io
@@ -27,7 +29,7 @@ Singleton {
     property real level: 0
     property bool muted: false
     // Fired on every change, even a repeat of the same value (key held at
-    // 100%), so each island restarts its hold timer.
+    // 100%), so each VolumeWidget restarts its hold timer.
     signal shown
 
     function show(k, l, m) {

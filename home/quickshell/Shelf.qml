@@ -30,22 +30,24 @@ Singleton {
     readonly property int count: items.length
     readonly property string displayName: slug === "_loose" ? "loose" : name
 
-    // Where a drop or hotkey lands RIGHT NOW. Reactive (it rides Contexts'
-    // focused-workspace binding), so the drop face never shows a stale name
-    // between polls. The CLI derives the same target on its own.
+    // Where an add lands RIGHT NOW. Reactive (it rides Contexts'
+    // focused-workspace binding), so it never names a stale context between
+    // polls. The CLI derives the same target on its own.
     readonly property string targetName: Contexts.activeName || "loose"
 
     // The popup's open state lives here so the hotkey (a singleton-owned
-    // GlobalShortcut) and the Island's right-click drive one flag.
+    // GlobalShortcut) and the popup's own click-away drive one flag. Bar.qml
+    // shows the popup on the focused monitor.
     property bool popupOpen: false
 
     // The last CLI refusal (caps, a moved file…), for the popup to show. The
     // CLI already notifies; this just keeps the reason visible in place.
     property string lastError: ""
 
-    // Fired after an `add` the bar made succeeds, so the Island can flash
-    // "Shelved" and play its earcon only on a real success (addFailed otherwise —
-    // the CLI has already notified the reason).
+    // Fired after an `add` the bar made succeeds (addFailed otherwise — the
+    // CLI has already notified the reason). The island's drop target, which
+    // flashed "Shelved" on this, went with its slimming (2026-11); add() and
+    // addImageBytes() have no bar caller until a new drop surface exists.
     signal shelved(string target)
     signal addFailed(string reason)
 
