@@ -1,6 +1,7 @@
 // Bar.qml — the ClaudeOS top bar, one PanelWindow per monitor.
 // No longer a strip: the window is transparent and hosts three floating islands
-// with wallpaper showing between them — left (workspaces · window),
+// with wallpaper showing between them — left (workspace map: number + app
+// icon per workspace · focused window title),
 // center (the adaptive Island: the time and Claude), right (media · volume ·
 // network · battery · tray).
 // Colors/fonts/metrics from Theme.
