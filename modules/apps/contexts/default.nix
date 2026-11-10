@@ -1,7 +1,7 @@
 # modules/apps/contexts/default.nix — `claudeos-context`: named, durable,
 # git-tracked working contexts (Phase 3). A context is a text MANIFEST of a
 # workspace's tools and places (schema: ./context.schema.json); this CLI is the
-# save/restore/list/rm surface, and the intent line's `save as <name>` /
+# save/restore/list/rm surface, and the summon's `save as <name>` /
 # `resume <name>` routes shell out to it. The shared validate-write-commit
 # helpers (claudeos_context_install / _emit / _commit) live in
 # lib/claude-script.nix, so a lane that PREPARES a context and a human who saves
@@ -39,7 +39,7 @@ in
         # classes skipped entirely on save (transient overlays / self). The
         # empty alternative in SKIP matches a window with no class.
         TERM_CLASS_RE='ghostty'
-        SKIP_CLASS_RE='^(claude-quick|fuzzel|)$|Desk_today'
+        SKIP_CLASS_RE='^(claude-quick|)$|Desk_today'
 
         # Resolve a name (or unambiguous prefix) to an existing context slug.
         _resolve_slug() {

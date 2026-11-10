@@ -1,4 +1,4 @@
-# claudeos-shelve-region (Super+Shift+S) — drag a region and shelve it as an
+# claudeos-shelve-region (summon: "shelve region") — drag a region and shelve it as an
 # image, with the text in it attached as `ocr` so tidy (and search, later) can
 # read it. The OCR is the same haiku transcription claude-grab-text uses; the
 # image goes to the model as data and only the transcription comes back. If

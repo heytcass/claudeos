@@ -53,11 +53,16 @@ ShellRoot {
     Pin {}
 
     // Print: freeze the screen, pick a region, copy / save / read / ask Claude.
-    RegionShot {}
+    RegionShot {
+        id: regionTool
+    }
     Spotlight {} // "Claude points": `claudeos-spotlight` dims all but a target
 
-    // SUPER+W wish prompt — a sentence in, a wish/* PR out (its own overlay).
-    WishOverlay {}
+    // The wish prompt — a sentence in, a wish/* PR out (its own overlay).
+    // Opened from the summon's Wish row.
+    WishOverlay {
+        id: wishOverlay
+    }
 
     // Polkit authentication agent. Not keybound — it surfaces itself whenever
     // something asks for authorization. Lives in the bar's process on purpose:
@@ -65,9 +70,14 @@ ShellRoot {
     // by the time the bar exists the session variables are already exported.
     PolkitDialog {}
 
-    // SUPER+R intent line — one input that routes itself (app / $command /
-    // question? / wish), deterministically, with the route shown before commit.
-    IntentLine {}
+    // SUPER+Space summon — apps and every Claude action in one ranked list,
+    // plus the deterministic routes ($command / question? / save as / resume /
+    // task), each visible before Enter. It drives the wish prompt and the
+    // region tool directly, so it is handed both.
+    Summon {
+        wish: wishOverlay
+        regionShot: regionTool
+    }
 
     // The PR inbox — agent-authored PRs waiting for review. Opened from the
     // proposals glyph via Presence.panelOpen; its own overlay window.

@@ -3,8 +3,9 @@
 // Grouped by task, one accent colour per group (base16), keys as keycap chips:
 // modifiers quiet, the key that changes row to row in the group's colour, and
 // each column's descriptions aligned on one edge.
-// NOTE: the Claude section is GENERATED (Keybinds.claude, from
-// lib/keybindings.nix — edit there). The remaining sections hand-mirror the
+// NOTE: the Claude and summon sections are GENERATED (Keybinds.claude /
+// Keybinds.summon, from lib/keybindings.nix — edit there). The summon
+// (Super+Space) is in the Claude section: it is also the app launcher. The remaining sections hand-mirror the
 // compositor binds and gestures in home/hyprland.nix — keep those in sync when
 // binds change.
 import QtQuick
@@ -35,6 +36,14 @@ Scope {
                 // Generated from lib/keybindings.nix via the Keybinds.qml
                 // singleton (home/hyprland.nix) — in sync by construction.
                 items: Keybinds.claude
+            },
+            {
+                // Every other action has no key: it lives in the summon.
+                // Each row's chip is the word to type there. `?? []` keeps a
+                // preview built on an older deployed Keybinds.qml loading.
+                title: "Super+Space, then type",
+                color: Theme.base0E,
+                items: Keybinds.summon ?? []
             }
         ],
         [
@@ -45,10 +54,6 @@ Scope {
                     {
                         keys: ["Super", "Return"],
                         desc: "Terminal"
-                    },
-                    {
-                        keys: ["Super", "Space"],
-                        desc: "App launcher"
                     },
                     {
                         keys: ["Super", "Q"],

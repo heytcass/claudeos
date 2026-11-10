@@ -176,7 +176,7 @@ PanelWindow {
                 Layout.topMargin: 6
                 Layout.bottomMargin: 6
                 visible: Shelf.count === 0
-                text: "Nothing on this shelf yet. Press Super+S to shelve the clipboard."
+                text: "Nothing on this shelf yet. Super+Space, then “shelve”, puts the clipboard here."
                 color: Theme.muted
                 wrapMode: Text.Wrap
                 horizontalAlignment: Text.AlignHCenter

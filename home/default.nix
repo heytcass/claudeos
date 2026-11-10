@@ -116,7 +116,7 @@ in
   # this list: hides win by hiPrio collision within one profile, and per-user
   # profiles precede the system profile in XDG_DATA_DIRS — a system-level
   # hide can never mask an HM-installed package (btop and zathura were
-  # visible in fuzzel for weeks because their hides sat in the system list;
+  # visible in the launcher for weeks because their hides sat in the system list;
   # found 2026-07-11). System-installed hides: modules/desktop/default.nix.
   home.packages = [
     (hideDesktopEntries [

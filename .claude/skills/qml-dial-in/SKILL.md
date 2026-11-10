@@ -20,6 +20,8 @@ from here, so there's no separate "port back" step).
 ### 2. Fast-reload + screenshot
 ```bash
 qml-preview            # copies deployed config + overlays repo QML, relaunches, screenshots
+qml-preview --build    # same, but from THIS checkout's generated config dir (needed when
+                       # Keybinds.qml/Theme.qml/... change — the deployed copy predates you)
 ```
 It writes the shot to `/tmp/qs-preview.png` and **exits non-zero on a QML load
 error** (printing the offending file:line). If `qml-preview` isn't on PATH yet

@@ -2,8 +2,8 @@
 # Defines the `claudeos` Fish function: a workflow-oriented guide to all
 # Claude integrations, themed with the Stylix base16 palette.
 #
-# The desktop keybinding rows are GENERATED from lib/keybindings.nix (the
-# same list home/gnome.nix binds), so they cannot drift. The rest below
+# The desktop rows are GENERATED from lib/keybindings.nix (the action registry
+# home/hyprland.nix binds and the summon lists), so they cannot drift. The rest below
 # still hand-mirrors definitions elsewhere — keep in sync when changing:
 #   terminal commands   → home/shell/fish.nix (functions)
 #   Claude Code skills/MCP → home/claude-code.nix, .claude/
@@ -11,10 +11,17 @@
 { lib, ... }:
 
 let
+  actions = import ../lib/keybindings.nix;
+  # Entries with a key of their own (the summon first, then the three direct
+  # Claude keys), then every other action as "what you type in the summon".
   keybindingRows = lib.concatMapStrings (b: ''
     set_color $key; printf "    %-22s " "${b.display}"
     set_color $desc; echo "${b.help}"
-  '') (import ../lib/keybindings.nix);
+  '') (lib.filter (b: b ? binding) actions);
+  summonRows = lib.concatMapStrings (b: ''
+    set_color $key; printf "      %-20s " "${lib.head (b.keywords or [ (lib.toLower b.name) ])}"
+    set_color $desc; echo "${b.help}"
+  '') (lib.filter (b: !(b ? binding) && (b.summon or true)) actions);
 in
 {
   programs.fish.functions.claudeos = ''
@@ -48,6 +55,8 @@ in
         set_color normal
 
     ${keybindingRows}
+        set_color $dim; echo "    Super+Space, then type:"
+    ${summonRows}
         # Not an OS binding: Claude Desktop registers this global shortcut itself
         # (ring 2 — the app owns it, we just surface it)
         set_color $key; printf "    %-22s " "Ctrl+Alt+Space"
@@ -61,7 +70,7 @@ in
         set_color normal
 
         set_color $key; printf "    %-22s " 'ask "..."'
-        set_color $desc; echo "Quick answer right in your terminal (like Super+A but inline)"
+        set_color $desc; echo "Quick answer right in your terminal (like the summon's ask, but inline)"
         set_color $key; printf "    %-22s " "fix"
         set_color $desc; echo "Last command failed? Suggests the corrected version"
         set_color $key; printf "    %-22s " "explain"

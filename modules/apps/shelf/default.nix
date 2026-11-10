@@ -37,7 +37,7 @@ in
       + builtins.readFile ./claudeos-shelf.sh;
     })
 
-    # Capture hotkeys (lib/keybindings.nix: Super+S, Super+Shift+S). Both are
+    # Capture hotkeys (lib/keybindings.nix: summon "shelve", "shelve region"). Both are
     # thin front ends that pick a kind and call claudeos-shelf from PATH, so
     # validation and refusals stay in one place. Success is a low-urgency
     # notification, which also sounds Sonic's notif-low earcon.

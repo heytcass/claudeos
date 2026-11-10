@@ -84,7 +84,7 @@ PATH is configured in `home/shell/fish.nix` via `fish_add_path ~/.local/bin`.
 
 ### Unwanted Launcher Icons
 
-**Symptom:** CLI tools appear in the fuzzel launcher
+**Symptom:** CLI tools appear among the summon's apps (Super+Space)
 
 **Fix:** Hide via `hideDesktopEntries` (`NoDisplay=true` desktop entries) — user-level list in `home/default.nix` (wins for home-managed packages), system-level list in `modules/desktop/default.nix`.
 

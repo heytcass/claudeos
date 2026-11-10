@@ -69,7 +69,7 @@ After applying a new configuration:
 - [ ] System boots / services running
 - [ ] regreet greets and the "Hyprland (UWSM)" session loads (pick the UWSM entry — the plain one strands session services)
 - [ ] Wayland session active (`echo $XDG_SESSION_TYPE`)
-- [ ] Claude keybindings work (Super+C, Super+A)
+- [ ] Claude keybindings work (Super+C; Super+Space opens the summon with apps and Claude actions)
 - [ ] Audio works
 - [ ] Ghostty terminal launches
 - [ ] Fish shell with Starship prompt

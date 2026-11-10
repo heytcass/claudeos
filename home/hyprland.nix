@@ -7,8 +7,9 @@
 #
 # The bar is hand-authored QML under ./quickshell (the "build what I want, adopt
 # no one's desktop" choice); it is themed by a Colors.qml singleton generated
-# from the Stylix palette below. Companions (launcher/notifications/lock/idle/
-# wallpaper) are small tools that Stylix auto-themes.
+# from the Stylix palette below. The app launcher is the bar's own summon
+# (Super+Space, quickshell/Summon.qml). Companions (lock/idle/wallpaper) are
+# small tools that Stylix auto-themes.
 {
   lib,
   pkgs,
@@ -51,14 +52,13 @@ let
   # and mkLuaInline emits raw Lua. See lib.nix @ the pinned HM rev.
   inherit (lib.generators) mkLuaInline;
 
-  # These were hyprlang `$mod` / `$terminal` / `$launcher` variables. They
+  # These were hyprlang `$mod` / `$terminal` variables. They
   # CANNOT stay as settings keys: `"$mod" = …` would render `hl.$mod(…)` →
   # `<name> expected near '$'` (home-manager#9468, closed as not-planned since
   # it is a config-shape mismatch, not an HM bug). Plain Nix bindings are
   # simpler than Lua `_var` locals and Nix already interpolates them.
   mod = "SUPER";
   terminal = "ghostty";
-  launcher = "fuzzel";
 
   # Always build command strings through toJSON — it produces a correct Lua
   # string literal and escapes the embedded quotes in the screenshot and rfkill
@@ -79,12 +79,14 @@ let
     ];
   };
 
-  # Reuse THE keybinding source of truth — lib/keybindings.nix drives the GNOME
-  # dconf binds AND the claudeos help screen, so converting it here keeps
-  # Hyprland in sync by construction rather than duplicating the list.
-  # Each entry's `binding` is a GTK accelerator like "<Super><Shift>a"; convert
-  # to Hyprland's Lua `hl.bind("SUPER + SHIFT + A", hl.dsp.exec_cmd("…"))`.
-  claudeBinds = import ../lib/keybindings.nix;
+  # Reuse THE action registry — lib/keybindings.nix drives the claudeos help
+  # screen too, so converting it here keeps Hyprland in sync by construction
+  # rather than duplicating the list. Only entries with a `binding` get a key;
+  # the rest live in the summon (Super+Space) alone.
+  # Each `binding` is a GTK accelerator like "<Super><Shift>a"; convert to
+  # Hyprland's Lua `hl.bind("SUPER + SHIFT + A", hl.dsp.exec_cmd("…"))`.
+  claudeActions = import ../lib/keybindings.nix;
+  claudeBinds = lib.filter (b: b ? binding) claudeActions;
   modMap = {
     "Super" = "SUPER";
     "Shift" = "SHIFT";
@@ -94,12 +96,21 @@ let
   };
   bindTokens =
     b: lib.filter (s: s != "") (lib.splitString ">" (lib.replaceStrings [ "<" ] [ "" ] b.binding));
+  # The key itself: a letter is upper-cased ("c" → "C"); a named key keeps its
+  # xkb spelling with a capital ("space" → "Space"), the form the hand-written
+  # binds below use.
+  keyName =
+    k:
+    if lib.stringLength k == 1 then
+      lib.toUpper k
+    else
+      lib.toUpper (lib.substring 0 1 k) + lib.substring 1 (-1) k;
   toLuaBind =
     b:
     let
       tokens = bindTokens b;
       mods = map (m: modMap.${m} or (lib.toUpper m)) (lib.init tokens);
-      key = lib.toUpper (lib.last tokens);
+      key = keyName (lib.last tokens);
       # Lua joins modifiers and key with " + "; hyprlang used ", ".
       keys = lib.concatStringsSep " + " (mods ++ [ key ]);
       # An entry is either an exec bind (command) or a quickshell global.
@@ -107,15 +118,38 @@ let
     in
     mkBind keys action;
 
-  # The cheat sheet's Claude section, as data — CheatSheet.qml reads this from
-  # the generated Keybinds.qml singleton, so Super+H can never drift from the
-  # real binds again. JSON is a valid QML literal; toJSON does the escaping.
+  # Keybinds.qml's data, generated so Super+H and the summon can never drift
+  # from the registry. JSON is a valid QML literal; toJSON does the escaping.
+  #   claude  — the bound entries, as cheat-sheet rows ({keys, desc, global})
+  #   summon  — the unbound actions as cheat-sheet rows, keyed by what you
+  #             type in the summon (the entry's first keyword)
+  #   actions — everything the summon lists and runs (Summon.qml)
+  summonActions = lib.filter (b: b.summon or true) claudeActions;
   cheatEntries = builtins.toJSON (
     map (b: {
-      keys = lib.init (bindTokens b) ++ [ (lib.toUpper (lib.last (bindTokens b))) ];
+      keys = lib.init (bindTokens b) ++ [ (keyName (lib.last (bindTokens b))) ];
       desc = b.short or b.help;
       global = b.global or null;
     }) claudeBinds
+  );
+  summonEntries = builtins.toJSON (
+    map (b: {
+      keys = [ (lib.head (b.keywords or [ (lib.toLower b.name) ])) ];
+      desc = b.short or b.help;
+      global = b.global or null;
+    }) (lib.filter (b: !(b ? binding)) summonActions)
+  );
+  actionEntries = builtins.toJSON (
+    map (b: {
+      inherit (b) name help;
+      keywords = b.keywords or [ ];
+      icon = b.icon or "";
+      command = b.command or "";
+      global = b.global or "";
+      display = b.display or "";
+      capture = b.capture or false;
+      prompt = b.prompt or "";
+    }) summonActions
   );
 
   # One shared 4px rhythm: Hyprland's outer window gaps (general.gaps_out) and
@@ -181,11 +215,11 @@ let
         # and QML braces that a shell heredoc would be free to chew on.
         printf '%s' "$themeQml" > "$out/Theme.qml"
 
-        # Keybinds.qml — the Claude keybindings as data, generated from
+        # Keybinds.qml — the Claude action registry as data, generated from
         # lib/keybindings.nix (same source that drives the Hyprland binds and the
-        # claudeos help screen). CheatSheet.qml reads Keybinds.claude, so the
-        # Super+H cheat sheet stays in sync by construction. Edit the .nix, never
-        # this file.
+        # claudeos help screen). CheatSheet.qml reads `claude` + `summon` and
+        # Summon.qml reads `actions`, so Super+H and Super+Space stay in sync
+        # by construction. Edit the .nix, never this file.
         cat > "$out/Keybinds.qml" <<'EOF'
         pragma Singleton
         import Quickshell
@@ -193,6 +227,8 @@ let
 
         Singleton {
           readonly property var claude: ${cheatEntries}
+          readonly property var summon: ${summonEntries}
+          readonly property var actions: ${actionEntries}
         }
         EOF
 
@@ -480,24 +516,16 @@ in
           (anim "workspaces" "standard" "standard" { style = "slidefade 12%"; })
         ];
 
-      # The launcher (fuzzel, SUPER+Space — its layer namespace is `launcher`)
-      # isn't bar chrome: give it the windows' popin instead of the layers'
-      # plain fade, which flickered as fuzzel's first frames landed.
       layer_rule = [
-        {
-          name = "launcher-popin";
-          match.namespace = "^launcher$";
-          animation = motion.styles.popin;
-        }
         # Glass: blur behind the bar (Quickshell's surfaces carry the default
-        # namespace `quickshell`) and the launcher. ignore_alpha skips pixels
+        # namespace `quickshell`, the summon included). ignore_alpha skips pixels
         # below the threshold, so the bar layer's fully transparent gaps and
         # the island's faint halo glow don't drag a blurred rectangle along —
         # only the ~85% glass fills (Theme.glass) get frosted. blur_popups
         # covers the widgets' PopupWindows (xdg popups parented to the bar).
         {
           name = "shell-glass";
-          match.namespace = "^(quickshell|launcher)$";
+          match.namespace = "^quickshell$";
           blur = true;
           blur_popups = true;
           ignore_alpha = 0.5;
@@ -577,8 +605,8 @@ in
           rounding = 6; # matched to the tighter gaps (was 8)
 
           # Glass (2026-10-27, "shell only"): the blur exists for the bar's
-          # translucent surfaces (Theme.bgGlass, lib/theme.nix `glass`) and
-          # the launcher. Windows are opaque, so nothing else shows it. Two
+          # translucent surfaces (Theme.bgGlass, lib/theme.nix `glass`), the
+          # summon included. Windows are opaque, so nothing else shows it. Two
           # passes of a smaller kernel reads frosted rather than smeared;
           # xray off so a pill blurs the window under it, not just wallpaper.
           blur = {
@@ -795,7 +823,6 @@ in
 
         (mkBind "${mod} + Return" (mkExec terminal))
         (mkBind "${mod} + Q" (mkLuaInline "hl.dsp.window.close()"))
-        (mkBind "${mod} + Space" (mkExec launcher))
         (mkBind "${mod} + L" (mkExec "hyprlock"))
         (mkBind "${mod} + V" (mkLuaInline ''hl.dsp.window.float({ action = "toggle" })''))
         (mkBind "${mod} + F" (mkLuaInline "hl.dsp.window.fullscreen()"))
@@ -809,8 +836,8 @@ in
         (mkBind "${mod} + O" (mkGlobal "quickshell:pin"))
         # idle-inhibit hold (Caffeine.qml)
         (mkBind "${mod} + I" (mkGlobal "quickshell:caffeine"))
-        # Super+W (wish overlay) rides lib/keybindings.nix as a `global`
-        # entry, alongside the exec binds — one source of truth for all.
+        # Super+Space (the summon) and the three Claude keys ride
+        # lib/keybindings.nix — appended below from the action registry.
 
         # Focus with arrows — layout-independent (no vim h/j/k/l: the physical
         # keys don't land on the home row under Colemak, so they're not muscle
@@ -855,8 +882,8 @@ in
         # absent under Lua — an unmodified key stands alone.
         (mkBind "Print" (mkGlobal "quickshell:regionshot"))
         # Shift+Print: the old instant grab — whole screen straight to a file,
-        # grim only, no Claude hand-off (contrast with Super+Shift+A /
-        # Super+Ctrl+A in lib/keybindings.nix, which analyze the capture).
+        # grim only, no Claude hand-off (contrast with the summon's "screenshot" /
+        # "screenshot terminal" actions in lib/keybindings.nix, which analyze it).
         (mkBind "SHIFT + Print" (
           mkExec "grim \"$HOME/Pictures/Screenshot_$(date +%Y%m%d-%H%M%S).png\" && notify-send 'Screenshot saved' \"$HOME/Pictures\""
         ))
@@ -949,16 +976,9 @@ in
   xdg.configFile."quickshell".source = qsConfig;
 
   # Light companions — Stylix auto-themes those with targets (autoEnable is on).
-  programs.fuzzel = {
-    enable = true;
-    # dpi-aware's default `auto` means DPI sizing whenever every monitor is at
-    # scale 1 — and a fresh layer surface doesn't know its monitor yet, so
-    # fuzzel's first frame rendered at a guessed DPI (giant text + an orange
-    # border block), then re-rendered on wl_surface.enter. A visible flash on
-    # every SUPER+Space, caught on a 100fps recording 2026-10-27. Scale-based
-    # sizing is identical on all outputs, so frame one is already final.
-    settings.main.dpi-aware = "no";
-  };
+  # No launcher here: fuzzel was retired 2026-11 for the bar's summon
+  # (Super+Space, quickshell/Summon.qml), which launches apps AND runs every
+  # Claude action from one list.
   # Notifications are owned by the Quickshell shell now (home/quickshell —
   # Notifications.qml runs the org.freedesktop.Notifications server + toasts).
   # mako is deliberately NOT enabled: only one process can own that D-Bus name,

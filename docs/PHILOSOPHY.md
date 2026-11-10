@@ -43,6 +43,15 @@ showcase-driven regressions. When a showcase idea and usability conflict,
 usability wins; the showcase value of ClaudeOS comes *from* it being a real,
 lived-in system, so degrading the latter spends the former.
 
+**One key in, not a shortcut per feature** (2026-11, owner decision). Thirteen
+separate Claude shortcuts read as "disjointed ideas glued together." So
+Super+Space opens one surface, the summon, that launches apps *and* runs every
+Claude action from one ranked list (`lib/keybindings.nix` is the registry);
+only three actions keep a direct key (quick launch, circle to ask, point at
+it). The summon took Super+Space from fuzzel because it had to be at least as
+good a launcher (a ranked list with icons, no model call) before it could
+earn the daily-driver key. A new action gets a registry entry, not a key.
+
 ## The founding insight
 
 **NixOS is the only operating system where the entire system state is one git
