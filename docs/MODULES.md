@@ -165,7 +165,7 @@ System packages, hardware, and kernel tuning.
 - `services.fwupd.enable = true` (firmware updates)
 - `services.thermald.enable = true` (Intel thermal management, `lib.mkDefault`); `services.power-profiles-daemon` and `services.upower` enabled
 - `zramSwap.enable = true` (compressed in-memory swap)
-- `services.scx` — `scx_lavd` BPF scheduler (sched_ext, Rust, Steam Deck lineage) with `--autopower`; kernel falls back to EEVDF instantly if it dies
+- `services.scx-loader` — sched_ext via the `scx_loader` D-Bus daemon, booting `scx_bpfland` (`config.default_sched`; switch live with `scxctl`). Replaced `scx_lavd` on 2026-08-26 after the 1.1.3 RCU-stall regression; moved from the removed `services.scx` module on 2026-11-10. Kernel falls back to EEVDF instantly if the scheduler dies
 - `services.dbus.implementation = "broker"` — dbus-broker (Fedora/Arch default), faster under chatty desktop IPC
 - `systemd.oomd` enabled on root, user, and system slices
 - `boot.tmp.useTmpfs = true` (tmpfs for /tmp)

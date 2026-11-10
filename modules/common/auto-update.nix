@@ -391,7 +391,7 @@ in
       services.snapper.configs = lib.mkVMOverride { };
       system.activationScripts.snapperSubvolumes.text = lib.mkVMOverride "";
       services.btrfs.autoScrub.enable = lib.mkVMOverride false;
-      services.scx.enable = lib.mkVMOverride false;
+      services.scx-loader.enable = lib.mkVMOverride false;
       services.thermald.enable = lib.mkVMOverride false;
       services.fwupd.enable = lib.mkVMOverride false;
       services.throttled.enable = lib.mkVMOverride false;

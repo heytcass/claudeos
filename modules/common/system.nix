@@ -577,9 +577,15 @@ in
   # would leave the unit dead and the system silently on EEVDF. bpfland's
   # analog is --primary-domain=auto ("automatically detect the CPUs based
   # on the active power profile") — already its default.
-  services.scx = {
+  #
+  # Migrated 2026-11-10: nixpkgs removed `services.scx` (a single
+  # scheduler as scx.service) for `services.scx-loader`, the scx_loader
+  # D-Bus daemon (unit scx_loader.service, switch live with `scxctl`).
+  # default_sched is what it starts at boot; the module asserts the name
+  # exists in schedsPackages (default pkgs.scx.rustscheds).
+  services.scx-loader = {
     enable = true;
-    scheduler = "scx_bpfland";
+    config.default_sched = "scx_bpfland";
   };
 
   # dbus-broker: the Fedora/Arch default bus implementation — faster under

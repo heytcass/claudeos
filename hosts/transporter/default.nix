@@ -67,7 +67,8 @@
   # modules/common/system.nix applies again). It was disabled as a possible
   # hard-lock culprit; the locks were the jasper greeter bug. If the desktop
   # wedges with a dead Caps Lock from here on, scx is the first suspect —
-  # re-add `services.scx.enable = lib.mkForce false;` to isolate.
+  # re-add `services.scx-loader.enable = lib.mkForce false;` to isolate
+  # (was `services.scx` until nixpkgs removed it, 2026-11-10).
 
   # Boot-menu editor back to the shared locked-down default (boot.nix sets
   # editor = false) — the bring-up escape hatch is no longer needed now that
