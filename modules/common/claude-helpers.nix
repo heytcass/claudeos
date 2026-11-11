@@ -133,9 +133,28 @@ in
           echo "Fetch failed — commit is local only, push by hand." >&2
           exit 1
         fi
-        if ! git -C "$dir" rebase "$upstream"; then
-          git -C "$dir" rebase --abort
-          echo "Rebase onto $upstream conflicts — resolve by hand, then: git push -u origin HEAD" >&2
+        # Every land and every rebuild writes generation-label, so a replay
+        # across a merge always collides on it. It's a machine-written slug:
+        # keep the replayed commit's side (the generation this host just
+        # built), as claudeos-land does. Any other conflict is real.
+        git -C "$dir" rebase "$upstream" >/dev/null 2>&1
+        while [[ -d "$(git -C "$dir" rev-parse --path-format=absolute --git-path rebase-merge)" ]]; do
+          conflicts=$(git -C "$dir" diff --name-only --diff-filter=U)
+          if [[ "$conflicts" != generation-label ]]; then
+            git -C "$dir" rebase --abort
+            echo "Rebase onto $upstream conflicts — resolve by hand, then: git push -u origin HEAD" >&2
+            [[ -n "$conflicts" ]] && echo "$conflicts" >&2
+            exit 1
+          fi
+          git -C "$dir" checkout -q --theirs -- generation-label && git -C "$dir" add generation-label
+          if git -C "$dir" diff --cached --quiet; then
+            git -C "$dir" rebase --skip >/dev/null 2>&1
+          else
+            GIT_EDITOR=true git -C "$dir" rebase --continue >/dev/null 2>&1
+          fi
+        done
+        if [[ -n "$(git -C "$dir" rev-list "HEAD..$upstream")" ]]; then
+          echo "Rebase onto $upstream did not complete — resolve by hand, then: git push -u origin HEAD" >&2
           exit 1
         fi
         if ! git -C "$dir" push -u origin HEAD; then
