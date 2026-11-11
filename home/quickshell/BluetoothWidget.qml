@@ -10,9 +10,14 @@ import Quickshell.Bluetooth
 
 Rectangle {
     id: root
+    // Holds the right pill open while the popup is up (Bar.qml).
+    readonly property bool popupOpen: popup.visible
     readonly property var adapter: Bluetooth.defaultAdapter
     readonly property var devices: (Bluetooth.devices?.values ?? []).filter(d => d.paired)
     readonly property int connectedCount: devices.filter(d => d.connected).length
+    // A connected device reporting ≤20% charge (BlueZ Battery1; `battery`
+    // is a 0..1 fraction). The right pill surfaces the glyph while this holds.
+    readonly property bool lowBattery: devices.some(d => d.connected && d.batteryAvailable && d.battery <= 0.2)
 
     // A null adapter means the radio is rfkill-blocked (bluez has no
     // controller) — still show the muted glyph so the bar can turn it on.
@@ -45,7 +50,8 @@ Rectangle {
         font.pixelSize: Theme.iconSize
         // Same contract as the volume glyph: muted = off, text = on/idle,
         // accent = in use (something connected).
-        color: !root.radioOn ? Theme.muted : root.connectedCount > 0 ? Theme.accent : Theme.text
+        // … and warn when a connected device is running out of charge.
+        color: !root.radioOn ? Theme.muted : root.lowBattery ? Theme.warn : root.connectedCount > 0 ? Theme.accent : Theme.text
         Behavior on color {
             ColorAnimation {
                 duration: Motion.quick
@@ -127,6 +133,15 @@ Rectangle {
                             color: modelData.connected ? Theme.text : Theme.subtext
                             font.family: Theme.fontSans
                             font.pixelSize: Theme.fontSize - 1
+                        }
+                        // charge, when the device reports one
+                        Text {
+                            visible: modelData.connected && modelData.batteryAvailable
+                            text: Math.round(modelData.battery * 100) + "%"
+                            color: modelData.battery <= 0.2 ? Theme.warn : Theme.subtext
+                            font.family: Theme.fontMono
+                            font.pixelSize: Theme.fontSize - 2
+                            anchors.verticalCenter: parent.verticalCenter
                         }
                         TapHandler {
                             onTapped: modelData.connected ? modelData.disconnect() : modelData.connect()

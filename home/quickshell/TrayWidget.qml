@@ -9,6 +9,10 @@ import Quickshell.Widgets
 RowLayout {
     spacing: 8
 
+    // Some tray item is asking for you (SNI NeedsAttention) — the right pill
+    // unfolds the tray on its own while this holds (Bar.qml).
+    readonly property bool attention: (SystemTray.items.values ?? []).some(i => i.status === Status.NeedsAttention)
+
     Repeater {
         model: SystemTray.items
 

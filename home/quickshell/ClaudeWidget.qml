@@ -20,6 +20,8 @@ import Quickshell.Io
 
 Item {
     id: root
+    // Holds the right pill open while the popup is up (Bar.qml).
+    readonly property bool popupOpen: popup.visible
 
     // ---- status.claude.com ----
     // Statuspage overall indicator: none | minor | major | critical | maintenance.

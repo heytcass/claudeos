@@ -8,6 +8,8 @@ import Quickshell.Services.UPower
 
 Rectangle {
     id: root
+    // Holds the right pill open while the popup is up (Bar.qml).
+    readonly property bool popupOpen: popup.visible
     readonly property var bat: UPower.displayDevice
     // Quickshell's UPowerDevice.percentage is a 0..1 fraction (NOT 0..100) —
     // scale to whole percent once, here, and use `pct` everywhere below.

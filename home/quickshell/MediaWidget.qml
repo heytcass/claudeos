@@ -9,6 +9,8 @@ import Quickshell.Services.Mpris
 
 Item {
     id: root
+    // Holds the right pill open while the popup is up (Bar.qml).
+    readonly property bool popupOpen: mediaPopup.visible
 
     // Active player: the first Playing MPRIS source (same lookup the island used).
     readonly property var player: {

@@ -8,6 +8,8 @@ import Quickshell.Io
 
 Item {
     id: root
+    // Holds the right pill open while the popup is up (Bar.qml).
+    readonly property bool popupOpen: popup.visible
     // Space-separated failed unit names ("" = all healthy).
     property string failed: ""
     readonly property var failedList: failed === "" ? [] : failed.split(" ")

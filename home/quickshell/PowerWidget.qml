@@ -9,6 +9,8 @@ import Quickshell
 
 Item {
     id: root
+    // Holds the right pill open while the popup is up (Bar.qml).
+    readonly property bool popupOpen: popup.visible
     implicitWidth: glyph.implicitWidth + 12
     implicitHeight: Theme.barHeight - 8
 
