@@ -4,8 +4,9 @@
 // toggle` reaches it too). It grew out of the intent line and replaced fuzzel
 // (2026-11): thirteen separate Claude shortcuts became rows in one list.
 //
-//   opened empty → the Claude actions, most useful first (lib/keybindings.nix
-//                  order, via the generated Keybinds.actions)
+//   opened empty → the Claude actions, most used in the last 30 days first
+//                  (Usage.qml / claudeos-usage), else lib/keybindings.nix
+//                  order (via the generated Keybinds.actions)
 //   typing       → actions and apps filtered together into one ranked list,
 //                  plus the deterministic routes as rows of their own:
 //     $command    → run it in a terminal
@@ -57,6 +58,7 @@ Scope {
         root.lastHover = Qt.point(-1, -1);
         input.text = "";
         root.shown = true;
+        Usage.refresh();              // re-rank the empty state by recent use
     }
 
     GlobalShortcut {
@@ -85,6 +87,17 @@ Scope {
         return true;
     }
     readonly property var actions: registry.filter(a => available(a))
+    // The empty state's order: most used over the last 30 days first
+    // (claudeos-usage counts, read when the summon opens); ties and no data
+    // keep registry order.
+    readonly property var byUse: {
+        const c = Usage.counts;
+        return root.actions.map((a, i) => ({
+                    a: a,
+                    i: i,
+                    n: c[a.id] || 0
+                })).sort((x, y) => (y.n - x.n) || (x.i - y.i)).map(x => x.a);
+    }
 
     // ---- deterministic classification (pure JS, no model call ever) ----
 
@@ -313,7 +326,7 @@ Scope {
                 }];
         }
         if (t === "")
-            return root.actions.slice(0, root.maxRows).map(a => actionRow(a));
+            return root.byUse.slice(0, root.maxRows).map(a => actionRow(a));
         if (t.charAt(0) === "$")
             return [routeRow("cmd")];
 
@@ -389,11 +402,15 @@ Scope {
         input.text = "";
     }
 
+    // Usage logging (Usage.qml → claudeos-usage): an action by its registry
+    // id, a route by its kind, an app as just "app". Never the typed text or
+    // which app.
     function activate(row) {
         if (!row || root.sent)
             return;
         if (row.kind === "app") {
             row.entry.execute();          // launch detached; deterministic, instant
+            Usage.log("app", "summon");
             reset();
         } else if (row.kind === "action") {
             runAction(row.action);
@@ -403,6 +420,7 @@ Scope {
                 return;
             // `command "$1"` — the text is one argv word, never re-parsed by sh.
             Quickshell.execDetached(["sh", "-c", root.mode.command + ' "$1"', "sh", t]);
+            Usage.log(root.mode.id, "summon");
             root.sent = true;
             flight.start();
         } else {
@@ -416,8 +434,11 @@ Scope {
             root.mode = a;
             root.selected = 0;
             input.text = "";
-            return;
+            return;                       // logged when the text is sent
         }
+        // Calls the surface directly, not through its GlobalShortcut, so a
+        // summon-launched circle/pick is counted once, here, as "summon".
+        Usage.log(a.id, "summon");
         // Close first. A capture waits out the summon's fade (the layer's
         // layersOut is Motion.quick) so it is never in the frame; anything
         // else just yields a tick so the next surface gets keyboard focus.
@@ -465,27 +486,32 @@ Scope {
                 return;
             // Hold the terminal open after the command so its output is readable.
             Quickshell.execDetached(["ghostty", "-e", "bash", "-lc", cmd + "; echo; echo '[press enter to close]'; read"]);
+            Usage.log("route:cmd", "summon");
             reset();
         } else if (r === "ask") {
             // claude-ask-desktop takes an optional query arg; pass the sentence.
             Quickshell.execDetached(["claude-ask-desktop", t]);
+            Usage.log("route:ask", "summon");
             root.sent = true;
             flight.start();               // the question flies into the island
         } else if (r === "save") {
             if (saveName === "")
                 return;
             Quickshell.execDetached(["claudeos-context", "save", saveName]);
+            Usage.log("route:save", "summon");
             reset();
         } else if (r === "resume") {
             if (resumeSlug === "")
                 return;
             Quickshell.execDetached(["claudeos-context", "restore", resumeSlug]);
+            Usage.log("route:resume", "summon");
             reset();
         } else {
             // task → the intent router. One haiku call decides wish (→ a PR)
             // vs task (→ an artifact) — or dispatches an app/cmd/ask the QML
             // pass missed. An unroutable intent fails open into Claude.
             Quickshell.execDetached(["claudeos-intent", t]);
+            Usage.log("route:task", "summon");
             root.sent = true;
             flight.start();
         }
