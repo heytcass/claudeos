@@ -16,6 +16,57 @@ hypr_available() {
   hyprctl version >/dev/null 2>&1
 }
 
+# Stop every process whose cmdline matches $1 and make sure it is gone.
+# SIGTERM alone is not enough: a bar that crashed can hang in its own crash
+# handler (blocked writing to a pipe, 2026-11-11), ignore TERM, and keep the
+# layer and D-Bus names it held. Prints a note only when it had to escalate.
+qs_stop() {
+  local pattern="$1" i
+  pkill -f "$pattern" 2>/dev/null || return 0
+  for i in 1 2 3 4 5 6 7 8 9 10; do
+    pgrep -f "$pattern" >/dev/null 2>&1 || return 0
+    sleep 0.2
+  done
+  pkill -KILL -f "$pattern" 2>/dev/null || true
+  sleep 0.2
+  if pgrep -f "$pattern" >/dev/null 2>&1; then
+    echo "note: a bar process survived SIGKILL (pids: $(pgrep -f "$pattern" | paste -sd' ')) — D-Bus registration warnings below may be its doing."
+  else
+    echo "note: a hung bar process ignored SIGTERM and was killed with SIGKILL."
+  fi
+}
+
+# Turn a `qs -p` log ($1) into a verdict for the QML in $2. The loader states
+# its own outcome ("Configuration Loaded" / "Failed to load configuration"),
+# so that decides load success, not a grep for "error": Quickshell's service
+# warnings carry that word whenever another process already holds a D-Bus
+# name (polkit agent, notification server, tray host), which says nothing
+# about the QML and once failed a clean bar (2026-11-11).
+qs_load_verdict() {
+  local log="$1" qml_dir="$2" problems
+  # Quickshell colours its log even into a file; strip that so the category
+  # filter below sees "quickshell.service.polkit:" and not escape codes.
+  sed -i 's/\x1b\[[0-9;]*m//g' "$log"
+  if ! grep -q 'Configuration Loaded' "$log"; then
+    if grep -q 'Failed to load configuration' "$log"; then
+      echo "FAIL — QML load error (the bar would be blank). Offending chain:"
+      grep -E 'ERROR' "$log" | head -20
+    else
+      echo "FAIL — the bar neither loaded nor reported a load error within the wait (crashed or hung at startup?). Log:"
+      tail -20 "$log"
+    fi
+    return
+  fi
+  problems=$(grep -vE 'quickshell\.(service|dbus)[a-z.]*:|QDBusError' "$log" |
+    grep -iE 'error|caused|unavailable|is not defined|is not a function|unable to assign' | head -20)
+  if [[ -n "$problems" ]]; then
+    echo "FAIL — the config loads, but logs QML errors at startup (the affected bindings are dead):"
+    echo "$problems"
+  else
+    echo "PASS — $qml_dir loads clean against the deployed Theme.qml."
+  fi
+}
+
 handle_tool() {
   local name="$1" args="$2"
   case "$name" in
@@ -268,22 +319,24 @@ handle_tool() {
       # processes that merely mention quickshell. (pkill -x is useless here —
       # the wrapped binary's comm is the truncated ".quickshell-wra"; and an
       # unanchored -f pattern once killed the test harness invoking this tool.)
-      pkill -f 'bin/quickshell$' 2>/dev/null || true
-      sleep 1
+      local stray
+      stray=$(qs_stop 'bin/quickshell$')
       setsid qs -p "$dest/shell.qml" >"$log" 2>&1 </dev/null &
-      sleep 3
-      local verdict
-      if grep -qiE 'error|caused|unavailable' "$log"; then
-        verdict="FAIL — QML load error (the bar would be blank). Offending chain:
-$(grep -iE 'error|caused|unavailable' "$log" | head -20)"
-      else
-        verdict="PASS — $qml_dir loads clean against the deployed Theme.qml."
-      fi
-      pkill -f "$dest/shell.qml" 2>/dev/null || true
+      # Poll for the loader's own verdict line instead of a fixed sleep, then
+      # give startup bindings a moment to log their errors.
+      local i
+      for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16; do
+        grep -qE 'Configuration Loaded|Failed to load configuration' "$log" && break
+        sleep 0.5
+      done
       sleep 1
+      local verdict
+      verdict=$(qs_load_verdict "$log" "$qml_dir")
+      qs_stop "$dest/shell.qml" >/dev/null
       setsid qs >/dev/null 2>&1 </dev/null &
       rm -rf "$dest"
       echo "$verdict"
+      [[ -n "$stray" ]] && echo "$stray"
       echo "(live bar restarted)"
       ;;
     spotlight)

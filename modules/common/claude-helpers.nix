@@ -320,16 +320,33 @@ in
         fi
         # main's ruleset refuses the merge until the required checks pass
         # (lock-gate builds gti and boots a VM on lock bumps), so wait for them.
-        # They take a moment to register after a push; none after ~3 min
-        # means nothing is required.
+        # Which checks are required comes from the ruleset itself, so a slow
+        # Actions queue can't pass for "nothing is required": on 2026-11-11
+        # the runs sat queued with no jobs, no check registered for 3 min,
+        # and the old "none yet means none required" guess went to merge
+        # early. That guess survives only as the fallback for when the
+        # ruleset can't be read or lists nothing.
+        required=$(gh api 'repos/{owner}/{repo}/rules/branches/main' \
+          --jq '.[] | select(.type == "required_status_checks") | .parameters.required_status_checks[].context' 2>/dev/null || true)
         echo "claudeos-land: PR #$pr open — waiting for its required checks…"
         waited=0
         while :; do
-          buckets=$(gh pr checks "$pr" --required --json bucket -q '.[].bucket' 2>/dev/null)
-          [[ -z "$buckets" && $waited -ge 180 ]] && break
-          [[ -n "$buckets" ]] && ! grep -qx pending <<<"$buckets" && break
+          checks=$(gh pr checks "$pr" --required --json name,bucket -q '.[] | "\(.bucket)\t\(.name)"' 2>/dev/null)
+          buckets=$(cut -f1 <<<"$checks")
+          missing=""
+          if [[ -n "$required" ]]; then
+            missing=$(grep -vxFf <(cut -f2 <<<"$checks") <<<"$required" || true)
+          elif [[ -z "$checks" && $waited -ge 180 ]]; then
+            break
+          fi
+          [[ -n "$checks" && -z "$missing" ]] && ! grep -qx pending <<<"$buckets" && break
           if [[ $waited -ge 5400 ]]; then
-            echo "claudeos-land: PR #$pr's checks are still running after 90 min — it stays open; rerun claudeos-land to finish." >&2
+            if [[ -n "$missing" ]]; then
+              echo "claudeos-land: PR #$pr's required checks never reported after 90 min: $(paste -sd' ' <<<"$missing")" >&2
+              echo "Its workflow runs are probably stuck in the queue (gh run list --branch $branch). Closing and reopening the PR starts fresh ones; then rerun claudeos-land." >&2
+            else
+              echo "claudeos-land: PR #$pr's checks are still running after 90 min — it stays open; rerun claudeos-land to finish." >&2
+            fi
             exit 1
           fi
           sleep 30
