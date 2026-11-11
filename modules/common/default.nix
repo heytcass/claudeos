@@ -12,6 +12,7 @@
     ./secrets.nix
     ./snapshots.nix
     ./auto-update.nix
+    ./desktop-update.nix
     ./generation-label.nix
     ./self-heal.nix
     ./claude-helpers.nix

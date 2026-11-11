@@ -37,6 +37,11 @@
   # generation away, and greetd's agreety remains available on a VT).
   claude-os.greeter.enable = true;
 
+  # Follow Claude Desktop releases within the hour (modules/common/desktop-update.nix).
+  # gti only: the lane ends in a switch, and the testbed should not be
+  # switched unattended; it picks the bump up from main at its next rebuild.
+  claude-os.desktopUpdate.enable = true;
+
   # Machine-specific overrides (Phase 5)
 
   # Lenovo ThinkSmart View flashing (tsv-fleet project, runbook at

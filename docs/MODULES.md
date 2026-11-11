@@ -74,7 +74,7 @@ Contents:
 
 ## modules/common/ -- Foundation
 
-Core system configuration shared by all hosts. Imported via `modules/common/default.nix` which pulls in: `boot.nix`, `disko.nix`, `nix.nix`, `users.nix`, `networking.nix`, `locale.nix`, `system.nix`, `secrets.nix`, `snapshots.nix`, `auto-update.nix`, `generation-label.nix`, `self-heal.nix`. It also enables `claude-os.autoUpdate` (including `autoApply` — gated on a green VM smoke test) and `claude-os.selfHeal` by default (`lib.mkDefault`).
+Core system configuration shared by all hosts. Imported via `modules/common/default.nix` which pulls in: `boot.nix`, `disko.nix`, `nix.nix`, `users.nix`, `networking.nix`, `locale.nix`, `system.nix`, `secrets.nix`, `snapshots.nix`, `auto-update.nix`, `desktop-update.nix`, `generation-label.nix`, `self-heal.nix`. It also enables `claude-os.autoUpdate` (including `autoApply` — gated on a green VM smoke test) and `claude-os.selfHeal` by default (`lib.mkDefault`).
 
 ### modules/common/boot.nix
 
@@ -207,6 +207,17 @@ Weekly unattended flake updates with Claude review (`claude-os.autoUpdate`, enab
 - **Gate outcomes:** green → commit, push, switch; **no usable `/dev/kvm`** (or `vmTest = false`) → gate skipped, degrades to build-only (commit + push, never switch); red → `flake.lock` reverted, notification with the failing unit list, VM journal excerpt echoed into the unit's own journal, exit 1 → `OnFailure=claude-heal@claudeos-auto-update` hands it to the self-heal agent
 - **autoApply plumbing:** scoped passwordless `sudo /run/current-system/sw/bin/nixos-rebuild` for wheel (`security.sudo-rs.extraRules`, only when `autoApply`); the user is in the `kvm` group (users.nix) so the timer-driven user unit can reach `/dev/kvm`
 - **On build failure:** Claude (opus — rare, high-stakes diagnosis per the cost doctrine) diagnoses, `flake.lock` is reverted, user notified
+
+### modules/common/desktop-update.nix
+
+Follows Claude Desktop releases within the hour (`claude-os.desktopUpdate`, enabled on gti only; needs `autoUpdate.autoApply` for the passwordless `nixos-rebuild` rule, enforced by an assertion). The packaging repo behind the `claude-desktop-linux` input repins new releases on its own every hour; this lane closes the gap between that and `flake.lock`, which otherwise moves weekly.
+
+- **Timer:** `claudeos-desktop-update`, hourly at :40 (configurable `schedule`), 5 min randomized delay. The unit is `restartIfChanged = false` because its own land step switches the generation it belongs to
+- **Check (cheap, no worktree):** reads the input's owner, repo and locked rev from `origin/main:flake.lock`, compares with the repo's head via `git ls-remote`, then compares `pkgs/sources.json` `.version` at both revs. Same version → nothing happens, so workflow and README commits upstream never cost a CI run
+- **Bump:** lane worktree on `desktop-update/<version>` → `nix flake update claude-desktop-linux` → refuses to continue if any other lock node changed → commits `flake.lock` → `claudeos-land` (PR, CI `lock-gate`: full gti build + VM boot, squash-merge, fast-forward the shared checkout, switch)
+- **The app is not restarted:** `home/claude-desktop.nix` sets `X-RestartIfChanged=false` because the app hosts every Claude Code session. The card says to quit and reopen it
+- **Failure:** the upstream rev is written to `~/.local/state/claudeos/desktop-update-failed-rev` and skipped on later runs until upstream moves; the PR stays open and a critical card links it. A merge that did not switch gets its own "merged, not applied" card. Handled failures exit 0 (the card is the record, not a failed unit)
+- **By hand:** `claudeos-desktop-update --dry-run` reports what it would do; `--retry` clears the remembered failure and runs
 
 ### modules/common/generation-label.nix
 

@@ -207,7 +207,16 @@ keeps half-finished things from dying. Hence:
    away. Second graduated lane (2026-07): low-risk self-heal PRs now merge
    themselves — see "The rung-2 window" under the constitution. It bought its
    rung the same way, and the shape generalizes: **graduation is a narrow
-   window plus a machine check, never a broad grant of trust.***
+   window plus a machine check, never a broad grant of trust.** Third
+   graduated lane (2026-11): the desktop-update lane lands and switches a
+   Claude Desktop release on its own. Its window is one input: the lock diff
+   may touch only `claude-desktop-linux`, and only when the packaged version
+   changed. Its machine check is the one every lock change already gets,
+   CI's `lock-gate` (a full gti build and a VM boot), reached through
+   `claudeos-land`. The app is the one package whose releases matter within
+   the hour and whose upstream is our own build-gated packaging repo; the
+   running app is never restarted, so a bad build costs one rollback and no
+   sessions.*
 5. **The computer's unique knowledge is attention and activity** — what's
    focused, what's half-done, whether you're even there. Web services know
    your calendar; only the OS knows your *state*. Future capabilities should
@@ -255,6 +264,8 @@ advisory ones:
   merged before a rebuild left the machine permanently half-built and the
   checkout confusing. A Stop hook makes the session land or say what's open.
   Unattended lanes (wish, self-heal) never call it: they open PRs and stop.
+  The one exception is the desktop-update lane, a graduated lane (proactivity
+  rule 4) whose whole diff is one input in `flake.lock`.
 - **One worktree per session.** The shared checkout (`~/.config/claudeos`) is
   what hosts deploy from, so nobody edits or commits there. A PreToolUse hook
   denies it. The 2026-10-29 incident: one session's commit swept up another's
