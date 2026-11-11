@@ -312,6 +312,25 @@ Scope {
             ask.forceActiveFocus();
         }
     }
+    // Circle to ask: what the compositor knows about the box, in words, so the
+    // answer can be about the thing and not only its pixels — which monitor,
+    // which bar island it touches, and the windows under it (topmost first).
+    function whereText() {
+        const s = root.sel;
+        const hit = r => r.x < s.x + s.width && r.x + r.width > s.x && r.y < s.y + s.height && r.y + r.height > s.y;
+        const lines = ["Monitor " + (root.mon?.name ?? "?") + ", box " + Math.round(s.width) + "x" + Math.round(s.height) + " at " + Math.round(s.x) + "," + Math.round(s.y) + "."];
+        // windowInfos drops the islands when a fullscreen window covers the bar.
+        const barShown = root.windowInfos.some(i => i.o === null);
+        const pills = barShown ? root.barRects.filter(b => hit(b.r)).map(b => b.label) : [];
+        if (pills.length > 0)
+            lines.push("It overlaps ClaudeOS's own Quickshell bar: the " + pills.join(" and ") + " pill" + (pills.length > 1 ? "s" : "") + " (pills are left, island, right).");
+        const wins = root.windowInfos.filter(i => i.o !== null && hit(i.r)).slice(0, 4);
+        for (const w of wins)
+            lines.push("Window under it: class \"" + (w.o.class ?? "") + "\", title \"" + String(w.o.title ?? "").slice(0, 100) + "\".");
+        if (pills.length === 0 && wins.length === 0)
+            lines.push("No window or bar island is under it (wallpaper, or another layer such as a popup or notification).");
+        return lines.join("\n");
+    }
     // Circle to ask: cut the box into the (0700) runtime dir, hand it to the
     // helper, and show the pending card beside the box. The window stays up.
     function askCircle() {
@@ -329,7 +348,7 @@ Scope {
             root.answer = "";
             root.mode = "waiting";
             keys.forceActiveFocus();
-            circleProc.command = ["claudeos-circle-ask", out, q];
+            circleProc.command = ["claudeos-circle-ask", out, q, root.whereText()];
             circleProc.running = true;
         }, Qt.size(Math.round(root.sel.width * px), Math.round(root.sel.height * px)));
     }
