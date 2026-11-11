@@ -805,7 +805,9 @@ Scope {
                                     source: rowItem.modelData.icon
                                     sourceSize.width: 26
                                     sourceSize.height: 26
-                                    asynchronous: true
+                                    // Synchronous on purpose: image://icon/
+                                    // must load on the main thread (see the
+                                    // note in Workspaces.qml).
                                 }
                                 Text {
                                     anchors.centerIn: parent
