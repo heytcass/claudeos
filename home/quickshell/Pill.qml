@@ -62,6 +62,9 @@ Rectangle {
         implicitHeight: childrenRect.height
     }
 
+    // Read by the right pill to unfold itself on hover (Bar.qml).
+    readonly property bool hovered: hover.hovered
+
     HoverHandler {
         id: hover
     }

@@ -2,8 +2,10 @@
 // No longer a strip: the window is transparent and hosts three floating islands
 // with wallpaper showing between them — left (workspace map: number + app
 // icon per workspace · focused window title),
-// center (the adaptive Island: the time and Claude), right (media · volume ·
-// network · battery · tray).
+// center (the adaptive Island: the time and Claude), right (a quiet pill: the
+// battery at rest, abnormal states and pending work surfacing on their own,
+// the full set — media · mic · volume · network · bluetooth · tray · power —
+// on hover).
 // Colors/fonts/metrics from Theme.
 import QtQuick
 import QtQuick.Layouts
@@ -101,7 +103,14 @@ PanelWindow {
             Shelf.popupOpen = false
     }
 
-    // ---- right island ----
+    // ---- right island: quiet by default ----
+    // Silence is the normal state. At rest the pill holds only the battery;
+    // every other widget sits in a PillSlot folded to zero width and speaks
+    // only when its state is abnormal or something waits on you (rules
+    // below, one per slot). Hovering the pill unfolds the full set — every
+    // widget, popup and click action as before — and it folds back a short
+    // grace after the pointer leaves, or after the last popup closes. Widths
+    // ride the island's morph spring, so the pill breathes like the island.
     Pill {
         id: rightPill
         entranceDelay: 180
@@ -109,46 +118,170 @@ PanelWindow {
         anchors.rightMargin: Theme.edgeGap
         anchors.verticalCenter: parent.verticalCenter
 
+        // Any widget popup open holds the pill unfolded, so a popup's anchor
+        // never folds away underneath it.
+        readonly property bool popupOpen: health.popupOpen || claude.popupOpen || media.popupOpen || network.popupOpen || bluetooth.popupOpen || power.popupOpen || battery.popupOpen
+        readonly property bool held: hovered || popupOpen
+        property bool expanded: false
+        onHeldChanged: {
+            if (held) {
+                foldTimer.stop();
+                expanded = true;
+            } else {
+                foldTimer.restart();
+            }
+        }
+        Timer {
+            id: foldTimer
+            interval: 700
+            onTriggered: rightPill.expanded = rightPill.held
+        }
+
+        // Probes land a beat after load (UPower reads 0, the sink is unbound,
+        // nmcli hasn't answered): hold the abnormal rules off until then, so
+        // the pill doesn't flash every widget open on startup.
+        property bool settled: false
+        Timer {
+            interval: 2500
+            running: true
+            onTriggered: rightPill.settled = true
+        }
+        // Abnormal = expanded OR this. Each rule is the state worth a glance.
+        function speaks(cond) {
+            return expanded || (settled && cond);
+        }
+
+        // Battery: a plug-in / unplug briefly shows the percentage beside the
+        // graphic, so the change is acknowledged without a click.
+        property bool chargeFlash: false
+        Connections {
+            target: battery
+            function onChargingChanged() {
+                if (!rightPill.settled)
+                    return;
+                rightPill.chargeFlash = true;
+                chargeFlashTimer.restart();
+            }
+        }
+        Timer {
+            id: chargeFlashTimer
+            interval: 4000
+            onTriggered: rightPill.chargeFlash = false
+        }
+
         RowLayout {
-            spacing: 6
+            // Spacing lives in each slot's trailing gap, so folded slots
+            // leave no stray space.
+            spacing: 0
 
-            // The bar's conscience — only exists when a claudeos-* unit failed.
-            HealthWidget {}
-
-            // The machine's inbox — only exists when agent-authored PRs
-            // (wish/heal/claude branches) are waiting for human review.
-            ProposalsWidget {}
-
-            // Generated surfaces — only exists while a card is live; opens the
-            // CardSurface stack. Quiet until the machine has a surface waiting.
-            CardsWidget {}
-
-            // Caffeine indicator — exists only while idle-inhibit holds
-            // (accent = SUPER+I, muted = agent auto-hold), steam included.
-            CaffeineWidget {}
-
-            // Claude, at a glance — status.claude.com's dot (dim-green while
-            // operational, breathes amber/red on incident) plus the
-            // subscription usage ring (quiet until ≥70%). Click for both
-            // breakdowns. Hidden entirely when both are offline/no-data.
-            ClaudeWidget {}
-
-            // Now playing — exists only while a player plays; click for
-            // the media popup.
-            MediaWidget {}
-            // Also the volume/brightness OSD: it widens briefly on Osd.shown.
-            VolumeWidget {}
-            NetworkWidget {}
-            BluetoothWidget {}
-            BatteryWidget {}
-            TrayWidget {
-                Layout.leftMargin: 4
+            // ---- pending work: always speaks when it has anything ----
+            // These hide themselves when idle, so "always" costs nothing at
+            // rest. The bar's conscience: a failed claudeos-* unit.
+            PillSlot {
+                shown: true
+                HealthWidget {
+                    id: health
+                }
+            }
+            // The machine's inbox — agent-authored PRs waiting for review.
+            PillSlot {
+                shown: true
+                ProposalsWidget {}
+            }
+            // Generated surfaces — a live card waiting to be looked at.
+            PillSlot {
+                shown: true
+                CardsWidget {}
             }
 
-            // Power menu — lock/reboot/shut down. Always present, gated
-            // behind a tap-to-open popup (see PowerWidget.qml).
-            PowerWidget {
-                Layout.leftMargin: 4
+            // ---- abnormal states ----
+            // Caffeine: only a deliberate SUPER+I hold speaks. The agent's
+            // auto-hold covers every Claude run (the island already says
+            // Claude is busy), so it waits for hover.
+            PillSlot {
+                shown: rightPill.speaks(Caffeine.manual)
+                CaffeineWidget {}
+            }
+            // Claude: an incident on status.claude.com, or a budget ≥90%
+            // (the ring's warn band).
+            PillSlot {
+                shown: rightPill.speaks((claude.hasStatus && !claude.operational) || claude.maxPct >= 90)
+                ClaudeWidget {
+                    id: claude
+                }
+            }
+            // Now playing: live while a player plays, so pausing stays one
+            // click away. Leaves when playback stops.
+            PillSlot {
+                shown: rightPill.speaks(media.player !== null)
+                MediaWidget {
+                    id: media
+                }
+            }
+            // Mic: speaks when muted.
+            PillSlot {
+                shown: rightPill.speaks(mic.muted)
+                MicWidget {
+                    id: mic
+                }
+            }
+            // Volume: speaks when the output is muted, and while it is the
+            // OSD (volume/brightness keys — it widens, then folds away).
+            PillSlot {
+                shown: rightPill.speaks(volume.muted || volume.osd)
+                VolumeWidget {
+                    id: volume
+                }
+            }
+            // Network: offline, captive/limited, or a weak wifi link (the
+            // bars' urgent band).
+            PillSlot {
+                shown: rightPill.speaks(!network.online || network.captive || (network.conType !== "ethernet" && network.signal >= 0 && network.signal < 40))
+                NetworkWidget {
+                    id: network
+                }
+            }
+            // Bluetooth: a connected device running low.
+            PillSlot {
+                gap: 10
+                shown: rightPill.speaks(bluetooth.lowBattery)
+                BluetoothWidget {
+                    id: bluetooth
+                }
+            }
+            // Tray: an item asking for attention.
+            PillSlot {
+                gap: 10
+                shown: rightPill.speaks(tray.attention)
+                TrayWidget {
+                    id: tray
+                }
+            }
+            // Power menu — hover only, unless there is no battery to keep the
+            // pill company (then it is the permanent glyph).
+            PillSlot {
+                shown: rightPill.speaks(!battery.visible)
+                PowerWidget {
+                    id: power
+                }
+            }
+
+            // ---- permanent: the battery, rightmost so it never moves ----
+            // Everything else unfolds leftward from it. Its percentage joins
+            // it when low, on a plug/unplug, and on hover.
+            PillSlot {
+                gap: 2
+                shown: rightPill.speaks(rightPill.chargeFlash || (!battery.charging && battery.pct <= 15))
+                Text {
+                    visible: battery.visible
+                    text: battery.pct + "%"
+                    color: battery.lvlColor
+                    font.family: Theme.fontMono
+                    font.pixelSize: Theme.fontSize - 2
+                }
+            }
+            BatteryWidget {
+                id: battery
             }
         }
     }

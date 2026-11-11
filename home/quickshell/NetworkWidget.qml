@@ -25,6 +25,8 @@ import Quickshell.Io
 
 Rectangle {
     id: root
+    // Holds the right pill open while the popup is up (Bar.qml).
+    readonly property bool popupOpen: popup.visible
     property string conName: ""
     property string conType: ""
     property int signal: -1
@@ -45,8 +47,14 @@ Rectangle {
     color: "transparent"
 
     readonly property bool online: conName !== ""
-    // Strength → semantic colour.
-    readonly property color strength: signal >= 70 ? Theme.good : (signal >= 40 ? Theme.warn : Theme.urgent)
+    // NetworkManager's connectivity verdict: full | limited | portal | none |
+    // unknown. `unknown` (checking disabled, or not yet checked) is not news.
+    property string connectivity: "unknown"
+    // Associated, but the internet isn't through: a sign-in page wants you,
+    // or the uplink is limited. The right pill surfaces the widget for this.
+    readonly property bool captive: online && (connectivity === "portal" || connectivity === "limited")
+    // Strength → semantic colour; a captive link reads warn whatever the bars.
+    readonly property color strength: captive ? Theme.warn : signal >= 70 ? Theme.good : (signal >= 40 ? Theme.warn : Theme.urgent)
 
     // nmcli -t escapes ':' as '\:' and '\' as '\\'. Split on unescaped colons
     // only — SSIDs legitimately contain colons, and a naive split() silently
@@ -159,7 +167,7 @@ Rectangle {
             text: Icons.ethernet
             font.family: Theme.fontMono
             font.pixelSize: Theme.iconSize
-            color: Theme.good
+            color: root.captive ? Theme.warn : Theme.good
         }
 
         // ---- nothing connected: muted wifi glyph, still clickable ----
@@ -212,7 +220,7 @@ Rectangle {
                 color: Theme.text
                 font.family: Theme.fontSans
                 font.pixelSize: 12
-                text: !root.online ? (root.radioOn ? "offline — tap to pick a network" : "wifi off — tap to turn on") : root.conType === "wifi" && root.signal >= 0 ? root.conName + "  ·  " + root.signal + "%" : root.conName
+                text: !root.online ? (root.radioOn ? "offline — tap to pick a network" : "wifi off — tap to turn on") : (root.conType === "wifi" && root.signal >= 0 ? root.conName + "  ·  " + root.signal + "%" : root.conName) + (root.connectivity === "portal" ? "  ·  sign-in needed" : root.connectivity === "limited" ? "  ·  no internet" : "")
             }
         }
     }
@@ -449,6 +457,17 @@ Rectangle {
         }
     }
 
+    // Connectivity: reads NM's last verdict, no network traffic of its own
+    // (`networking connectivity check` would force a probe; this doesn't).
+    Process {
+        id: connectivityProc
+        command: ["nmcli", "-t", "networking", "connectivity"]
+        running: true
+        stdout: StdioCollector {
+            onStreamFinished: root.connectivity = this.text.trim() || "unknown"
+        }
+    }
+
     // Radio state. `nmcli radio wifi` reports NM's view ANDed with rfkill, so
     // an externally-set soft block shows up here as "disabled" too.
     Process {
@@ -543,6 +562,7 @@ Rectangle {
             conProc.running = true;
             sigProc.running = true;
             radioProc.running = true;
+            connectivityProc.running = true;
             // Only sweep while the user is actually looking at the list.
             if (popup.visible)
                 root.scan(false);

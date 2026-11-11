@@ -87,6 +87,9 @@ let
   # Hyprland's Lua `hl.bind("SUPER + SHIFT + A", hl.dsp.exec_cmd("…"))`.
   claudeActions = import ../lib/keybindings.nix;
   claudeBinds = lib.filter (b: b ? binding) claudeActions;
+  # The stable id the usage counter (modules/apps/usage.nix) logs and reports
+  # each action by: a slug of its name.
+  actionId = import ../lib/action-id.nix { inherit lib; };
   modMap = {
     "Super" = "SUPER";
     "Shift" = "SHIFT";
@@ -114,7 +117,14 @@ let
       # Lua joins modifiers and key with " + "; hyprlang used ", ".
       keys = lib.concatStringsSep " + " (mods ++ [ key ]);
       # An entry is either an exec bind (command) or a quickshell global.
-      action = if b ? global then mkGlobal b.global else mkExec b.command;
+      # A command bind logs itself to the usage counter first, backgrounded so
+      # it can never hold the action up. A global's press is counted in its QML
+      # handler instead (RegionShot.qml), which knows whether it opened anything.
+      action =
+        if b ? global then
+          mkGlobal b.global
+        else
+          mkExec "claudeos-usage log ${actionId b.name} key >/dev/null 2>&1 & ${b.command}";
     in
     mkBind keys action;
 
@@ -142,6 +152,7 @@ let
   actionEntries = builtins.toJSON (
     map (b: {
       inherit (b) name help;
+      id = actionId b.name; # what Summon.qml logs to claudeos-usage
       keywords = b.keywords or [ ];
       icon = b.icon or "";
       command = b.command or "";

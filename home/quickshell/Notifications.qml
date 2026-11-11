@@ -66,6 +66,9 @@ Singleton {
     // means one removal rather than a race between per-screen timers.
     property int _noteSeq: 0
     readonly property int noteLife: 6000
+    // Low urgency is glance-and-gone: a Low toast (Toasts.qml, which also
+    // honours a shorter sender timeout) or Low note leaves after this.
+    readonly property int lowLife: 3000
     function announce(summary, body, urgency) {
         root._noteSeq += 1;
         noteModel.append({
@@ -88,10 +91,13 @@ Singleton {
         repeat: true
         running: noteModel.count > 0
         onTriggered: {
-            const cutoff = Date.now() - root.noteLife;
-            for (let i = noteModel.count - 1; i >= 0; i--)
-                if (noteModel.get(i).at <= cutoff)
+            const now = Date.now();
+            for (let i = noteModel.count - 1; i >= 0; i--) {
+                const it = noteModel.get(i);
+                const life = it.urgency === NotificationUrgency.Low ? root.lowLife : root.noteLife;
+                if (it.at <= now - life)
                     noteModel.remove(i);
+            }
         }
     }
 

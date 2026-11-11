@@ -49,11 +49,46 @@ Variants {
                     border.width: modelData.urgency === NotificationUrgency.Critical ? 2 : 1
                     border.color: modelData.urgency === NotificationUrgency.Critical ? Theme.urgent : Theme.surface
 
-                    // Auto-expire (Critical stays until dismissed).
+                    // Auto-expire (Critical stays until dismissed). Low is glance-
+                    // and-gone: Notifications.lowLife, or the sender's own timeout
+                    // when shorter. expireTimeout is the raw D-Bus value in ms
+                    // (Quickshell's doc says seconds; the code stores it as sent):
+                    // -1 = server default, 0 = "never", both capped for Low.
                     Timer {
                         running: card.modelData.urgency !== NotificationUrgency.Critical
-                        interval: card.modelData.urgency === NotificationUrgency.Low ? 4000 : 6000
+                        interval: {
+                            if (card.modelData.urgency !== NotificationUrgency.Low)
+                                return 6000;
+                            const asked = card.modelData.expireTimeout;
+                            return asked > 0 ? Math.min(asked, Notifications.lowLife) : Notifications.lowLife;
+                        }
                         onTriggered: card.modelData.expire()
+                    }
+
+                    // What the icon column shows, as a plain string: "" means no
+                    // icon. Read this, never IconImage.source — that is a url,
+                    // and `url !== ""` is always true, so the column never
+                    // collapsed. A missing icon NAME still resolves to an
+                    // "image://icon/…" URL that loads a MAGENTA placeholder with
+                    // status=Ready, so names go through iconPath(name, true),
+                    // which returns "" when the theme lacks them — including a
+                    // name smuggled in as the image-path hint, which Quickshell
+                    // turns into the same image://icon/ form. Image data and
+                    // file paths are used as-is; a load Error hides them below.
+                    readonly property string iconSource: {
+                        let img = card.modelData.image;
+                        if (img.startsWith("image://icon/"))
+                            img = Quickshell.iconPath(img.slice(13), true);
+                        if (img !== "")
+                            return img;
+                        const icon = card.modelData.appIcon;
+                        if (icon === "")
+                            return "";
+                        if (icon.startsWith("file:"))
+                            return icon;
+                        if (icon.startsWith("/"))
+                            return "file://" + icon;
+                        return Quickshell.iconPath(icon, true);
                     }
 
                     MouseArea {
@@ -74,14 +109,12 @@ Variants {
                             Layout.preferredWidth: 36
                             Layout.preferredHeight: 36
                             Layout.alignment: Qt.AlignTop
-                            // A missing icon name still resolves to an "image://icon/…"
-                            // URL that loads a MAGENTA placeholder with status=Ready, so
-                            // neither source!="" nor status can catch it. iconPath(name,
-                            // true) does an existence check and returns "" when the theme
-                            // lacks the icon — hide on that. (A hidden item is dropped from
-                            // the RowLayout, so the text fills the space.)
-                            visible: source !== ""
-                            source: card.modelData.image !== "" ? card.modelData.image : Quickshell.iconPath(card.modelData.appIcon, true)
+                            // No icon, or one that failed to load (a missing file,
+                            // undecodable image data) → hidden, and a hidden item is
+                            // dropped from the RowLayout, so the text starts at the
+                            // card's padding.
+                            visible: card.iconSource !== "" && status !== Image.Error
+                            source: card.iconSource
                         }
 
                         ColumnLayout {

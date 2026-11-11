@@ -106,7 +106,14 @@ Scope {
         appid: "quickshell"
         name: "pick"
         description: "Point at it: freeze this monitor and pick what Claude asked about"
-        onPressed: root.startPick("")
+        // Counted (claudeos-usage, source "key") only when the press did
+        // something: a pick was armed. The summon calls startPick/open
+        // directly and logs its own "summon" line, so nothing double-counts.
+        onPressed: {
+            if (root.pickArmed)
+                Usage.log(Usage.idForGlobal("quickshell:pick"), "key");
+            root.startPick("");
+        }
     }
     GlobalShortcut {
         appid: "quickshell"
@@ -118,7 +125,15 @@ Scope {
         appid: "quickshell"
         name: "circle"
         description: "Circle to ask: drag a region, ask Claude about it"
-        onPressed: root.shown ? root.close() : root.open(true)
+        // Counted on open only — the same key closing it again is not a use.
+        onPressed: {
+            if (root.shown) {
+                root.close();
+            } else {
+                Usage.log(Usage.idForGlobal("quickshell:circle"), "key");
+                root.open(true);
+            }
+        }
     }
 
     // Armed → picking: freeze MON (a monitor name; "" means the focused one)

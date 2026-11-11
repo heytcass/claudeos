@@ -9,6 +9,8 @@ Singleton {
     readonly property string volumeHigh: String.fromCharCode(0xf028)
     readonly property string volumeLow: String.fromCharCode(0xf027)
     readonly property string volumeMute: String.fromCharCode(0xf026)
+    readonly property string mic: String.fromCharCode(0xf130)
+    readonly property string micOff: String.fromCharCode(0xf131)
     readonly property string brightness: String.fromCharCode(0xf185)
 
     readonly property string play: String.fromCharCode(0xf04b)
