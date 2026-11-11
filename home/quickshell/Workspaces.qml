@@ -331,7 +331,11 @@ RowLayout {
                             width: 14
                             height: 14
                             opacity: cell.focused ? 1 : 0.75
-                            asynchronous: true
+                            // Never `asynchronous` on an image://icon/ source:
+                            // that moves QIcon theme loading onto Qt's pixmap
+                            // reader thread, where it races the main thread's
+                            // own icon loads (tray, WindowThumb) on the shared
+                            // theme cache and segfaults the bar (2026-11-11).
                         }
                     }
                 }
