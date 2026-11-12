@@ -87,6 +87,14 @@ Singleton {
         }
     }
 
+    // Title of the listed session with this pid (a string key), or undefined.
+    function nameOf(list, pid) {
+        for (let i = 0; i < list.length; i++)
+            if (String(list[i].pid) === pid)
+                return list[i].name;
+        return undefined;
+    }
+
     function commit(list) {
         list.sort((a, b) => (b.since ?? 0) - (a.since ?? 0));
         root.live = list;
@@ -107,8 +115,12 @@ Singleton {
             if (nowBusy[pid] !== undefined || now - prev[pid].since < root.finishAfter)
                 continue;
             // Still listed (now idle) → its current title; gone → the last one seen.
-            const cur = list.find(s => String(s.pid) === pid);
-            root.finished(cur ? cur.name : prev[pid].name);
+            // No closure in this loop body: an arrow function capturing the
+            // loop's own `pid` makes QV4 allocate a block context on every
+            // iteration, and a GC triggered by that allocation segfaults
+            // marking the JS stack (Qt 6.12; two bar crashes on 2026-11-11,
+            // reproduced in isolation). nameOf() does the same lookup.
+            root.finished(root.nameOf(list, pid) ?? prev[pid].name);
         }
         const long = list.filter(s => s.status === "busy" && now - s.since > root.promoteAfter).sort((a, b) => a.since - b.since);
         const next = long.length > 0 ? long[0].name : "";

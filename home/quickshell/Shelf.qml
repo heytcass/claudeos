@@ -67,8 +67,14 @@ Singleton {
                 title: "",
                 items: loose
             });
+        // Plain inner loop, not its.filter(it => it.group === g): a closure
+        // capturing the loop's own variable crashes QV4's GC on Qt 6.12
+        // (see the note in Sessions.qml commit()).
         for (const g of order) {
-            const inG = its.filter(it => it.group === g);
+            const inG = [];
+            for (let i = 0; i < its.length; i++)
+                if (its[i].group === g)
+                    inG.push(its[i]);
             if (inG.length)
                 out.push({
                     title: g,

@@ -46,6 +46,15 @@ themed by `home/hyprland.nix`. When editing it:
   loads clean, and every property read off the name yields `undefined`
   (the center-island "· undefined" bug, 2026-08-03).
 
+- **No closure inside a loop body that captures the loop's own variable.**
+  `for (const g of order) { its.filter(it => it.group === g) }` makes QV4
+  allocate a block context on every iteration, and on Qt 6.12 a GC triggered
+  by that allocation segfaults in `MemoryManager::collectFromJSStack`: the
+  whole bar dies, at random, minutes to hours later (two crashes on
+  2026-11-11, from `Sessions.qml`; reproduced in isolation with `for…in` and
+  `for…of`). Use a helper function or a plain index loop instead. A closure
+  that only captures function-level variables is fine.
+
 **Quickshell 0.3.x API gotchas** (UPower percentage is 0..1 not 0..100, MPRIS
 `trackArtist` singular + non-reactive `position`, Pipewire volume needs
 `PwObjectTracker`, `notif.tracked = true` or notifications are freed,
