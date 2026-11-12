@@ -119,6 +119,15 @@ in
   # Enable NetworkManager for easy network management
   networking.networkmanager.enable = true;
 
+  # iwd as NetworkManager's wifi backend in place of wpa_supplicant: faster
+  # scans and reconnects, better roaming, WPA3. NM stays in charge of
+  # profiles, VPNs and the dispatcher below; only the daemon that scans and
+  # authenticates changes. Trialled on transporter from 2026-06-12, extended
+  # to gti (and so moved here) 2026-11-12. NM keeps the saved passphrases and
+  # hands them to iwd, so PSK profiles carry over. To back out, delete this
+  # line: the default is wpa_supplicant.
+  networking.networkmanager.wifi.backend = "iwd";
+
   # Restart NetworkManager in one step on a switch instead of the default
   # stop-before-activation / start-after. With stopIfChanged (the default)
   # the radio stays down for the whole middle of switch-to-configuration,
