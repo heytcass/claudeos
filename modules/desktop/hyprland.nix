@@ -204,9 +204,5 @@ in
     environment.pathsToLink = [ "/share/nautilus-python/extensions" ];
     environment.sessionVariables.NAUTILUS_4_EXTENSION_DIR = "${config.system.path}/lib/nautilus/extensions-4";
 
-    # Bluetooth manager (GUI + tray applet). blueman-applet is D-Bus activated
-    # on demand; blueman-manager is the settings surface.
-    services.blueman.enable = true;
-
   };
 }

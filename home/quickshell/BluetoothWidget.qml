@@ -2,8 +2,12 @@
 // icon). The glyph speaks the state: muted = radio off, subtext = on but
 // idle, accent = something connected. Click for the popup: tap the header to
 // toggle the radio, tap a paired device to connect/disconnect it, and the
-// footer opens blueman-manager for pairing (the one flow that earns a full
-// GUI). Hidden entirely on machines with no adapter.
+// footer turns on pairing mode: the adapter scans, nearby unpaired devices
+// are listed, and a tap pairs, trusts and connects one. Paired devices grow
+// a "forget" label while pairing mode is on. Nothing here answers a PIN or
+// passkey prompt (Quickshell has no BlueZ agent), so a device that needs one
+// fails with a pointer to `bluetoothctl`, which carries its own agent.
+// Hidden entirely on machines with no adapter.
 import QtQuick
 import Quickshell
 import Quickshell.Bluetooth
@@ -22,6 +26,54 @@ Rectangle {
     // A null adapter means the radio is rfkill-blocked (bluez has no
     // controller) — still show the muted glyph so the bar can turn it on.
     readonly property bool radioOn: adapter?.enabled ?? false
+
+    // Pairing mode: scanning is a radio cost, so it only runs while the popup
+    // is open and gives up on its own after a minute.
+    property bool pairMode: false
+    // Unpaired devices that announce a real name. BlueZ fills `name` with the
+    // address when a device has none; `deviceName` stays empty, which filters
+    // out the anonymous beacons that otherwise flood the list.
+    readonly property var found: (Bluetooth.devices?.values ?? []).filter(d => !d.paired && d.deviceName !== "").slice(0, 8)
+    // The device a pair() is in flight for, and the last failure to show.
+    property var pending: null
+    property string pairError: ""
+
+    onPairModeChanged: {
+        pairError = "";
+        if (adapter)
+            adapter.discovering = pairMode;
+    }
+
+    function pairWith(dev) {
+        pairError = "";
+        pending = dev;
+        dev.trusted = true; // so it reconnects on its own next time
+        dev.pair();
+    }
+
+    // Follows the in-flight device from the root, because its row is destroyed
+    // the moment it becomes paired and leaves the `found` list.
+    Connections {
+        target: root.pending
+        function onPairedChanged() {
+            if (root.pending?.paired) {
+                root.pending.connect();
+                root.pending = null;
+            }
+        }
+        function onPairingChanged() {
+            if (root.pending && !root.pending.pairing && !root.pending.paired) {
+                root.pairError = "couldn't pair " + root.pending.name + " — if it wants a PIN, use bluetoothctl";
+                root.pending = null;
+            }
+        }
+    }
+
+    Timer {
+        interval: 60000
+        running: root.pairMode
+        onTriggered: root.pairMode = false
+    }
 
     implicitWidth: glyph.implicitWidth + 12
     implicitHeight: Theme.barHeight - 8
@@ -76,6 +128,8 @@ Rectangle {
         visible: false
         grabFocus: true
         color: "transparent"
+        onVisibleChanged: if (!visible)
+            root.pairMode = false
 
         Rectangle {
             anchors.fill: parent
@@ -146,6 +200,18 @@ Rectangle {
                         TapHandler {
                             onTapped: modelData.connected ? modelData.disconnect() : modelData.connect()
                         }
+                        // unpairing, offered only while pairing mode is on
+                        Text {
+                            visible: root.pairMode
+                            text: "forget"
+                            color: Theme.urgent
+                            font.family: Theme.fontSans
+                            font.pixelSize: Theme.fontSize - 2
+                            anchors.verticalCenter: parent.verticalCenter
+                            TapHandler {
+                                onTapped: modelData.forget()
+                            }
+                        }
                     }
                 }
                 Text {
@@ -162,17 +228,67 @@ Rectangle {
                     color: Theme.surface
                 }
 
-                // escape hatch: pairing lives in the full GUI
+                // pairing mode: nearby unpaired devices, tap to pair
+                Repeater {
+                    model: root.pairMode ? root.found : []
+                    delegate: Row {
+                        required property var modelData
+                        spacing: 8
+                        Rectangle {
+                            anchors.verticalCenter: parent.verticalCenter
+                            width: 7
+                            height: 7
+                            radius: 3.5
+                            color: "transparent"
+                            border.color: Theme.subtext
+                            border.width: 1
+                        }
+                        Text {
+                            text: modelData.name
+                            color: Theme.text
+                            font.family: Theme.fontSans
+                            font.pixelSize: Theme.fontSize - 1
+                        }
+                        Text {
+                            visible: modelData.pairing
+                            text: "pairing…"
+                            color: Theme.accent
+                            font.family: Theme.fontSans
+                            font.pixelSize: Theme.fontSize - 2
+                            anchors.verticalCenter: parent.verticalCenter
+                        }
+                        TapHandler {
+                            enabled: !modelData.pairing
+                            onTapped: root.pairWith(modelData)
+                        }
+                    }
+                }
                 Text {
-                    text: "pair a device…"
-                    color: Theme.subtext
+                    visible: root.pairMode && root.found.length === 0
+                    text: "looking for devices…"
+                    color: Theme.muted
+                    font.family: Theme.fontSans
+                    font.pixelSize: Theme.fontSize - 2
+                }
+                Text {
+                    visible: root.pairError !== ""
+                    text: root.pairError
+                    color: Theme.warn
+                    font.family: Theme.fontSans
+                    font.pixelSize: Theme.fontSize - 2
+                    width: Math.min(implicitWidth, 260)
+                    wrapMode: Text.WordWrap
+                }
+
+                // footer: toggle pairing mode (needs the radio on to scan)
+                Text {
+                    visible: root.radioOn
+                    text: root.pairMode ? "done pairing" : "pair a device…"
+                    color: root.pairMode ? Theme.accent : Theme.subtext
                     font.family: Theme.fontSans
                     font.pixelSize: Theme.fontSize - 2
                     TapHandler {
-                        onTapped: {
-                            popup.visible = false;
-                            Quickshell.execDetached(["blueman-manager"]);
-                        }
+                        onTapped: root.pairMode = !root.pairMode
                     }
                 }
             }

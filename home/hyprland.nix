@@ -303,21 +303,16 @@ in
   };
 
   # The bar owns network and bluetooth status (NetworkWidget/BluetoothWidget),
-  # so the stock tray applets would double them up. Their packages stay —
-  # nm-connection-editor and blueman-manager are the settings surfaces — but
-  # the XDG autostart entries are shadowed Hidden: the user dir wins over
+  # so the stock tray applet would double it up. Its package stays —
+  # nm-connection-editor is the settings surface — but the XDG autostart
+  # entry is shadowed Hidden: the user dir wins over
   # /run/current-system/sw/etc/xdg/autostart for the same basename, and the
-  # systemd xdg-autostart generator skips Hidden entries.
+  # systemd xdg-autostart generator skips Hidden entries. Bluetooth needs no
+  # such shadow: blueman is gone and BluetoothWidget does the pairing itself.
   xdg.configFile."autostart/nm-applet.desktop".text = ''
     [Desktop Entry]
     Type=Application
     Name=NetworkManager Applet
-    Hidden=true
-  '';
-  xdg.configFile."autostart/blueman.desktop".text = ''
-    [Desktop Entry]
-    Type=Application
-    Name=Blueman Applet
     Hidden=true
   '';
 
@@ -764,7 +759,7 @@ in
         }
         {
           name = "float-utils";
-          match.class = "^(pavucontrol|nm-connection-editor|blueman-manager|org.gnome.Calculator)$";
+          match.class = "^(pavucontrol|nm-connection-editor|org.gnome.Calculator)$";
           float = true;
         }
         {
