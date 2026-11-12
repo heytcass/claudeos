@@ -139,9 +139,14 @@ in
               }
               END {
                 for (id in ord)
-                  printf "%d\t%d\t%-6d %-7d %-4d %-11s %-28s %s\n", n[id], ord[id], n[id], sn[id], kn[id],
-                    (id in last) ? substr(last[id], 1, 10) : "never", substr(name[id], 1, 28), id
-              }' | sort -t$'\t' -k1,1nr -k2,2n | cut -f3-
+                  printf "%d\t%d\t%d\t%d\t%s\t%s\t%s\n", n[id], ord[id], sn[id], kn[id],
+                    (id in last) ? last[id] : "never", substr(name[id], 1, 28), id
+              }' | sort -t$'\t' -k1,1nr -k2,2n |
+              # The log stores UTC; show the day it was in local time.
+              while IFS=$'\t' read -r count _ summon key last name id; do
+                [[ "$last" == never ]] || last=$(date -d "$last" +%Y-%m-%d 2>/dev/null || printf '%s' "''${last:0:10}")
+                printf '%-6d %-7d %-4d %-11s %-28s %s\n' "$count" "$summon" "$key" "$last" "$name" "$id"
+              done
             ;;
           *) usage ;;
         esac
