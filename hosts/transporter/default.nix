@@ -79,13 +79,6 @@
   # The auto-update lane keeps its own scoped NOPASSWD nixos-rebuild rule
   # (modules/common/auto-update.nix) — automation is unaffected.
 
-  # TESTBED TRIAL (tool-rethink 2026-06-12): iwd as NetworkManager's wifi
-  # backend — faster scans, better roaming, WPA3, while NM keeps the GNOME
-  # integration. Graduates to modules/common/networking.nix if the trial
-  # holds. Note: wifi passphrases are entered fresh (no wpa_supplicant
-  # profile migration — fresh install anyway).
-  networking.networkmanager.wifi.backend = "iwd";
-
   # Hyprland + the bespoke Quickshell bar (the sole desktop since the GNOME
   # rip-out completed 2026-07-12 — see docs/plans/2026-07-11-gnome-ripout-plan.md).
   # GNOME's fallback specialisation is gone from NEW generations; pre-Phase-3
