@@ -119,14 +119,20 @@ RowLayout {
         }
     }
 
-    // Wheel anywhere on the row cycles through existing workspaces.
+    // Wheel anywhere on the row steps through existing workspaces in pill
+    // (screen) order — Hyprland's own "e+1" walks ids, which no longer match
+    // what the row shows. Stops at either end.
     //
     // Lua config form, not the legacy string: Hyprland.dispatch wraps its
     // argument verbatim in hl.dispatch(...), so "workspace e+1" reaches Lua as
     // hl.dispatch(workspace e+1) and dies on a syntax error. Same casualty
     // class as the hyprctl dispatch dpms breakage (docs/known-issues.md).
     WheelHandler {
-        onWheel: event => Hyprland.dispatch("hl.dsp.focus({ workspace = \"" + (event.angleDelta.y > 0 ? "e-1" : "e+1") + "\" })")
+        onWheel: event => {
+            const next = WorkspaceOrder.neighbour(Hyprland.focusedWorkspace?.id, event.angleDelta.y > 0 ? -1 : 1);
+            if (next)
+                Hyprland.dispatch("hl.dsp.focus({ workspace = " + next.id + " })");
+        }
     }
 
     // Hover peek: rest on an unfocused, occupied pill for a beat and its
@@ -170,8 +176,10 @@ RowLayout {
         visible: false
     }
 
+    // Screen order, numbered by position (WorkspaceOrder.qml), never by
+    // Hyprland's id: laptop-left-of-external reads 1, 2 | 3, not 2 | 4.
     Repeater {
-        model: Hyprland.workspaces
+        model: WorkspaceOrder.ordered
 
         delegate: Item {
             id: cell
@@ -328,7 +336,7 @@ RowLayout {
 
                         Text {
                             anchors.verticalCenter: parent.verticalCenter
-                            text: cell.modelData.name
+                            text: WorkspaceOrder.numberOf(cell.modelData.id)
                             color: cell.focused || cell.urgent ? Theme.bgAlt : cell.occupied ? Theme.text : Theme.muted
                             font.family: Theme.fontMono
                             font.pixelSize: 11

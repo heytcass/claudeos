@@ -118,12 +118,12 @@ Scope {
                 color: Theme.base0A,
                 items: [
                     {
-                        keys: ["Super", "1 – 5"],
-                        desc: "Switch workspace"
+                        keys: ["Super", "1 – 9"],
+                        desc: "Nth workspace, left to right (one past the last = new)"
                     },
                     {
-                        keys: ["Super", "Shift", "1 – 5"],
-                        desc: "Send window to workspace"
+                        keys: ["Super", "Shift", "1 – 9"],
+                        desc: "Send window to Nth workspace"
                     },
                     {
                         keys: ["Super", "Tab"],

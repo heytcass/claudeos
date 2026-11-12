@@ -88,7 +88,7 @@ PopupWindow {
             anchors.topMargin: popup.pad
             anchors.horizontalCenter: parent.horizontalCenter
             readonly property int count: popup.workspace?.toplevels?.values?.length ?? 0
-            text: "workspace " + (popup.workspace?.name ?? "") + " · " + count + (count === 1 ? " window" : " windows")
+            text: "workspace " + (popup.workspace ? WorkspaceOrder.numberOf(popup.workspace.id) : "") + " · " + count + (count === 1 ? " window" : " windows")
             color: Theme.subtext
             font.family: Theme.fontMono
             font.pixelSize: 11
