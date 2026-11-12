@@ -333,6 +333,8 @@ Ledger edits are committed by the normal rebuild auto-commit flow.
 
 - 2026-11-02 · Thread backtraces of idle PipeWire/SPA workers: `#0 __syscall_cancel_arch` → `#1 epoll_wait` → `#2 impl_pollfd_wait (libspa-support.so)` → `#3 loop_iterate` → `#5 start_thread` → `#6 __clone3` (3 occurrences per frame, four distinct process addresses) · Every frame is a parked event-loop thread sitting in `epoll_wait`, which is the normal idle state of a PipeWire data loop, so the trace shows no fault. The emitting process is not named in these lines, and no `dumped core` line accompanies them. Benign if audio works normally. Escalate if they appear next to a core dump or a PipeWire crash, since a trace without a fault frame would then be the only clue.
 
+- 2026-11-11 · `usb usb3-port2: Cannot enable. Maybe the USB cable is bad?` (1 occurrence) · The kernel's generic hub message when a port fails to power up or enable after reset; the cable hint is boilerplate, not a diagnosis. Same port as the 2026-08-26 usb3-port2 allocation transients (line 212), so it is a recurring thread, not a new fault. Benign if devices on that port enumerate; only escalate if usb3-port2 keeps failing with a device attached, then swap the cable and check `lsusb -t`.
+
 ## Resolved
 
 <!-- move entries here when fixed, with the fixing commit/PR -->
