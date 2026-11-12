@@ -1,6 +1,10 @@
 // ActiveWindow.qml — the focused window's title. The app icon lives on the
 // focused workspace pill now (Workspaces.qml), so this is text only; it slides
-// in on focus change instead of hard-snapping. Blank when nothing is focused.
+// in on focus change instead of hard-snapping. Blank when nothing is focused,
+// and when the title would only repeat the bar: the app's own name (the
+// pill's icon already says it) or the focused workspace's purpose label
+// (WorkspaceNames.redundantTitle). A title with more in it (a file, a page,
+// a command) still shows beside the label.
 import QtQuick
 import Quickshell.Wayland
 
@@ -10,7 +14,7 @@ Item {
     readonly property string title: win?.title ?? ""
     readonly property string appId: win?.appId ?? ""
 
-    visible: title !== ""
+    visible: title !== "" && !WorkspaceNames.redundantTitle(title, appId)
     implicitWidth: content.implicitWidth
     implicitHeight: content.implicitHeight
 

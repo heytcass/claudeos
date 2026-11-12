@@ -40,6 +40,10 @@ let
       name = "Resume context";
     }
     {
+      id = "route:workspace";
+      name = "Go to workspace (by label)";
+    }
+    {
       id = "app";
       name = "App launch (any app)";
     }

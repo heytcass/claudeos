@@ -10,6 +10,9 @@
 // the row to cycle, and a pill breathes urgent-red when a window on it demands
 // attention (until that workspace is visited; urgent outranks the Claude
 // ring). Hover an occupied pill for a live peek at it (WorkspacePeek.qml).
+// Each occupied workspace also has a short purpose label (WorkspaceNames.qml:
+// its Claude session, project, or app): the focused pill wears it after the
+// icon, the others unfold theirs on hover, on the island's morph spring.
 import QtQuick
 import QtQuick.Layouts
 import Quickshell
@@ -193,9 +196,21 @@ RowLayout {
             readonly property string iconSource: root.iconFor(lead)
             // Claude lives here and a session is busy: breathing accent ring.
             readonly property bool claudeMarked: root.claudeBusy && !urgent && wins.some(t => root.isClaude(t))
+            // Purpose label ("" = none: the pill stays number + icon). Shown
+            // on the focused pill, and on any other while hovered. The text
+            // is held while the slot folds, so it doesn't blank mid-fold.
+            readonly property string label: WorkspaceNames.labels[modelData.id]?.label ?? ""
+            readonly property bool showLabel: label !== "" && (focused || pillMouse.containsMouse)
+            property string heldLabel: label
+            onLabelChanged: if (label !== "")
+                heldLabel = label
 
             implicitWidth: pillRect.implicitWidth
             implicitHeight: 20
+            // The label unfolding under a peek moves the pill's centre:
+            // keep the peek hung from it.
+            onWidthChanged: if (root.peekItem === cell && peek.visible)
+                peek.anchor.updateAnchor()
 
             // Bounce the focused pill when it becomes focused; visiting a
             // workspace services its urgency.
@@ -273,8 +288,11 @@ RowLayout {
                 id: pillRect
                 anchors.centerIn: parent
                 // Follows content: number, or number + icon. The floors keep
-                // a bare number at the old 20/28 sizes.
-                implicitWidth: Math.max(cell.focused ? 28 : 20, content.implicitWidth + (cell.focused ? 14 : 12))
+                // a bare number at the old 20/28 sizes. The label slot adds
+                // its own (spring-animated) width on top, so the two motions
+                // sum instead of one Behavior chasing the other.
+                property real baseWidth: Math.max(cell.focused ? 28 : 20, content.implicitWidth + (cell.focused ? 14 : 12))
+                implicitWidth: baseWidth + labelSlot.width
                 width: implicitWidth
                 height: 20
                 radius: 10
@@ -282,7 +300,7 @@ RowLayout {
                 // ones, so the eye can count where windows live. Urgent trumps.
                 color: cell.focused ? Theme.accent : cell.urgent ? Theme.urgent : cell.occupied ? Qt.lighter(Theme.surface, 1.35) : Theme.surface
 
-                Behavior on implicitWidth {
+                Behavior on baseWidth {
                     NumberAnimation {
                         duration: Motion.quick
                         easing.type: Easing.BezierSpline
@@ -297,45 +315,91 @@ RowLayout {
                     }
                 }
 
+                // number + icon (`content`, which sizes baseWidth), then the
+                // label slot; centred as one so the padding stays even.
                 Row {
-                    id: content
                     anchors.centerIn: parent
-                    spacing: 4
+                    spacing: 0
 
-                    Text {
+                    Row {
+                        id: content
                         anchors.verticalCenter: parent.verticalCenter
-                        text: cell.modelData.name
-                        color: cell.focused || cell.urgent ? Theme.bgAlt : cell.occupied ? Theme.text : Theme.muted
-                        font.family: Theme.fontMono
-                        font.pixelSize: 11
+                        spacing: 4
+
+                        Text {
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: cell.modelData.name
+                            color: cell.focused || cell.urgent ? Theme.bgAlt : cell.occupied ? Theme.text : Theme.muted
+                            font.family: Theme.fontMono
+                            font.pixelSize: 11
+                        }
+                        // Full-colour app icon; dimmed off-focus so the focused
+                        // pill's reads brightest. Hidden (no placeholder) when
+                        // nothing resolves.
+                        // On the focused pill the icon sits on a dark chip: an
+                        // accent-coloured icon (Claude's own) would otherwise
+                        // vanish into the accent fill.
+                        Rectangle {
+                            anchors.verticalCenter: parent.verticalCenter
+                            visible: cell.iconSource !== ""
+                            width: cell.focused ? 18 : 14
+                            height: width
+                            radius: 6
+                            color: cell.focused ? Theme.bgAlt : "transparent"
+
+                            Image {
+                                anchors.centerIn: parent
+                                source: cell.iconSource
+                                sourceSize.width: 14
+                                sourceSize.height: 14
+                                width: 14
+                                height: 14
+                                opacity: cell.focused ? 1 : 0.75
+                                // Never `asynchronous` on an image://icon/ source:
+                                // that moves QIcon theme loading onto Qt's pixmap
+                                // reader thread, where it races the main thread's
+                                // own icon loads (tray, WindowThumb) on the shared
+                                // theme cache and segfaults the bar (2026-11-11).
+                            }
+                        }
                     }
-                    // Full-colour app icon; dimmed off-focus so the focused
-                    // pill's reads brightest. Hidden (no placeholder) when
-                    // nothing resolves.
-                    // On the focused pill the icon sits on a dark chip: an
-                    // accent-coloured icon (Claude's own) would otherwise
-                    // vanish into the accent fill.
-                    Rectangle {
-                        anchors.verticalCenter: parent.verticalCenter
-                        visible: cell.iconSource !== ""
-                        width: cell.focused ? 18 : 14
-                        height: width
-                        radius: 6
-                        color: cell.focused ? Theme.bgAlt : "transparent"
 
-                        Image {
-                            anchors.centerIn: parent
-                            source: cell.iconSource
-                            sourceSize.width: 14
-                            sourceSize.height: 14
-                            width: 14
-                            height: 14
-                            opacity: cell.focused ? 1 : 0.75
-                            // Never `asynchronous` on an image://icon/ source:
-                            // that moves QIcon theme loading onto Qt's pixmap
-                            // reader thread, where it races the main thread's
-                            // own icon loads (tray, WindowThumb) on the shared
-                            // theme cache and segfaults the bar (2026-11-11).
+                    // The purpose label, folded to zero width unless shown. Its
+                    // width rides the island's morph spring (as PillSlot does);
+                    // the leading 5px gap lives inside the slot so a folded slot
+                    // leaves no stray spacing.
+                    Item {
+                        id: labelSlot
+                        anchors.verticalCenter: parent.verticalCenter
+                        property real openWidth: cell.showLabel ? labelText.implicitWidth + 5 : 0
+                        Behavior on openWidth {
+                            SpringAnimation {
+                                spring: Motion.springMorph
+                                damping: Motion.dampingMorph
+                                mass: Motion.massMorph
+                            }
+                        }
+                        // the spring overshoots: never a negative width
+                        width: Math.max(0, openWidth)
+                        height: 20
+                        clip: true
+
+                        Text {
+                            id: labelText
+                            x: 5
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: cell.heldLabel
+                            color: cell.focused || cell.urgent ? Theme.bgAlt : Theme.text
+                            font.family: Theme.fontSans
+                            font.pixelSize: 11
+                            opacity: cell.showLabel ? 1 : 0
+                            Behavior on opacity {
+                                NumberAnimation {
+                                    duration: cell.showLabel ? Motion.standard : Motion.quick
+                                    easing.type: Easing.BezierSpline
+                                    easing.bezierCurve: cell.showLabel ? Motion.curveStandard : Motion.curveExit
+                                }
+                            }
                         }
                     }
                 }
@@ -355,6 +419,7 @@ RowLayout {
                 }
 
                 MouseArea {
+                    id: pillMouse
                     anchors.fill: parent
                     hoverEnabled: true
                     // No peek at the workspace you're on, or at an empty one.
