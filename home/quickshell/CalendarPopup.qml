@@ -43,6 +43,92 @@ PopupWindow {
             anchors.margins: 12
             spacing: 12
 
+            // Needs you — the NeedsYou queue in rank order, the island's needs
+            // face unpacked. Each row goes to its item (the same act() the
+            // island's click runs) and closes the popup.
+            ColumnLayout {
+                Layout.fillWidth: true
+                visible: NeedsYou.count > 0
+                spacing: 2
+
+                Text {
+                    Layout.bottomMargin: 4
+                    text: "Needs you"
+                    color: Theme.subtext
+                    font.family: Theme.fontSans
+                    font.bold: true
+                    font.pixelSize: 12
+                }
+
+                Repeater {
+                    model: NeedsYou.items
+                    delegate: Rectangle {
+                        id: needRow
+                        required property var modelData
+                        Layout.fillWidth: true
+                        implicitHeight: needCols.implicitHeight + 8
+                        radius: 8
+                        color: needHover.hovered ? Theme.surface : "transparent"
+                        HoverHandler {
+                            id: needHover
+                        }
+                        TapHandler {
+                            onTapped: {
+                                popup.visible = false;
+                                NeedsYou.act(needRow.modelData);
+                            }
+                        }
+                        RowLayout {
+                            id: needCols
+                            anchors.left: parent.left
+                            anchors.right: parent.right
+                            anchors.verticalCenter: parent.verticalCenter
+                            anchors.leftMargin: 6
+                            anchors.rightMargin: 6
+                            spacing: 8
+                            Text {
+                                Layout.alignment: Qt.AlignTop
+                                Layout.topMargin: 1
+                                Layout.preferredWidth: Theme.iconSize
+                                horizontalAlignment: Text.AlignHCenter
+                                text: NeedsYou.glyph(needRow.modelData)
+                                color: NeedsYou.tint(needRow.modelData)
+                                font.family: Theme.fontMono
+                                font.pixelSize: Theme.fontSize
+                            }
+                            ColumnLayout {
+                                Layout.fillWidth: true
+                                spacing: 1
+                                Text {
+                                    Layout.fillWidth: true
+                                    text: needRow.modelData.title
+                                    color: Theme.text
+                                    font.family: Theme.fontSans
+                                    font.pixelSize: 12
+                                    elide: Text.ElideRight
+                                    maximumLineCount: 1
+                                }
+                                Text {
+                                    Layout.fillWidth: true
+                                    text: needRow.modelData.detail
+                                    color: Theme.muted
+                                    font.family: Theme.fontSans
+                                    font.pixelSize: 11
+                                    elide: Text.ElideRight
+                                }
+                            }
+                        }
+                    }
+                }
+
+                Rectangle {
+                    Layout.fillWidth: true
+                    Layout.topMargin: 6
+                    height: 1
+                    color: Theme.surface
+                }
+            }
+
             // Jasper's insight — the one most important thing, above the day it
             // was derived from. This is where Jasper lives in the bar; a fresh
             // insight is also announced once as a toast note (Jasper.qml).
@@ -139,7 +225,7 @@ PopupWindow {
                             }
                             Text {
                                 Layout.fillWidth: true
-                                text: (sessionRow.busy ? "Working · " : "Idle · ") + Sessions.ago(sessionRow.modelData.since)
+                                text: (sessionRow.busy ? "Working · " : sessionRow.modelData.status === "waiting" ? "Waiting for you · " : "Idle · ") + Sessions.ago(sessionRow.modelData.since)
                                 color: Theme.muted
                                 font.family: Theme.fontSans
                                 font.pixelSize: 11

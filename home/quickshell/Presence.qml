@@ -31,6 +31,16 @@ Singleton {
     function togglePanel() {
         panelOpen = !panelOpen;
     }
+    // Open one PR in the browser. gh is known present (the PR poll uses it).
+    // ReviewPanel's rows and the island's NeedsYou queue share this path.
+    Process {
+        id: opener
+    }
+    function openPr(number) {
+        opener.command = ["gh", "pr", "view", "" + number, "--web"];
+        opener.running = true;
+        panelOpen = false;
+    }
 
     // --- live lanes, one probe, sentinel-delimited batches -----------------
     // The probe prints "L" + sidecar json for each live lane, then a bare

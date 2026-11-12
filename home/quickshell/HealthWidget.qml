@@ -1,46 +1,29 @@
 // HealthWidget.qml — the bar's conscience. Exists only when a claudeos-* /
 // claude-* systemd unit (user or system) is in the failed state: a small
 // warn-coloured dot breathes until the failure clears. Click lists the failed
-// units. Polled cheaply, like Agent.qml.
+// units. The probe itself lives in the Health singleton (one poll for every
+// monitor, and the island's NeedsYou queue reads the same list).
 import QtQuick
 import Quickshell
-import Quickshell.Io
 
 Item {
     id: root
     // Holds the right pill open while the popup is up (Bar.qml).
     readonly property bool popupOpen: popup.visible
-    // Space-separated failed unit names ("" = all healthy).
-    property string failed: ""
-    readonly property var failedList: failed === "" ? [] : failed.split(" ")
+    readonly property var failedList: Health.failedList
 
-    visible: failed !== ""
+    visible: Health.failed !== ""
     implicitWidth: visible ? dot.width + 8 : 0
     implicitHeight: Theme.barHeight - 8
 
-    // Sentinel-prefixed single line per poll ("@" alone = healthy), same
-    // contract as Agent.qml — bare empty lines can be dropped by the parser.
-    Process {
-        id: probe
-        command: [
-            "sh",
-            "-c",
-            "echo \"@$({ systemctl --failed --no-legend --plain; systemctl --user --failed --no-legend --plain; } 2>/dev/null | awk '{print $1}' | grep -E '^(claudeos|claude)-' | paste -sd' ' -)\""
-        ]
-        stdout: SplitParser {
-            onRead: line => {
-                const t = line.trim();
-                if (t.startsWith("@"))
-                    root.failed = t.slice(1).trim();
-            }
+    // The island's queue asks for the list; only the focused monitor answers,
+    // so one popup opens, under the user's eyes.
+    Connections {
+        target: Health
+        function onPopupRequested() {
+            if (root.visible && BarFocus.isFocused(QsWindow.window))
+                popup.visible = true;
         }
-    }
-    Timer {
-        interval: 30000
-        running: true
-        repeat: true
-        triggeredOnStart: true
-        onTriggered: probe.running = true
     }
 
     Rectangle {

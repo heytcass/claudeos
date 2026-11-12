@@ -136,6 +136,19 @@
     icon = "magic";
   }
   {
+    name = "What needs me";
+    global = "quickshell:needsyou";
+    help = "What needs me — the ranked queue of sessions waiting on you, failed units, PRs and cards";
+    short = "What needs me — the attention queue";
+    keywords = [
+      "needs"
+      "attention"
+      "waiting"
+      "queue"
+    ];
+    icon = "bell";
+  }
+  {
     name = "Open shelf";
     global = "quickshell:shelf";
     help = "Open the shelf for the current context — click to open, right-click a tile for note/move/remove";

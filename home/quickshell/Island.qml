@@ -4,9 +4,13 @@
 // used to carry moved to a surface that already existed: media to the right
 // pill's MediaWidget, notification peeks to toasts, the volume/brightness OSD
 // to the VolumeWidget, Jasper to a toast note + the calendar popup, the
-// shelf to its hotkey (Bar.qml). Three faces, highest priority first:
+// shelf to its hotkey (Bar.qml). Four faces, highest priority first (the
+// exact order, with the needs face's two slots, is at `state:` below):
 //   · done       → an interactive session just finished a real turn
 //                  (Sessions.finished): a check and its title, for a moment
+//   · needs      → the top of the NeedsYou queue (a session waiting on you, a
+//                  failed unit, a PR to review, a card), "+N" when more wait;
+//                  click goes to it, the chip or a right click lists them all
 //   · agent      → a headless lane is working on the machine (Agent.activity,
 //                  a curated phrase), or one interactive Claude session has
 //                  been busy long enough to be the thing you wait on
@@ -14,7 +18,8 @@
 //                  that only add a spark + count to the clock face, so the
 //                  clock stays the default (2026-11-08).
 //   · clock      → date and time, plus "✳ N" while sessions are busy
-// Click opens the calendar/notification centre. This is the deliberate break
+// Click opens the calendar/notification centre (on the needs face: right
+// click), which leads with the queue. This is the deliberate break
 // from the GNOME panel look.
 import QtQuick
 import QtQuick.Effects
@@ -23,9 +28,20 @@ import Quickshell
 Rectangle {
     id: root
 
-    // Face priority: a finished turn is news and brief, so it outranks the
-    // agent face; the agent face outranks the clock.
-    state: root.doneShown ? "done" : root.agentFace ? "agent" : "clock"
+    // Face priority, highest first:
+    //   done  — a finished turn is news and brief (4 s), so nothing outranks it
+    //   needs — the NeedsYou queue's top item when it is BLOCKING (a session
+    //           waiting on your answer) or a FAILURE: you are the bottleneck,
+    //           so it outranks watching the machine work
+    //   agent — a lane or a promoted session at work
+    //   needs — the queue's top item when it is only reviewable/informational
+    //           (a PR, a card): worth the stage only when nothing is working
+    //   clock — the default; an empty queue leaves every rule above as before
+    // The border breath and flare run under every face, so a working machine
+    // still says so while the island asks for you.
+    readonly property bool needsAny: NeedsYou.count > 0
+    readonly property bool needsUrgent: root.needsAny && NeedsYou.top.tier <= NeedsYou.tierFailure
+    state: root.doneShown ? "done" : root.needsUrgent ? "needs" : root.agentFace ? "agent" : root.needsAny ? "needs" : "clock"
 
     // Only the island on the FOCUSED output animates — see BarFocus.qml for
     // why (one QSGRenderThread per monitor, all breathing the same pulse).
@@ -55,8 +71,21 @@ Rectangle {
         },
         State {
             name: "done"
+        },
+        State {
+            name: "needs"
         }
     ]
+
+    // "What needs me" from the summon: the focused monitor's island opens its
+    // popup, which leads with the whole queue.
+    Connections {
+        target: NeedsYou
+        function onSummoned() {
+            if (root.onFocusedScreen)
+                calPopup.visible = true;
+        }
+    }
 
     // Done face: Sessions.finished names a session whose turn just ended
     // after real work. Every island shows it, each on its own hold timer; the
@@ -170,7 +199,9 @@ Rectangle {
     }
 
     border.width: root.working || root.flare > 0 ? 2 : 1
-    border.color: Qt.tint(root.working ? Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.3 + 0.6 * root.glow) : Qt.rgba(Theme.muted.r, Theme.muted.g, Theme.muted.b, 0.25), Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, root.flare))
+    // At rest the border is a faint muted line; on the needs face it takes the
+    // top item's tier colour, still and half-strong (the "your turn" tell).
+    border.color: Qt.tint(root.working ? Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.3 + 0.6 * root.glow) : root.state === "needs" ? Qt.rgba(root.needsTint.r, root.needsTint.g, root.needsTint.b, 0.5) : Qt.rgba(Theme.muted.r, Theme.muted.g, Theme.muted.b, 0.25),Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, root.flare))
 
     // Outer glow while the agent works: two soft halo layers behind the pill
     // (negative z paints below the parent's own fill), swelling and fading on
@@ -238,7 +269,7 @@ Rectangle {
     // back-to-back state flips flow into each other instead of restarting
     // from rest.
     implicitWidth: {
-        const w = state === "done" ? doneContent.implicitWidth : state === "agent" ? agentContent.implicitWidth : clockContent.implicitWidth;
+        const w = state === "done" ? doneContent.implicitWidth : state === "needs" ? needsContent.implicitWidth : state === "agent" ? agentContent.implicitWidth : clockContent.implicitWidth;
         return w + 26;
     }
     Behavior on implicitWidth {
@@ -460,10 +491,87 @@ Rectangle {
         }
     }
 
+    // ---- needs face: the top of the NeedsYou queue ----
+    // Calm on purpose: no shimmer, no spin, no breath of its own. Motion in
+    // the island means "working"; this face means "your turn", so it is
+    // still, and set apart by its tier's colour on the glyph and the border.
+    // The time stays, demoted, as on the agent face.
+    readonly property color needsTint: NeedsYou.tint(NeedsYou.top)
+    Row {
+        id: needsContent
+        anchors.centerIn: parent
+        spacing: 9
+        opacity: root.state === "needs" ? 1 : 0
+        visible: opacity > 0
+        Behavior on opacity {
+            NumberAnimation {
+                duration: Motion.quick
+                easing.type: Easing.BezierSpline
+                easing.bezierCurve: Motion.curveStandard
+            }
+        }
+        Text {
+            anchors.verticalCenter: parent.verticalCenter
+            text: NeedsYou.glyph(NeedsYou.top)
+            color: root.needsTint
+            font.family: Theme.fontMono
+            font.pixelSize: Theme.iconSize
+        }
+        Text {
+            readonly property string t: NeedsYou.top ? NeedsYou.top.title : ""
+            anchors.verticalCenter: parent.verticalCenter
+            text: t.length > 42 ? t.slice(0, 41) + "…" : t
+            color: Theme.text
+            font.family: Theme.fontSans
+            font.pixelSize: Theme.fontSize
+        }
+        // More than one thing waiting: a small "+N" chip. It is also the way
+        // to the whole list — a click on it opens the popup instead of acting
+        // on the top item (see the TapHandler below).
+        Rectangle {
+            id: needsChip
+            anchors.verticalCenter: parent.verticalCenter
+            visible: NeedsYou.count > 1
+            implicitWidth: chipText.implicitWidth + 12
+            implicitHeight: chipText.implicitHeight + 2
+            radius: height / 2
+            color: Theme.surface
+            Text {
+                id: chipText
+                anchors.centerIn: parent
+                text: "+" + (NeedsYou.count - 1)
+                color: Theme.subtext
+                font.family: Theme.fontMono
+                font.pixelSize: Theme.fontSize - 2
+            }
+        }
+        Text {
+            anchors.verticalCenter: parent.verticalCenter
+            text: Qt.formatDateTime(clock.date, "h:mm AP")
+            color: Theme.subtext
+            font.family: Theme.fontSans
+            font.pixelSize: Theme.fontSize - 2
+        }
+    }
+
     HoverHandler {
         id: hover
     }
+    // Left click: on the needs face, go to the top item (its own open path);
+    // the "+N" chip, and every other face, opens the popup as before. Right
+    // click always opens the popup, so the calendar stays one click away.
     TapHandler {
+        acceptedButtons: Qt.LeftButton
+        onTapped: eventPoint => {
+            const onChip = needsChip.visible && needsChip.contains(needsChip.mapFromItem(root, eventPoint.position));
+            if (root.state === "needs" && !onChip)
+                NeedsYou.act(NeedsYou.top);
+            else
+                calPopup.visible = !calPopup.visible;
+        }
+    }
+    TapHandler {
+        acceptedButtons: Qt.RightButton
         onTapped: calPopup.visible = !calPopup.visible
     }
     CalendarPopup {

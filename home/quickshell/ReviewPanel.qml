@@ -14,14 +14,9 @@ import Quickshell.Io
 Scope {
     id: root
 
-    // gh is known present (the PR poll uses it).
-    Process {
-        id: opener
-    }
+    // The opener lives in Presence, shared with the island's NeedsYou queue.
     function openPr(number) {
-        opener.command = ["gh", "pr", "view", "" + number, "--web"];
-        opener.running = true;
-        Presence.panelOpen = false;
+        Presence.openPr(number);
     }
 
     PanelWindow {

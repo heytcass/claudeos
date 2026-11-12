@@ -24,11 +24,14 @@ import Quickshell.Io
 Singleton {
     id: root
 
-    // [{pid, name, status, since, cwd}] — live interactive sessions, newest
-    // first. `since` is statusUpdatedAt (ms epoch): how long it has been in
-    // its current status.
+    // [{pid, name, status, since, cwd, waitingFor}] — live interactive
+    // sessions, newest first. `since` is statusUpdatedAt (ms epoch): how long
+    // it has been in its current status. status is busy / idle / waiting.
     property var live: []
     readonly property int busy: live.filter(s => s.status === "busy").length
+    // Sessions blocked on you: status "waiting" (a permission dialog or a
+    // question). The island's NeedsYou queue puts these first.
+    readonly property var waiting: live.filter(s => s.status === "waiting")
     // Sorted ids of the busy sessions; Sonic diffs this (with Agent.agents)
     // so each turn's start and finish is audible even while others work.
     property var busyIds: []
@@ -78,7 +81,10 @@ Singleton {
                         name: (j.name ?? "").trim() || "Claude Code",
                         status: j.status ?? "idle",
                         since: j.statusUpdatedAt ?? j.updatedAt ?? 0,
-                        cwd: j.cwd ?? ""
+                        cwd: j.cwd ?? "",
+                        // Set with status "waiting": what the session is
+                        // blocked on (a permission dialog, "input needed", …).
+                        waitingFor: typeof j.waitingFor === "string" ? j.waitingFor : ""
                     });
                 } catch (e) {
                 // half-written file mid-update — next poll gets the settled one
@@ -98,14 +104,16 @@ Singleton {
     function commit(list) {
         list.sort((a, b) => (b.since ?? 0) - (a.since ?? 0));
         root.live = list;
-        const ids = list.filter(s => s.status === "busy").map(s => "session-" + s.pid).sort();
-        if (ids.join("\n") !== root.busyIds.join("\n"))
+        const ids = list.filter(s => s.status === "busy").map(s => "session-" + s.pid).sort();        if (ids.join("\n") !== root.busyIds.join("\n"))
             root.busyIds = ids;
         const now = Date.now();
         const prev = root._busyStart;
         const nowBusy = {};
         for (const s of list)
-            if (s.status === "busy")
+            // A permission prompt or question mid-turn ("waiting") is not the
+            // end of that turn: carry its busy stretch on, so `finished` fires
+            // when the turn really ends, not when it stops to ask you.
+            if (s.status === "busy" || (s.status === "waiting" && prev[s.pid] !== undefined))
                 nowBusy[s.pid] = {
                     since: prev[s.pid]?.since ?? s.since,
                     name: s.name
