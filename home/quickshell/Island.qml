@@ -201,7 +201,7 @@ Rectangle {
     border.width: root.working || root.flare > 0 ? 2 : 1
     // At rest the border is a faint muted line; on the needs face it takes the
     // top item's tier colour, still and half-strong (the "your turn" tell).
-    border.color: Qt.tint(root.working ? Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.3 + 0.6 * root.glow) : root.state === "needs" ? Qt.rgba(root.needsTint.r, root.needsTint.g, root.needsTint.b, 0.5) : Qt.rgba(Theme.muted.r, Theme.muted.g, Theme.muted.b, 0.25),Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, root.flare))
+    border.color: Qt.tint(root.working ? Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.3 + 0.6 * root.glow) : root.state === "needs" ? Qt.rgba(root.needsTint.r, root.needsTint.g, root.needsTint.b, 0.5) : Qt.rgba(Theme.muted.r, Theme.muted.g, Theme.muted.b, 0.25), Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, root.flare))
 
     // Outer glow while the agent works: two soft halo layers behind the pill
     // (negative z paints below the parent's own fill), swelling and fading on

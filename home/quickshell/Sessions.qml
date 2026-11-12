@@ -104,7 +104,8 @@ Singleton {
     function commit(list) {
         list.sort((a, b) => (b.since ?? 0) - (a.since ?? 0));
         root.live = list;
-        const ids = list.filter(s => s.status === "busy").map(s => "session-" + s.pid).sort();        if (ids.join("\n") !== root.busyIds.join("\n"))
+        const ids = list.filter(s => s.status === "busy").map(s => "session-" + s.pid).sort();
+        if (ids.join("\n") !== root.busyIds.join("\n"))
             root.busyIds = ids;
         const now = Date.now();
         const prev = root._busyStart;
