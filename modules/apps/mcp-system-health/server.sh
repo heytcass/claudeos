@@ -320,7 +320,12 @@ handle_tool() {
       # the wrapped binary's comm is the truncated ".quickshell-wra"; and an
       # unanchored -f pattern once killed the test harness invoking this tool.)
       local stray
-      stray=$(qs_stop 'bin/quickshell$')
+      # Both argv[0] forms: the wrapper starts the bar as `bin/quickshell`,
+      # but after a crash Quickshell relaunches itself in place as
+      # `bin/.quickshell-wrapped`. Matching only the first left a relaunched
+      # bar alive beside the one restarted below: two bars, every earcon
+      # twice (2026-11-11).
+      stray=$(qs_stop 'bin/(\.quickshell-wrapped|quickshell)$')
       setsid qs -p "$dest/shell.qml" >"$log" 2>&1 </dev/null &
       # Poll for the loader's own verdict line instead of a fixed sleep, then
       # give startup bindings a moment to log their errors.

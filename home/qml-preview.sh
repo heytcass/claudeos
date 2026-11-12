@@ -67,8 +67,11 @@ cp -rL "$deployed" "$dest"
 chmod -R u+w "$dest"
 cp "$repo"/*.qml "$dest"/ 2>/dev/null || true
 
-# stop the running bar (match the binary path, never this script's cmdline)
-pkill -f 'bin/quickshell' 2>/dev/null || true
+# stop the running bar (match the binary path, never this script's cmdline).
+# Both argv[0] forms: `bin/quickshell` from the wrapper, and
+# `bin/.quickshell-wrapped` once Quickshell has relaunched itself after a
+# crash; missing the second leaves two bars running.
+pkill -f 'bin/(\.quickshell-wrapped|quickshell)( |$)' 2>/dev/null || true
 sleep 1
 
 setsid qs -p "$dest/shell.qml" >"$log" 2>&1 </dev/null &
