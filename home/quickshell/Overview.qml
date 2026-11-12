@@ -71,19 +71,19 @@ Scope {
     }
 
     // Tiles: occupied regular workspaces (plus the focused one even if it's
-    // empty), sorted by id, then the lowest unused id as a blank drop target.
-    // Each entry is { id, ws } — ws is null for the blank.
+    // empty), in screen order (WorkspaceOrder.qml), then one past the highest
+    // id as a blank drop target — the same id Super+<past the end> picks, so
+    // a workspace made here also lands last on its screen. Each entry is
+    // { id, ws } — ws is null for the blank.
     readonly property var tiles: {
-        const all = (Hyprland.workspaces?.values ?? []).filter(w => w.id > 0);
+        const all = WorkspaceOrder.ordered.filter(w => w.id > 0);
         const tops = Hyprland.toplevels?.values ?? [];
         const fid = Hyprland.focusedWorkspace?.id;
-        const used = all.filter(w => w.id === fid || tops.some(t => t.workspace?.id === w.id)).sort((a, b) => a.id - b.id).map(w => ({
+        const used = all.filter(w => w.id === fid || tops.some(t => t.workspace?.id === w.id)).map(w => ({
                     id: w.id,
                     ws: w
                 }));
-        var free = 1;
-        while (all.some(w => w.id === free))
-            free++;
+        const free = all.reduce((m, w) => Math.max(m, w.id), 0) + 1;
         return used.concat([
             {
                 id: free,
@@ -298,7 +298,7 @@ Scope {
                         anchors.top: screen.bottom
                         anchors.topMargin: 8
                         anchors.horizontalCenter: parent.horizontalCenter
-                        text: tile.ws ? (tile.ws.name || tile.modelData.id) : "new"
+                        text: tile.ws ? WorkspaceOrder.numberOf(tile.modelData.id) : "new"
                         color: tile.focused ? Theme.accent : Theme.subtext
                         font.family: Theme.fontMono
                         font.pixelSize: 12

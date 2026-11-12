@@ -398,8 +398,8 @@ in
             #
             # Workspace placement is deliberately NOT handled here. A hook that
             # bound workspaces to this monitor cost a broken boot on 2026-08-25
-            # (see docs/known-issues.md); the office rules below apply at every
-            # desk until that's rebuilt against a real boot test.
+            # (see docs/known-issues.md). Since 2026-11-12 no desk pins
+            # workspaces at all: they're numbered by position instead.
             {
               output = "desc:Dell Inc. DELL P2425HE J8CTK14";
               mode = "1920x1080@100";
@@ -424,38 +424,13 @@ in
             }
           ];
 
-      # Sticky per-monitor workspace defaults for gti's office dock (the wish,
-      # 2026-08-24): left external = workspace 1, laptop panel = workspace 2,
-      # portrait external = workspace 3 — so docking always lands the same
-      # workspace on the same physical screen instead of whatever order
-      # Hyprland happened to detect the outputs in. Keyed by the same
-      # desc/serial as `monitor` above, so the two Dell entries simply don't
-      # match anything when undocked. The eDP-1 entry DOES always match —
-      # undocked (sole monitor) that makes 2 its initial workspace instead of
-      # the old implicit 1, but mod+1..5 still reach every workspace regardless
-      # (see the `bind` list below), so the only visible effect is which
-      # workspace opens first.
-      #
-      # Lua shape: a LIST renders one `hl.workspace_rule{…}` call per element,
-      # same pattern as `window_rule` below. Ref:
-      # https://wiki.hypr.land/Configuring/Basics/Workspace-Rules/
-      workspace_rule = lib.optionals (osConfig.networking.hostName == "gti") [
-        {
-          workspace = 1;
-          monitor = "desc:Dell Inc. DELL P2419H FXP0RB3";
-          default = true;
-        }
-        {
-          workspace = 2;
-          monitor = "eDP-1";
-          default = true;
-        }
-        {
-          workspace = 3;
-          monitor = "desc:Dell Inc. DELL P2419H 9HYLVF3";
-          default = true;
-        }
-      ];
+      # No workspace rules: workspaces are numbered by POSITION, not pinned to
+      # monitors (2026-11-12). The office-dock rules this replaced (left Dell
+      # = 1, laptop = 2, portrait Dell = 3) reserved 1 and 3 for screens that
+      # weren't there at the second desk, so laptop + P2425HE read "2" and
+      # "4". Now Hyprland's ids are just identities; the bar labels workspaces
+      # 1..N left to right across screens and Super+<n> goes to the Nth
+      # (claudeos_workspace, extraConfig below; home/quickshell/WorkspaceOrder.qml).
 
       # Motion language (lib/theme.nix `motion`) — the same curves the bar's
       # Motion.qml uses. `hl.curve` takes TWO arguments (name, spec), hence
@@ -670,7 +645,7 @@ in
       # positional arg (`special, magic`) becomes the NAMED field
       # `workspace_name` — there is no positional slot for it.
       gesture = [
-        # Three fingers sideways = the workspaces 1-5 already on $mod+<n>.
+        # Three fingers sideways = step to the neighbouring workspace.
         {
           fingers = 3;
           direction = "horizontal";
@@ -947,14 +922,70 @@ in
           { locked = true; }
         )
       ]
+      # Super+<n> = the Nth workspace in screen order, Super+Shift+<n> sends
+      # the window there; one past the last opens a new one on this screen.
+      # claudeos_workspace is defined in extraConfig below; a bind body runs
+      # at keypress, after the whole file has loaded, so the order is fine.
       ++ (lib.concatMap (n: [
-        (mkBind "${mod} + ${toString n}" (mkLuaInline "hl.dsp.focus({ workspace = ${toString n} })"))
-        (mkBind "${mod} + SHIFT + ${toString n}" (
-          mkLuaInline "hl.dsp.window.move({ workspace = ${toString n} })"
+        (mkBind "${mod} + ${toString n}" (
+          mkLuaInline "function() claudeos_workspace(${toString n}, false) end"
         ))
-      ]) (lib.range 1 5))
+        (mkBind "${mod} + SHIFT + ${toString n}" (
+          mkLuaInline "function() claudeos_workspace(${toString n}, true) end"
+        ))
+      ]) (lib.range 1 9))
       ++ (map toLuaBind claudeBinds);
     };
+
+    # Position-based workspace numbers (2026-11-12). Appended after the
+    # generated settings. Plain function definitions only: nothing here runs
+    # at load time, so it can't throw during boot (docs/known-issues.md,
+    # 2026-08-25) — the bodies run on keypress.
+    #
+    # MIRROR: home/quickshell/WorkspaceOrder.qml sorts the same way for the
+    # bar pills. Screens left→right, then top→bottom; within a screen,
+    # numbered ids ascending, then named workspaces (negative ids).
+    extraConfig = ''
+      function claudeos_ordered_workspaces()
+        local ws = {}
+        for _, w in ipairs(hl.get_workspaces()) do
+          if not w.special and w.id and w.monitor then
+            ws[#ws + 1] = w
+          end
+        end
+        local function key(id)
+          if id > 0 then return id end
+          return 1000000 - id
+        end
+        table.sort(ws, function(a, b)
+          if a.monitor.x ~= b.monitor.x then return a.monitor.x < b.monitor.x end
+          if a.monitor.y ~= b.monitor.y then return a.monitor.y < b.monitor.y end
+          return key(a.id) < key(b.id)
+        end)
+        return ws
+      end
+
+      -- n past the end opens a new workspace on the focused screen. It takes
+      -- the highest id + 1 so it sorts last on that screen, never in the
+      -- middle (a reused low id would).
+      function claudeos_workspace(n, move)
+        local ws = claudeos_ordered_workspaces()
+        local id
+        if ws[n] then
+          id = ws[n].id
+        else
+          id = 1
+          for _, w in ipairs(hl.get_workspaces()) do
+            if w.id and w.id >= id then id = w.id + 1 end
+          end
+        end
+        if move then
+          hl.dispatch(hl.dsp.window.move({ workspace = id }))
+        else
+          hl.dispatch(hl.dsp.focus({ workspace = id }))
+        end
+      end
+    '';
   };
 
   # Force-overwrite hyprland.conf. If HM ever fails to place this (e.g. an

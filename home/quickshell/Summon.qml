@@ -348,20 +348,22 @@ Scope {
             hint: ""
         };
     }
-    // w: a rankWorkspaces() match. The hint is the workspace's number.
+    // w: a rankWorkspaces() match. The hint is the workspace's number — its
+    // position, as on the bar pills (WorkspaceOrder.qml), not Hyprland's id.
     function workspaceRow(w) {
         const de = w.e.appId ? DesktopEntries.heuristicLookup(w.e.appId) : null;
         const mon = w.ws.monitor?.name ?? "";
+        const num = String(WorkspaceOrder.numberOf(w.ws.id));
         return {
             kind: "workspace",
             wsId: w.ws.id,
             title: "Go to: " + w.e.full,
-            sub: "workspace " + w.ws.name + (mon !== "" ? " · " + mon : ""),
+            sub: "workspace " + num + (mon !== "" ? " · " + mon : ""),
             color: Theme.base0D,          // blue — moving, not launching
             glyph: "→",
             mono: false,
             icon: de ? Quickshell.iconPath(de.icon, true) : "",
-            hint: String(w.ws.name)
+            hint: num
         };
     }
 
