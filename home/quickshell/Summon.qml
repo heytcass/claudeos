@@ -8,7 +8,10 @@
 //                  (Usage.qml / claudeos-usage), else lib/keybindings.nix
 //                  order (via the generated Keybinds.actions)
 //   typing       → actions and apps filtered together into one ranked list,
-//                  plus the deterministic routes as rows of their own:
+//                  with "Go to: <label>" rows for workspaces whose purpose
+//                  label (WorkspaceNames.qml) matches, ranked after exact
+//                  app/action matches; plus the deterministic routes as rows
+//                  of their own:
 //     $command    → run it in a terminal
 //     question?   → claude-ask-desktop (the answer returns as a notification)
 //     save as <n> → snapshot this workspace as a task context
@@ -188,6 +191,42 @@ Scope {
         return out.sort((x, y) => (x.tier - y.tier) || (x.order - y.order));
     }
 
+    // Workspaces whose purpose label matches, on the same tier scale but
+    // never exact (-1): an exact app/action match always comes first, and an
+    // app or action wins a tie (a label is often just the app's name). The
+    // workspace you are on, and special workspaces, are left out.
+    // Matches the full label, not the bar's elided one.
+    function rankWorkspaces(text) {
+        const q = text.trim().toLowerCase();
+        if (q.length < 2)
+            return [];
+        const named = WorkspaceNames.labels;
+        const wss = Hyprland.workspaces?.values ?? [];
+        const here = Hyprland.focusedWorkspace?.id;
+        var out = [];
+        for (var i = 0; i < wss.length; i++) {
+            const ws = wss[i];
+            const e = named[ws.id];
+            if (!e || ws.id < 0 || ws.id === here)
+                continue;
+            const n = e.full.toLowerCase();
+            var tier = -2;
+            if (n.startsWith(q))
+                tier = 0;                                  // exact or prefix
+            else if (words(n).some(w => w.startsWith(q)))
+                tier = 1;
+            else if (n.includes(q))
+                tier = 4;
+            if (tier > -2)
+                out.push({
+                    ws: ws,
+                    e: e,
+                    tier: tier
+                });
+        }
+        return out.sort((x, y) => (x.tier - y.tier) || (x.ws.id - y.ws.id));
+    }
+
     // ---- context routes: "save as <name>" / "resume <name>" ----
     // `save as` always matches (it NAMES a new context); `resume` matches only
     // when <name> resolves to a KNOWN context (Contexts.resolveResume), so
@@ -309,6 +348,22 @@ Scope {
             hint: ""
         };
     }
+    // w: a rankWorkspaces() match. The hint is the workspace's number.
+    function workspaceRow(w) {
+        const de = w.e.appId ? DesktopEntries.heuristicLookup(w.e.appId) : null;
+        const mon = w.ws.monitor?.name ?? "";
+        return {
+            kind: "workspace",
+            wsId: w.ws.id,
+            title: "Go to: " + w.e.full,
+            sub: "workspace " + w.ws.name + (mon !== "" ? " · " + mon : ""),
+            color: Theme.base0D,          // blue — moving, not launching
+            glyph: "→",
+            mono: false,
+            icon: de ? Quickshell.iconPath(de.icon, true) : "",
+            hint: String(w.ws.name)
+        };
+    }
 
     readonly property var rows: {
         const t = qt;
@@ -342,16 +397,23 @@ Scope {
         if (trailingQ)
             out.push(routeRow("ask"));
 
-        // actions and apps, merged by tier; an action wins a tie
+        // actions, apps and workspaces, merged by tier; on a tie an action
+        // beats an app beats a workspace (each list is already sorted)
         const acts = rankActions(t);
         const apps = rankApps(t);
+        const wsm = rankWorkspaces(t);
         var merged = [];
-        var ai = 0, pi = 0;
-        while (ai < acts.length || pi < apps.length) {
-            if (pi >= apps.length || (ai < acts.length && acts[ai].tier <= apps[pi].tier))
+        var ai = 0, pi = 0, wi = 0;
+        while (ai < acts.length || pi < apps.length || wi < wsm.length) {
+            const at = ai < acts.length ? acts[ai].tier : 99;
+            const pt = pi < apps.length ? apps[pi].tier : 99;
+            const wt = wi < wsm.length ? wsm[wi].tier : 99;
+            if (at <= pt && at <= wt)
                 merged.push(actionRow(acts[ai++].a));
-            else
+            else if (pt <= wt)
                 merged.push(appRow(apps[pi++].e));
+            else
+                merged.push(workspaceRow(wsm[wi++]));
         }
         // When something matched, the tail is just the task route (plus ask
         // for a question), leaving the room to the matches; when nothing did,
@@ -386,6 +448,8 @@ Scope {
             return "launch";
         if (row.kind === "prompt")
             return "send";
+        if (row.kind === "workspace")
+            return "go";
         if (row.kind === "action")
             return row.action.prompt ? "ask" : "run";
         const r = row.route;
@@ -403,8 +467,8 @@ Scope {
     }
 
     // Usage logging (Usage.qml → claudeos-usage): an action by its registry
-    // id, a route by its kind, an app as just "app". Never the typed text or
-    // which app.
+    // id, a route by its kind, an app as just "app", a workspace jump as
+    // just "route:workspace". Never the typed text, which app, or a label.
     function activate(row) {
         if (!row || root.sent)
             return;
@@ -412,6 +476,14 @@ Scope {
             row.entry.execute();          // launch detached; deterministic, instant
             Usage.log("app", "summon");
             reset();
+        } else if (row.kind === "workspace") {
+            Usage.log("route:workspace", "summon");
+            reset();
+            // The bar's own click path (Workspaces.qml): focusing a workspace
+            // by id makes Hyprland move to the monitor it lives on. A tick
+            // later, so the summon's layer has let go of the keyboard first.
+            goWs.wsId = row.wsId;
+            goWs.restart();
         } else if (row.kind === "action") {
             runAction(row.action);
         } else if (row.kind === "prompt") {
@@ -451,6 +523,12 @@ Scope {
         id: launch
         property var action: null
         onTriggered: root.execAction(action)
+    }
+    Timer {
+        id: goWs
+        property int wsId: 0
+        interval: 0
+        onTriggered: Hyprland.dispatch("hl.dsp.focus({ workspace = " + wsId + " })")
     }
     function execAction(a) {
         if (!a)
@@ -735,7 +813,7 @@ Scope {
                         Text {
                             anchors.verticalCenter: parent.verticalCenter
                             visible: input.text === ""
-                            text: root.mode ? root.mode.prompt : "an app, a Claude action, $command, a question?, or a task"
+                            text: root.mode ? root.mode.prompt : "an app, a workspace, a Claude action, $command, a question?, or a task"
                             color: Theme.subtext
                             font.family: Theme.fontSans
                             font.pixelSize: Theme.fontSize + 3
