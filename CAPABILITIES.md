@@ -63,7 +63,7 @@ Repo-tracked Claude Code hooks (`.claude/settings.json` + `.claude/hooks/`) — 
 | Hook | Trigger | What it does |
 |------|---------|-------------|
 | `session-start.sh` | SessionStart | Injects OS awareness: hostname, booted generation, any failed system/user units |
-| `post-edit-check.sh` | PostToolUse (Edit\|Write) | Auto-formats touched `.nix` files with nixfmt and runs `nix-instantiate --parse`; parse errors are fed straight back into the agent's context |
+| `post-edit-check.sh` | PostToolUse (Edit\|Write) | Auto-formats touched `.nix` files with nixfmt and runs `nix-instantiate --parse`; parse errors are fed straight back into the agent's context. For bar QML (`home/quickshell/*.qml`) it hands off to `qml-lint.sh`: qmllint from Quickshell's own closure, run on the edited file and on its HEAD version, reporting only findings the edit introduced (misspelled `Theme`/`Motion` members, unknown properties and types, syntax errors) |
 | `pre-commit-gate.sh` | PreToolUse (Bash) | Denies `git commit` when staged `.nix` changes fail `nix flake check --no-build` — "never commit untested NixOS changes", enforced |
 
 ## Desktop Integration

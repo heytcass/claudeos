@@ -2,11 +2,16 @@
 # PostToolUse(Edit|Write) hook: auto-format the touched .nix file and feed
 # parse errors straight back to the agent (exit 2 routes stderr into context),
 # so syntax mistakes are fixed immediately instead of at the failed build.
+# Bar QML under home/quickshell/ is handed to qml-lint.sh instead.
 input=$(cat)
 file=$(echo "$input" | jq -r '.tool_input.file_path // empty' 2>/dev/null)
 [ -z "$file" ] && exit 0
 case "$file" in
 *.nix) ;;
+*/home/quickshell/*.qml)
+  # Bar QML: qmllint, reporting only what this edit introduced.
+  exec "$(dirname "$0")/qml-lint.sh" "$file"
+  ;;
 *) exit 0 ;;
 esac
 [ -f "$file" ] || exit 0
