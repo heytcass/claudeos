@@ -1,0 +1,22 @@
+# Hosted Linux runners expose /dev/kvm but root-only; a VM needs it from the
+# runner user. Without KVM, QEMU falls back to TCG and a boot blows through
+# its timeout rather than failing honestly. The udev rule keeps the mode
+# across re-triggers, but `udevadm trigger` is async — the first run failed
+# the writability test before it landed — so settle, then chmod the node
+# directly as a backstop.
+name: Enable KVM
+description: Make /dev/kvm usable by the runner user, or fail if it is absent
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      run: |
+        echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' |
+          sudo tee /etc/udev/rules.d/99-kvm4all.rules
+        sudo udevadm control --reload-rules
+        sudo udevadm trigger --name-match=kvm
+        sudo udevadm settle
+        test -e /dev/kvm || { echo "::error::runner has no /dev/kvm"; exit 1; }
+        sudo chmod 0666 /dev/kvm
+        ls -l /dev/kvm
+        test -r /dev/kvm && test -w /dev/kvm

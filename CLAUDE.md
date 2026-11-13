@@ -82,6 +82,8 @@ Match the cost of validation to the change. Run the cheapest check that can actu
 
 CI (`validate.yml`) runs rung 1, the rung-4 dry-runs, and rung 5 for transporter on every PR. Its `lock-gate` job adds rung 5 for gti and rung 7 (the same VM boot, on a KVM-enabled runner) whenever a change touches `flake.lock`, `flake.nix` or `validate.yml`. CI never runs rung 3, and outside a lock bump its rung 5 is on the host you are probably not on.
 
+**Behaviour tests** sit beside the ladder: a NixOS VM runs one real module against simulated hardware and asserts what it does. `nix build .#wifi-undock-test -L` (needs `/dev/kvm`, about three minutes) docks and undocks a simulated laptop and requires Wi-Fi to come back each time. Run it after any change to the dock/undock logic in `modules/common/networking.nix`; CI's `vm-tests` job runs it when that file, `tests/`, the lock or the flake changes (advisory, not a required check). These live in `packages`, not `checks`, so `nix flake check` doesn't boot VMs. When a runtime behaviour breaks twice, add a test under `tests/` rather than a third fix proven by waiting.
+
 ### Minimum rung by change type
 
 | Change | Minimum before commit | Add when |

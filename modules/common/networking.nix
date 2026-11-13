@@ -89,6 +89,12 @@ let
           # activate would only churn a working link.
           connected "$d" && break
 
+          # Docked after all: the wired link came up while we were retrying
+          # (a docked boot, where this unit starts before NM has the dock's
+          # Ethernet connected). The dispatcher has already disconnected
+          # wifi for that; connecting now would dual-home the machine.
+          docked && return 0
+
           # -w 15, not the default 90s wait, and not -w 0: the exit status has
           # to mean something for the retry to work. This script runs as a
           # systemd oneshot and from resumeCommands, never inside NM's
