@@ -121,7 +121,7 @@ jobs:
           if [[ -z "$BASE" || "$BASE" =~ ^0+$ ]]; then
             run=true # new branch / unknown base: test rather than guess
           elif git diff --name-only "$BASE" HEAD |
-            grep -qxE 'flake\.lock|flake\.nix|\.github/workflows/validate\.yml'; then
+            grep -qxE 'flake\.lock|flake\.nix|\.github/workflows/validate\.yml|\.github/actions/enable-kvm/action\.yml'; then
             run=true
           else
             run=false
@@ -132,24 +132,8 @@ jobs:
       - if: steps.scope.outputs.run == 'true'
         uses: ./.github/actions/free-disk
 
-      # Hosted Linux runners expose /dev/kvm but root-only; the VM boot needs
-      # it from the runner user. Without KVM, QEMU falls back to TCG and the
-      # boot blows through the timeout rather than failing honestly. The udev
-      # rule keeps the mode across re-triggers, but `udevadm trigger` is async
-      # — the first run failed the writability test before it landed — so
-      # settle, then chmod the node directly as a backstop.
-      - name: Enable KVM
-        if: steps.scope.outputs.run == 'true'
-        run: |
-          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' |
-            sudo tee /etc/udev/rules.d/99-kvm4all.rules
-          sudo udevadm control --reload-rules
-          sudo udevadm trigger --name-match=kvm
-          sudo udevadm settle
-          test -e /dev/kvm || { echo "::error::runner has no /dev/kvm"; exit 1; }
-          sudo chmod 0666 /dev/kvm
-          ls -l /dev/kvm
-          test -r /dev/kvm && test -w /dev/kvm
+      - if: steps.scope.outputs.run == 'true'
+        uses: ./.github/actions/enable-kvm
 
       - if: steps.scope.outputs.run == 'true'
         uses: cachix/install-nix-action@75c75c31ebece974e48ebc36b4ad125bd97bd97b # v31
@@ -185,3 +169,49 @@ jobs:
           echo "--- last 150 lines of VM serial console ---"
           tail -n 150 vm.log
           exit 1
+
+  # Behaviour tests: a NixOS VM running one real module against simulated
+  # hardware, for logic that only ever failed on the user's desk. So far
+  # tests/wifi-undock.nix — "docked = wired" must give wifi back on undock,
+  # which it failed to do four times before this existed.
+  #
+  # Scope: the module under test, the tests, and whatever can change the
+  # packages they run (the lock, the flake, this workflow). Skips otherwise
+  # but still reports, like lock-gate.
+  vm-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v4
+        with:
+          fetch-depth: 0
+
+      - name: Does this change touch what the tests cover?
+        id: scope
+        env:
+          BASE: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          if [[ -z "$BASE" || "$BASE" =~ ^0+$ ]]; then
+            run=true # new branch / unknown base: test rather than guess
+          elif git diff --name-only "$BASE" HEAD |
+            grep -qE '^(flake\.lock|flake\.nix|tests/|modules/common/networking\.nix|\.github/workflows/validate\.yml|\.github/actions/enable-kvm/)'; then
+            run=true
+          else
+            run=false
+          fi
+          echo "run=$run" >>"$GITHUB_OUTPUT"
+          echo "vm-tests: run=$run"
+
+      - if: steps.scope.outputs.run == 'true'
+        uses: ./.github/actions/enable-kvm
+
+      - if: steps.scope.outputs.run == 'true'
+        uses: cachix/install-nix-action@75c75c31ebece974e48ebc36b4ad125bd97bd97b # v31
+        with:
+          extra_nix_config: |
+            experimental-features = nix-command flakes
+            system-features = nixos-test benchmark big-parallel kvm
+
+      - name: Dock/undock wifi (tests/wifi-undock.nix)
+        if: steps.scope.outputs.run == 'true'
+        run: nix build ".#wifi-undock-test" -L --no-link

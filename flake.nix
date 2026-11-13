@@ -98,6 +98,11 @@
       # the inputless subflake at modules/shared (see its README).
       nixosModules.shared = ./modules/shared;
 
+      # VM tests that need /dev/kvm. Deliberately `packages`, not `checks`:
+      # `nix flake check` builds every check, and a NixOS test without KVM
+      # crawls. Run with `nix build .#wifi-undock-test -L`.
+      packages.x86_64-linux.wifi-undock-test = nixpkgs.legacyPackages.x86_64-linux.testers.runNixOSTest ./tests/wifi-undock.nix;
+
       # Validate host configurations with `nix flake check`, plus a headless
       # stand-in that imports only modules/shared — the shape of a consumer
       # this repo can't see (no home-manager, Stylix, or specialArgs).

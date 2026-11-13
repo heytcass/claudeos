@@ -164,6 +164,12 @@ journalctl -b -u wifi-undock-reconcile.service
 sudo systemctl restart wifi-undock-reconcile.service
 ```
 
+A fix to this logic can be tried without undocking: the VM test docks and undocks a simulated laptop (about three minutes, needs `/dev/kvm`).
+
+```bash
+nix build .#wifi-undock-test -L
+```
+
 ## Rollback
 
 ```bash
