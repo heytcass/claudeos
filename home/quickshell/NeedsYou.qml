@@ -13,6 +13,12 @@ pragma Singleton
 // Red CI is not here: nothing in the bar knows check status today, and a new
 // poller for it would cost more than this queue is worth.
 //
+// Two ways in: a click on the island acts on the top item (Island.qml), and
+// Super+N (the `needsnext` shortcut → next()) walks the queue from the
+// keyboard — top item first, the one after it on a press within a few
+// seconds, wrapping. An empty queue answers the key with a brief still
+// "nothing waiting" face on the focused island (nothingWaiting).
+//
 // Items are plain data — {id, kind, tier, title, detail, since, ref} — and
 // act(item) takes the user to one, through each source's own open path. No
 // per-item closures: the builders run in loops, and a closure capturing a loop
@@ -61,6 +67,54 @@ Singleton {
         name: "needsyou"
         description: "Show what needs you"
         onPressed: root.summoned()
+    }
+
+    // "Go to what needs me" (Super+N, lib/keybindings.nix): the keyboard path
+    // through the queue. Every press counts as a use (claudeos-usage, source
+    // "key") — an empty-queue press is still you checking, so it is a use too.
+    // Logged by the registry id only, never an item's title.
+    signal nothingWaiting
+    GlobalShortcut {
+        appid: "quickshell"
+        name: "needsnext"
+        description: "Go to the next thing that needs you"
+        onPressed: {
+            Usage.log(Usage.idForGlobal("quickshell:needsnext"), "key");
+            root.next();
+        }
+    }
+
+    // The walk's cursor: the id of the item the key last went to, and when.
+    // A press within nextWindowMs of the last one goes to the item after it in
+    // the current ranking; a later press, or one whose remembered item has
+    // left the queue, starts again from the top. The end wraps to the top, so
+    // a one-item queue just goes to that item again.
+    readonly property int nextWindowMs: 8000
+    property string _cursorId: ""
+    property real _cursorAt: 0
+    function indexOfId(id) {
+        for (let i = 0; i < root.items.length; i++)
+            if (root.items[i].id === id)
+                return i;
+        return -1;
+    }
+    function next() {
+        const list = root.items;
+        const now = Date.now();
+        if (list.length === 0) {
+            root._cursorId = "";
+            root.nothingWaiting();
+            return;
+        }
+        let i = 0;
+        if (root._cursorId !== "" && now - root._cursorAt < root.nextWindowMs) {
+            const at = root.indexOfId(root._cursorId);
+            if (at >= 0)
+                i = (at + 1) % list.length;
+        }
+        root._cursorId = list[i].id;
+        root._cursorAt = now;
+        root.act(list[i]);
     }
 
     // ---- ranking: the one place the order is decided --------------------

@@ -8,8 +8,9 @@
 #                             list (Summon.qml, Super+Space)
 #
 # One key, Super+Space, opens the summon: it launches apps and runs every
-# action listed here. Only three actions keep a direct key (quick launch,
-# circle to ask, point at it); the rest are reached by typing in the summon.
+# action listed here. Only four actions keep a direct key (quick launch,
+# circle to ask, point at it, go to what needs me); the rest are reached by
+# typing in the summon.
 #
 # Fields:
 #   name      — the summon row's title
@@ -27,7 +28,8 @@
 #               waits out its fade before running it (never in the capture)
 #   prompt    — the summon takes text first (placeholder = this string), then
 #               runs `command <text>`
-#   summon    — false: not listed in the summon (the summon itself). Point at
+#   summon    — false: not listed in the summon (the summon itself, and
+#               key-only actions such as Super+N's queue walk). Point at
 #               it is listed but shown only while an agent has armed a pick.
 #
 # List order is the summon's empty-state order: most useful first.
@@ -147,6 +149,17 @@
       "queue"
     ];
     icon = "bell";
+  }
+  {
+    # The keyboard walk through the same queue. Key-only, so not a summon row:
+    # from the summon "What needs me" (the whole list) is the better answer.
+    name = "Go to what needs me";
+    binding = "<Super>n";
+    global = "quickshell:needsnext";
+    display = "Super+N";
+    help = "Go to the top thing that needs you; press again within a few seconds for the next one";
+    short = "Go to what needs me — again for the next";
+    summon = false;
   }
   {
     name = "Open shelf";

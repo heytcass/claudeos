@@ -28,9 +28,11 @@ Singleton {
     }
 
     // The registry id of the action behind a quickshell global, or "" (an
-    // older deployed Keybinds.qml has no ids).
+    // older deployed Keybinds.qml has no ids). Searches the summon's actions
+    // and then the keyed entries (Keybinds.claude), so a key-only action that
+    // is hidden from the summon (`summon = false`) still logs under its id.
     function idForGlobal(g) {
-        const a = (Keybinds.actions ?? []).find(x => x.global === g);
+        const a = (Keybinds.actions ?? []).find(x => x.global === g) ?? (Keybinds.claude ?? []).find(x => x.global === g);
         return a && a.id ? a.id : "";
     }
 
