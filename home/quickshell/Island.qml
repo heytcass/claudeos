@@ -4,13 +4,17 @@
 // used to carry moved to a surface that already existed: media to the right
 // pill's MediaWidget, notification peeks to toasts, the volume/brightness OSD
 // to the VolumeWidget, Jasper to a toast note + the calendar popup, the
-// shelf to its hotkey (Bar.qml). Four faces, highest priority first (the
+// shelf to its hotkey (Bar.qml). Five faces, highest priority first (the
 // exact order, with the needs face's two slots, is at `state:` below):
+//   · quiet      → Super+N with an empty queue: a still "nothing waiting",
+//                  for a moment, on the focused monitor's island only
 //   · done       → an interactive session just finished a real turn
 //                  (Sessions.finished): a check and its title, for a moment
 //   · needs      → the top of the NeedsYou queue (a session waiting on you, a
 //                  failed unit, a PR to review, a card), "+N" when more wait;
-//                  click goes to it, the chip or a right click lists them all
+//                  click goes to it, the chip or a right click lists them all;
+//                  Super+N goes to it from the keyboard and, pressed again
+//                  soon after, to the next one (NeedsYou.next)
 //   · agent      → a headless lane is working on the machine (Agent.activity,
 //                  a curated phrase), or one interactive Claude session has
 //                  been busy long enough to be the thing you wait on
@@ -29,6 +33,8 @@ Rectangle {
     id: root
 
     // Face priority, highest first:
+    //   quiet — the answer to a key you just pressed (Super+N, nothing
+    //           waiting), so it briefly outranks everything; 1.6 s
     //   done  — a finished turn is news and brief (4 s), so nothing outranks it
     //   needs — the NeedsYou queue's top item when it is BLOCKING (a session
     //           waiting on your answer) or a FAILURE: you are the bottleneck,
@@ -40,8 +46,11 @@ Rectangle {
     // The border breath and flare run under every face, so a working machine
     // still says so while the island asks for you.
     readonly property bool needsAny: NeedsYou.count > 0
-    readonly property bool needsUrgent: root.needsAny && NeedsYou.top.tier <= NeedsYou.tierFailure
-    state: root.doneShown ? "done" : root.needsUrgent ? "needs" : root.agentFace ? "agent" : root.needsAny ? "needs" : "clock"
+    // Reads `top` itself, not `needsAny`: when the queue empties, `count` and
+    // `top` update one after the other, and a stale needsAny would read a
+    // null top's tier.
+    readonly property bool needsUrgent: NeedsYou.top !== null && NeedsYou.top.tier <= NeedsYou.tierFailure
+    state: root.quietShown ? "quiet" : root.doneShown ? "done" : root.needsUrgent ? "needs" : root.agentFace ? "agent" : root.needsAny ? "needs" : "clock"
 
     // Only the island on the FOCUSED output animates — see BarFocus.qml for
     // why (one QSGRenderThread per monitor, all breathing the same pulse).
@@ -74,6 +83,9 @@ Rectangle {
         },
         State {
             name: "needs"
+        },
+        State {
+            name: "quiet"
         }
     ]
 
@@ -85,6 +97,21 @@ Rectangle {
             if (root.onFocusedScreen)
                 calPopup.visible = true;
         }
+        // Super+N with nothing in the queue: say the key was heard, calmly,
+        // on the island you are looking at. No toast, no sound; a second
+        // press restarts the hold rather than stacking anything.
+        function onNothingWaiting() {
+            if (!root.onFocusedScreen)
+                return;
+            root.quietShown = true;
+            quietTimer.restart();
+        }
+    }
+    property bool quietShown: false
+    Timer {
+        id: quietTimer
+        interval: 1600
+        onTriggered: root.quietShown = false
     }
 
     // Done face: Sessions.finished names a session whose turn just ended
@@ -269,7 +296,7 @@ Rectangle {
     // back-to-back state flips flow into each other instead of restarting
     // from rest.
     implicitWidth: {
-        const w = state === "done" ? doneContent.implicitWidth : state === "needs" ? needsContent.implicitWidth : state === "agent" ? agentContent.implicitWidth : clockContent.implicitWidth;
+        const w = state === "quiet" ? quietContent.implicitWidth : state === "done" ? doneContent.implicitWidth : state === "needs" ? needsContent.implicitWidth : state === "agent" ? agentContent.implicitWidth : clockContent.implicitWidth;
         return w + 26;
     }
     Behavior on implicitWidth {
@@ -488,6 +515,38 @@ Rectangle {
             font.family: Theme.fontSans
             font.pixelSize: Theme.fontSize
             font.italic: true
+        }
+    }
+
+    // ---- quiet face: Super+N heard, nothing waiting ----
+    // The needs face's stillness with nothing to show: a muted check and a
+    // short line in subtext, then back to whatever face was there.
+    Row {
+        id: quietContent
+        anchors.centerIn: parent
+        spacing: 9
+        opacity: root.state === "quiet" ? 1 : 0
+        visible: opacity > 0
+        Behavior on opacity {
+            NumberAnimation {
+                duration: Motion.quick
+                easing.type: Easing.BezierSpline
+                easing.bezierCurve: Motion.curveStandard
+            }
+        }
+        Text {
+            anchors.verticalCenter: parent.verticalCenter
+            text: Icons.check
+            color: Theme.muted
+            font.family: Theme.fontMono
+            font.pixelSize: Theme.iconSize
+        }
+        Text {
+            anchors.verticalCenter: parent.verticalCenter
+            text: "Nothing needs you"
+            color: Theme.subtext
+            font.family: Theme.fontSans
+            font.pixelSize: Theme.fontSize
         }
     }
 

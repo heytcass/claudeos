@@ -12,7 +12,7 @@
 
 let
   actions = import ../lib/keybindings.nix;
-  # Entries with a key of their own (the summon first, then the three direct
+  # Entries with a key of their own (the summon first, then the direct
   # Claude keys), then every other action as "what you type in the summon".
   keybindingRows = lib.concatMapStrings (b: ''
     set_color $key; printf "    %-22s " "${b.display}"

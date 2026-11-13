@@ -14,8 +14,12 @@ let
   claudeLib = import ../../lib/claude-script.nix { inherit pkgs lib; };
   actionId = import ../../lib/action-id.nix { inherit lib; };
 
-  # Every action the summon can run (the summon entry itself is not an action).
-  registry = lib.filter (b: b.summon or true) (import ../../lib/keybindings.nix);
+  # Every action in the registry except the summon entry itself, which is not
+  # an action. Key-only actions hidden from the summon (`summon = false`, e.g.
+  # Super+N's queue walk) still count, so they are matched by their global.
+  registry = lib.filter (b: (b.global or "") != "quickshell:summon") (
+    import ../../lib/keybindings.nix
+  );
   # The summon's own rows that are not registry actions (Summon.qml `routeRow`
   # kinds, plus app launches). Logged by kind only, never by what was typed.
   summonRows = [

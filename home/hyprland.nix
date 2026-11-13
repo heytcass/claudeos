@@ -119,7 +119,8 @@ let
       # An entry is either an exec bind (command) or a quickshell global.
       # A command bind logs itself to the usage counter first, backgrounded so
       # it can never hold the action up. A global's press is counted in its QML
-      # handler instead (RegionShot.qml), which knows whether it opened anything.
+      # handler instead (RegionShot.qml, NeedsYou.qml), which knows whether it
+      # opened anything.
       action =
         if b ? global then
           mkGlobal b.global
@@ -130,7 +131,9 @@ let
 
   # Keybinds.qml's data, generated so Super+H and the summon can never drift
   # from the registry. JSON is a valid QML literal; toJSON does the escaping.
-  #   claude  — the bound entries, as cheat-sheet rows ({keys, desc, global})
+  #   claude  — the bound entries, as cheat-sheet rows ({keys, desc, global,
+  #             id}); `id` lets Usage.idForGlobal count a key-only global
+  #             that the summon does not list
   #   summon  — the unbound actions as cheat-sheet rows, keyed by what you
   #             type in the summon (the entry's first keyword)
   #   actions — everything the summon lists and runs (Summon.qml)
@@ -140,6 +143,7 @@ let
       keys = lib.init (bindTokens b) ++ [ (keyName (lib.last (bindTokens b))) ];
       desc = b.short or b.help;
       global = b.global or null;
+      id = actionId b.name;
     }) claudeBinds
   );
   summonEntries = builtins.toJSON (
