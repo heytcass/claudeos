@@ -58,25 +58,46 @@ let
     # working link to strand in the first place. `connection up ifname` would
     # avoid inventing a profile but hard-fails when nothing matches, which is
     # the worse trade for a heal path.
+    #
+    # One request is not enough under iwd, so retry. With wpa_supplicant NM
+    # kept scanning while the device sat disconnected, and a single fire-and-
+    # forget `device connect` always had an AP list to match a profile against.
+    # iwd stops scanning once NM disconnects it, so after an hour docked NM
+    # knows no APs at all and the request dies at once: 2026-11-12 18:56:06,
+    # the first undock on iwd, "A 'wireless' setting with a valid UTF-8 SSID
+    # is required if no AP path was given" from both undock routes, and wifi
+    # stayed down until the bar was used by hand. iwd's first attempt after a
+    # long idle can also time out (seen the same evening, and NM reports that
+    # as "Secrets were required", which it is not). So: try, and on failure
+    # ask for a scan, give it a moment, and try again.
+    connected() {
+      # Terse DEVICE,STATE prints exactly `wlan0:connected`, so anchor both
+      # ends: `connected (externally)` is a different state and must not match.
+      "$nmcli" -t -f DEVICE,STATE device \
+        | ${pkgs.gnugrep}/bin/grep -q "^$1:connected$"
+    }
+
     re_arm_autoconnect() {
       for d in $(wifi_devs); do
-        # Already up — the common resume case, where we undocked long ago and
-        # wifi never dropped. Nothing to un-inhibit, and a redundant activate
-        # would only churn a working link. Terse DEVICE,STATE prints exactly
-        # `wlp2s0:connected`, so anchor both ends: `connected (externally)`
-        # is a different state and must not match.
-        "$nmcli" -t -f DEVICE,STATE device \
-          | ${pkgs.gnugrep}/bin/grep -q "^$d:connected$" && continue
+        # Six rounds: about 20s when nothing known is in range (the request
+        # fails at once, so a round is just the 3s pause), and bounded by
+        # -w 15 per round when an AP is there but slow to answer. This also
+        # runs from resumeCommands, so it must not be open-ended.
+        for _try in 1 2 3 4 5 6; do
+          # Already up — the common resume case, where we undocked long ago
+          # and wifi never dropped. Nothing to un-inhibit, and a redundant
+          # activate would only churn a working link.
+          connected "$d" && break
 
-        # -w 0 = "do not wait, exit immediately with a status of success"
-        # (man nmcli). NOT the dispatcher's reason — this script runs as a
-        # systemd oneshot and from resumeCommands, so it cannot deadlock on
-        # NM's state machine. It is a timeout guard: `device connect` defaults
-        # to a 90s wait *per device*, which would outlive the oneshot's
-        # TimeoutStartSec and get the whole heal SIGTERMed halfway. The
-        # inhibit is lifted by issuing the request, not by observing it, and
-        # nothing below branches on the result.
-        "$nmcli" -w 0 device connect "$d" || true
+          # -w 15, not the default 90s wait, and not -w 0: the exit status has
+          # to mean something for the retry to work. This script runs as a
+          # systemd oneshot and from resumeCommands, never inside NM's
+          # dispatcher, so waiting on NM cannot deadlock.
+          "$nmcli" -w 15 device connect "$d" && break
+
+          "$nmcli" -w 0 device wifi rescan ifname "$d" 2>/dev/null || true
+          ${pkgs.coreutils}/bin/sleep 3
+        done
       done
     }
 
@@ -123,9 +144,19 @@ in
   # scans and reconnects, better roaming, WPA3. NM stays in charge of
   # profiles, VPNs and the dispatcher below; only the daemon that scans and
   # authenticates changes. Trialled on transporter from 2026-06-12, extended
-  # to gti (and so moved here) 2026-11-12. NM keeps the saved passphrases and
-  # hands them to iwd, so PSK profiles carry over. To back out, delete this
-  # line: the default is wpa_supplicant.
+  # to gti (and so moved here) 2026-11-12. To back out, delete this line: the
+  # default is wpa_supplicant.
+  #
+  # Saved profiles do NOT all carry over, though NM keeps the passphrases.
+  # Two things broke gti's home profile on the day of the switch:
+  #   - iwd names the interface itself (wlp2s0 became wlan0), so a profile
+  #     pinned with connection.interface-name no longer matches anything.
+  #     The bar then creates a second, passwordless profile and reports
+  #     "Secrets were required, but not provided".
+  #   - NM's iwd backend only knows a network as "psk". A profile saved as
+  #     key-mgmt sae (or pmf required) fails in the prepare stage with no
+  #     reason given. Set it to wpa-psk; iwd still negotiates WPA3 itself.
+  # The repair commands are in docs/TROUBLESHOOTING.md, "Network Issues".
   networking.networkmanager.wifi.backend = "iwd";
 
   # Restart NetworkManager in one step on a switch instead of the default
@@ -197,7 +228,11 @@ in
 
             # Reconnect only when no other wired link remains connected
             "$nmcli" -t -f TYPE,STATE device | grep -q "^ethernet:connected" && exit 0
-            for d in $(wifi_devs); do "$nmcli" -w 0 device connect "$d" || true; done
+
+            # Hand the reconnect to the reconcile unit rather than issuing it
+            # here. It needs to retry (see re_arm_autoconnect), and a retry
+            # has to wait on NM, which a dispatcher script must never do.
+            ${pkgs.systemd}/bin/systemctl --no-block restart wifi-undock-reconcile.service || true
             ;;
         esac
       '';

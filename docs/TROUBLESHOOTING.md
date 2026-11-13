@@ -131,6 +131,39 @@ nmcli connection show
 nmcli device wifi list
 ```
 
+#### A saved Wi-Fi network won't connect ("Secrets were required, but not provided")
+
+Wi-Fi runs on iwd under NetworkManager since 2026-11-12. A profile saved before that, or copied from another machine, can fail in two ways. Neither is a wrong password, whatever the message says.
+
+- **The profile is pinned to the old interface name.** iwd calls the card `wlan0`; it used to be `wlp2s0`. A pinned profile matches nothing, so the bar creates a second profile (`<name> 1`) with no password and that one fails.
+- **The profile is saved as WPA3-only (`sae`).** NetworkManager's iwd backend rejects it before it reaches the radio. Saving it as `wpa-psk` fixes it, and iwd still uses WPA3 when the access point offers it.
+
+Check, then repair (replace `<name>` with the profile's name):
+
+```bash
+nmcli -g connection.interface-name,802-11-wireless-security.key-mgmt connection show "<name>"
+```
+
+```bash
+nmcli connection modify "<name>" connection.interface-name "" 802-11-wireless-security.key-mgmt wpa-psk 802-11-wireless-security.pmf 0
+```
+
+```bash
+nmcli connection delete "<name> 1"
+```
+
+#### Wi-Fi doesn't come back after undocking
+
+Docked means wired: Wi-Fi is disconnected while Ethernet is up, and `wifi-undock-reconcile.service` reconnects it on undock, boot and resume. To see what it did, and to run it by hand:
+
+```bash
+journalctl -b -u wifi-undock-reconcile.service
+```
+
+```bash
+sudo systemctl restart wifi-undock-reconcile.service
+```
+
 ## Rollback
 
 ```bash
