@@ -148,6 +148,26 @@ in
       };
     };
 
+    # Geoclue's IP source, which the NixOS module leaves unconfigured: it
+    # writes no [ip] section, so geoclue logs "Unknown IP source method
+    # '(null)', disabling source" and runs without it. That went unnoticed
+    # while the wifi source worked, but geoclue 2.8 reads access points from
+    # wpa_supplicant over D-Bus and nothing else, so the move to iwd
+    # (modules/common/networking.nix) left it with no source at all.
+    # gammastep then sat "active (running)" waiting for a location and never
+    # warmed the screen (2026-11-12). "ichnaea" asks the wifi source's URL
+    # (beacondb) with no access points, which answers from the public IP:
+    # city-level, plenty for sunset times, and no coordinates in this repo.
+    # A conf.d drop-in because the module owns geoclue.conf as one text blob.
+    environment.etc."geoclue/conf.d/90-ip-source.conf".text = ''
+      [ip]
+      enable=true
+      method=ichnaea
+    '';
+    systemd.services.geoclue.restartTriggers = [
+      config.environment.etc."geoclue/conf.d/90-ip-source.conf".source
+    ];
+
     # Polkit authentication agent: the BAR is the agent (PolkitDialog.qml,
     # Quickshell.Services.Polkit). soteria is gone, and so is the workaround it
     # needed — which is the actual reason for the swap, not the theming.
