@@ -30,11 +30,14 @@ let
         | ${pkgs.gnugrep}/bin/grep -q '^ethernet:connected'
     }
 
-    # ':wifi$' deliberately excludes ':wifi-p2p' companion devices, matching
-    # wifi_devs in the dispatcher script below.
+    # ':wifi:' deliberately excludes ':wifi-p2p' companion devices, matching
+    # wifi_devs in the dispatcher script below. Unmanaged radios are skipped:
+    # NM will never connect them, so retrying one only burns the time budget
+    # (in the VM test the hostapd radio doubled the unit's runtime).
     wifi_devs() {
-      "$nmcli" -t -f DEVICE,TYPE device \
-        | ${pkgs.gnugrep}/bin/grep ':wifi$' \
+      "$nmcli" -t -f DEVICE,TYPE,STATE device \
+        | ${pkgs.gnugrep}/bin/grep ':wifi:' \
+        | ${pkgs.gnugrep}/bin/grep -v ':unmanaged$' \
         | ${pkgs.coreutils}/bin/cut -d: -f1
     }
 
@@ -79,11 +82,15 @@ let
 
     re_arm_autoconnect() {
       for d in $(wifi_devs); do
-        # Six rounds: about 20s when nothing known is in range (the request
-        # fails at once, so a round is just the 3s pause), and bounded by
-        # -w 15 per round when an AP is there but slow to answer. This also
-        # runs from resumeCommands, so it must not be open-ended.
-        for _try in 1 2 3 4 5 6; do
+        # A 45s budget per radio, not a fixed round count. Six rounds of a
+        # flat 3s pause was right at the edge of how long iwd takes to offer
+        # its first scan after boot: in CI the first undock needed 2 to 5
+        # failed rounds when it passed, and on 2026-11-14 it needed more than
+        # 6 and the test failed. Bounded (by the deadline plus at most one
+        # -w 15 connect and one -w 10 scan) because this also runs from
+        # resumeCommands, so it must not be open-ended.
+        deadline=$(( $(${pkgs.coreutils}/bin/date +%s) + 45 ))
+        while [ "$(${pkgs.coreutils}/bin/date +%s)" -lt "$deadline" ]; do
           # Already up — the common resume case, where we undocked long ago
           # and wifi never dropped. Nothing to un-inhibit, and a redundant
           # activate would only churn a working link.
@@ -101,8 +108,13 @@ let
           # dispatcher, so waiting on NM cannot deadlock.
           "$nmcli" -w 15 device connect "$d" && break
 
-          "$nmcli" -w 0 device wifi rescan ifname "$d" 2>/dev/null || true
-          ${pkgs.coreutils}/bin/sleep 3
+          # Wait for the scan to land rather than guessing: `list --rescan
+          # yes` returns once NM's AP list has been refreshed, so the next
+          # connect has something to match the saved profile against. The
+          # short sleep keeps a refused scan from turning into a busy loop.
+          "$nmcli" -w 10 -f SSID device wifi list ifname "$d" --rescan yes \
+            >/dev/null 2>&1 || true
+          ${pkgs.coreutils}/bin/sleep 1
         done
       done
     }
