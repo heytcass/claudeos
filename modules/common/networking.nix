@@ -1,8 +1,32 @@
 { pkgs, ... }:
 
 let
+  # "Docked" means a wired link that can actually carry traffic, not one NM
+  # merely calls `connected`. NM's default wired profile has ipv4.may-fail
+  # and ipv6.may-fail both on, so either family alone satisfies activation.
+  # On 2026-11-22 17:10 the downstairs office port handed out IPv6 SLAAC
+  # addresses but no DHCPv4 lease and had no working uplink; NM still went
+  # `connected`, the dispatcher dropped wifi, and gti was offline until wifi
+  # was brought back by hand. An IPv4 default gateway is the cheap, local
+  # proof of a usable link: every network these hosts dock on is dual-stack,
+  # so a wired link without one is a broken port, not an IPv6-only LAN.
+  #
+  # Shared by the dispatcher and the reconcile unit so both undock routes
+  # and the dock route agree on what "docked" means. Expects $nmcli set.
+  wiredUp = ''
+    wired_up() {
+      for dev in $("$nmcli" -t -f DEVICE,TYPE,STATE device \
+          | ${pkgs.gnugrep}/bin/grep ':ethernet:connected$' \
+          | ${pkgs.coreutils}/bin/cut -d: -f1); do
+        # -g prints an empty line when there is no gateway.
+        [ -n "$("$nmcli" -g IP4.GATEWAY device show "$dev" 2>/dev/null)" ] && return 0
+      done
+      return 1
+    }
+  '';
+
   # Reconcile the wifi radio to the current wired-carrier state: enable it
-  # whenever no Ethernet link is connected. Runs on boot, on resume, and — via
+  # whenever no usable wired link is up (see wiredUp). Runs on boot, on resume, and — via
   # the udev rule below — whenever a wired interface is *removed*, which is the
   # undock path that stranded the radio for 18 minutes on 2026-08-07.
   #
@@ -25,10 +49,8 @@ let
     nmcli=${pkgs.networkmanager}/bin/nmcli
     rfkill=${pkgs.util-linux}/bin/rfkill
 
-    docked() {
-      "$nmcli" -t -f TYPE,STATE device \
-        | ${pkgs.gnugrep}/bin/grep -q '^ethernet:connected'
-    }
+    ${wiredUp}
+    docked() { wired_up; }
 
     # ':wifi$' deliberately excludes ':wifi-p2p' companion devices, matching
     # wifi_devs in the dispatcher script below.
@@ -138,7 +160,7 @@ let
       ${pkgs.coreutils}/bin/sleep 3
     done
 
-    # Wired carrier still up after ~15s: genuinely docked, leave the radio off.
+    # Usable wired link still up after ~15s: genuinely docked, leave the radio off.
     exit 0
   '';
 in
@@ -191,7 +213,7 @@ in
   # wired + wifi on one subnet makes source-address selection and the strict
   # rp_filter hardening (system.nix) drop asymmetric flows — seen 2026-07-09
   # as intermittent "dial tcp i/o timeout" to GitHub while pushes worked.
-  # Ethernet carrier disconnects wifi; unplugging reconnects it.
+  # A usable wired link (wiredUp) disconnects wifi; unplugging reconnects it.
   #
   # Disconnect the device — never `nmcli radio wifi off`. The radio-off form
   # writes an rfkill *soft block*, which systemd-rfkill persists to
@@ -216,10 +238,18 @@ in
 
         # ':wifi$' deliberately excludes ':wifi-p2p' companion devices.
         wifi_devs() { "$nmcli" -t -f DEVICE,TYPE device | grep ':wifi$' | cut -d: -f1; }
+        ${wiredUp}
 
         case "$2" in
-          up)
+          # `up` alone is not enough: with may-fail on, IPv6 can complete
+          # activation before the DHCPv4 lease lands, and the lease then
+          # arrives as a separate dhcp4-change. Act on whichever event first
+          # shows a usable wired link; on a link that never gets one (a
+          # broken port), wifi is left alone. A renewal re-asserts "docked =
+          # wired", which the policy wants anyway.
+          up | dhcp4-change)
             [ "$type" = "ethernet" ] || exit 0
+            wired_up || exit 0
             for d in $(wifi_devs); do "$nmcli" -w 0 device disconnect "$d" || true; done
             ;;
           down)
@@ -232,8 +262,8 @@ in
             # so wifi's own down events are still filtered out normally.
             [ "$type" = "ethernet" ] || [ -z "$type" ] || exit 0
 
-            # Reconnect only when no other wired link remains connected
-            "$nmcli" -t -f TYPE,STATE device | grep -q "^ethernet:connected" && exit 0
+            # Reconnect only when no other usable wired link remains
+            wired_up && exit 0
 
             # Hand the reconnect to the reconcile unit rather than issuing it
             # here. It needs to retry (see re_arm_autoconnect), and a retry
