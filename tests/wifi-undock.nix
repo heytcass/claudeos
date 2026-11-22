@@ -159,6 +159,29 @@ in
         wifi_is("connected", 60)
         show("after longer dock")
 
+    with subtest("a dock with no IPv4 leaves wifi alone"):
+        # 2026-11-22: a port that handed out IPv6 but no DHCPv4 lease still
+        # took NM to `connected`, and the dispatcher dropped wifi for a link
+        # with no way out. Link-local IPv6 and no IPv4 reproduces "connected,
+        # no IPv4 gateway" deterministically under slirp.
+        prof = machine.succeed(
+            "nmcli -t -f NAME,DEVICE,TYPE connection show | grep ':802-3-ethernet$' | head -n1 | cut -d: -f1"
+        ).strip()
+        assert prof, "no wired profile found for the dock"
+        ipv6 = machine.succeed(f"nmcli -g ipv6.method connection show '{prof}'").strip()
+        machine.succeed(f"nmcli connection modify '{prof}' ipv4.method disabled ipv6.method link-local")
+        machine.send_monitor_command("set_link dock0 on")
+        dock_is("connected")
+        # The old dispatcher disconnected wifi within a second of `up`; give
+        # it, the reconcile unit and any late event well past that.
+        machine.sleep(20)
+        wifi_is("connected", 5)
+        show("docked with no IPv4")
+        machine.send_monitor_command("set_link dock0 off")
+        machine.wait_until_fails("nmcli -t -f DEVICE,STATE device | grep -qx '${dock}:connected'", timeout=30)
+        machine.succeed(f"nmcli connection modify '{prof}' ipv4.method auto ipv6.method {ipv6}")
+        wifi_is("connected", 60)
+
     with subtest("removing the dock NIC brings wifi back"):
         machine.send_monitor_command("set_link dock0 on")
         dock_is("connected")
