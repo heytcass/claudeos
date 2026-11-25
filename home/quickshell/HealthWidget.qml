@@ -34,7 +34,7 @@ Item {
         radius: 4
         color: Theme.warn
         SequentialAnimation on opacity {
-            running: root.visible
+            running: root.visible && !Away.away
             loops: Animation.Infinite
             NumberAnimation {
                 to: 0.35

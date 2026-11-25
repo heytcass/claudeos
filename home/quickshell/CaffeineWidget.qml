@@ -51,7 +51,7 @@ Item {
             opacity: 0
 
             SequentialAnimation {
-                running: root.visible && root.onFocusedScreen
+                running: root.visible && root.onFocusedScreen && !Away.away
                 loops: Animation.Infinite
                 // Steam-wisp choreography: these timings are a tuned scene,
                 // not motion vocabulary, so they stay literal (not Motion.*).
