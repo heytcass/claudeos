@@ -58,9 +58,9 @@ Rectangle {
     // per-frame work.
     readonly property bool onFocusedScreen: BarFocus.isFocused(QsWindow.window)
     // The border/halo breath runs under any face while the agent works …
-    readonly property bool agentAnimating: root.working && root.onFocusedScreen
+    readonly property bool agentAnimating: root.working && root.onFocusedScreen && !Away.away
     // … whereas the agent FACE's own motion only exists in that state.
-    readonly property bool agentFaceAnimating: root.state === "agent" && root.onFocusedScreen
+    readonly property bool agentFaceAnimating: root.state === "agent" && root.onFocusedScreen && !Away.away
 
     // Who may take the stage. Headless lanes always do (they have no window of
     // their own); an interactive session only once Sessions promotes it. Any

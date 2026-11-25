@@ -274,7 +274,7 @@ Item {
                     }
                 }
                 SequentialAnimation on opacity {
-                    running: sparkCanvas.visible && !root.operational
+                    running: sparkCanvas.visible && !root.operational && !Away.away
                     loops: Animation.Infinite
                     NumberAnimation {
                         to: 0.4

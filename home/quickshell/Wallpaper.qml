@@ -47,7 +47,9 @@ PanelWindow {
     mask: Region {}
     color: Theme.base00
 
-    readonly property bool alive: !UPower.onBattery
+    // Scenery moves only on AC (battery) and only while someone is at the
+    // seat: an unwatched animation is heat and fan noise (see Away.qml).
+    readonly property bool alive: !UPower.onBattery && !Away.away
 
     // --- lanes → travellers ---------------------------------------------------
     // Presence.live is replaced wholesale every poll, so binding a Repeater to
