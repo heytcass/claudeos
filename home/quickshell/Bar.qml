@@ -10,20 +10,12 @@
 import QtQuick
 import QtQuick.Layouts
 import Quickshell
-import Quickshell.Wayland
 
+// Idle inhibit no longer lives here: Caffeine.qml holds a logind idle lock
+// instead of a Wayland inhibitor on this window (see its header for why).
 PanelWindow {
     id: bar
 
-    // Wayland idle-inhibit: while Caffeine holds (SUPER+I manual, or agent
-    // activity), Hyprland's idle-notify stays quiet so hypridle never locks,
-    // blanks, or suspends. The protocol needs a window surface — hence here
-    // and not in the Caffeine singleton. One inhibitor per monitor's bar is
-    // fine: the compositor refcounts them.
-    IdleInhibitor {
-        window: bar
-        enabled: Caffeine.inhibited
-    }
     required property var modelData
     screen: modelData
 

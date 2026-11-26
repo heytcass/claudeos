@@ -1066,6 +1066,13 @@ in
         # on restores — and the exact sh-quoted strings below verified by
         # running them through `sh -c` against `hyprctl -j monitors`.
         after_sleep_cmd = "hyprctl dispatch 'hl.dsp.dpms({action=\"on\"})'";
+        # Wayland idle inhibitors are NOT honored directly: the Claude desktop
+        # app holds one for as long as Remote Control is connected (always),
+        # which kept gti unlocked with screens on for days (2026-11-25). The
+        # bar's Caffeine.qml bridges every other window's inhibitor (mpv, …)
+        # plus its own holds into a logind idle lock, which hypridle still
+        # honors, as it does D-Bus ScreenSaver inhibits (Chrome video).
+        ignore_wayland_inhibit = true;
       };
       listener = [
         {
