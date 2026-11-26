@@ -121,15 +121,30 @@ Singleton {
     // Coming back after being idle is the other boundary. Quickshell's native
     // IdleMonitor gives it in-process: isIdle flips true after `timeout` of no
     // seat input and false on the next input; the resume (→false) edge flushes.
-    // respectInhibitors, so a playing video (which holds an idle inhibitor)
-    // isn't counted as idle. `timeout` is in seconds; 300 aligns with the
-    // session lock (home/hyprland.nix hypridle listener).
+    // `timeout` is in seconds; 300 aligns with the session lock
+    // (home/hyprland.nix hypridle listener).
+    //
+    // It does NOT respect inhibitors: the Claude desktop app holds a Wayland
+    // idle inhibitor for as long as Remote Control is connected (always), so
+    // an inhibitor-respecting monitor never went idle and this boundary never
+    // fired (found 2026-11-25; see Caffeine.qml). The old point of respecting
+    // them, that watching a video without touching anything isn't "away", is
+    // kept by asking Caffeine's bridge instead, which already lists every
+    // window's inhibitor except Claude's: a stretch that began while an app
+    // held one doesn't count as an absence.
+    property bool _idleCounts: false
     IdleMonitor {
         enabled: true
         timeout: 300
-        respectInhibitors: true
-        onIsIdleChanged: if (!isIdle)
-            root.flushQuiet()
+        respectInhibitors: false
+        onIsIdleChanged: {
+            if (isIdle) {
+                root._idleCounts = Caffeine.appHolders.length === 0;
+            } else if (root._idleCounts) {
+                root._idleCounts = false;
+                root.flushQuiet();
+            }
+        }
     }
 
     // Resolve a notification to one destination: "toast" | "peek" | "quiet" |
