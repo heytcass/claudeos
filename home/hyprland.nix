@@ -631,6 +631,18 @@ in
         # `hyprctl eval 'hl.clear_crashed_lockscreen()'` — the command the
         # crashed-lockscreen screen tells you to run — finally works.
         misc.allow_session_lock_restore = true;
+
+        # Input wakes a blanked screen in the compositor itself, instead of
+        # trusting hypridle's DPMS listener to fire its on-resume. It doesn't
+        # always: when a logind idle inhibit starts (the bar's Caffeine lock
+        # while a Claude session is busy), hypridle re-arms its timers WITHOUT
+        # running on-resume for listeners that already idled, so the screens
+        # stay off and the next keypress resumes only the lock rule. Found
+        # 2026-11-27: DPMS off at 08:40, a 15 s busy session at 09:00, and a
+        # black screen on return that only a suspend/resume (after_sleep_cmd)
+        # cleared. Both default to false.
+        misc.key_press_enables_dpms = true;
+        misc.mouse_move_enables_dpms = true;
       };
 
       # Touchpad gestures (2026-08-08). Directions are axes or sides, and an
